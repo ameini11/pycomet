@@ -3,6 +3,7 @@ from . import data
 from . import net
 # from .initial_condition import IC
 from .model import Model
+from . import callbacks
 # from .postprocessing import saveplot
 # from .utils import apply
 

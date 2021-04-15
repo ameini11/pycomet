@@ -8,9 +8,9 @@ class Net(tf.keras.Model):
     ###########################################################################
     def __init__(self):
         super(Net, self).__init__()
-        self.training    = True     # Boolean value for training other layers parameters
-        self.dropout     = True     # Boolean value for training dropout layers parameters
-        self.data_id     = 0        # 0: train data, 1: test data
+        self.training   = True     # Boolean value for training other layers parameters
+        self.dropout    = True     # Boolean value for training dropout layers parameters
+        self.data_id    = 0        # 0: train data, 1: test data
 
         self.inp_trans  = None
         self.out_trans  = None
@@ -35,10 +35,6 @@ class Net(tf.keras.Model):
     def outputs(self):
         """Network outputs."""
         return self.y
-
-    @property
-    def targets(self):
-        """Targets of the mapping outputs."""
 
     # Functions
     ###########################################################################

@@ -41,13 +41,15 @@ class FNN(Net):
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 
+        self.name                = name
+
         ### Layers Initialization ---------------------------------------------
         self.lays = list()
         # Hidden Layers
         for i in range(len(self.layer_size)-2):
-            self.lays.append( self.hidden_block(i+1) )
+            self.lays.append( self.DenseBlock(i+1) )
         # Output Layer
-        self.lays.append( self.dense(self.layer_size[-1], name='Output') )
+        self.lays.append( self.dense(self.layer_size[-1], name=self.name+'_output') )
 
 
     # Calling
@@ -82,7 +84,7 @@ class FNN(Net):
 
     # Layers Definition
     ###########################################################################
-    def hidden_block(self, number):
+    def DenseBlock(self, number):
 
         act_fun = self.activation
         bias    = True
@@ -90,22 +92,22 @@ class FNN(Net):
             act_fun = None
             bias    = False
 
-        l = [ self.dense(self.layer_size[number], activation=act_fun, \
-                         use_bias=bias, name='Hid'+str(number)) ]
+        l = [ self.Dense(self.layer_size[number], activation=act_fun, \
+                         use_bias=bias, name=self.name+'_hid'+str(number)) ]
 
         if self.batch_norm is not None:
-            bn = lay.BatchNormalization(name='BNorm_Hid'+str(number))
+            bn = lay.BatchNormalization(name=self.name+'_normHid'+str(number))
             l.append(bn)
 
         if self.dropout_rate > 0:
             do = lay.Dropout(self.dropout_rate, noise_shape=None, \
-                             training=self.dropout, name='Drop_Hid'+str(number))
+                             training=self.dropout, name=self.name+'_dropHid'+str(number))
             l.append(do)
 
         return l
 
 
-    def dense(self, units, activation=None, use_bias=True, name=None):
+    def Dense(self, units, activation=None, use_bias=True, name=None):
         l = lay.Dense(
             units,
             activation=activation,

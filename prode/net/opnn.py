@@ -24,13 +24,11 @@ class OpNN(Net):
         kernel_initializer,
         regularization=None,
         use_bias=True,
-        stacked=False,
-        trainable_branch=True,
-        trainable_trunk=True,
         dropout_rate=0,
         batch_norm=None,
-        weight_norm=False):
-        super(DeepOpNN, self).__init__()
+        weight_norm=False,
+        name='opnn'):
+        super(OpNN, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
         self.G_dim = G_dim

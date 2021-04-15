@@ -2,7 +2,6 @@ import numpy as np
 from sklearn import preprocessing
 
 from .data import Data
-from .sampler import BatchSampler
 
 
 class OpDataSet(Data):
