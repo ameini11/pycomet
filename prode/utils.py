@@ -8,34 +8,6 @@ from functools       import wraps
 from multiprocessing import Pool
 
 
-def run_if_all_none(*attr):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            x = [getattr(self, a) for a in attr]
-            if all(i is None for i in x):
-                return func(self, *args, **kwargs)
-            return x if len(x) > 1 else x[0]
-
-        return wrapper
-
-    return decorator
-
-
-def run_if_any_none(*attr):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
-            x = [getattr(self, a) for a in attr]
-            if any(i is None for i in x):
-                return func(self, *args, **kwargs)
-            return x if len(x) > 1 else x[0]
-
-        return wrapper
-
-    return decorator
-
-
 def timing(f):
     """Decorator for measuring the execution time of methods."""
 

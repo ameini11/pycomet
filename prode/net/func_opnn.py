@@ -9,7 +9,7 @@ from . import layers
 from .net import FuncNet
 
 
-class FuncOpNN(object):
+class FuncOpNN(FuncNet):
     """Deep Operator neural networks with Keras Functional API"""
 
     # Initialization
@@ -97,11 +97,12 @@ class FuncOpNN(object):
                                 )
 
 
-        ### Model Initialization (Functional API) -----------------------------
+    ### Model Initialization (Functional API) -----------------------------
+    def get_uncompiled_model(self):
 
         # Input layer
-        self.x_u = tf.keras.Input(shape=(self.u_dim,))
-        self.x_y = tf.keras.Input(shape=(self.y_dim,))
+        self.x_u = tf.keras.Input(shape=(self.u_dim,), name="branch_input")
+        self.x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
 
         if self.inp_trans is not None:
             if isinstance(self.inp_trans, dict):
@@ -127,8 +128,10 @@ class FuncOpNN(object):
 
         self.y = self.G_uy
 
-        # Kera Model
-        self.network = tf.keras.Model(inputs=[self.x_u, self.x_y], outputs=[self.y])
+        # Keras Model
+        model = tf.keras.Model(inputs=[self.x_u, self.x_y], outputs=[self.y])
 
         if self.res_loss is not None:
-            self.network.add_loss(self.res_loss(self, self.x_u, self.x_y), name='res_loss')
+            model.add_loss(self.res_loss(self, self.x_u, self.x_y), name='res_loss')
+
+        return model

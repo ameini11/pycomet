@@ -1,10 +1,12 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.keras.callbacks as CB
 
-from . import losses as losses_module
-from . import metrics as metrics_module
+from . import callbacks as callbacks_module
+from . import losses    as losses_module
+from . import metrics   as metrics_module
+from .postprocessing import training_plots
 from .utils import timing
-from .callbacks import CallbackList
 
 
 class Model(object):
@@ -15,7 +17,7 @@ class Model(object):
         net: ``deepxde.maps.Map`` instance.
     """
 
-    def __init__(self, data, net, name):
+    def __init__(self, data, net, name, path="./", save_format='h5'):
         self.data = data
         self.net  = net
         self.name = name
@@ -25,6 +27,32 @@ class Model(object):
 
         self.loss_pts  = None
         self.loss_res  = None
+
+        # Define paths
+        self.train_dir = path+"/training"
+        self.ckpt_dir  = self.train_dir+"/ckpt"
+        self.TB_dir    = self.train_dir+"/logs"
+
+        self.post_dir  = path+"/postprocessing"
+        if not os.path.exists(self.post_dir): os.makedirs(self.post_dir)
+
+        # Define saving format
+        self.save_format = save_format
+
+
+    @timing
+    def restore_model(self, from_ckpt=True):
+        # Either restore the latest model, or create a fresh one
+        # if there is no checkpoint available.
+        if from_ckpt:
+            checkpoints = [self.ckpt_dir + "/" + name for name in os.listdir(self.ckpt_dir)]
+            if checkpoints:
+                latest_checkpoint = max(checkpoints, key=os.path.getctime)
+                print("Restoring from checkpoint", latest_checkpoint)
+                return tf.keras.models.load_model(latest_checkpoint)
+        else:
+            print("Restoring from file", self.name+'.'+self.save_format)
+            return tf.keras.models.load_model(self.name+'.'+self.save_format)
 
 
     @timing
@@ -57,6 +85,7 @@ class Model(object):
         # if data.num_coll > 0
         #     self.net.add_loss(data.residual_loss(self.loss_res, self.net.inputs))
         self.net.summary()
+        self.net.utils.plot_model(model, to_file=self.train_dir+"/"+self.name+".png", show_shapes=True)
 
 
     @timing
@@ -64,37 +93,39 @@ class Model(object):
         self,
         epochs=1,
         batch_size=None,
-        callbacks=None,
+        callbacks=[],
         validation_split=0.2,
         validation_data=None
     ):
-        ESCallBack    = callbacks.EarlyStopping(monitor='val_loss', min_delta=InputData.ImpThold, patience=InputData.NPatience, restore_best_weights=True, mode='auto', baseline=None, verbose=1)
-        MCFile        = InputData.PathToParamsFld + "/ModelCheckpoint/cp-{epoch:04d}.ckpt"
-        MCCallBack    = callbacks.ModelCheckpoint(filepath=MCFile, monitor='val_loss', save_best_only=True, save_weights_only=True, verbose=0, mode='auto', save_freq='epoch', options=None)
-        #LRCallBack    = callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.7, patience=500, mode='auto', min_delta=1.e-6, cooldown=0, min_lr=1.e-8, verbose=1)
-        TBCallBack    = callbacks.TensorBoard(log_dir=InputData.TBCheckpointFldr, histogram_freq=100, batch_size=InputData.MiniBatchSize, write_graph=True, write_grads=True, write_images=True, embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None, embeddings_data=None)
-        #CallBacksList = [MCCallBack, ESCallBack, TBCallBack]
-        callbacks_list = [ESCallBack, TBCallBack, MCCallBack]
-        self.callbacks = CallbackList(callbacks=callbacks)
 
-        history = self.net.fit(
-                    x=self.data.train_x,
-                    y=self.data.train_y, 
-                    batch_size=batch_size,
-                    epochs=epochs,
-                    callbacks=self.callbacks,
-                    validation_split=validation_split,
-                    validation_data=validation_data
-                    )
+        MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", monitor='val_loss', save_best_only=True, save_weights_only=True)
+        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=100, write_graph=True, write_grads=True, write_images=True)
+        LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
+        self.callbacks = callbacks + [MC, TB, LR]
 
-        return history
+        self.history = self.net.fit(
+                        x=self.data.train_x,
+                        y=self.data.train_y, 
+                        batch_size=batch_size,
+                        epochs=epochs,
+                        callbacks=self.callbacks,
+                        validation_split=validation_split,
+                        validation_data=validation_data
+                        )
 
 
     @timing
-    def save(
-        self,
-        filepath
-    ):
+    def save(self):
+        
+        self.net.save("./"+self.name, save_format=self.save_format)
 
-        self.net.save(filepath, save_format='h5')
-        self.net.save(filepath, save_format='tf')
+
+    @timing
+    def visualize_training(self):
+
+        path = self.post_dir+'/training_plots'
+        if not os.path.exists(path): os.makedirs(path)
+
+        training_plots.plot_loss_history(self.history, path)
+        training_plots.plot_model_accuracy(self.history, path)
+        training_plots.plot_lr(path)

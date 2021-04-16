@@ -3,14 +3,27 @@ import tensorflow as tf
 import tensorflow.keras.losses as lss
 
 
-def mean_squared_error(y_true, y_pred):
+def MeanSquaredError(y_true, y_pred):
     # Warning:
     # - Do not use ``tf.losses.mean_squared_error``, which casts `y_true` and `y_pred` to ``float32``.
     # - Do not use ``tf.keras.losses.MSE``, which computes the mean value over the last dimension.
     # - Do not use ``tf.keras.losses.MeanSquaredError()``, which casts loss to ``float32``
     #     when calling ``compute_weighted_loss()`` calling ``scale_losses_by_sample_weight()``,
     #     although it finally casts loss back to the original type.
-    return tf.reduce_mean(tf.math.square(y_true - y_pred))
+    err = tf.square(y_true - y_pred)
+    return tf.reduce_sum(tf.reduce_mean(err, axis=0))
+
+
+def MeanAbsolutePercentageError(y_true, y_pred):
+    # Warning: see MeanAbsoluteError above.
+    err = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
+    return tf.reduce_sum(tf.reduce_mean(err, axis=0))
+
+
+def MSLE(y_true, y_pred):
+    # Warning: see MeanAbsoluteError above.
+    err = tf.square(tf.log(y_true + 1.) - tf.log(y_pred + 1.))
+    return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
 
 def zero(*_):
@@ -22,17 +35,14 @@ def get(identifier):
         return list(map(get, identifier))
 
     loss_identifier = {
-        "mean absolute error":              lss.MeanAbsoluteError(),
-        "MAE":                              lss.MeanAbsoluteError(),
-        "mae":                              lss.MeanAbsoluteError(),
-        "mean squared error":               mean_squared_error,
-        "MSE":                              mean_squared_error,
-        "mse":                              mean_squared_error,
-        "mean absolute percentage error":   lss.MeanAbsolutePercentageError(),
-        "MAPE":                             lss.MeanAbsolutePercentageError(),
-        "mape":                             lss.MeanAbsolutePercentageError(),
-        "softmax cross entropy":            lss.CategoricalCrossentropy(),
-        "zero":                             zero,
+        "mae":  lss.MeanAbsoluteError(),
+        "mape": lss.MeanAbsolutePercentageError(),
+        "MAPE": MeanAbsolutePercentageError,
+        "mse":  lss.MeanSquaredError(),
+        "MSE":  MeanSquaredError,
+        "msle": lss.MSLE(),
+        "MSLE": MSLE,
+        "zero": zero,
     }
 
     if isinstance(identifier, str):

@@ -5,6 +5,7 @@ import numpy as np
 
 from .utils import save_animation
 
+import tensorflow                           as tf
 import tensorflow.keras.backend             as K
 import tensorflow.keras.callbacks.Callback  as CB
 
@@ -13,13 +14,19 @@ import tensorflow.keras.callbacks.Callback  as CB
 class LearningRateTracker(CB):
     """Learning rate tracker."""
 
-    def __init__(self, filepath=None):
+    def __init__(self, filepath=None, log_dir=None, stdout=True):
         super(LearningRateTracker, self).__init__()
 
         self.file = None if filepath is None \
                     else open(filepath+'/lr_tracker.csv', "w", buffering=1)
-
         if self.file is not None: self.file.write("#epoch,lr\n")
+
+        self.stdout = stdout
+
+        if log_dir is not None:
+            logs = log_dir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+            file_writer = tf.summary.create_file_writer(logs + "/metrics")
+            file_writer.set_as_default()
 
     def on_epoch_begin(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, "lr"):
@@ -28,7 +35,10 @@ class LearningRateTracker(CB):
         if self.file is not None:
             self.file.write('%d,%.6e\n' % (epoch, lr))
             self.file.flush()
-        print("\nEpoch %05d: Learning rate value = %.4e" % (epoch, lr))
+        if self.stdout:
+            print("\nEpoch %05d: Learning rate value = %.4e" % (epoch, lr))
+        if log_dir is not None:
+            tf.summary.scalar('Learning rate', data=lr, step=epoch)
 
     def on_train_end(self, logs=None):
         if self.file is not None:

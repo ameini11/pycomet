@@ -1,55 +1,22 @@
 import numpy as np
-
+import tensorflow.keras.metrics as met
 from . import config
-
-
-def accuracy(y_true, y_pred):
-    return np.mean(np.equal(np.argmax(y_pred, axis=-1), np.argmax(y_true, axis=-1)))
-
-
-def l2_relative_error(y_true, y_pred):
-    return np.linalg.norm(y_true - y_pred) / np.linalg.norm(y_true)
-
-
-def nanl2_relative_error(y_true, y_pred):
-    """Return the L2 relative error treating Not a Numbers (NaNs) as zero.
-    """
-    err = y_true - y_pred
-    err = np.nan_to_num(err)
-    y_true = np.nan_to_num(y_true)
-    return np.linalg.norm(err) / np.linalg.norm(y_true)
-
-
-def _absolute_percentage_error(y_true, y_pred):
-    return 100 * np.abs(
-        (y_true - y_pred) / np.clip(np.abs(y_true), np.finfo(config.real(np)).eps, None)
-    )
-
-
-def mean_absolute_percentage_error(y_true, y_pred):
-    return np.mean(_absolute_percentage_error(y_true, y_pred))
-
-
-def max_absolute_percentage_error(y_true, y_pred):
-    return np.amax(_absolute_percentage_error(y_true, y_pred))
-
-
-def absolute_percentage_error_std(y_true, y_pred):
-    return np.std(_absolute_percentage_error(y_true, y_pred))
 
 
 def get(identifier):
     metric_identifier = {
-        "accuracy": accuracy,
-        "l2 relative error": l2_relative_error,
-        "nanl2 relative error": nanl2_relative_error,
-        "MAPE": mean_absolute_percentage_error,
-        "max APE": max_absolute_percentage_error,
-        "APE SD": absolute_percentage_error_std,
+        "accuracy": met.Accuracy,
+        "mean":     met.Mean,
+        "mae":      met.MeanAbsoluteError,
+        "mape":     met.MeanAbsolutePercentageError,
+        "mre":      met.MeanRelativeError,
+        "mse":      met.MeanSquaredError,
+        "msle":     met.MeanSquaredLogarithmicError,
+        "rmse":     met.RootMeanSquaredError
     }
 
     if isinstance(identifier, str):
-        return metric_identifier[identifier]
+        return metric_identifier[identifier.lower()]
     elif callable(identifier):
         return identifier
     else:
