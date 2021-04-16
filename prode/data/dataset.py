@@ -14,24 +14,27 @@ class DataSet(Data):
 
     def __init__(
         self,
-        X_train=None,
+        x_train=None,
         y_train=None,
-        X_test=None,
+        x_valid=None,
+        y_valid=None,
+        x_test=None,
         y_test=None,
         fname_train=None,
+        fname_valid=None,
         fname_test=None,
         col_x=None,
         col_y=None,
-        standardize=False,
+        standardize=False
     ):
-        if X_train is not None:
-            self.train_x, self.train_y = X_train, y_train
-            self.test_x,  self.test_y  = X_test,  y_test
+        if x_train is not None:
+            self.train_x, self.train_y = x_train, y_train
+            self.valid_x, self.valid_y = x_valid, y_valid
+            self.test_x,  self.test_y  = x_test,  y_test
         elif fname_train is not None:
-            train_data = np.loadtxt(fname_train)
-            self.train_x, self.train_y = train_data[:, col_x], train_data[:, col_y]
-            test_data  = np.loadtxt(fname_test)
-            self.test_x,  self.test_y  = test_data[:, col_x],  test_data[:, col_y]
+            self.train_x, self.train_y = self.load_filedata(fname_train, col_x, col_y)
+            self.valid_x, self.valid_y = self.load_filedata(fname_valid, col_x, col_y)
+            self.test_x,  self.test_y  = self.load_filedata(fname_test,  col_x, col_y)
         else:
             raise ValueError("No training data.")
 
@@ -39,23 +42,31 @@ class DataSet(Data):
         if standardize:
             self._standardize()
 
-    def losses(self, targets, loss, net):
-        return [loss(targets, net.outputs)]
+        self.train_dataset = tf.data.Dataset.from_tensor_slices((self.train_x, self.train_y))
+        self.valid_dataset, self.test_dataset = None, None
+        if self.valid_x is not None:
+            self.valid_dataset = tf.data.Dataset.from_tensor_slices((self.valid_x, self.valid_y))
+        if self.test_x is not None:
+            self.test_dataset = tf.data.Dataset.from_tensor_slices((self.test_x, self.test_y))
 
-    def test(self):
-        return self.test_x, self.test_y
+    def load_filedata(self, filename, col_x, col_y):
+        if filename is None:
+            return None, None
+        else:
+            data = np.loadtxt(filename)
+            return data[:, col_x], data[:, col_y]
 
     def transform_inputs(self, x):
         if self.scaler_x is None:
             return x
-        return self.scaler_x.transform(x)
+        return list(map(lambda scaler, xi: scaler.transform(xi), self.scaler_x, x))
 
     def _standardize(self):
-        def standardize_one(X1, X2):
+        def standardize_one(x, *args):
             scaler = preprocessing.StandardScaler(with_mean=True, with_std=True)
-            X1 = scaler.fit_transform(X1)
-            X2 = scaler.transform(X2)
-            return scaler, X1, X2
+            x = scaler.fit_transform(x)
+            var = [ scaler.transform(arg) if arg is not None else None for arg in args ]
+            return scaler, x, *var
 
-        self.scaler_x, self.train_x, self.test_x = \
-                    standardize_one(self.train_x, self.test_x)
+        self.scaler_x, self.train_x, self.valid_x, self.test_x = \
+                    standardize_one(self.train_x, self.valid_x, self.test_x)

@@ -1,13 +1,6 @@
 import tensorflow as tf
+import tensorflow.keras.activations as act
 from .. import config
-
-
-def linear(x):
-    return x
-
-
-def swish(x):
-    return x * tf.math.sigmoid(x)
 
 
 def layer_wise_locally_adaptive(activation, n=1):
@@ -27,7 +20,6 @@ def layer_wise_locally_adaptive(activation, n=1):
     a = tf.Variable(1. / n, trainable=True, name='act_scal', dtype=config.real(tf))
     return lambda x: activation(n * a * x)
 
-
 def get(identifier):
     if identifier is None:
         return linear
@@ -38,17 +30,23 @@ def get(identifier):
             return layer_wise_locally_adaptive(get(identifier[1]), n=n)
         return {
             "abs": 		tf.math.abs,
-            "elu": 		tf.nn.elu,
-            "exp": 		tf.math.exp,
-            "linear": 	linear,
+            "cos":      tf.math.cos,
+            "elu": 		act.elu,
+            "exp":      act.exponential,
+            "gelu":     act.gelu,
+            "hard_sig": act.hard_sigmoid,
+            "linear": 	act.linear,
             "log": 		tf.math.log,
-            "relu": 	tf.nn.relu,
-            "selu": 	tf.nn.selu,
-            "sigmoid": 	tf.nn.sigmoid,
+            "relu": 	act.relu,
+            "selu": 	act.selu,
+            "sigmoid": 	act.sigmoid,
             "sin": 		tf.math.sin,
+            "softmax":  act.softmax,
+            "softplus": act.softplus,
+            "softsign": act.softsign,
             "square": 	tf.math.square,
-            "swish": 	swish,
-            "tanh": 	tf.nn.tanh,
+            "swish": 	act.swish,
+            "tanh": 	act.tanh,
         }[identifier]
     elif callable(identifier):
         return identifier

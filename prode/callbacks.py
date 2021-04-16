@@ -3,8 +3,7 @@ import time
 
 import numpy as np
 
-from . import gradients as grad
-from .utils import list_to_str, save_animation
+from .utils import save_animation
 
 import tensorflow.keras.backend             as K
 import tensorflow.keras.callbacks.Callback  as CB
@@ -148,87 +147,87 @@ class VariableValue(CB):
         return self.values
 
 
-class MovieDumper(CB):
-    """Dump a movie to show the training progress of the function along a line.
+# class MovieDumper(CB):
+#     """Dump a movie to show the training progress of the function along a line.
 
-    Args:
-        spectrum: If True, dump the spectrum of the Fourier transform.
-    """
+#     Args:
+#         spectrum: If True, dump the spectrum of the Fourier transform.
+#     """
 
-    def __init__(
-        self,
-        filename,
-        x1,
-        x2,
-        num_points=100,
-        period=1,
-        component=0,
-        save_spectrum=False,
-        y_reference=None,
-    ):
-        super(MovieDumper, self).__init__()
-        self.filename = filename
-        x1 = np.array(x1)
-        x2 = np.array(x2)
-        self.x = x1 + (x2 - x1) / (num_points - 1) * np.arange(num_points)[:, None]
-        self.period = period
-        self.component = component
-        self.save_spectrum = save_spectrum
-        self.y_reference = y_reference
+#     def __init__(
+#         self,
+#         filename,
+#         x1,
+#         x2,
+#         num_points=100,
+#         period=1,
+#         component=0,
+#         save_spectrum=False,
+#         y_reference=None,
+#     ):
+#         super(MovieDumper, self).__init__()
+#         self.filename = filename
+#         x1 = np.array(x1)
+#         x2 = np.array(x2)
+#         self.x = x1 + (x2 - x1) / (num_points - 1) * np.arange(num_points)[:, None]
+#         self.period = period
+#         self.component = component
+#         self.save_spectrum = save_spectrum
+#         self.y_reference = y_reference
 
-        self.y = []
-        self.spectrum = []
-        self.epochs_since_last_save = 0
+#         self.y = []
+#         self.spectrum = []
+#         self.epochs_since_last_save = 0
 
-    def init(self):
-        self.tf_op = self.model.net.outputs[:, self.component]
-        self.feed_dict = self.model.net.feed_dict(False, False, 2, self.x)
+#     def init(self):
+#         self.tf_op = self.model.net.outputs[:, self.component]
+#         self.feed_dict = self.model.net.feed_dict(False, False, 2, self.x)
 
-    def on_train_begin(self):
-        self.y.append(self.model.sess.run(self.tf_op, feed_dict=self.feed_dict))
-        if self.save_spectrum:
-            A = np.fft.rfft(self.y[-1])
-            self.spectrum.append(np.abs(A))
+#     def on_train_begin(self):
+#         self.y.append(self.model.sess.run(self.tf_op, feed_dict=self.feed_dict))
+#         if self.save_spectrum:
+#             A = np.fft.rfft(self.y[-1])
+#             self.spectrum.append(np.abs(A))
 
-    def on_epoch_end(self):
-        self.epochs_since_last_save += 1
-        if self.epochs_since_last_save >= self.period:
-            self.epochs_since_last_save = 0
-            self.on_train_begin()
+#     def on_epoch_end(self):
+#         self.epochs_since_last_save += 1
+#         if self.epochs_since_last_save >= self.period:
+#             self.epochs_since_last_save = 0
+#             self.on_train_begin()
 
-    def on_train_end(self):
-        fname_x = self.filename + "_x.txt"
-        fname_y = self.filename + "_y.txt"
-        fname_movie = self.filename + "_y.gif"
-        print(
-            "\nSaving the movie of function to {}, {}, {}...".format(
-                fname_x, fname_y, fname_movie
-            )
-        )
-        np.savetxt(fname_x, self.x)
-        np.savetxt(fname_y, np.array(self.y))
-        if self.y_reference is None:
-            save_animation(fname_movie, np.ravel(self.x), self.y)
-        else:
-            y_reference = np.ravel(self.y_reference(self.x))
-            save_animation(
-                fname_movie, np.ravel(self.x), self.y, y_reference=y_reference
-            )
+#     def on_train_end(self):
+#         fname_x = self.filename + "_x.txt"
+#         fname_y = self.filename + "_y.txt"
+#         fname_movie = self.filename + "_y.gif"
+#         print(
+#             "\nSaving the movie of function to {}, {}, {}...".format(
+#                 fname_x, fname_y, fname_movie
+#             )
+#         )
+#         np.savetxt(fname_x, self.x)
+#         np.savetxt(fname_y, np.array(self.y))
+#         if self.y_reference is None:
+#             save_animation(fname_movie, np.ravel(self.x), self.y)
+#         else:
+#             y_reference = np.ravel(self.y_reference(self.x))
+#             save_animation(
+#                 fname_movie, np.ravel(self.x), self.y, y_reference=y_reference
+#             )
 
-        if self.save_spectrum:
-            fname_spec = self.filename + "_spectrum.txt"
-            fname_movie = self.filename + "_spectrum.gif"
-            print(
-                "Saving the movie of spectrum to {}, {}...".format(
-                    fname_spec, fname_movie
-                )
-            )
-            np.savetxt(fname_spec, np.array(self.spectrum))
-            xdata = np.arange(len(self.spectrum[0]))
-            if self.y_reference is None:
-                save_animation(fname_movie, xdata, self.spectrum, logy=True)
-            else:
-                A = np.fft.rfft(y_reference)
-                save_animation(
-                    fname_movie, xdata, self.spectrum, logy=True, y_reference=np.abs(A)
-                )
+#         if self.save_spectrum:
+#             fname_spec = self.filename + "_spectrum.txt"
+#             fname_movie = self.filename + "_spectrum.gif"
+#             print(
+#                 "Saving the movie of spectrum to {}, {}...".format(
+#                     fname_spec, fname_movie
+#                 )
+#             )
+#             np.savetxt(fname_spec, np.array(self.spectrum))
+#             xdata = np.arange(len(self.spectrum[0]))
+#             if self.y_reference is None:
+#                 save_animation(fname_movie, xdata, self.spectrum, logy=True)
+#             else:
+#                 A = np.fft.rfft(y_reference)
+#                 save_animation(
+#                     fname_movie, xdata, self.spectrum, logy=True, y_reference=np.abs(A)
+#                 )

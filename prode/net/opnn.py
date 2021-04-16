@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_addons as tfa
 import tensorflow.keras.layers as lay
 
 from . import activations
@@ -23,7 +22,7 @@ class OpNN(Net):
         activation,
         kernel_initializer,
         regularization=None,
-        use_bias=True,
+        use_end_scale=True,
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
@@ -54,7 +53,7 @@ class OpNN(Net):
 
         self.batch_norm  = batch_norm
         self.weight_norm = weight_norm
-        self.use_bias    = use_bias
+        self.use_end_scale      = use_end_scale
 
         ### Blocks Initialization ---------------------------------------------
         self.branches   = [ FNN(
@@ -77,8 +76,8 @@ class OpNN(Net):
                                 weight_norm=self.weight_norm,
                                 name='Trunk')
 
-        if self.use_bias:
-            self.b_final = lay.Dense(
+        if self.use_end_scale:
+            self.end_scale = lay.Dense(
                                     units=self.G_dim,
                                     activation='linear',
                                     use_bias=True,
@@ -95,7 +94,10 @@ class OpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x_u, x_y):
+    def call(self, x):
+
+        self.x = x
+        self.x_u, self.x_y = tf.split(x, [x.shape[1]-1, 1], axis=1)
 
         # Input layer
         if self.inp_trans is not None:
@@ -114,7 +116,8 @@ class OpNN(Net):
 
         # Output layer
         self.G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]
-        self.G_uy = self.b_final(tf.concat(G_uy, 1))
+        if self.use_end_scale:
+            self.G_uy = self.end_scale(tf.concat(G_uy, 1))
 
         if self.out_trans is not None:
             self.G_uy = self.out_trans(self.G_uy)

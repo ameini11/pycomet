@@ -58,16 +58,16 @@ class ODE(Data):
             self._standardize()
 
 
-        self,
-        ode=None,
-        ode_stability='stable',
-        ICs,
-        domain,
-        num_domain=0,
-        train_distr="sobol",
-        num_anchors=None,
-        num_test=None,
-        aux_var_fn=None,
+        # self,
+        # ode=None,
+        # ode_stability='stable',
+        # ICs,
+        # domain,
+        # num_domain=0,
+        # train_distr="sobol",
+        # num_anchors=None,
+        # num_test=None,
+        # aux_var_fn=None,
     
         self.ode         = ode
         self.stability   = ode_stability

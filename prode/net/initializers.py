@@ -86,19 +86,19 @@ class VarianceScalingStacked(object):
 def get(identifier):
     identifiers = {
         "zeros":            init.Zeros(),
-        "He normal":        init.HeNormal(),
-        "He uniform":       init.HeUniform(),
-        "LeCun normal":     init.LecunNormal(),
-        "LeCun uniform":    init.LecunUniform(),
-        "Glorot normal":    init.GlorotNormal(),
-        "Glorot uniform":   init.GlorotUniform(),
+        "HeNormal":         init.HeNormal(),
+        "HeUniform":        init.HeUniform(),
+        "LeCunNormal":      init.LecunNormal(),
+        "LeCunUniform":     init.LecunUniform(),
+        "GlorotNormal":     init.GlorotNormal(),
+        "GlorotUniform":    init.GlorotUniform(),
         "Orthogonal":       init.Orthogonal(),
     }
     identifiers_stacked = {
-        "He normal":        VarianceScalingStacked(scale=2.0),
-        "He uniform":       VarianceScalingStacked(scale=2.0, distribution="uniform"),
-        "LeCun normal":     VarianceScalingStacked(),
-        "LeCun uniform":    VarianceScalingStacked(distribution="uniform"),
+        "HeNormal":         VarianceScalingStacked(scale=2.0),
+        "HeUniform":        VarianceScalingStacked(scale=2.0, distribution="uniform"),
+        "LeCunNormal":      VarianceScalingStacked(),
+        "LeCunUniform":     VarianceScalingStacked(distribution="uniform"),
     }
 
     if isinstance(identifier, str):

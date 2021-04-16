@@ -65,7 +65,8 @@ class Model(object):
         epochs=1,
         batch_size=None,
         callbacks=None,
-        validation_split=0.2
+        validation_split=0.2,
+        validation_data=None
     ):
         ESCallBack    = callbacks.EarlyStopping(monitor='val_loss', min_delta=InputData.ImpThold, patience=InputData.NPatience, restore_best_weights=True, mode='auto', baseline=None, verbose=1)
         MCFile        = InputData.PathToParamsFld + "/ModelCheckpoint/cp-{epoch:04d}.ckpt"
@@ -82,7 +83,8 @@ class Model(object):
                     batch_size=batch_size,
                     epochs=epochs,
                     callbacks=self.callbacks,
-                    validation_split=validation_split
+                    validation_split=validation_split,
+                    validation_data=validation_data
                     )
 
         return history
