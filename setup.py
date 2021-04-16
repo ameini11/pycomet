@@ -10,7 +10,7 @@ with open("requirements.txt", "r") as f:
     install_requires = [x.strip() for x in f.readlines()]
 
 setup(
-    name="PrODE",
+    name="prode",
     version="0.0.1",
     description="Machine-Learning-Based Approximators for Ordinary Differential Equations (ODEs)",
     long_description=long_description,

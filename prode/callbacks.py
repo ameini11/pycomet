@@ -3,15 +3,15 @@ import time
 
 import numpy as np
 
-from .utils import save_animation
+# from .utils import save_animation
 
-import tensorflow                           as tf
-import tensorflow.keras.backend             as K
-import tensorflow.keras.callbacks.Callback  as CB
+import tensorflow                   as tf
+import tensorflow.keras.backend     as K
+import tensorflow.keras.callbacks   as CB
 
 
 
-class LearningRateTracker(CB):
+class LearningRateTracker(CB.Callback):
     """Learning rate tracker."""
 
     def __init__(self, filepath=None, log_dir=None, stdout=True):
@@ -45,7 +45,7 @@ class LearningRateTracker(CB):
             self.file.close()
 
 
-class LRPiecewiseConstantDecay(CB):
+class LRPiecewiseConstantDecay(CB.Callback):
     """Learning rate scheduler which sets the learning rate according to schedule.
 
   Arguments:
@@ -75,7 +75,7 @@ class LRPiecewiseConstantDecay(CB):
         K.set_value(self.model.optimizer.lr, self.values[self.idx])
 
 
-class Timer(CB):
+class Timer(CB.Callback):
     """Stop training when training time reaches the threshold.
     This Timer starts after the first call of `on_train_begin`.
 
@@ -101,7 +101,7 @@ class Timer(CB):
                     (time.time() - self.t_start) / 60, epoch))
 
 
-class VariableValue(CB):
+class VariableValue(CB.Callback):
     """Get the variable values.
 
     Args:
@@ -124,7 +124,7 @@ class VariableValue(CB):
 
         self.file = sys.stdout if filepath is None \
                     else open(filepath+'/var_values.csv', "w", buffering=1)
-        if self.file is not sys.stdout: self.file.write("#epoch",*self.var_list, sep=',',end='\n')
+        if self.file is not sys.stdout: self.file.write("#epoch",*self.var_list, sep=',', end='\n')
 
         self.values = None
         self.epochs_since_last = 0
@@ -135,7 +135,7 @@ class VariableValue(CB):
             self.file.write("0",*self.values, sep=',',end='\n')
             self.file.flush()
         print("\nVariables values at epoch %05d:\n" % 0)
-        for i, name in enumerate(self.var_list): print("  -", name, '=', self.values[i], end='\n')
+        for i, name in enumerate(self.var_list): print("  -", name, '=', self.values[i])
 
     def on_train_end(self, logs=None):
         if self.file is not sys.stdout:
@@ -149,15 +149,15 @@ class VariableValue(CB):
             if self.file is not sys.stdout:
                 self.file.write(epoch,*self.values, sep=',',end='\n')
                 self.file.flush()
-            print("\nVariables values at epoch %05d:\n", % epoch)
-            for i, name in enumerate(self.var_list): print("  -", name, '=', self.values[i], end='\n')
+            print("\nVariables values at epoch %05d:\n" % epoch)
+            for i, name in enumerate(self.var_list): print("  -", name, '=', self.values[i])
 
     def get_value(self):
         """Return the variable values."""
         return self.values
 
 
-# class MovieDumper(CB):
+# class MovieDumper(CB.Callback):
 #     """Dump a movie to show the training progress of the function along a line.
 
 #     Args:

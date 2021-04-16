@@ -6,7 +6,7 @@ from . import initializers
 from . import regularizers
 from . import layers
 
-from .net import FuncNet
+from .func_net import FuncNet
 
 
 class FuncOpNN(FuncNet):
@@ -16,9 +16,9 @@ class FuncOpNN(FuncNet):
     ###########################################################################
     def __init__(
         self,
-        u_dim=1,
-        y_dim=1,
-        G_dim=1,
+        u_dim,
+        y_dim,
+        G_dim,
         layer_size_branch,
         layer_size_trunk,
         activation,
@@ -116,7 +116,7 @@ class FuncOpNN(FuncNet):
         self.G_u = [ self.branches[i](self.x_u) for i in range(self.G_dim) ]
 
         # Trunk
-        self.G_y = self.trunk(self.x_y) for i in range(self.G_dim)
+        self.G_y = self.trunk(self.x_y)
 
         # Output layer
         self.G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]

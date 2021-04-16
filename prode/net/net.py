@@ -1,4 +1,4 @@
-from tensorflow import tf
+import tensorflow as tf
 
 
 class Net(tf.keras.Model):

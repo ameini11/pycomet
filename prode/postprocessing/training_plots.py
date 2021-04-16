@@ -36,7 +36,7 @@ def plot_model_accuracy(history, path):
 def plot_lr(path):
     """Learning Rate plotting."""
 
-    data = pd.read_csv(path+'/lr_tracker.csv' HistoryFile, header=None, skiprows=0)
+    data = pd.read_csv(path+'/lr_tracker.csv', header=None, skiprows=0)
     data = data.apply(pd.to_numeric, errors='coerce')
     epoch, lr = [ np.expand_dims(np.array(TempData[i]), axis=1) for i in range(2) ]
 

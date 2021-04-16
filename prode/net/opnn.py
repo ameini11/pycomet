@@ -16,7 +16,7 @@ class OpNN(Net):
     ###########################################################################
     def __init__(
         self,
-        G_dim=1,
+        G_dim,
         layer_size_branch,
         layer_size_trunk,
         activation,
@@ -112,7 +112,7 @@ class OpNN(Net):
         self.G_u = [ self.branches[i](self.x_u) for i in range(self.G_dim) ]
 
         # Trunk
-        self.G_y = self.trunk(self.x_y) for i in range(self.G_dim)
+        self.G_y = self.trunk(self.x_y)
 
         # Output layer
         self.G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]

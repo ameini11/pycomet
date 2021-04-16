@@ -1,5 +1,4 @@
-from tensorflow import tf
-
+import tensorflow as tf
 
 class FuncNet(object):
     """Baseline neural networks with Keras Functional API"""
