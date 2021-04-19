@@ -6,7 +6,6 @@ class FuncNet(object):
     # Initialization
     ###########################################################################
     def __init__(self, name='func_net'):
-        super(FuncNet, self).__init__()
         self.training   = True     # Boolean value for training other layers parameters
         self.dropout    = True     # Boolean value for training dropout layers parameters
 
