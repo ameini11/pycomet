@@ -1,24 +1,15 @@
+import pandas as pd
 import numpy as np
-import time
-import os
 import re
-import json
-import shutil
-from scipy.integrate import ode
+
 from scipy.spatial import KDTree
 from pyDOE import lhs
-from sklearn.utils import shuffle
-import sys
-from numpy import double
-import pandas as pd 
-import random 
-
 
 from .const      import const
 from .ode_solver import ODESolver
 
 
-class data_generator(object):
+class DataGenerator(object):
 
     ###########################################################################
     ### Initialization
