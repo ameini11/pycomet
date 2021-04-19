@@ -11,14 +11,12 @@ class ODESolver(object):
     ###########################################################################
     def __init__(
             self,
-            t0,
-            t_end,
             mat_name,
             mat_mask):
 
         # Initial/Final time
-        self.t0     = t0
-        self.t_end  = t_end
+        self.t0     = 0.
+        self.t_end  = 1.
 
         # Integrator time step
         self.dt     = 1.e-14
@@ -43,7 +41,7 @@ class ODESolver(object):
         r.set_initial_value(rho_0, self.t0).set_f_params(params).set_jac_params(params)
 
         # Appending Data
-        t = np.array([[1.e-15]])
+        t = np.array([[self.t0]])
         y = np.expand_dims(rho_0,0)
 
         while r.successful() and r.t <= self.t_end:
