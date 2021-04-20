@@ -131,8 +131,6 @@ class DataGenerator(object):
             ic[i,:-1] = XO2 * Q_bins / sum(Q_bins) * 2.0 * const.mO * nd    # rho_O2
             ic[i, -1] = XO  * const.mO * nd                                 # rho_O
 
-        self.test_training_data = [ ic ]      # Keep them for underfitting testing
-
         # Generating Actual Data ----------------------------------------------
         # ---------------------------------------------------------------------
         def get_data(idx):
@@ -154,7 +152,8 @@ class DataGenerator(object):
 
             # Select meaningful values by sampling t vector
             tree  = KDTree(np.c_[t_i.ravel()])
-            y_del = np.abs((y_i[:-1,:] - y_i[1:,:]) / y_i[1:,:])[:,np.argmax(ic_i)]
+            y_del = np.abs((y_i[:-1,:] - y_i[1:,:]) / y_i[1:,:])
+            y_del = y_del[:,np.argmax(ic_i[:-1])]
             idx_min = np.where(y_del > self.rtol)[0][0]         # Dynamics start-point
             idx_max = np.where(y_del > self.rtol*1.e1)[0][-1]   # Dynamics end-point
             t_min, t_max= t_i[idx_min], t_i[idx_max]
@@ -168,20 +167,26 @@ class DataGenerator(object):
                 t_unif = np.power(10, t_vec + h)
                 d, idx = tree.query(t_unif, k=1)
 
-            idx_train, idx_test = self.stratified_sampling(idx, self.valid_pts)
+            idx_train, idx_valid = self.stratified_sampling(idx, self.valid_pts)
             idx_train = np.insert(idx_train, 0, 0)      # Add initial condition
-            assert self.train_pts == np.shape(idx_train)[0] + np.shape(idx_test)[0]
+            assert self.train_pts == np.shape(idx_train)[0] + np.shape(idx_valid)[0]
 
             # Extract data values
-            data_train_i, data_valid_i = get_data(idx_train), get_data(idx_test)
+            data_train_i, data_valid_i = get_data(idx_train), get_data(idx_valid)
             if i == 0:
                 data_train, data_valid = data_train_i, data_valid_i
             else:
                 data_train = list(map(lambda x,y: np.vstack((x,y)), data_train, data_train_i))
                 data_valid = list(map(lambda x,y: np.vstack((x,y)), data_valid, data_valid_i))
 
-            self.test_training_data.append((data_valid_i))  # Keep them for underfitting testing
-        assert len(self.test_training_data) == n + 1
+            # Keep data for underfitting test
+            if self.test_training:
+                t_tr = data_train_i[2]
+                if i == 0:
+                    self.test_training_data = [(ic_i, t_tr, (data_valid_i))]
+                else:
+                    self.test_training_data.append((ic_i, t_tr, (data_valid_i)))
+        if self.test_training: assert len(self.test_training_data) == n
 
         return data_train, data_valid
 
@@ -197,7 +202,7 @@ class DataGenerator(object):
         # Contructing Design Matrix -------------------------------------------
         X       = lhs(3, samples=n)
         X       = np.hstack((np.random.choice(self.Ttr, size=(n,1)), X))
-        X[:,1:] = np.hstack(list(map(lambda i,x: X[:,i]*(x[1] - x[0]) + x[0], \
+        X[:,1:] = np.hstack(list(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
                                      range(1,4), [self.T0, self.P0, self.XO2])))
 
         # Generating Initial Conditions ---------------------------------------
@@ -214,7 +219,7 @@ class DataGenerator(object):
 
             # Solving the ODE
             T_i = str(int(X[i,0]))
-            t_i, y_i = self.ODE_sol.solve(ic_i, self.ODE_mat[T_i])
+            t_i, y_i = self.ODE_sol.solve(ic[i,:], self.ODE_mat[T_i])
 
             # Extract data values
             if i == 0:
@@ -224,21 +229,30 @@ class DataGenerator(object):
 
         ### Test underfitting --------------------------------------------------
         if self.test_training:
-            assert self.train_cases > self.test_cases
-            ic_train, *data_valid = self.test_training_data
-            idx = np.random.choice(ic_train.shape[0], size=n, replace=False)
-            ic_train, Ttr_train = ic_train[idx, :], Ttr_train[idx, :]
+            assert self.train_cases > n
 
-            for i, ic_i in enumerate(ic_train):
+            idx = np.random.choice(self.train_cases, size=n, replace=False)
+            for i, idx_i in enumerate(idx):
+                ic_i, t_tr, data_valid_i   = self.test_training_data[idx_i]
+                T_val, u_val, t_val, y_val = data_valid_i
+
                 # Solving the ODE
-                T_i = str(int(Ttr_train[i,0]))
+                T_i = str(int(T_val[0,0]))
                 t_i, y_i = self.ODE_sol.solve(ic_i, self.ODE_mat[T_i])
 
                 # Extract data values
+                tree     = KDTree(np.c_[t_i.ravel()])
+                t_min    = np.min(t_tr[np.nonzero(t_tr)])
+                t_max    = np.max(t_tr[np.nonzero(t_tr)])
+                d, ii    = tree.query([[t_min],[t_max]], k=1)
+                t_i, y_i = t_i[ii[1]:ii[0],:], y_i[ii[1]:ii[0],:]
+                assert t_min != 0.
+
                 if i == 0:
-                    data_test_training = (T_i, (t_i, y_i))
+                    data_test_training = [(T_i, (t_i, y_i), (t_val, y_val))]
                 else:
-                    data_test_training = data_test_training + (T_i, (t_i, y_i))
+                    data_test_training.append((T_i, (t_i, y_i), (t_val, y_val)))
+
             data = {'Trained': data_test_training, 'Tested': data_test}
         else:
             data = data_test
