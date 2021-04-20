@@ -130,7 +130,7 @@ class InputData(object):
     lr=1.e-5
     loss="msle"
     metrics=["accuracy"]
-    decay=None#["exponential", 10000, 0.98]
+    decay=["exponential", 100, 0.98]
 
     min_delta = 1.e-4
     patience = 300

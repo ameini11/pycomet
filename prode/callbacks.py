@@ -30,14 +30,12 @@ class LearningRateTracker(CB.Callback):
             file_writer.set_as_default()
 
     def on_epoch_begin(self, epoch, logs=None):
-        if not hasattr(self.model.optimizer, "lr"):
-            raise ValueError('Optimizer must have a "lr" attribute.')
         lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
         if self.file is not None:
             self.file.write('%d,%.6e\n' % (epoch, lr))
             self.file.flush()
         if self.stdout:
-            print("\nEpoch %05d: Learning rate value = %.4e" % (epoch, lr))
+            print("Learning rate value = %.4e" % lr)
         if self.log_dir is not None:
             tf.summary.scalar('Learning rate', data=lr, step=epoch)
 
