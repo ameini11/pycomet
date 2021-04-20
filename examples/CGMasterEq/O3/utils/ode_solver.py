@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.integrate import ode
 
-from .const import const
+from const import const
 
 
 class ODESolver(object):
@@ -19,7 +19,7 @@ class ODESolver(object):
         self.t_end  = 1.
 
         # Integrator time step
-        self.dt     = 1.e-14
+        self.dt0    = 1.e-14
         self.dt_str = 1.015
         self.dt_max = 1.e-4
 
@@ -33,24 +33,6 @@ class ODESolver(object):
     ###########################################################################
     def solve(self, rho_0, params):
         '''Solving the ODE.'''
-
-        if isinstance(params, dict):
-            params = tuple([params[k] for k in params])
-
-        r = ode(f, jac).set_integrator('vode', method='bdf', with_jacobian=True, atol=1.e-12)
-        r.set_initial_value(rho_0, self.t0).set_f_params(params).set_jac_params(params)
-
-        # Appending Data
-        t = np.array([[self.t0]])
-        y = np.expand_dims(rho_0,0)
-
-        while r.successful() and r.t <= self.t_end:
-            r.integrate(r.t+self.dt)
-            t  = np.vstack((t, np.expand_dims(r.t,0)))
-            y  = np.vstack((y, np.expand_dims(r.y,0)))
-            self.dt = min(self.dt*self.dt_str, self.dt_max)
-
-        return t, y
 
         # ---------------------------------------------------------------------
         def f(t, y, arg):
@@ -76,6 +58,24 @@ class ODESolver(object):
                         + 3*np.squeeze(arg[2])*np.power(np.matmul(arg[3], y), 2)
             return J
         # ---------------------------------------------------------------------
+
+        if isinstance(params, dict):
+            params = tuple([params[k] for k in params])
+
+        r = ode(f, jac).set_integrator('vode', method='bdf', with_jacobian=True, atol=1.e-12)
+        r.set_initial_value(rho_0, self.t0).set_f_params(params).set_jac_params(params)
+
+        # Appending Data
+        t = np.array([[self.t0]])
+        y = np.expand_dims(rho_0,0)
+
+        dt = self.dt0
+        while r.successful() and r.t <= self.t_end:
+            r.integrate(r.t+dt)
+            t  = np.vstack((t, np.expand_dims(r.t,0)))
+            y  = np.vstack((y, np.expand_dims(r.y,0)))
+            dt = min(dt*self.dt_str, self.dt_max)
+        return t, y
 
     def equilibrium(self, rho):
         '''ODE Final Equilibrium Condition.'''
