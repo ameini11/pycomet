@@ -25,9 +25,9 @@ class FNNBlock(tf.keras.layers.Layer):
         
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size          = layer_size
-        self.activation          = activations.get(activation)
-        self.kernel_initializer  = initializers.get(kernel_initializer)
-        self.regularizer         = regularizers.get(regularization)
+        self.activation          = activation
+        self.kernel_initializer  = kernel_initializer
+        self.regularizer         = regularization
         self.dropout_rate        = dropout_rate
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
@@ -75,7 +75,7 @@ class FNNBlock(tf.keras.layers.Layer):
             act_fun = None
             bias    = False
 
-        l = [ self.dense(self.layer_size[number], activation=act_fun, \
+        l = [ self.Dense(self.layer_size[number], activation=act_fun, \
                          use_bias=bias, name=self.name+'_hid'+str(number)) ]
 
         if self.batch_norm is not None:

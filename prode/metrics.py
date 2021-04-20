@@ -5,14 +5,13 @@ from . import config
 
 def get(identifier):
     metric_identifier = {
-        "accuracy": met.Accuracy,
-        "mean":     met.Mean,
-        "mae":      met.MeanAbsoluteError,
-        "mape":     met.MeanAbsolutePercentageError,
-        "mre":      met.MeanRelativeError,
-        "mse":      met.MeanSquaredError,
-        "msle":     met.MeanSquaredLogarithmicError,
-        "rmse":     met.RootMeanSquaredError
+        "accuracy": met.Accuracy(),
+        "mean":     met.Mean(),
+        "mae":      met.MeanAbsoluteError(),
+        "mape":     met.MeanAbsolutePercentageError(),
+        "mse":      met.MeanSquaredError(),
+        "msle":     met.MeanSquaredLogarithmicError(),
+        "rmse":     met.RootMeanSquaredError()
     }
 
     if isinstance(identifier, str):

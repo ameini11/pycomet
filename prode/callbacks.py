@@ -2,7 +2,7 @@ import sys
 import time
 
 import numpy as np
-
+from datetime import datetime
 # from .utils import save_animation
 
 import tensorflow                   as tf
@@ -23,7 +23,8 @@ class LearningRateTracker(CB.Callback):
 
         self.stdout = stdout
 
-        if log_dir is not None:
+        self.log_dir = log_dir
+        if self.log_dir is not None:
             logs = log_dir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
             file_writer = tf.summary.create_file_writer(logs + "/metrics")
             file_writer.set_as_default()
@@ -31,13 +32,13 @@ class LearningRateTracker(CB.Callback):
     def on_epoch_begin(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, "lr"):
             raise ValueError('Optimizer must have a "lr" attribute.')
-        lr = float(K.get_value(self.model.optimizer.learning_rate))
+        lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
         if self.file is not None:
             self.file.write('%d,%.6e\n' % (epoch, lr))
             self.file.flush()
         if self.stdout:
             print("\nEpoch %05d: Learning rate value = %.4e" % (epoch, lr))
-        if log_dir is not None:
+        if self.log_dir is not None:
             tf.summary.scalar('Learning rate', data=lr, step=epoch)
 
     def on_train_end(self, logs=None):

@@ -35,12 +35,12 @@ def get(identifier):
         return list(map(get, identifier))
 
     loss_identifier = {
-        "mae":  lss.MeanAbsoluteError(),
-        "mape": lss.MeanAbsolutePercentageError(),
+        "mae":  lss.MeanAbsoluteError,
+        "mape": lss.MeanAbsolutePercentageError,
         "MAPE": MeanAbsolutePercentageError,
-        "mse":  lss.MeanSquaredError(),
+        "mse":  lss.MeanSquaredError,
         "MSE":  MeanSquaredError,
-        "msle": lss.MSLE(),
+        "msle": lss.MSLE,
         "MSLE": MSLE,
         "zero": zero,
     }

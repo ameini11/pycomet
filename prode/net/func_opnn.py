@@ -46,7 +46,7 @@ class FuncOpNN(FuncNet):
             self.act_branch = self.act_trunk = activations.get(activation)
 
         self.kernel_initializer = initializers.get(kernel_initializer)
-        self.regularizer        = regularizers.get(regularization)
+        self.regularizer        = regularizers.get(*regularization)
         self.dropout_rate       = dropout_rate
         if batch_norm not in [None, "before", "after"]:
             raise ValueError(
@@ -69,7 +69,7 @@ class FuncOpNN(FuncNet):
                                 dropout_rate=self.dropout_rate,
                                 batch_norm=self.batch_norm,
                                 weight_norm=self.weight_norm,
-                                name='Branch'+str(i)) for i in range(self.G_dim) ]
+                                name='Branch_'+str(i)) for i in range(self.G_dim) ]
 
         self.trunk      =   layers.FNNBlock(
                                 self.layer_size_trunk,
@@ -104,24 +104,26 @@ class FuncOpNN(FuncNet):
         self.x_u = tf.keras.Input(shape=(self.u_dim,), name="branch_input")
         self.x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
 
+        # Input Transformation
+        self.u, self.y = self.x_u, self.x_y
         if self.inp_trans is not None:
             if isinstance(self.inp_trans, dict):
-                self.x_u = self.inp_trans["branch"](self.x_u)
-                self.x_y = self.inp_trans["trunk"](self.x_y)
+                self.u = self.inp_trans["branch"](self.x_u)
+                self.y = self.inp_trans["trunk"](self.x_y)
             else:
-                self.x_u = self.inp_trans(self.x_u)
-                self.x_y = self.inp_trans(self.x_y)
-
+                self.u = self.inp_trans(self.x_u)
+                self.y = self.inp_trans(self.x_y)
+                
         # Branch/-es
-        self.G_u = [ self.branches[i](self.x_u) for i in range(self.G_dim) ]
+        self.G_u = [ self.branches[i](self.u) for i in range(self.G_dim) ]
 
         # Trunk
-        self.G_y = self.trunk(self.x_y)
+        self.G_y = self.trunk(self.y)
 
         # Output layer
-        self.G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]
+        self.G_uy = [ lay.Dot(axes=1)([self.G_u[i], self.G_y]) for i in range(self.G_dim) ]
         if self.use_end_scale:
-            self.G_uy = self.end_scale(tf.concat(G_uy, 1))
+            self.G_uy = self.end_scale(tf.concat(self.G_uy, 1))
 
         if self.out_trans is not None:
             self.G_uy = self.out_trans(self.G_uy)

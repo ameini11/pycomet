@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.callbacks as CB
@@ -5,6 +6,7 @@ import tensorflow.keras.callbacks as CB
 from . import callbacks as callbacks_module
 from . import losses    as losses_module
 from . import metrics   as metrics_module
+from .optimizers import get_train_opt
 from .postprocessing import training_plots
 from .utils import timing
 
@@ -32,9 +34,10 @@ class Model(object):
         self.train_dir = path+"/training"
         self.ckpt_dir  = self.train_dir+"/ckpt"
         self.TB_dir    = self.train_dir+"/logs"
-
         self.post_dir  = path+"/postprocessing"
-        if not os.path.exists(self.post_dir): os.makedirs(self.post_dir)
+
+        if not os.path.exists(self.train_dir): os.makedirs(self.train_dir)
+        if not os.path.exists(self.post_dir):  os.makedirs(self.post_dir)
 
         # Define saving format
         self.save_format = save_format
@@ -61,31 +64,32 @@ class Model(object):
         optimizer,
         lr=None,
         loss="MSE",
-        metrics=[],
+        metrics=None,
         decay=None,
         loss_weights=None,
     ):
 
         # Initializing the optimizer
-        if isinstance(lr, dict):
-            self.loss_pts = self.loss[0]
-            self.loss_res = self.loss[1]
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
         # Initializing the loss functions
-        self.loss_pts = losses_module.get(loss)
-        if isinstance(self.loss, (list, tuple)):
-            self.loss_pts = self.loss[0]
-            self.loss_res = self.loss[1]
+        if isinstance(loss, dict):
+            self.loss_pts = losses_module.get(loss['pts'])
+            self.loss_res = losses_module.get(loss['res'])
+        else:
+            self.loss_pts = losses_module.get(loss)
 
         # Defining metrics
-        self.metrics = [ metrics_module.get(m) for m in metrics ]
+        if metrics is not None:
+            self.metrics = [ metrics_module.get(m) for m in metrics ]
+        else:
+            self.metrics = None
 
         self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, metrics=self.metrics, loss_weights=loss_weights)
         # if data.num_coll > 0
         #     self.net.add_loss(data.residual_loss(self.loss_res, self.net.inputs))
         self.net.summary()
-        self.net.utils.plot_model(model, to_file=self.train_dir+"/"+self.name+".png", show_shapes=True)
+        tf.keras.utils.plot_model(self.net, self.train_dir+"/"+self.name+".png")
 
 
     @timing
@@ -101,7 +105,7 @@ class Model(object):
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", monitor='val_loss', save_best_only=True, save_weights_only=True)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=100, write_graph=True, write_grads=True, write_images=True)
         LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
-        self.callbacks = callbacks + [MC, TB, LR]
+        callbacks.extend([MC, TB, LR])
 
         if self.data.valid_x is not None:
             validation_data = (self.data.valid_x, self.data.valid_y)
@@ -111,7 +115,7 @@ class Model(object):
                         y=self.data.train_y, 
                         batch_size=batch_size,
                         epochs=epochs,
-                        callbacks=self.callbacks,
+                        callbacks=callbacks,
                         validation_split=validation_split,
                         validation_data=validation_data
                         )

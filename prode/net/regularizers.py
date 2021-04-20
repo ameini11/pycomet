@@ -1,11 +1,6 @@
 import tensorflow.keras.regularizers as reg
 
-def get(identifier):
-    if identifier is None:
-        return None
-    name = identifier[0]
-    l1   = identifier[1]
-    l2   = identifier[2]
+def get(name, l1, l2):
     return (
         reg.L1(l1=l1)
         if name == "l1"

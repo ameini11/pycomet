@@ -1,19 +1,23 @@
 import numpy as np
 import sys
 
-from inputs import InputData
-sys.path.append(InputData.utils_path)
+from inputs import InputData as inp
+sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
+sys.path.append(inp.pro_path)
 import prode as pro
+
+import tensorflow as tf
+from tensorflow.keras import callbacks
 
 @pro.utils.timing
 def main():
-    dataGen = DataGenerator(InputData)
+    dataGen = DataGenerator(inp)
     
     data_train, data_valid = dataGen.training_data()
     
-    if InputData.train_cases > 0:
+    if inp.train_cases > 0:
         data_test = dataGen.testing_data()
 
     data = pro.data.OpDataSet(
@@ -32,16 +36,44 @@ def main():
 
 
     net = pro.net.FuncOpNN(
-        InputData.u_dim,
-        InputData.y_dim,
-        InputData.G_dim,
-        InputData.layer_size_branch,
-        InputData.layer_size_trunk,
-        InputData.activation,
-        InputData.kernel_initializer,
-        regularization=InputData.regularization,
-        dropout_rate=InputData.dropout_rate,
-        batch_norm=InputData.batch_norm)
+        inp.u_dim,
+        inp.y_dim,
+        inp.G_dim,
+        inp.layer_size_branch,
+        inp.layer_size_trunk,
+        inp.activation,
+        inp.kernel_initializer,
+        regularization=inp.regularization,
+        dropout_rate=inp.dropout_rate,
+        batch_norm=inp.batch_norm)
+
+    net.apply_feature_transform({
+        "branch": tf.math.log,
+        "trunk" : lambda x: x * inp.scale_fac})
+        # "trunk" : lambda x: tf.math.log(x * inp.scale_fac)})
+    net.apply_output_transform(tf.math.exp)
+
+    net_model = net.get_uncompiled_model()
+
+
+    model = pro.model.Model(data, net_model, 'MEq_OpNN')
+
+
+    model.compile(
+        inp.optimizer,
+        lr=inp.lr,
+        loss=inp.loss,
+        metrics=inp.metrics,
+        decay=inp.decay,
+        loss_weights=None)
+
+    ES = callbacks.EarlyStopping(monitor='val_loss', min_delta=inp.min_delta, patience=inp.patience, restore_best_weights=True, mode='auto', verbose=1)
+
+    model.fit(
+        epochs=inp.epochs,
+        batch_size=inp.batch_size,
+        callbacks=[ES])
+
 
 #     def ode_system(x, y):
 #         """ODE system.

@@ -10,13 +10,11 @@ def get_train_opt(optimizer, lr=None, decay=None):
 
 def _get_learningrate(lr, decay):
     if decay is None:
-        return lr, None
+        return lr
     return {
-        "cosine":       opt.schedules.CosineDecay(lr, decay[1], alpha=decay[2]),
         "exponential":  opt.schedules.ExponentialDecay(lr, decay[1], decay[2], staircase=True),
         "inverse_time": opt.schedules.InverseTimeDecay(lr, decay[1], decay[2], staircase=True),
-        "polynomial":   opt.schedules.PolynomialDecay(lr, decay[1], end_learning_rate=1.e-2*lr),
-        "piecewise":    opt.schedules.PiecewiseConstantDecay(boundaries=decay[1], values=lr)
+        "polynomial":   opt.schedules.PolynomialDecay(lr, decay[1], end_learning_rate=1.e-2*lr)
         }[decay[0]]
 
 
@@ -27,7 +25,6 @@ def _get_optimizer(name, lr):
         "adam":         opt.Adam(learning_rate=lr),
         "adamax":       opt.Adamax(learning_rate=lr),
         "ftrl":         opt.Ftrl(learning_rate=lr),
-        "nadam":        opt.Nadam(learning_rate=lr),
         "rmsprop":      opt.RMSprop(learning_rate=lr),
         "sgd":          opt.SGD(learning_rate=lr),
         "sgd_nesterov": opt.SGD(learning_rate=lr, nesterov=True),
