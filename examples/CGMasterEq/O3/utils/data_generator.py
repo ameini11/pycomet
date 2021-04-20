@@ -223,9 +223,9 @@ class DataGenerator(object):
 
             # Extract data values
             if i == 0:
-                data_test = (T_i, (t_i, y_i))
+                data_test = [(T_i, (t_i, y_i))]
             else:
-                data_test = data_test + (T_i, (t_i, y_i))
+                data_test.append((T_i, (t_i, y_i)))
 
         ### Test underfitting --------------------------------------------------
         if self.test_training:
@@ -245,7 +245,7 @@ class DataGenerator(object):
                 t_min    = np.min(t_tr[np.nonzero(t_tr)])
                 t_max    = np.max(t_tr[np.nonzero(t_tr)])
                 d, ii    = tree.query([[t_min],[t_max]], k=1)
-                t_i, y_i = t_i[ii[1]:ii[0],:], y_i[ii[1]:ii[0],:]
+                t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
                 assert t_min != 0.
 
                 if i == 0:
