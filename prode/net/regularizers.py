@@ -3,13 +3,15 @@ import tensorflow.keras.regularizers as reg
 def get(identifier):
     if identifier is None:
         return None
-    name, scales = identifier[0], identifier[1:]
+    name = identifier[0]
+    l1   = identifier[1]
+    l2   = identifier[2]
     return (
-        reg.l1(l=scales[0])
+        reg.L1(l1=l1)
         if name == "l1"
-        else reg.l2(l=scales[0])
+        else reg.L2(l2=l2)
         if name == "l2"
-        else reg.l1_l2(l1=scales[0], l2=scales[1])
+        else reg.L1L2(l1=l1, l2=l2)
         if name == "l1+l2"
         else None
     )

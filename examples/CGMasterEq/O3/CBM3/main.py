@@ -5,11 +5,22 @@ from inputs import InputData
 sys.path.append(InputData.utils_path)
 from data_generator import DataGenerator
 
+import prode as pro
+
+@pro.utils.timing
 def main():
     dataGen = DataGenerator(InputData)
+    
     data_train, data_valid = dataGen.training_data()
-    data_test = dataGen.testing_data()
+    
+    if InputData.train_cases > 0:
+        data_test = dataGen.testing_data()
 
+    data = pro.data.OpDataSet(
+        x_train=[data_train[1], data_train[2]],
+        y_train=data_train[3],
+        x_valid=[data_train[1], data_train[2]],
+        y_valid=data_valid[3])
 
             # T_tr, u_tr, t_tr, y_tr = get_data(idx_train)
             # T_te, u_te, t_te, y_te = get_data(idx_valid)
@@ -19,7 +30,18 @@ def main():
             # plt.plot(t_te, y_te, c='r', **marker_style)
             # plt.show()
 
-    
+
+    net = pro.net.FuncOpNN(
+        InputData.u_dim,
+        InputData.y_dim,
+        InputData.G_dim,
+        InputData.layer_size_branch,
+        InputData.layer_size_trunk,
+        InputData.activation,
+        InputData.kernel_initializer,
+        regularization=InputData.regularization,
+        dropout_rate=InputData.dropout_rate,
+        batch_norm=InputData.batch_norm)
 
 #     def ode_system(x, y):
 #         """ODE system.

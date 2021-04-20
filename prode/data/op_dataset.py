@@ -42,12 +42,12 @@ class OpDataSet(Data):
         if standardize:
             self._standardize()
 
-        self.train_dataset = tf.data.Dataset.from_tensor_slices((self.train_x, self.train_y))
-        self.valid_dataset, self.test_dataset = None, None
-        if self.valid_x is not None:
-            self.valid_dataset = tf.data.Dataset.from_tensor_slices((self.valid_x, self.valid_y))
-        if self.test_x is not None:
-            self.test_dataset = tf.data.Dataset.from_tensor_slices((self.test_x, self.test_y))
+        # self.train_dataset = tf.data.Dataset.from_tensor_slices((self.train_x, self.train_y))
+        # self.valid_dataset, self.test_dataset = None, None
+        # if self.valid_x is not None:
+        #     self.valid_dataset = tf.data.Dataset.from_tensor_slices((self.valid_x, self.valid_y))
+        # if self.test_x is not None:
+        #     self.test_dataset = tf.data.Dataset.from_tensor_slices((self.test_x, self.test_y))
 
     def load_filedata(self, filename, col_x, col_y):
         if filename is None:

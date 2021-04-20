@@ -24,9 +24,6 @@ class Func(Data):
         self.train_x, self.train_y = None, None
         self.test_x,  self.test_y  = None, None
 
-    def losses(self, targets, loss, net):
-        return [loss(targets, net.outputs)]
-
     def get_batch_data(self, batch_size=None):
         if self.online:
             self.train_x = self.domain.random_points(batch_size, "pseudo")

@@ -129,7 +129,7 @@ class FuncOpNN(FuncNet):
         self.y = self.G_uy
 
         # Keras Model
-        model = tf.keras.Model(inputs=[self.x_u, self.x_y], outputs=[self.y])
+        model = tf.keras.Model(inputs=[self.x_u, self.x_y], outputs=self.y)
 
         if self.res_loss is not None:
             model.add_loss(self.res_loss(self, self.x_u, self.x_y), name='res_loss')

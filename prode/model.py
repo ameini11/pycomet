@@ -17,7 +17,7 @@ class Model(object):
         net: ``deepxde.maps.Map`` instance.
     """
 
-    def __init__(self, data, net, name, path="./", save_format='h5'):
+    def __init__(self, data, net, name, path='./', save_format='h5'):
         self.data = data
         self.net  = net
         self.name = name
@@ -102,6 +102,9 @@ class Model(object):
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=100, write_graph=True, write_grads=True, write_images=True)
         LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
         self.callbacks = callbacks + [MC, TB, LR]
+
+        if self.data.valid_x is not None:
+            validation_data = (self.data.valid_x, self.data.valid_y)
 
         self.history = self.net.fit(
                         x=self.data.train_x,

@@ -43,13 +43,14 @@ class InputData(object):
 
 
         ###############################################################################################################################################################
-        # ## NN Model Structure
-        # ApproxModel     = 'DeepONet'
-        # BranchLayers    = [uDim, 32, 32, 32] * dim
-        # TrunkLayers     = [1, 64, 64, 32]
-        # ScaleActFunsFlg = False
-        # NormLayerFlg    = False
-        # BiasBranchFlg   = True
+        ## NN Model Structure
+        layer_size_branch = [u_dim, 32, 32, 32]
+        layer_size_trunk = [y_dim, 64, 64, 32]
+        activation = {"branch": 'elu', "trunk": 'sigmoid'}
+        kernel_initializer = "GlorotNormal"
+        regularization= ["l1+l2", 1.e-3, 1.e-3]
+        dropout_rate=0
+        batch_norm=None
 
         ################################################################################################################################################################
 

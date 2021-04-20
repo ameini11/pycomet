@@ -8,10 +8,6 @@ class Data(object):
         pass
 
     @abc.abstractmethod
-    def losses(self, targets, loss, net):
-        """Return a list of losses, i.e., constraints."""
-
-    @abc.abstractmethod
     def get_batch_data(self, batch_size=None):
         """Return a training dataset of the size `batch_size`."""
 

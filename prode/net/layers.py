@@ -24,7 +24,6 @@ class FNNBlock(tf.keras.layers.Layer):
         super(FNNBlock, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
-        self.name                = name
         self.layer_size          = layer_size
         self.activation          = activations.get(activation)
         self.kernel_initializer  = initializers.get(kernel_initializer)

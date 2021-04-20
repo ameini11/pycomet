@@ -30,24 +30,6 @@ class FuncConstraint(Data):
         self.train_x, self.train_y = None, None
         self.test_x,  self.test_y  = None, None
 
-    def losses(self, targets, loss, net):
-        self.train_next_batch()
-        self.test()
-
-        n = 0
-        if self.anchors is not None:
-            n += len(self.anchors)
-
-        f = tf.cond(
-            tf.equal(net.data_id, 0),
-            lambda: self.constraint(net.inputs, net.outputs, self.train_x),
-            lambda: self.constraint(net.inputs, net.outputs, self.test_x),
-        )
-        return [
-            loss(targets[:n], net.outputs[:n]),
-            loss(tf.zeros(tf.shape(f), dtype=config.real(tf)), f),
-        ]
-
     @run_if_any_none("train_x", "train_y")
     def get_batch_data(self, batch_size=None):
         if self.distr_train == "log uniform":
