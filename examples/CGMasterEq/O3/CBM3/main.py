@@ -6,8 +6,21 @@ sys.path.append(InputData.utils_path)
 from data_generator import DataGenerator
 
 def main():
-    data_gen = DataGenerator(InputData)
-    data_train, data_valid = data_gen.training_data()
+    dataGen = DataGenerator(InputData)
+    data_train, data_valid = dataGen.training_data()
+    data_test = dataGen.testing_data()
+
+
+            # T_tr, u_tr, t_tr, y_tr = get_data(idx_train)
+            # T_te, u_te, t_te, y_te = get_data(idx_valid)
+            # plt.semilogx(t_i[idx_min:idx_max,:], y_i[idx_min:idx_max,:])
+            # marker_style = dict(marker='o', lw=0.5, linestyle='none', fillstyle='none', markersize=5)
+            # plt.plot(t_tr, y_tr, c='k', **marker_style)
+            # plt.plot(t_te, y_te, c='r', **marker_style)
+            # plt.show()
+
+    
+
 #     def ode_system(x, y):
 #         """ODE system.
 #         dy1/dx = y2

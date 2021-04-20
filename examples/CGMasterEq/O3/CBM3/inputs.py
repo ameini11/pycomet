@@ -30,9 +30,9 @@ class InputData(object):
         # Input Space
         Ttr    = [10000.0e0]                                               # Extreme Values for Tanslational Temperature
         # T_tr   = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]  # Extreme Values for Tanslational Temperature
-        T0     = [300.0e0,    10000.e0]                                     # Extreme Values for Initial TInt
-        P0     = [1.013250e3, 1.013250e5]                                  # Extreme Values for Initial P
-        XO2   = [0.950e0, 0.990e0]                                     # Extreme Values for Initial O2 Mole Frac
+        T0     = [300.0e0,    1000.e0]                                     # Extreme Values for Initial TInt
+        P0     = [1.013250e3, 1.013250e3]                                  # Extreme Values for Initial P
+        XO2   = [0.950e0, 0.950e0]                                     # Extreme Values for Initial O2 Mole Frac
 
         # Time Domain
         t0     = 1.e-10                                                    # Minimum Time for Selecting Training Collocation Points
