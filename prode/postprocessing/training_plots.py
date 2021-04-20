@@ -1,5 +1,6 @@
-import numpy                                  as np
-from matplotlib                           import pyplot as plt
+import numpy    as np
+from matplotlib import pyplot as plt
+import pandas as pd
 
 
 def plot_loss_history(history, path):
@@ -14,7 +15,7 @@ def plot_loss_history(history, path):
     plt.legend()
     plt.grid()
     plt.title('Training History')
-    fig.savefig(path+'/loss_history.png', dpi=1000)
+    fig.savefig(path+'/loss_history.png')
     plt.close()
 
 
@@ -29,20 +30,20 @@ def plot_model_accuracy(history, path):
     plt.legend()
     plt.grid()
     plt.title('Model Accuracy')
-    fig.savefig(path+'/model_acc.png', dpi=1000)
+    fig.savefig(path+'/model_acc.png')
     plt.close()
 
 
-def plot_lr(path):
+def plot_lr(path, path_file):
     """Learning Rate plotting."""
 
-    data = pd.read_csv(path+'/lr_tracker.csv', header=None, skiprows=0)
+    data = pd.read_csv(path_file+'/lr_tracker.csv', header=None, skiprows=0)
     data = data.apply(pd.to_numeric, errors='coerce')
-    epoch, lr = [ np.expand_dims(np.array(TempData[i]), axis=1) for i in range(2) ]
+    epoch, lr = [ np.expand_dims(np.array(data[i]), axis=1) for i in range(2) ]
 
     fig = plt.figure()
     plt.plot(epoch, lr, 'r', lw=1)
     plt.xlabel('Epoch')
     plt.ylabel('Learning Rate')
     plt.grid()
-    fig3.savefig(path+'/lr_tracker.png', dpi=600)
+    fig.savefig(path+'/lr_tracker.png')

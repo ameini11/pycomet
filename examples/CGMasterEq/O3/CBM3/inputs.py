@@ -37,8 +37,8 @@ class InputData(object):
     XO2   = [0.950e0, 0.950e0]                                     # Extreme Values for Initial O2 Mole Frac
 
     # Time Domain
-    t0     = 1.e-10                                                    # Minimum Time for Selecting Training Collocation Points
-    tEnd   = 1.e-4                                                     # Maximum Time for Selecting Training Collocation Points
+    t0    = 1.e-10                                                    # Minimum Time for Selecting Training Collocation Points
+    t_end = 1.e-4                                                     # Maximum Time for Selecting Training Collocation Points
 
     grouping       = 'CBM3' #'DPM10'
     MEq_mat    = {'excit': True, 'diss': True, 'recomb': True}                                          # Defined in 'generate_data' function
@@ -150,3 +150,7 @@ class InputData(object):
     # yLogPlotFlg = True
     # if xLogPlotFlg:
     #     xMinValue  = t0
+
+
+    labels=[r'$t\quad[s]$', r'$\rho\quad[kg/m^3]$']
+    scales=['log', 'linear']

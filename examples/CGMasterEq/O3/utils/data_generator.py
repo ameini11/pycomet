@@ -31,6 +31,7 @@ class DataGenerator(object):
 
         self.test_cases     = inputs.test_cases                     # Number of testing cases
         self.test_training  = inputs.test_training                  # Test training case [Bool]
+        self.t0, self.t_end = inputs.t0, inputs.t_end               # Time limits for testing
 
         self.dim            = inputs.G_dim                          # Data dimensionality
 
@@ -222,10 +223,18 @@ class DataGenerator(object):
             t_i, y_i = self.ODE_sol.solve(ic[i,:], self.ODE_mat[T_i])
 
             # Extract data values
+            tree     = KDTree(np.c_[t_i.ravel()])
+            d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
+            t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
+            u_i      = np.tile(ic[i,:], (t_i.shape[0],1))
+
+            title = 'Tested case (T = '+T_i+' K)'
             if i == 0:
-                data_test = [(T_i, (t_i, y_i))]
+                data_test = [(title, [u_i, t_i], y_i)]
             else:
-                data_test.append((T_i, (t_i, y_i)))
+                data_test.append((title, [u_i, t_i], y_i))
+
+        data = data_test
 
         ### Test underfitting --------------------------------------------------
         if self.test_training:
@@ -246,16 +255,16 @@ class DataGenerator(object):
                 t_max    = np.max(t_tr[np.nonzero(t_tr)])
                 d, ii    = tree.query([[t_min],[t_max]], k=1)
                 t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
+                u_i      = np.tile(ic_i, (t_i.shape[0],1))
                 assert t_min != 0.
 
+                title = 'Trained case (T = '+T_i+' K)'
                 if i == 0:
-                    data_test_training = [(T_i, (t_i, y_i), (t_val, y_val))]
+                    data_test_training = [(title, [u_i, t_i], y_i, (t_val, y_val))]
                 else:
-                    data_test_training.append((T_i, (t_i, y_i), (t_val, y_val)))
+                    data_test_training.append((title, [u_i, t_i], y_i, (t_val, y_val)))
 
-            data = {'Trained': data_test_training, 'Tested': data_test}
-        else:
-            data = data_test
+            data = data + data_test_training
 
         return data
 

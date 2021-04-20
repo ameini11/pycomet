@@ -63,6 +63,24 @@ class FNNBlock(tf.keras.layers.Layer):
         self.y = self.lays[-1](y)
 
         return self.y
+        
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+
+        config = super().get_config().copy()
+        config.update({
+            'layer_size':         self.layer_size,
+            'activation':         self.activation,
+            'kernel_initializer': self.kernel_initializer,
+            'regularizer':        self.regularizer,
+            'dropout_rate':       self.dropout_rate,
+            'batch_norm':         self.batch_norm,
+            'weight_norm':        self.weight_norm,
+            'lays':               self.lays,
+        })
+        return config
 
 
     # Layers Definition

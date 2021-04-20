@@ -113,7 +113,7 @@ class FuncOpNN(FuncNet):
             else:
                 self.u = self.inp_trans(self.x_u)
                 self.y = self.inp_trans(self.x_y)
-                
+
         # Branch/-es
         self.G_u = [ self.branches[i](self.u) for i in range(self.G_dim) ]
 

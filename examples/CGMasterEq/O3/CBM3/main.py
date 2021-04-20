@@ -17,7 +17,7 @@ def main():
     
     data_train, data_valid = dataGen.training_data()
     
-    if inp.train_cases > 0:
+    if inp.test_cases > 0:
         data_test = dataGen.testing_data()
 
     data = pro.data.OpDataSet(
@@ -25,14 +25,6 @@ def main():
         y_train=data_train[3],
         x_valid=[data_train[1], data_train[2]],
         y_valid=data_valid[3])
-
-            # T_tr, u_tr, t_tr, y_tr = get_data(idx_train)
-            # T_te, u_te, t_te, y_te = get_data(idx_valid)
-            # plt.semilogx(t_i[idx_min:idx_max,:], y_i[idx_min:idx_max,:])
-            # marker_style = dict(marker='o', lw=0.5, linestyle='none', fillstyle='none', markersize=5)
-            # plt.plot(t_tr, y_tr, c='k', **marker_style)
-            # plt.plot(t_te, y_te, c='r', **marker_style)
-            # plt.show()
 
 
     net = pro.net.FuncOpNN(
@@ -73,6 +65,14 @@ def main():
         epochs=inp.epochs,
         batch_size=inp.batch_size,
         callbacks=[ES])
+
+
+    model.save()
+
+    model.visualize_training()
+
+    if inp.test_cases > 0:
+        model.predict(data_test, inp.var_names, inp.labels, inp.scales)
 
 
 #     def ode_system(x, y):

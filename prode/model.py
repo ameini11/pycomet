@@ -7,7 +7,7 @@ from . import callbacks as callbacks_module
 from . import losses    as losses_module
 from . import metrics   as metrics_module
 from .optimizers import get_train_opt
-from .postprocessing import training_plots
+from .postprocessing import training_plots, testing_plots
 from .utils import timing
 
 
@@ -121,10 +121,39 @@ class Model(object):
                         )
 
 
+
+    @timing
+    def predict(self, test_cases, var_names, labels, scales):
+
+        path = self.post_dir+'/testing_plots'
+        if not os.path.exists(path): os.makedirs(path)
+
+        for i, test_i in enumerate(test_cases):
+            if len(test_i) == 3:
+                title, x, y_true = test_i
+                data_val = None
+            else:
+                title, x, y_true, data_val = test_i
+            y_pred = self.net.predict(x)
+
+            testing_plots.plot_test(
+                path,
+                x,
+                y_true,
+                y_pred,
+                var_names,
+                title,
+                i,
+                labels=labels,
+                scales=scales,
+                data_val=data_val)
+
+
+
     @timing
     def save(self):
         
-        self.net.save("./"+self.name, save_format=self.save_format)
+        self.net.save("./"+self.name+'.h5', save_format=self.save_format)
 
 
     @timing
@@ -135,4 +164,4 @@ class Model(object):
 
         training_plots.plot_loss_history(self.history, path)
         training_plots.plot_model_accuracy(self.history, path)
-        training_plots.plot_lr(path)
+        training_plots.plot_lr(path, self.train_dir)
