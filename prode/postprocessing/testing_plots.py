@@ -54,7 +54,7 @@ def plot_test(
     # Validation Points
     if data_val is not None:
         marker_style = dict(marker='x', lw=0.5, linestyle='none', fillstyle='none', markersize=5)
-        plt.plot(*data_val, c='k', **marker_style, label='Validation pts')
+        plt.plot(*data_val, c=col[-1], **marker_style, label='Validation pts')
 
     plt.legend(fontsize='x-small')
     fig_path = path + '/TestCase' + str(test_num+1) + '_' + y_scale + '.png'

@@ -6,9 +6,10 @@ import tensorflow.keras.callbacks as CB
 from . import callbacks as callbacks_module
 from . import losses    as losses_module
 from . import metrics   as metrics_module
-from .optimizers import get_train_opt
+
+from .optimizers     import get_train_opt
 from .postprocessing import training_plots, testing_plots
-from .utils import timing
+from .utils          import timing
 
 
 class Model(object):
@@ -121,7 +122,6 @@ class Model(object):
                         )
 
 
-
     @timing
     def predict(self, test_cases, var_names, labels, scales):
 
@@ -147,7 +147,6 @@ class Model(object):
                 labels=labels,
                 scales=scales,
                 data_val=data_val)
-
 
 
     @timing
