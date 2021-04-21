@@ -45,7 +45,7 @@ class Model(object):
 
 
     @timing
-    def restore_model(self, from_ckpt=True):
+    def restore_net(self, from_ckpt=True):
         # Either restore the latest model, or create a fresh one
         # if there is no checkpoint available.
         if from_ckpt:
@@ -53,10 +53,10 @@ class Model(object):
             if checkpoints:
                 latest_checkpoint = max(checkpoints, key=os.path.getctime)
                 print("Restoring from checkpoint", latest_checkpoint)
-                return tf.keras.models.load_model(latest_checkpoint)
+                self.net = tf.keras.models.load_model(latest_checkpoint)
         else:
             print("Restoring from file", self.name+'.'+self.save_format)
-            return tf.keras.models.load_model(self.name+'.'+self.save_format)
+            self.net = tf.keras.models.load_model(self.name+'.'+self.save_format)
 
 
     @timing
@@ -102,14 +102,16 @@ class Model(object):
         validation_split=0.2,
         validation_data=None
     ):
-
+        print('\n[ProPDE]: Training the Model ...')
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", monitor='val_loss', save_best_only=True, save_weights_only=True)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=100, write_graph=True, write_grads=True, write_images=True)
         LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
         callbacks.extend([MC, TB, LR])
 
+        print('[ProPDE]:   Number of Training pts:     %10d' % self.data.train_y.shape[0])
         if self.data.valid_x is not None:
             validation_data = (self.data.valid_x, self.data.valid_y)
+            print('[ProPDE]:   Number of Validation pts:     %10d' % self.data.valid_y.shape[0])
 
         self.history = self.net.fit(
                         x=self.data.train_x,

@@ -2,17 +2,12 @@ import pandas as pd
 import numpy as np
 import re
 
+from sklearn.utils import shuffle
 from scipy.spatial import KDTree
 from pyDOE import lhs
 
 from const      import const
 from ode_solver import ODESolver
-
-
-
-
-import matplotlib.pyplot as plt
-
 
 
 
@@ -156,7 +151,7 @@ class DataGenerator(object):
             y_del = np.abs((y_i[:-1,:] - y_i[1:,:]) / y_i[1:,:])
             y_del = y_del[:,np.argmax(ic_i[:-1])]
             idx_min = np.where(y_del > self.rtol)[0][0]         # Dynamics start-point
-            idx_max = np.where(y_del > self.rtol*1.e1)[0][-1]   # Dynamics end-point
+            idx_max = np.where(y_del > self.rtol*5)[0][-1]   # Dynamics end-point
             t_min, t_max= t_i[idx_min], t_i[idx_max]
             if self.train_pts_dist == 'random':
                 d, ii  = tree.query([[t_min],[t_max]], k=1)
@@ -164,8 +159,9 @@ class DataGenerator(object):
             else:
                 t_vec  = np.linspace(np.log10(t_min), np.log10(t_max), \
                                      self.train_pts-1, dtype=np.float64)
-                h      = (np.random.rand(self.train_pts-1,1)-0.5)*(t_vec[1,0]-t_vec[0,0])
-                t_unif = np.power(10, t_vec + h)
+                h      = (t_vec[1,0]-t_vec[0,0])*0.8
+                delta  = (np.random.rand(self.train_pts-1,1)-0.5)*h
+                t_unif = np.power(10, t_vec + delta)
                 d, idx = tree.query(t_unif, k=1)
 
             idx_train, idx_valid = self.stratified_sampling(idx, self.valid_pts)
@@ -188,6 +184,9 @@ class DataGenerator(object):
                 else:
                     self.test_training_data.append((ic_i, t_tr, (data_valid_i)))
         if self.test_training: assert len(self.test_training_data) == n
+
+        data_train = shuffle(*data_train)
+        data_valid = shuffle(*data_valid)
 
         return data_train, data_valid
 
@@ -309,6 +308,6 @@ class DataGenerator(object):
 
         x_split = np.array_split(x, strata)
         x_test  = np.array([ np.random.choice(i) for i in x_split ])
-        x_train = np.array([ i for i in x if i not in x_test ])
+        x_train = np.setdiff1d(x, x_test)
         assert np.intersect1d(x_test, x_train).size == 0
         return x_train, x_test

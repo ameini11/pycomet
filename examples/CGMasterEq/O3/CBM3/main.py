@@ -13,13 +13,17 @@ from tensorflow.keras import callbacks
 
 @pro.utils.timing
 def main():
+
+    ###########################################################################
+    ### Data
+    ###########################################################################
+    # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
-    
     data_train, data_valid = dataGen.training_data()
-    
     if inp.test_cases > 0:
         data_test = dataGen.testing_data()
 
+    # Initialize Data ---------------------------------------------------------
     data = pro.data.OpDataSet(
         x_train=[data_train[1], data_train[2]],
         y_train=data_train[3],
@@ -27,92 +31,77 @@ def main():
         y_valid=data_valid[3])
 
 
-    net = pro.net.FuncOpNN(
-        inp.u_dim,
-        inp.y_dim,
-        inp.G_dim,
-        inp.layer_size_branch,
-        inp.layer_size_trunk,
-        inp.activation,
-        inp.kernel_initializer,
-        regularization=inp.regularization,
-        dropout_rate=inp.dropout_rate,
-        batch_norm=inp.batch_norm)
+    ###########################################################################
+    ### Network
+    ###########################################################################
+    # Initialize Network ------------------------------------------------------
+    if inp.load_flg == 0:
+        net_init = pro.net.FuncOpNN(
+            inp.u_dim, inp.y_dim, inp.G_dim,
+            inp.layer_size_branch,
+            inp.layer_size_trunk,
+            inp.activation,
+            inp.kernel_initializer,
+            regularization=inp.regularization,
+            dropout_rate=inp.dropout_rate,
+            batch_norm=inp.batch_norm)
 
-    net.apply_feature_transform({
-        "branch": tf.math.log,
-        "trunk" : lambda x: x * inp.scale_fac})
-        # "trunk" : lambda x: tf.math.log(x * inp.scale_fac)})
-    net.apply_output_transform(tf.math.exp)
+        # Apply I/O Transformation ------------------------------------------------
+        net_init.apply_feature_transform({
+            "branch": lambda x: tf.math.log(x + 1.e-20),
+            "trunk" : lambda x: x * inp.scale_fac})
+        net_init.apply_output_transform(tf.math.exp)
 
-    net_model = net.get_uncompiled_model()
+        # Uncompiled Net ----------------------------------------------------------
+        net = net_init.get_uncompiled_model()
 
-
-    model = pro.model.Model(data, net_model, 'MEq_OpNN')
-
-
-    model.compile(
-        inp.optimizer,
-        lr=inp.lr,
-        loss=inp.loss,
-        metrics=inp.metrics,
-        decay=inp.decay,
-        loss_weights=None)
-
-    ES = callbacks.EarlyStopping(monitor='val_loss', min_delta=inp.min_delta, patience=inp.patience, restore_best_weights=True, mode='auto', verbose=1)
-
-    model.fit(
-        epochs=inp.epochs,
-        batch_size=inp.batch_size,
-        callbacks=[ES])
+    else: net = None
 
 
-    model.save()
+    ###########################################################################
+    ### Model
+    ###########################################################################
+    # Initialize Model --------------------------------------------------------
+    model = pro.model.Model(data, net, inp.name)
+    if inp.load_flg > 0:
+        model.restore_net(self, from_ckpt=int(inp.load_flg-1))
 
+    # Compile Model -----------------------------------------------------------
+    model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
+                  decay=inp.decay, loss_weights=None)
+
+    # Fit Model ---------------------------------------------------------------
+    if inp.train_flg > 0:
+        ES = callbacks.EarlyStopping(monitor='val_loss',
+                                     min_delta=inp.min_delta,
+                                     patience=inp.patience,
+                                     restore_best_weights=True,
+                                     mode='auto', verbose=1)
+        cb_list = [ES]
+
+        if inp.test_flg == 2:
+            PL = pro.callbacks.Plotter(data_test, inp.var_names, inp.labels,
+                                       inp.scales, inp.log_plot, 
+                                       model.train_dir, inp.period)
+            cb_list.append(PL)
+
+        model.fit(epochs=inp.epochs, batch_size=inp.batch_size, callbacks=cb_list)
+
+    # Save Model ---------------------------------------------------------------
+    if inp.save_flg > 0: model.save()
+
+
+    ###########################################################################
+    ### Postprocessing
+    ###########################################################################
+    # Training phase ----------------------------------------------------------
     model.visualize_training()
 
-    if inp.test_cases > 0:
+    # Testing phase -----------------------------------------------------------
+    if inp.test_cases > 0 and inp.test_flg > 0:
         model.predict(data_test, inp.var_names, inp.labels, inp.scales)
-
-
-#     def ode_system(x, y):
-#         """ODE system.
-#         dy1/dx = y2
-#         dy2/dx = -y1
-#         """
-#         y1, y2 = y[:, 0:1], y[:, 1:]
-#         dy1_x = dde.grad.jacobian(y, x, i=0)
-#         dy2_x = dde.grad.jacobian(y, x, i=1)
-#         return [dy1_x - y2, dy2_x + y1]
-
-#     def boundary(_, on_initial):
-#         return on_initial
-
-#     def func(x):
-#         """
-#         y1 = sin(x)
-#         y2 = cos(x)
-#         """
-#         return np.hstack((np.sin(x), np.cos(x)))
-
-#     geom = dde.geometry.TimeDomain(0, 10)
-#     ic1 = dde.IC(geom, np.sin, boundary, component=0)
-#     ic2 = dde.IC(geom, np.cos, boundary, component=1)
-#     data = dde.data.PDE(
-#         geom, ode_system, [ic1, ic2], 35, 2, solution=func, num_test=100
-#     )
-
-#     layer_size = [1] + [50] * 3 + [2]
-#     activation = "tanh"
-#     initializer = "Glorot uniform"
-#     net = dde.maps.FNN(layer_size, activation, initializer)
-
-#     model = dde.Model(data, net)
-#     model.compile("adam", lr=0.001, metrics=["l2 relative error"])
-#     losshistory, train_state = model.train(epochs=20000)
-
-#     dde.saveplot(losshistory, train_state, issave=True, isplot=True)
-
+        if inp.log_plot:
+            model.predict(data_test, inp.var_names, inp.labels, ['log', 'log'])
 
 if __name__ == "__main__":
     main()
