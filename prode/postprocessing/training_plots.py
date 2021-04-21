@@ -15,7 +15,7 @@ def plot_loss_history(history, path):
     plt.legend()
     plt.grid()
     plt.title('Training History')
-    fig.savefig(path+'/loss_history.png')
+    fig.savefig(path+'/loss_history.png', dpi=1000)
     plt.close()
 
 
@@ -30,7 +30,7 @@ def plot_model_accuracy(history, path):
     plt.legend()
     plt.grid()
     plt.title('Model Accuracy')
-    fig.savefig(path+'/model_acc.png')
+    fig.savefig(path+'/model_acc.png', dpi=1000)
     plt.close()
 
 
@@ -46,4 +46,5 @@ def plot_lr(path, path_file):
     plt.xlabel('Epoch')
     plt.ylabel('Learning Rate')
     plt.grid()
-    fig.savefig(path+'/lr_tracker.png')
+    fig.savefig(path+'/lr_tracker.png', dpi=1000)
+    plt.close()

@@ -95,7 +95,7 @@ class InputData(object):
     ### Plotting Quantities
     ###########################################################################
     # Variables Name ----------------------------------------------------------
-    var_names = [ r'$O_2^{({})}$'.format(i+1) for i in range(G_dim-1) ]
+    var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(G_dim-1) ]
     var_names.append(r'$O$')
 
     # Axis --------------------------------------------------------------------

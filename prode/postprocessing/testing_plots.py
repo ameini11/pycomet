@@ -61,6 +61,6 @@ def plot_test(
 
 
     plt.legend(fontsize='x-small')
-    fig_path = path + '/TestCase' + str(test_num+1) + '_' + y_scale + '.png'
+    fig_path = path + '/TestCase' + str(test_num+1) + '_' + y_scale + '.jpeg'
     fig.savefig(fig_path)
     plt.close()
