@@ -67,13 +67,13 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 4              # Number of training cases
+    train_cases    = 8              # Number of training cases
     train_pts      = 128             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 2              # Number of testing cases
+    test_cases     = 3              # Number of testing cases
     test_training  = True           # Test training case
     period         = 100            # 
 
