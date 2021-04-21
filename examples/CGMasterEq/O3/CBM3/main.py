@@ -5,7 +5,7 @@ from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
-sys.path.append(inp.pro_path)
+# sys.path.append(inp.pro_path)
 import prode as pro
 
 import tensorflow as tf
@@ -102,6 +102,7 @@ def main():
         model.predict(data_test, inp.var_names, inp.labels, inp.scales)
         if inp.log_plot:
             model.predict(data_test, inp.var_names, inp.labels, ['log', 'log'])
+            
 
 if __name__ == "__main__":
     main()
