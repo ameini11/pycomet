@@ -48,10 +48,17 @@ def main():
             batch_norm=inp.batch_norm)
 
         # Apply I/O Transformation ------------------------------------------------
+        if inp.mass_frac:
+            output_fn = tf.keras.layers.Softmax(axis=-1)
+            branch_fn = lambda x: x
+        else:
+            output_fn = tf.math.exp
+            branch_fn = tf.math.log
+
         net_init.apply_feature_transform({
-            "branch": lambda x: tf.math.log(x),
+            "branch": branch_fn,
             "trunk" : lambda x: x * inp.scale_fac})
-        net_init.apply_output_transform(tf.math.exp)
+        net_init.apply_output_transform(output_fn)
 
         # Uncompiled Net ----------------------------------------------------------
         net = net_init.get_uncompiled_model()

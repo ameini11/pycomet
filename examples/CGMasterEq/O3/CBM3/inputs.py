@@ -29,12 +29,6 @@ class InputData(object):
     y_dim = 1       # Trunk input dimensionality
     u_dim = 4       # Branch input dimensionality
 
-    # Variables Name ----------------------------------------------------------
-    var_names      = []
-    for i in range(G_dim-1):
-        var_names.append(r'$\rho_{}$'.format(i+1))
-    var_names.append(r'$\rho_O$')
-
     # Input Space Extreme Values ----------------------------------------------
     Ttr = [10000.0e0]                   # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
@@ -46,6 +40,7 @@ class InputData(object):
     grouping  = 'CBM3' #'DPM10'
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
     t0, t_end = 1.e-10, 1.e-4       # Time limits for testing
+    mass_frac = False               # Output data in mass fractions [Bool]
 
 
     ###########################################################################
@@ -88,7 +83,7 @@ class InputData(object):
     lr          = 5.e-5
     decay       = ["exponential", 1000, 0.99]
 
-    loss        = 'MALPE' #'MSLE'
+    loss        = 'MALPE'       # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics     = ["accuracy"]
 
     # Early Stopping Callback -------------------------------------------------
@@ -99,6 +94,12 @@ class InputData(object):
     ###########################################################################
     ### Plotting Quantities
     ###########################################################################
+    # Variables Name ----------------------------------------------------------
+    var_names = [ r'$O_2^{({})}$'.format(i+1) for i in range(G_dim-1) ]
+    var_names.append(r'$O$')
+
+    # Axis --------------------------------------------------------------------
     labels   = [r'$t\quad[s]$', r'$\rho\quad[kg/m^3]$']     # x, y labels
+    if mass_frac: labels[1] = r'$Y$'
     scales   = ['log', 'linear']                            # x, y scales
     log_plot = True

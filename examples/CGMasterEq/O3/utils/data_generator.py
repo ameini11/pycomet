@@ -29,6 +29,7 @@ class DataGenerator(object):
         self.t0, self.t_end = inputs.t0, inputs.t_end               # Time limits for testing
 
         self.dim            = inputs.G_dim                          # Data dimensionality
+        self.mass_frac      = inputs.mass_frac                      # Data in mass fractions [Bool]
 
         self.rtol           = 1.e-5                                 # Rel.Tol for cutting equilibrium
 
@@ -137,6 +138,10 @@ class DataGenerator(object):
             u = np.tile(ic_i, (m,1))    # NN Input: Initial Condition
             t = t_i[idx,:]              # NN Input: Time
             y = y_i[idx[:],:]           # NN Target
+            if self.mass_frac:
+                mass = np.sum(u, axis=1, keepdims=True)
+                u = np.hstack((np.divide(u, mass), mass))
+                y = np.divide(y, mass)
             return T, u, t, y
         # ---------------------------------------------------------------------
 
@@ -227,6 +232,11 @@ class DataGenerator(object):
             t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
             u_i      = np.tile(ic[i,:], (t_i.shape[0],1))
 
+            if self.mass_frac:
+                mass = np.sum(u_i, axis=1, keepdims=True)
+                u_i = np.hstack((np.divide(u_i, mass), mass))
+                y_i = np.divide(y_i, mass)
+
             title = 'Tested case (T = '+T_i+' K)'
             if i == 0:
                 data_test = [(title, [u_i, t_i], y_i)]
@@ -237,7 +247,7 @@ class DataGenerator(object):
 
         ### Test underfitting --------------------------------------------------
         if self.test_training:
-            assert self.train_cases > n
+            assert self.train_cases >= n
 
             idx = np.random.choice(self.train_cases, size=n, replace=False)
             for i, idx_i in enumerate(idx):
@@ -256,6 +266,11 @@ class DataGenerator(object):
                 t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
                 u_i      = np.tile(ic_i, (t_i.shape[0],1))
                 assert t_min != 0.
+
+                if self.mass_frac:
+                    mass = np.sum(u_i, axis=1, keepdims=True)
+                    u_i = np.hstack((np.divide(u_i, mass), mass))
+                    y_i = np.divide(y_i, mass)
 
                 title = 'Trained case (T = '+T_i+' K)'
                 if i == 0:

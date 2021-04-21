@@ -15,21 +15,29 @@ def MeanSquaredError(y_true, y_pred):
 
 
 def MeanAbsolutePercentageError(y_true, y_pred):
-    # Warning: see MeanAbsoluteError above.
+    # Warning: see MeanSquaredError above.
     err = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
     return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
 
 def MeanAbsoluteLogPercentageError(y_true, y_pred):
-    # Warning: see MeanAbsoluteError above.
+    # Warning: see MeanSquaredError above.
     y_true = tf.math.log(y_true)
     y_pred = tf.math.log(y_pred)
     err = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
     return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
 
+def MeanSquaredLogPercentageError(y_true, y_pred):
+    # Warning: see MeanSquaredError above.
+    y_true = tf.math.log(y_true)
+    y_pred = tf.math.log(y_pred)
+    err = 100.*tf.square(tf.math.divide((y_true - y_pred), y_true))
+    return tf.reduce_sum(tf.reduce_mean(err, axis=0))
+
+
 def MSLE(y_true, y_pred):
-    # Warning: see MeanAbsoluteError above.
+    # Warning: see MeanSquaredError above.
     err = tf.square(tf.math.log(y_true) - tf.math.log(y_pred))
     return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
@@ -50,6 +58,7 @@ def get(identifier):
         "mse":   lss.MeanSquaredError,
         "MSE":   MeanSquaredError,
         "msle":  lss.MSLE,
+        "MSLPE": MeanSquaredLogPercentageError,
         "MSLE":  MSLE,
         "zero":  zero,
     }
