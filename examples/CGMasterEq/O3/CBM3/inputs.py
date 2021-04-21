@@ -55,7 +55,7 @@ class InputData(object):
     layer_size_trunk   = [y_dim, 64, 32, 16]
     activation         = {"branch": 'elu', "trunk": 'sigmoid'}
     kernel_initializer = "GlorotNormal"
-    regularization     = ["l1+l2", 1.e-6, 1.e-6]
+    regularization     = ["l1+l2", 1.e-4, 1.e-4]
     dropout_rate       = 0
     batch_norm         = None
 
@@ -68,21 +68,21 @@ class InputData(object):
     ###########################################################################
     # Training ----------------------------------------------------------------
     train_cases    = 8              # Number of training cases
-    train_pts      = 64             # Number of total training pts for each case
+    train_pts      = 128             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
     test_cases     = 3              # Number of testing cases
     test_training  = True           # Test training case
-    period         = 100            # 
+    period         = 100            # Plotting frequancy during training [epochs]
 
 
     ###########################################################################
     ### Training
     ###########################################################################
     epochs      = 20000
-    batch_size  = 128
+    batch_size  = 64
 
     optimizer   = 'adam' 
     lr          = 5.e-5

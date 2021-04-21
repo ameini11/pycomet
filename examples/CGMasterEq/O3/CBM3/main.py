@@ -1,3 +1,5 @@
+import tensorflow as tf
+from tensorflow.keras import callbacks
 import numpy as np
 import sys
 
@@ -7,9 +9,6 @@ from data_generator import DataGenerator
 
 sys.path.append(inp.pro_path)
 import prode as pro
-
-import tensorflow as tf
-from tensorflow.keras import callbacks
 
 tf.keras.backend.set_floatx('float64')
 
