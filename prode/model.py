@@ -104,7 +104,7 @@ class Model(object):
     ):
         print('\n[ProPDE]: Training the Model ...')
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", monitor='val_loss', save_best_only=True, save_weights_only=True)
-        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=100, write_graph=True, write_grads=True, write_images=True)
+        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, write_graph=True, write_grads=True, write_images=True)
         LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
         callbacks.extend([MC, TB, LR])
 

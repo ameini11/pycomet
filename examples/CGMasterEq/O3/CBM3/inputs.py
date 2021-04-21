@@ -7,7 +7,7 @@ class InputData(object):
     ###########################################################################
     database_path = os.path.normpath(os.getcwd()+'/../database')
     utils_path = os.path.normpath(os.getcwd()+'/../utils')
-    # pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')
+    pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')
 
     ###########################################################################
     ### Execution Flags
@@ -68,7 +68,7 @@ class InputData(object):
     ###########################################################################
     # Training ----------------------------------------------------------------
     train_cases    = 8              # Number of training cases
-    train_pts      = 128             # Number of total training pts for each case
+    train_pts      = 64             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
@@ -88,7 +88,7 @@ class InputData(object):
     lr          = 5.e-5
     decay       = ["exponential", 1000, 0.99]
 
-    loss        = 'MALPE'# "MSLE"
+    loss        = 'MALPE' #'MSLE'
     metrics     = ["accuracy"]
 
     # Early Stopping Callback -------------------------------------------------

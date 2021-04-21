@@ -22,15 +22,15 @@ def MeanAbsolutePercentageError(y_true, y_pred):
 
 def MeanAbsoluteLogPercentageError(y_true, y_pred):
     # Warning: see MeanAbsoluteError above.
-    y_true = tf.math.log(y_true+1.e-20)
-    y_pred = tf.math.log(y_pred+1.e-20)
+    y_true = tf.math.log(y_true)
+    y_pred = tf.math.log(y_pred)
     err = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
     return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
 
 def MSLE(y_true, y_pred):
     # Warning: see MeanAbsoluteError above.
-    err = tf.square(tf.math.log(y_true + 1.) - tf.math.log(y_pred + 1.))
+    err = tf.square(tf.math.log(y_true) - tf.math.log(y_pred))
     return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
 

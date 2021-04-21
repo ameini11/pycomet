@@ -5,11 +5,13 @@ from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
-# sys.path.append(inp.pro_path)
+sys.path.append(inp.pro_path)
 import prode as pro
 
 import tensorflow as tf
 from tensorflow.keras import callbacks
+
+tf.keras.backend.set_floatx('float64')
 
 @pro.utils.timing
 def main():
@@ -48,7 +50,7 @@ def main():
 
         # Apply I/O Transformation ------------------------------------------------
         net_init.apply_feature_transform({
-            "branch": lambda x: tf.math.log(x + 1.e-20),
+            "branch": lambda x: tf.math.log(x),
             "trunk" : lambda x: x * inp.scale_fac})
         net_init.apply_output_transform(tf.math.exp)
 
