@@ -53,9 +53,9 @@ class FNNBlock(tf.keras.layers.Layer):
             layer = self.lays[i]
             y = layer[0](y)
             if self.batch_norm == "before":
-                y = self.activation( layer[0](y) )
+                y = self.activation( layer[1](y) )
             elif self.batch_norm == "after":
-                y = layer[0](y)
+                y = layer[1](y)
             if self.dropout_rate > 0:
                 y = layer[-1](y)
 
@@ -101,8 +101,7 @@ class FNNBlock(tf.keras.layers.Layer):
             l.append(bn)
 
         if self.dropout_rate > 0:
-            do = lay.Dropout(self.dropout_rate, noise_shape=None, \
-                             training=self.dropout, name=self.name+'_dropHid'+str(number))
+            do = lay.Dropout(self.dropout_rate, name=self.name+'_dropHid'+str(number))
             l.append(do)
 
         return l

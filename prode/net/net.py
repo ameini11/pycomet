@@ -9,7 +9,6 @@ class Net(tf.keras.Model):
     def __init__(self):
         super(Net, self).__init__()
         self.training   = True     # Boolean value for training other layers parameters
-        self.dropout    = True     # Boolean value for training dropout layers parameters
 
         self.inp_trans  = None
         self.out_trans  = None

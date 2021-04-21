@@ -7,14 +7,13 @@ class FuncNet(object):
     ###########################################################################
     def __init__(self, name='func_net'):
         self.training   = True     # Boolean value for training other layers parameters
-        self.dropout    = True     # Boolean value for training dropout layers parameters
 
         self.inp_trans  = None
         self.out_trans  = None
 
         self.res_loss   = None
 
-    ### Model Initialization (Functional API) -----------------------------
+    ### Model Initialization (Functional API) ---------------------------------
     def get_uncompiled_model(self):
 
         self.x = tf.keras.Input(shape=(self.x_dim,))

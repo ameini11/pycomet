@@ -41,8 +41,6 @@ class FNN(Net):
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 
-        self.name                = name
-
         ### Layers Initialization ---------------------------------------------
         self.lays = list()
         # Hidden Layers
@@ -60,24 +58,24 @@ class FNN(Net):
 
         # Input layer
         y = x
-        if self._inp_trans is not None:
-            y = self._inp_trans(y)
+        if self.inp_trans is not None:
+            y = self.inp_trans(y)
 
         # Hidden layers
         for i in range(len(self.layer_size) - 2):
             layer = self.lays[i]
             y = layer[0](y)
             if self.batch_norm == "before":
-                y = self.activation( layer[0](y) )
+                y = self.activation( layer[1](y) )
             elif self.batch_norm == "after":
-                y = layer[0](y)
+                y = layer[1](y)
             if self.dropout_rate > 0:
                 y = layer[-1](y)
 
         # Output layer
         self.y = self.lays[-1](y)
-        if self._out_trans is not None:
-            self.y = self._out_trans(self.x, self.y)
+        if self.out_trans is not None:
+            self.y = self.out_trans(self.x, self.y)
 
         return self.y
 
@@ -100,8 +98,7 @@ class FNN(Net):
             l.append(bn)
 
         if self.dropout_rate > 0:
-            do = lay.Dropout(self.dropout_rate, noise_shape=None, \
-                             training=self.dropout, name=self.name+'_dropHid'+str(number))
+            do = lay.Dropout(self.dropout_rate, name=self.name+'_dropHid'+str(number))
             l.append(do)
 
         return l

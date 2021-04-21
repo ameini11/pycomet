@@ -38,8 +38,6 @@ class FNN(Net):
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 
-        self.name                = name
-
         ### Layers Initialization ---------------------------------------------
         self.block = layers.FNNBlock(
                         self.layer_size,
@@ -60,14 +58,14 @@ class FNN(Net):
 
         # Input Transform
         y = x
-        if self._inp_trans is not None:
-            y = self._inp_trans(y)
+        if self.inp_trans is not None:
+            y = self.inp_trans(y)
 
         # Block Layer
         y = self.block(y)
 
         # Output Transform
-        if self._out_trans is not None:
-            self.y = self._out_trans(self.x, self.y)
+        if self.out_trans is not None:
+            self.y = self.out_trans(self.x, self.y)
 
         return self.y

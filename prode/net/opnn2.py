@@ -53,7 +53,7 @@ class OpNN(Net):
 
         self.batch_norm  = batch_norm
         self.weight_norm = weight_norm
-        self.use_end_scale      = use_end_scale
+        self.use_end_scale = use_end_scale
 
         ### Blocks Initialization ---------------------------------------------
         self.branches   = [ layers.FNNBlock(
@@ -115,9 +115,9 @@ class OpNN(Net):
         self.G_y = self.trunk(self.x_y)
 
         # Output layer
-        self.G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]
+        self.G_uy = [ lay.Dot(axes=1)([self.G_u[i], self.G_y]) for i in range(self.G_dim) ]
         if self.use_end_scale:
-            self.G_uy = self.end_scale(tf.concat(G_uy, 1))
+            self.G_uy = self.end_scale(tf.concat(self.G_uy, 1))
 
         if self.out_trans is not None:
             self.G_uy = self.out_trans(self.G_uy)
