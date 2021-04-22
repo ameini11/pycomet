@@ -14,9 +14,9 @@ class InputData(object):
     ###########################################################################
     load_flg  = 0       # Loading model     0: no, 1: saved model, 2: ckpt
     train_flg = 1       # Training          0: no, 1: Yes
-    test_flg  = 2       # Evaluating        0: no, 1: after training, 2: also during training
+    test_flg  = 1       # Evaluating        0: no, 1: after training, 2: also during training
     # video_flg = 0       # Video history     0: no, 1: yes
-    save_flg  = 2       # Saving model      0: no, 1: yes
+    save_flg  = 1       # Saving model      0: no, 1: yes
 
 
     ###########################################################################
@@ -32,7 +32,7 @@ class InputData(object):
     # Input Space Extreme Values ----------------------------------------------
     Ttr = [10000.0e0]                   # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    300.e0]         # Initial TInt
+    T0  = [300.0e0,    1000.e0]         # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
     XO2 = [0.950e0,    0.950e0]         # Initial O2 Mole Frac
 
@@ -63,13 +63,13 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 1              # Number of training cases
-    train_pts      = 128             # Number of total training pts for each case
+    train_cases    = 10              # Number of training cases
+    train_pts      = 160             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 1              # Number of testing cases
+    test_cases     = 3              # Number of testing cases
     test_training  = True           # Test training case
     period         = 100            # Plotting frequancy during training [epochs]
 
@@ -77,12 +77,12 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs      = 40000
-    batch_size  = 64
+    epochs      = 100000
+    batch_size  = 128
 
     optimizer   = 'adam' 
     lr          = 1.e-4
-    decay       = ["exponential", 1000, 0.97]
+    decay       = ["exponential", 1000*train_cases, 0.98]
 
     loss        = 'MALPE'               # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics     = ["accuracy"]

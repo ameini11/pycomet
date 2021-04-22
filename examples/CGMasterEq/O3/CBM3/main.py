@@ -1,5 +1,10 @@
+# Tensorflow/Keras set up
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 from tensorflow.keras import callbacks
+tf.keras.backend.set_floatx('float64')
+
 import numpy as np
 import sys
 
@@ -10,7 +15,6 @@ from data_generator import DataGenerator
 sys.path.append(inp.pro_path)
 import prode as pro
 
-tf.keras.backend.set_floatx('float64')
 
 @pro.utils.timing
 def main():
@@ -72,7 +76,7 @@ def main():
     # Initialize Model --------------------------------------------------------
     model = pro.model.Model(data, net, inp.name)
     if inp.load_flg > 0:
-        model.restore_net(self, from_ckpt=int(inp.load_flg-1))
+        model.restore_net(from_ckpt=int(inp.load_flg-1))
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
