@@ -32,7 +32,7 @@ class InputData(object):
     # Input Space Extreme Values ----------------------------------------------
     Ttr = [10000.0e0]                   # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    1000.e0]         # Initial TInt
+    T0  = [300.0e0,    300.e0]         # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
     XO2 = [0.950e0,    0.950e0]         # Initial O2 Mole Frac
 
@@ -40,14 +40,15 @@ class InputData(object):
     grouping  = 'CBM3' #'DPM10'
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
     t0, t_end = 1.e-10, 1.e-4       # Time limits for testing
-    mass_frac = False               # Output data in mass fractions [Bool]
+    mass_frac = True               # Output data in mass fractions [Bool]
+    if mass_frac: u_dim += 1
 
 
     ###########################################################################
     ### NN Architecture
     ###########################################################################
-    layer_size_branch  = [u_dim, 32, 32, 16]
-    layer_size_trunk   = [y_dim, 64, 32, 16]
+    layer_size_branch  = [u_dim, 16, 16, 8]
+    layer_size_trunk   = [y_dim, 16, 16, 8]
     activation         = {"branch": 'elu', "trunk": 'sigmoid'}
     kernel_initializer = "GlorotNormal"
     regularization     = ["l1+l2", 1.e-4, 1.e-4]
@@ -62,13 +63,13 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 8              # Number of training cases
+    train_cases    = 1              # Number of training cases
     train_pts      = 128             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 3              # Number of testing cases
+    test_cases     = 1              # Number of testing cases
     test_training  = True           # Test training case
     period         = 100            # Plotting frequancy during training [epochs]
 
@@ -76,19 +77,19 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs      = 20000
+    epochs      = 40000
     batch_size  = 64
 
     optimizer   = 'adam' 
-    lr          = 5.e-5
-    decay       = ["exponential", 1000, 0.99]
+    lr          = 1.e-4
+    decay       = ["exponential", 1000, 0.97]
 
-    loss        = 'MALPE'       # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    loss        = 'MALPE'               # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics     = ["accuracy"]
 
     # Early Stopping Callback -------------------------------------------------
-    min_delta   = 1.e-4
-    patience    = 300
+    min_delta   = 1.e-6
+    patience    = 20000
 
 
     ###########################################################################

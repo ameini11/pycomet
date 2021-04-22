@@ -25,7 +25,7 @@ def MeanAbsoluteLogPercentageError(y_true, y_pred):
     y_true = tf.math.log(y_true)
     y_pred = tf.math.log(y_pred)
     err = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
-    return tf.reduce_sum(tf.reduce_mean(err, axis=0))
+    return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
 def MeanSquaredLogPercentageError(y_true, y_pred):
@@ -33,13 +33,13 @@ def MeanSquaredLogPercentageError(y_true, y_pred):
     y_true = tf.math.log(y_true)
     y_pred = tf.math.log(y_pred)
     err = 100.*tf.square(tf.math.divide((y_true - y_pred), y_true))
-    return tf.reduce_sum(tf.reduce_mean(err, axis=0))
+    return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
 def MSLE(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     err = tf.square(tf.math.log(y_true) - tf.math.log(y_pred))
-    return tf.reduce_sum(tf.reduce_mean(err, axis=0))
+    return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
 def zero(*_):
@@ -52,14 +52,14 @@ def get(identifier):
 
     loss_identifier = {
         "mae":   lss.MeanAbsoluteError,
-        "mape":  lss.MeanAbsolutePercentageError,
+        "mape":  lss.MeanAbsolutePercentageError(),
         "MAPE":  MeanAbsolutePercentageError,
         "MALPE": MeanAbsoluteLogPercentageError,
-        "mse":   lss.MeanSquaredError,
+        "mse":   lss.MeanSquaredError(),
         "MSE":   MeanSquaredError,
         "msle":  lss.MSLE,
-        "MSLPE": MeanSquaredLogPercentageError,
         "MSLE":  MSLE,
+        "MSLPE": MeanSquaredLogPercentageError,
         "zero":  zero,
     }
 
