@@ -13,7 +13,6 @@ import tensorflow.keras.callbacks   as CB
 from .postprocessing import testing_plots
 
 
-@tf.keras.utils.register_keras_serializable()
 class LearningRateTracker(CB.Callback):
     """Learning rate tracker."""
 
@@ -47,7 +46,6 @@ class LearningRateTracker(CB.Callback):
             self.file.close()
 
 
-@tf.keras.utils.register_keras_serializable()
 class LRPiecewiseConstantDecay(CB.Callback):
     """Learning rate scheduler which sets the learning rate according to schedule.
 
@@ -78,7 +76,6 @@ class LRPiecewiseConstantDecay(CB.Callback):
         K.set_value(self.model.optimizer.lr, self.values[self.idx])
 
 
-@tf.keras.utils.register_keras_serializable()
 class Timer(CB.Callback):
     """Stop training when training time reaches the threshold.
     This Timer starts after the first call of `on_train_begin`.
@@ -105,7 +102,6 @@ class Timer(CB.Callback):
                     (time.time() - self.t_start) / 60, epoch))
 
 
-@tf.keras.utils.register_keras_serializable()
 class VariableValue(CB.Callback):
     """Get the variable values.
 
@@ -162,7 +158,6 @@ class VariableValue(CB.Callback):
         return self.values
 
 
-@tf.keras.utils.register_keras_serializable()
 class Plotter(CB.Callback):
     """Plot variables to show the training progress."""
 

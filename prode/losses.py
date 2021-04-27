@@ -25,25 +25,27 @@ def MeanAbsolutePercentageError(y_true, y_pred):
 @tf.keras.utils.register_keras_serializable()
 def MeanAbsoluteLogPercentageError(y_true, y_pred):
     # Warning: see MeanSquaredError above.
-    y_true = tf.math.log(y_true)
-    y_pred = tf.math.log(y_pred)
-    err = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
+    y_true = tf.math.log(y_true + 1.e-30)
+    y_pred = tf.math.log(y_pred + 1.e-30)
+    err    = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
 @tf.keras.utils.register_keras_serializable()
 def MeanSquaredLogPercentageError(y_true, y_pred):
     # Warning: see MeanSquaredError above.
-    y_true = tf.math.log(y_true)
-    y_pred = tf.math.log(y_pred)
-    err = 100.*tf.square(tf.math.divide((y_true - y_pred), y_true))
+    y_true = tf.math.log(y_true + 1.e-30)
+    y_pred = tf.math.log(y_pred + 1.e-30)
+    err    = 100.*tf.square(tf.math.divide((y_true - y_pred), y_true))
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
 @tf.keras.utils.register_keras_serializable()
 def MSLE(y_true, y_pred):
     # Warning: see MeanSquaredError above.
-    err = tf.square(tf.math.log(y_true) - tf.math.log(y_pred))
+    y_true = tf.math.log(y_true + 1.e-30)
+    y_pred = tf.math.log(y_pred + 1.e-30)
+    err    = tf.square(y_true - y_pred)
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 

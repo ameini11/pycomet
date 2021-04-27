@@ -1,6 +1,8 @@
 import inspect
 import sys
 import time
+import datetime
+
 import numpy         as np
 import tensorflow    as tf
 
@@ -16,7 +18,8 @@ def timing(f):
         ts = time.time()
         result = f(*args, **kwargs)
         te = time.time()
-        print("%r took %f s\n" % (f.__name__, te - ts))
+        delta = datetime.timedelta(seconds=(te - ts))
+        print("Function %r took %s.\n" % (f.__name__, delta))
         sys.stdout.flush()
         return result
 

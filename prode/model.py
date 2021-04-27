@@ -42,6 +42,8 @@ class Model(object):
 
         # Define saving format
         self.save_format = save_format
+        self.save_path   = self.name
+        if self.save_format == 'h5': self.save_path = self.save_path + '.h5'
 
 
     @timing
@@ -55,8 +57,8 @@ class Model(object):
                 print("Restoring from checkpoint", latest_checkpoint)
                 self.net = tf.keras.models.load_model(latest_checkpoint)
         else:
-            print("Restoring from file", self.name+'.'+self.save_format)
-            self.net = tf.keras.models.load_model(self.name+'.'+self.save_format)
+            print("Restoring from file", self.save_path)
+            self.net.load_weights(self.save_path)
 
 
     @timing
@@ -87,7 +89,7 @@ class Model(object):
             self.metrics = None
 
         self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
-                         metrics=self.metrics, loss_weights=loss_weights, name=self.name)
+                         metrics=self.metrics, loss_weights=loss_weights)
         # if data.num_coll > 0
         #     self.net.add_loss(data.residual_loss(self.loss_res, self.net.inputs))
         self.net.summary()
@@ -105,7 +107,7 @@ class Model(object):
     ):
         print('\n[ProPDE]: Training the Model ...')
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", monitor='val_loss', save_best_only=True, save_weights_only=True)
-        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, write_graph=True, write_grads=True, write_images=True)
+        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, write_graph=True, write_images=True)
         LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
         callbacks.extend([MC, TB, LR])
 
@@ -154,8 +156,7 @@ class Model(object):
 
     @timing
     def save(self):
-        
-        self.net.save("./"+self.name+'.h5', save_format=self.save_format)
+        self.net.save_weights(self.save_path, overwrite=True, save_format=self.save_format)
 
 
     @timing

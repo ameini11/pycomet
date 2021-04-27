@@ -53,7 +53,7 @@ class OpNN(Net):
 
         self.batch_norm  = batch_norm
         self.weight_norm = weight_norm
-        self.use_end_scale      = use_end_scale
+        self.use_end_scale = use_end_scale
 
         ### Blocks Initialization ---------------------------------------------
         self.branches   = [ FNN(

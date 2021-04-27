@@ -2,8 +2,8 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
-from tensorflow.keras import callbacks
 tf.keras.backend.set_floatx('float64')
+from tensorflow.keras import callbacks
 
 import numpy as np
 import sys
@@ -40,34 +40,31 @@ def main():
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    if inp.load_flg == 0:
-        net_init = pro.net.FuncOpNN(
-            inp.u_dim, inp.y_dim, inp.G_dim,
-            inp.layer_size_branch,
-            inp.layer_size_trunk,
-            inp.activation,
-            inp.kernel_initializer,
-            regularization=inp.regularization,
-            dropout_rate=inp.dropout_rate,
-            batch_norm=inp.batch_norm)
+    net_init = pro.net.FuncOpNN(
+        inp.u_dim, inp.y_dim, inp.G_dim,
+        inp.layer_size_branch,
+        inp.layer_size_trunk,
+        inp.activation,
+        inp.kernel_initializer,
+        regularization=inp.regularization,
+        dropout_rate=inp.dropout_rate,
+        batch_norm=inp.batch_norm)
 
-        # Apply I/O Transformation ------------------------------------------------
-        if inp.mass_frac:
-            output_fn = tf.keras.layers.Softmax(axis=-1)
-            branch_fn = lambda x: x
-        else:
-            output_fn = tf.math.exp
-            branch_fn = tf.math.log
+    # Apply I/O Transformation ------------------------------------------------
+    if inp.mass_frac:
+        output_fn = tf.keras.layers.Softmax(axis=-1)
+        branch_fn = lambda x: x
+    else:
+        output_fn = tf.math.exp
+        branch_fn = tf.math.log
 
-        net_init.apply_feature_transform({
-            "branch": branch_fn,
-            "trunk" : lambda x: x * inp.scale_fac})
-        net_init.apply_output_transform(output_fn)
+    net_init.apply_feature_transform({
+        "branch": branch_fn,
+        "trunk" : lambda x: x * inp.scale_fac})
+    net_init.apply_output_transform(output_fn)
 
-        # Uncompiled Net ----------------------------------------------------------
-        net = net_init.get_uncompiled_model()
-
-    else: net = None
+    # Uncompiled Net ----------------------------------------------------------
+    net = net_init.get_uncompiled_model()
 
 
     ###########################################################################
@@ -75,12 +72,13 @@ def main():
     ###########################################################################
     # Initialize Model --------------------------------------------------------
     model = pro.model.Model(data, net, inp.name)
-    if inp.load_flg > 0:
-        model.restore_net(from_ckpt=int(inp.load_flg-1))
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
                   decay=inp.decay, loss_weights=None)
+
+    if inp.load_flg > 0:
+        model.restore_net(from_ckpt=int(inp.load_flg-1))
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:
