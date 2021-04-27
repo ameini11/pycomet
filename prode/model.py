@@ -31,6 +31,8 @@ class Model(object):
         self.loss_pts  = None
         self.loss_res  = None
 
+        self.breakall  = False
+
         # Define paths
         self.train_dir = path+"/training"
         self.ckpt_dir  = self.train_dir+"/ckpt"
@@ -54,10 +56,10 @@ class Model(object):
             checkpoints = [self.ckpt_dir + "/" + name for name in os.listdir(self.ckpt_dir)]
             if checkpoints:
                 latest_checkpoint = max(checkpoints, key=os.path.getctime)
-                print("Restoring from checkpoint", latest_checkpoint)
+                print("\n[ProPDE]: Restoring Model from checkpoint", latest_checkpoint, end='.')
                 self.net = tf.keras.models.load_model(latest_checkpoint)
         else:
-            print("Restoring from file", self.save_path)
+            print("\n[ProPDE]: Restoring Model from file", self.save_path, end='.')
             self.net.load_weights(self.save_path)
 
 
@@ -71,7 +73,7 @@ class Model(object):
         decay=None,
         loss_weights=None,
     ):
-
+        print('\n[ProPDE]: Compile the Model ...\n')
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
@@ -94,6 +96,12 @@ class Model(object):
         #     self.net.add_loss(data.residual_loss(self.loss_res, self.net.inputs))
         self.net.summary()
         tf.keras.utils.plot_model(self.net, self.train_dir+"/"+self.name+".png")
+        
+        asw = input('\n[ProPDE]: Is the model structure correct? [y/n] ')
+        if asw.lower() != 'y':
+            self.breakall = True
+            print('[ProPDE]:   All the processes will be stopped.\n')
+
 
 
     @timing
@@ -105,7 +113,7 @@ class Model(object):
         validation_split=0.2,
         validation_data=None
     ):
-        print('\n[ProPDE]: Training the Model ...')
+        print('\n[ProPDE]: Training the Model ...\n')
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", monitor='val_loss', save_best_only=True, save_weights_only=True)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, write_graph=True, write_images=True)
         LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
@@ -114,7 +122,7 @@ class Model(object):
         print('[ProPDE]:   Number of Training pts:     %10d' % self.data.train_y.shape[0])
         if self.data.valid_x is not None:
             validation_data = (self.data.valid_x, self.data.valid_y)
-            print('[ProPDE]:   Number of Validation pts:     %10d' % self.data.valid_y.shape[0])
+            print('[ProPDE]:   Number of Validation pts:   %10d\n' % self.data.valid_y.shape[0])
 
         self.history = self.net.fit(
                         x=self.data.train_x,
