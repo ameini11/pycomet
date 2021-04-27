@@ -3,6 +3,7 @@ import tensorflow as tf
 import tensorflow.keras.losses as lss
 
 
+@tf.keras.utils.register_keras_serializable()
 def MeanSquaredError(y_true, y_pred):
     # Warning:
     # - Do not use ``tf.losses.mean_squared_error``, which casts `y_true` and `y_pred` to ``float32``.
@@ -14,12 +15,14 @@ def MeanSquaredError(y_true, y_pred):
     return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
 
+@tf.keras.utils.register_keras_serializable()
 def MeanAbsolutePercentageError(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     err = 100.*tf.math.abs(tf.math.divide((y_true - y_pred), y_true))
     return tf.reduce_sum(tf.reduce_mean(err, axis=0))
 
 
+@tf.keras.utils.register_keras_serializable()
 def MeanAbsoluteLogPercentageError(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     y_true = tf.math.log(y_true)
@@ -28,6 +31,7 @@ def MeanAbsoluteLogPercentageError(y_true, y_pred):
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
+@tf.keras.utils.register_keras_serializable()
 def MeanSquaredLogPercentageError(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     y_true = tf.math.log(y_true)
@@ -36,12 +40,14 @@ def MeanSquaredLogPercentageError(y_true, y_pred):
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
+@tf.keras.utils.register_keras_serializable()
 def MSLE(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     err = tf.square(tf.math.log(y_true) - tf.math.log(y_pred))
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
+@tf.keras.utils.register_keras_serializable()
 def zero(*_):
     return tf.constant(0, dtype=config.real(tf))
 

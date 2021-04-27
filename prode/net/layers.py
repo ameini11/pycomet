@@ -7,6 +7,7 @@ from . import initializers
 from . import regularizers
 
 
+@tf.keras.utils.register_keras_serializable()
 class FNNBlock(tf.keras.layers.Layer):
 
     # Initialization

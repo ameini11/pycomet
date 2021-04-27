@@ -86,7 +86,8 @@ class Model(object):
         else:
             self.metrics = None
 
-        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, metrics=self.metrics, loss_weights=loss_weights)
+        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
+                         metrics=self.metrics, loss_weights=loss_weights, name=self.name)
         # if data.num_coll > 0
         #     self.net.add_loss(data.residual_loss(self.loss_res, self.net.inputs))
         self.net.summary()

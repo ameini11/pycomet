@@ -135,76 +135,76 @@ class OpNN(Net):
 
     # Training Step
     ##########################################################################
-    # def train_step(self, data):
-    #     # Unpack the data. Its structure depends on your model and
-    #     # on what you pass to `fit()`.
-    #     if len(data) == 3:
-    #         x, y, sample_weight = data
-    #     else:
-    #         sample_weight = None
-    #         x, y = data
+    def train_step(self, data):
+        # Unpack the data. Its structure depends on your model and
+        # on what you pass to `fit()`.
+        if len(data) == 3:
+            x, y, sample_weight = data
+        else:
+            sample_weight = None
+            x, y = data
 
-    #     if isinstance(x, (list, tuple)):
-    #         x_u, x_y = x[0], x[1]
-    #     else:
-    #         x_u, x_y = tf.split(x, [x.shape[1]-1, 1], axis=1)
+        if isinstance(x, (list, tuple)):
+            x_u, x_y = x[0], x[1]
+        else:
+            x_u, x_y = tf.split(x, [x.shape[1]-1, 1], axis=1)
 
-    #     with tf.GradientTape() as tape:
-    #         with tf.GradientTape() as res_tape:
-    #             res_tape.watch(x_y)
-    #             y_pred = self([x_u, x_y], training=True)
-    #             loss = self.compiled_loss(
-    #                 y,
-    #                 y_pred,
-    #                 sample_weight=sample_weight,
-    #                 regularization_losses=self.losses,
-    #             )
-    #             if self.res_loss_fn is not None:
-    #                 self.res_loss = self.res_loss_fn(self, y_pred, res_tape)
+        with tf.GradientTape() as tape:
+            with tf.GradientTape() as res_tape:
+                res_tape.watch(x_y)
+                y_pred = self([x_u, x_y], training=True)
+                loss = self.compiled_loss(
+                    y,
+                    y_pred,
+                    sample_weight=sample_weight,
+                    regularization_losses=self.losses,
+                )
+                if self.res_loss_fn is not None:
+                    self.res_loss = self.res_loss_fn(self, y_pred, res_tape)
 
-    #     grad = model_tape.gradient(loss+self.res_loss, model.trainable_variables)
-    #     opt.apply_gradients(zip(grad, model.trainable_variables))
-    #     if step%20==0:
-    #         print(f"Step {step}: loss={loss.numpy()}")
+        grad = model_tape.gradient(loss+self.res_loss, model.trainable_variables)
+        opt.apply_gradients(zip(grad, model.trainable_variables))
+        if step%20==0:
+            print(f"Step {step}: loss={loss.numpy()}")
 
 
-    #     # Sample random points in the latent space
-    #     batch_size = tf.shape(real_images)[0]
-    #     random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
+        # Sample random points in the latent space
+        batch_size = tf.shape(real_images)[0]
+        random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
 
-    #     # Decode them to fake images
-    #     generated_images = self.generator(random_latent_vectors)
+        # Decode them to fake images
+        generated_images = self.generator(random_latent_vectors)
 
-    #     # Combine them with real images
-    #     combined_images = tf.concat([generated_images, real_images], axis=0)
+        # Combine them with real images
+        combined_images = tf.concat([generated_images, real_images], axis=0)
 
-    #     # Assemble labels discriminating real from fake images
-    #     labels = tf.concat(
-    #         [tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))], axis=0
-    #     )
-    #     # Add random noise to the labels - important trick!
-    #     labels += 0.05 * tf.random.uniform(tf.shape(labels))
+        # Assemble labels discriminating real from fake images
+        labels = tf.concat(
+            [tf.ones((batch_size, 1)), tf.zeros((batch_size, 1))], axis=0
+        )
+        # Add random noise to the labels - important trick!
+        labels += 0.05 * tf.random.uniform(tf.shape(labels))
 
-    #     # Train the discriminator
-    #     with tf.GradientTape() as tape:
-    #         predictions = self.discriminator(combined_images)
-    #         d_loss = self.loss_fn(labels, predictions)
-    #     grads = tape.gradient(d_loss, self.discriminator.trainable_weights)
-    #     self.d_optimizer.apply_gradients(
-    #         zip(grads, self.discriminator.trainable_weights)
-    #     )
+        # Train the discriminator
+        with tf.GradientTape() as tape:
+            predictions = self.discriminator(combined_images)
+            d_loss = self.loss_fn(labels, predictions)
+        grads = tape.gradient(d_loss, self.discriminator.trainable_weights)
+        self.d_optimizer.apply_gradients(
+            zip(grads, self.discriminator.trainable_weights)
+        )
 
-    #     # Sample random points in the latent space
-    #     random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
+        # Sample random points in the latent space
+        random_latent_vectors = tf.random.normal(shape=(batch_size, self.latent_dim))
 
-    #     # Assemble labels that say "all real images"
-    #     misleading_labels = tf.zeros((batch_size, 1))
+        # Assemble labels that say "all real images"
+        misleading_labels = tf.zeros((batch_size, 1))
 
-    #     # Train the generator (note that we should *not* update the weights
-    #     # of the discriminator)!
-    #     with tf.GradientTape() as tape:
-    #         predictions = self.discriminator(self.generator(random_latent_vectors))
-    #         g_loss = self.loss_fn(misleading_labels, predictions)
-    #     grads = tape.gradient(g_loss, self.generator.trainable_weights)
-    #     self.g_optimizer.apply_gradients(zip(grads, self.generator.trainable_weights))
-    #     return {"d_loss": d_loss, "g_loss": g_loss}
+        # Train the generator (note that we should *not* update the weights
+        # of the discriminator)!
+        with tf.GradientTape() as tape:
+            predictions = self.discriminator(self.generator(random_latent_vectors))
+            g_loss = self.loss_fn(misleading_labels, predictions)
+        grads = tape.gradient(g_loss, self.generator.trainable_weights)
+        self.g_optimizer.apply_gradients(zip(grads, self.generator.trainable_weights))
+        return {"d_loss": d_loss, "g_loss": g_loss}
