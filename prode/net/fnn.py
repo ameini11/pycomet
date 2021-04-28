@@ -1,16 +1,16 @@
-import tensorflow as tf
-import tensorflow_addons as tfa
 import tensorflow.keras.layers as lay
 
 from . import activations
 from . import initializers
 from . import regularizers
+from . import layers
+from . import steps
 
 from .net import Net
 
 
 class FNN(Net):
-    """Feed-forward neural networks."""
+    """Feed-forward neural network."""
 
     # Initialization
     ###########################################################################
@@ -42,12 +42,37 @@ class FNN(Net):
         self.weight_norm         = weight_norm
 
         ### Layers Initialization ---------------------------------------------
-        self.lays = list()
-        # Hidden Layers
-        for i in range(len(self.layer_size)-2):
-            self.lays.append( self.DenseBlock(i+1) )
-        # Output Layer
-        self.lays.append( self.dense(self.layer_size[-1], name=self.name+'_output') )
+        self.block = layers.FNNBlock(
+                        self.layer_size,
+                        self.activation,
+                        self.kernel_initializer,
+                        regularization=self.regularizer,
+                        dropout_rate=self.dropout_rate,
+                        batch_norm=self.batch_norm,
+                        weight_norm=self.weight_norm,
+                        name=self.name)
+
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+
+        config = super().get_config().copy()
+        config.update({
+            'layer_size':         self.layer_size,
+            'activation':         self.activation,
+            'kernel_initializer': self.kernel_initializer,
+            'regularizer':        self.regularizer,
+            'dropout_rate':       self.dropout_rate,
+            'batch_norm':         self.batch_norm,
+            'weight_norm':        self.weight_norm,
+            'block':              self.block,
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
 
     # Calling
@@ -56,69 +81,34 @@ class FNN(Net):
 
         self.x = x
 
-        # Input layer
+        # Input Transform
         y = x
         if self.inp_trans is not None:
-            y = self.inp_trans(y)
+            y = lay.Lambda(self.inp_trans)(y)
 
-        # Hidden layers
-        for i in range(len(self.layer_size) - 2):
-            layer = self.lays[i]
-            y = layer[0](y)
-            if self.batch_norm == "before":
-                y = self.activation( layer[1](y) )
-            elif self.batch_norm == "after":
-                y = layer[1](y)
-            if self.dropout_rate > 0:
-                y = layer[-1](y)
+        # Block Layer
+        self.y = self.block(y)
 
-        # Output layer
-        self.y = self.lays[-1](y)
+        # Output Transform
         if self.out_trans is not None:
-            self.y = self.out_trans(self.x, self.y)
+            self.y = lay.Lambda(self.out_trans)(self.y)
 
         return self.y
 
 
-    # Layers Definition
-    ###########################################################################
-    def DenseBlock(self, number):
-
-        act_fun = self.activation
-        bias    = True
-        if self.batch_norm == "before":
-            act_fun = None
-            bias    = False
-
-        l = [ self.Dense(self.layer_size[number], activation=act_fun, \
-                         use_bias=bias, name=self.name+'_hid'+str(number)) ]
-
-        if self.batch_norm is not None:
-            bn = lay.BatchNormalization(name=self.name+'_normHid'+str(number))
-            l.append(bn)
-
-        if self.dropout_rate > 0:
-            do = lay.Dropout(self.dropout_rate, name=self.name+'_dropHid'+str(number))
-            l.append(do)
-
-        return l
+    # Training Step
+    ##########################################################################
+    def train_step(self, data):
+        if self.res_loss_fn is not None:
+            return steps.train_step(self, data)
+        else:
+            return super(FNN, self).train_step(data)
 
 
-    def Dense(self, units, activation=None, use_bias=True, name=None):
-        l = lay.Dense(
-            units,
-            activation=activation,
-            use_bias=use_bias,
-            kernel_initializer=self.kernel_initializer,
-            bias_initializer="zeros",
-            kernel_regularizer=self.regularizer,
-            bias_regularizer=self.regularizer,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None,
-            name=name
-        )
-        if self.weight_norm:
-            l = tfa.layers.WeightNormalization(l)
-
-        return l
+    # Testing Step
+    ##########################################################################
+    def test_step(self, data):
+        if self.res_loss_fn is not None:
+            return steps.test_step(self, data)
+        else:
+            return super(FNN, self).test_step(data)

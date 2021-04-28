@@ -40,6 +40,28 @@ class FNNBlock(tf.keras.layers.Layer):
         self.lays.append( self.Dense(self.layer_size[-1], name=self.name+'_output') )
 
 
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+
+        config = super().get_config().copy()
+        config.update({
+            'layer_size':         self.layer_size,
+            'activation':         self.activation,
+            'kernel_initializer': self.kernel_initializer,
+            'regularizer':        self.regularizer,
+            'dropout_rate':       self.dropout_rate,
+            'batch_norm':         self.batch_norm,
+            'weight_norm':        self.weight_norm,
+            'lays':               self.lays,
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+
     # Calling
     ###########################################################################
     def call(self, x):
@@ -64,24 +86,6 @@ class FNNBlock(tf.keras.layers.Layer):
         self.y = self.lays[-1](y)
 
         return self.y
-        
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-
-        config = super().get_config().copy()
-        config.update({
-            'layer_size':         self.layer_size,
-            'activation':         self.activation,
-            'kernel_initializer': self.kernel_initializer,
-            'regularizer':        self.regularizer,
-            'dropout_rate':       self.dropout_rate,
-            'batch_norm':         self.batch_norm,
-            'weight_norm':        self.weight_norm,
-            'lays':               self.lays,
-        })
-        return config
 
 
     # Layers Definition
@@ -126,3 +130,38 @@ class FNNBlock(tf.keras.layers.Layer):
             l = tfa.layers.WeightNormalization(l)
 
         return l
+
+
+# --------------------------------------------------------------------------- #
+
+
+@tf.keras.utils.register_keras_serializable()
+class ScaleLayer(tf.keras.layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        value=1.,
+        name='scale'):
+        super(ScaleLayer, self).__init__(name=name)
+
+        self.scale = tf.Variable(value)
+        
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = super().get_config().copy()
+        config.update({'scale': self.scale})
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+
+    # Calling
+    ###########################################################################
+    def call(self, x):
+        return x * self.scale
