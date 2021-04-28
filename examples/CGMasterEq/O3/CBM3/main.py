@@ -12,6 +12,9 @@ from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
+tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
+tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
+
 sys.path.append(inp.pro_path)
 import prode as pro
 
@@ -21,6 +24,12 @@ def main():
 
     print('[PrODE]: Start!')
 
+    print("--------------------------------------------------------------------------------------------------")
+    print(" TensorFlow version: {}".format(tf.__version__))
+    print(" Eager execution:    {}".format(tf.executing_eagerly()))
+    print(" Number of threads:  {}".format(inp.num_threads))
+    print("--------------------------------------------------------------------------------------------------")
+    
     ###########################################################################
     ### Data
     ###########################################################################

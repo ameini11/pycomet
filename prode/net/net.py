@@ -28,7 +28,7 @@ class Net(tf.keras.Model):
             'inp_trans':    self.inp_trans,
             'out_trans':    self.out_trans,
             'res_loss_fn':  self.res_loss_fn,
-            'res_loss':     self.res_loss
+            'res_loss':     self.res_loss,
             'res_val_loss': self.res_val_loss
         })
         return config

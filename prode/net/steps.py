@@ -1,3 +1,4 @@
+import tensorflow as tf
 from tensorflow.python.eager import backprop
 from tensorflow.python.keras.engine import data_adapter
 
