@@ -19,7 +19,7 @@ import prode as pro
 @pro.utils.timing
 def main():
 
-    print('[PrODE]: Starting ...\n')
+    print('[PrODE]: Start!')
 
     ###########################################################################
     ### Data
@@ -34,7 +34,7 @@ def main():
     data = pro.data.OpDataSet(
         x_train=[data_train[1], data_train[2]],
         y_train=data_train[3],
-        x_valid=[data_train[1], data_train[2]],
+        x_valid=[data_valid[1], data_valid[2]],
         y_valid=data_valid[3])
 
 

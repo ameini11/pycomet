@@ -96,7 +96,7 @@ class DataGenerator(object):
     def build_matrices(self):
         '''Build Master Equation matrices.'''
 
-        print('\n[PrODE]: Building Master Equation matrices ...\n')
+        print('\n[PrODE]: Building Master Equation matrices ...')
 
         mat = dict()
         rates_coeff = self.get_rates()
@@ -177,7 +177,15 @@ class DataGenerator(object):
 
             idx_train, idx_valid = self.stratified_sampling(idx, self.valid_pts)
             idx_train = np.insert(idx_train, 0, 0)      # Add initial condition
-            assert self.train_pts == np.shape(idx_train)[0] + np.shape(idx_valid)[0]
+
+            # Checking if number of training pts is respected
+            i_warn = 0
+            if self.train_pts != np.shape(idx_train)[0] + np.shape(idx_valid)[0]:
+                i_warn += 1
+                sys.stdout.write('[PrODE]:   Warning! For {} cases, the number of \
+                                  training pts is not respected.'.format(i_warn))
+                sys.stdout.flush()
+            # assert self.train_pts == np.shape(idx_train)[0] + np.shape(idx_valid)[0]
 
             # Extract data values
             data_train_i, data_valid_i = get_data(idx_train), get_data(idx_valid)
