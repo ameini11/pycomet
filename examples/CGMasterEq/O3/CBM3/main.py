@@ -19,6 +19,8 @@ import prode as pro
 @pro.utils.timing
 def main():
 
+    print('[PrODE]: Starting ...\n')
+
     ###########################################################################
     ### Data
     ###########################################################################
@@ -77,7 +79,7 @@ def main():
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
                   decay=inp.decay, loss_weights=None)
     if model.breakall: return
-    
+
     if inp.load_flg > 0:
         model.restore_net(from_ckpt=int(inp.load_flg-1))
 

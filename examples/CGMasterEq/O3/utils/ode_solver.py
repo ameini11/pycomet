@@ -62,7 +62,7 @@ class ODESolver(object):
         if isinstance(params, dict):
             params = tuple([params[k] for k in params])
 
-        r = ode(f, jac).set_integrator('vode', method='bdf', with_jacobian=True, atol=1.e-12)
+        r = ode(f, jac).set_integrator('vode', method='bdf', with_jacobian=True, atol=1.e-20)
         r.set_initial_value(rho_0, self.t0).set_f_params(params).set_jac_params(params)
 
         # Appending Data

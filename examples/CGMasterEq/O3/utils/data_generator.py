@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
+import tqdm
 
 from sklearn.utils import shuffle
 from scipy.spatial import KDTree
@@ -95,6 +96,8 @@ class DataGenerator(object):
     def build_matrices(self):
         '''Build Master Equation matrices.'''
 
+        print('\n[PrODE]: Building Master Equation matrices ...\n')
+
         mat = dict()
         rates_coeff = self.get_rates()
         for i, T_i in enumerate(self.T_str):
@@ -107,6 +110,8 @@ class DataGenerator(object):
     ### Training/Validation Data
     ###########################################################################
     def training_data(self):
+
+        print('\n[PrODE]: Generating training pts ...')
 
         n = self.train_cases
 
@@ -146,7 +151,8 @@ class DataGenerator(object):
         # ---------------------------------------------------------------------
 
         assert self.train_pts > 3
-        for i, ic_i in enumerate(ic):
+
+        for i, ic_i in enumerate(tqdm.tqdm(ic)):
             # Solving the ODE
             T_i = X[i,0]
             t_i, y_i = self.ODE_sol.solve(ic_i, self.ODE_mat[str(int(T_i))])
@@ -155,8 +161,8 @@ class DataGenerator(object):
             tree  = KDTree(np.c_[t_i.ravel()])
             y_del = np.abs((y_i[:-1,:] - y_i[1:,:]) / y_i[1:,:])
             y_del = y_del[:,np.argmax(ic_i[:-1])]
-            idx_min = np.where(y_del > self.rtol)[0][0]         # Dynamics start-point
-            idx_max = np.where(y_del > self.rtol*5)[0][-1]   # Dynamics end-point
+            idx_min = np.where(y_del > self.rtol)[0][0]     # Dynamics start-point
+            idx_max = np.where(y_del > self.rtol*5)[0][-1]  # Dynamics end-point
             t_min, t_max= t_i[idx_min], t_i[idx_max]
             if self.train_pts_dist == 'random':
                 d, ii  = tree.query([[t_min],[t_max]], k=1)
@@ -164,7 +170,7 @@ class DataGenerator(object):
             else:
                 t_vec  = np.linspace(np.log10(t_min), np.log10(t_max), \
                                      self.train_pts-1, dtype=np.float64)
-                h      = (t_vec[1,0]-t_vec[0,0])*0.8
+                h      = (t_vec[1,0]-t_vec[0,0])*0.7
                 delta  = (np.random.rand(self.train_pts-1,1)-0.5)*h
                 t_unif = np.power(10, t_vec + delta)
                 d, idx = tree.query(t_unif, k=1)
@@ -190,6 +196,10 @@ class DataGenerator(object):
                     self.test_training_data.append((ic_i, t_tr, (data_valid_i)))
         if self.test_training: assert len(self.test_training_data) == n
 
+        # Saving the data in a text file
+        # np.savetxt('train_data.out', np.hstack(tuple(data_train)), delimiter=',')
+        # np.savetxt('valid_data.out', np.hstack(tuple(data_valid)), delimiter=',')
+
         data_train = shuffle(*data_train)
         data_valid = shuffle(*data_valid)
 
@@ -200,6 +210,8 @@ class DataGenerator(object):
     ### Testing Data
     ###########################################################################
     def testing_data(self):
+
+        print('\n[PrODE]: Generating testing pts ...')
 
         n = self.test_cases
 
@@ -212,7 +224,7 @@ class DataGenerator(object):
 
         # Generating Initial Conditions ---------------------------------------
         ic = np.zeros((n,self.dim), dtype=np.float64)
-        for i in range(n):
+        for i in tqdm.tqdm(range(n)):
 
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
             XO  = 1. - XO2
