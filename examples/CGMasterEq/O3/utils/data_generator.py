@@ -1,7 +1,8 @@
 import pandas as pd
 import numpy as np
 import re
-import tqdm
+from tqdm import tqdm
+import sys
 
 from sklearn.utils import shuffle
 from scipy.spatial import KDTree
@@ -151,8 +152,8 @@ class DataGenerator(object):
         # ---------------------------------------------------------------------
 
         assert self.train_pts > 3
-
-        for i, ic_i in enumerate(tqdm.tqdm(ic)):
+        i_warn = 0
+        for i, ic_i in enumerate(tqdm(ic, file=sys.stdout)):
             # Solving the ODE
             T_i = X[i,0]
             t_i, y_i = self.ODE_sol.solve(ic_i, self.ODE_mat[str(int(T_i))])
@@ -179,12 +180,11 @@ class DataGenerator(object):
             idx_train = np.insert(idx_train, 0, 0)      # Add initial condition
 
             # Checking if number of training pts is respected
-            i_warn = 0
             if self.train_pts != np.shape(idx_train)[0] + np.shape(idx_valid)[0]:
                 i_warn += 1
-                sys.stdout.write('[PrODE]:   Warning! For {} cases, the number of \
-                                  training pts is not respected.'.format(i_warn))
-                sys.stdout.flush()
+                tqdm.write('[PrODE]:   Warning! For {0} cases, the number of' \
+                           ' training pts is not respected: {1} < {2}.'.format(i_warn, \
+                           np.shape(idx_train)[0] + np.shape(idx_valid)[0], self.train_pts))
             # assert self.train_pts == np.shape(idx_train)[0] + np.shape(idx_valid)[0]
 
             # Extract data values
@@ -232,7 +232,7 @@ class DataGenerator(object):
 
         # Generating Initial Conditions ---------------------------------------
         ic = np.zeros((n,self.dim), dtype=np.float64)
-        for i in tqdm.tqdm(range(n)):
+        for i in tqdm(range(n)):
 
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
             XO  = 1. - XO2
