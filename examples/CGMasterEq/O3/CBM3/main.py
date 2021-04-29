@@ -29,7 +29,7 @@ def main():
     print(" Eager execution:    {}".format(tf.executing_eagerly()))
     print(" Number of threads:  {}".format(inp.num_threads))
     print("--------------------------------------------------------------------------------------------------")
-    
+
     ###########################################################################
     ### Data
     ###########################################################################
@@ -87,7 +87,7 @@ def main():
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
                   decay=inp.decay, loss_weights=None)
-    if model.breakall: return
+    if model.killall: return
 
     if inp.load_flg > 0:
         model.restore_net(from_ckpt=int(inp.load_flg-1))

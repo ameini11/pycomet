@@ -3,7 +3,7 @@ from .dataset import DataSet
 # from .func import Func
 # from .func_constraint import FuncConstraint
 from .op_dataset import OpDataSet
-#from .ode import ODE
+from .ode import ODE
 
 
 __all__ = [
@@ -12,5 +12,5 @@ __all__ = [
     # "Func",
     # "FuncConstraint",
     "OpDataSet",
-    #"ODE",
+    "ODE",
 ]

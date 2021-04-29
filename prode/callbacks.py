@@ -46,6 +46,37 @@ class LearningRateTracker(CB.Callback):
             self.file.close()
 
 
+class ResidualTracker(CB.Callback):
+    """Residual loss tracker."""
+
+    def __init__(self, filepath=None, log_dir=None, stdout=True):
+        super(ResidualTracker, self).__init__()
+
+        self.file = None if filepath is None \
+                    else open(filepath+'/res_tracker.csv', "w", buffering=1)
+        if self.file is not None: self.file.write("#epoch,res_loss,res_val_loss\n")
+
+        self.stdout = stdout
+
+        self.log_dir = log_dir
+        if self.log_dir is not None:
+            logs = log_dir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+            file_writer = tf.summary.create_file_writer(logs + "/metrics")
+            file_writer.set_as_default()
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.file is not None:
+            self.file.write('%d,%.6e\n' % (epoch, self.model.res_loss, self.model.res_val_loss))
+            self.file.flush()
+        if self.log_dir is not None:
+            tf.summary.scalar('res_loss', data=self.model.res_loss, step=epoch)
+            tf.summary.scalar('res_val_loss', data=self.model.res_val_loss, step=epoch)
+
+    def on_train_end(self, logs=None):
+        if self.file is not None:
+            self.file.close()
+
+
 class LRPiecewiseConstantDecay(CB.Callback):
     """Learning rate scheduler which sets the learning rate according to schedule.
 

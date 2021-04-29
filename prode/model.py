@@ -31,8 +31,6 @@ class Model(object):
         self.loss_pts  = None
         self.loss_res  = None
 
-        self.breakall  = False
-
         # Define paths
         self.train_dir = path+"/training"
         self.ckpt_dir  = self.train_dir+"/ckpt"
@@ -46,6 +44,51 @@ class Model(object):
         self.save_format = save_format
         self.save_path   = self.name
         if self.save_format == 'h5': self.save_path = self.save_path + '.h5'
+
+        self.killall  = False
+
+
+    @timing
+    def compile(
+        self,
+        optimizer,
+        lr=None,
+        loss="MSE",
+        metrics=None,
+        decay=None,
+        loss_weights=None,
+    ):
+        print('\n[PrODE]: Compiling the model ...\n')
+
+        # Initializing the optimizer
+        self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
+
+        # Initializing the loss functions
+        if isinstance(loss, dict):
+            self.loss_pts = losses_module.get(loss['pts'])
+            self.loss_res = losses_module.get(loss['res'])
+        else:
+            self.loss_pts = losses_module.get(loss)
+
+        if self.loss_res is not None:
+            self.net.add_residual_evaluation(self.data.residual_loss(self.loss_res))
+
+        # Defining metrics
+        if metrics is not None:
+            self.metrics = [ metrics_module.get(m) for m in metrics ]
+        else:
+            self.metrics = None
+
+        # Compiling
+        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
+                         metrics=self.metrics, loss_weights=loss_weights)
+        self.net.summary()
+        tf.keras.utils.plot_model(self.net, self.train_dir+"/"+self.name+".png")
+        
+        asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
+        if asw.lower() != 'y':
+            self.killall = True
+            print('[PrODE]:   All the processes will be stopped.\n')
 
 
     @timing
@@ -61,47 +104,6 @@ class Model(object):
         else:
             print("\n[PrODE]: Restoring model from file", self.save_path, end='.')
             self.net.load_weights(self.save_path)
-
-
-    @timing
-    def compile(
-        self,
-        optimizer,
-        lr=None,
-        loss="MSE",
-        metrics=None,
-        decay=None,
-        loss_weights=None,
-    ):
-        print('\n[PrODE]: Compiling the model ...\n')
-        # Initializing the optimizer
-        self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
-
-        # Initializing the loss functions
-        if isinstance(loss, dict):
-            self.loss_pts = losses_module.get(loss['pts'])
-            self.loss_res = losses_module.get(loss['res'])
-        else:
-            self.loss_pts = losses_module.get(loss)
-
-        # Defining metrics
-        if metrics is not None:
-            self.metrics = [ metrics_module.get(m) for m in metrics ]
-        else:
-            self.metrics = None
-
-        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
-                         metrics=self.metrics, loss_weights=loss_weights)
-        # if data.num_coll > 0
-        #     self.net.add_loss(data.residual_loss(self.loss_res, self.net.inputs))
-        self.net.summary()
-        tf.keras.utils.plot_model(self.net, self.train_dir+"/"+self.name+".png")
-        
-        asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
-        if asw.lower() != 'y':
-            self.breakall = True
-            print('[PrODE]:   All the processes will be stopped.\n')
-
 
 
     @timing
