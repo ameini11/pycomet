@@ -39,8 +39,8 @@ def plot_test(
 
     # Plotting
     lin = ['-', '--']
-    col  = ['k', 'r', 'g', 'b', 'tab:purple', 'tab:brown', 'tab:pink', \
-            'tab:blue', 'tab:red', 'tab:green', 'tab:orange']
+    col = ['k', 'r', 'g', 'b', 'tab:purple', 'tab:brown', 'tab:pink', \
+           'tab:blue', 'tab:red', 'tab:green', 'tab:orange']
 
     # Solution
     for d in range(y_true.shape[1]):

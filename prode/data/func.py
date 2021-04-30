@@ -36,7 +36,6 @@ class Func(Data):
             self.train_y = self.func(self.train_x)
         return self.train_x, self.train_y
 
-    @run_if_any_none("test_x", "test_y")
     def test(self):
         self.test_x = self.domain.uniform_points(self.num_test, True)
         self.test_y = self.func(self.test_x)

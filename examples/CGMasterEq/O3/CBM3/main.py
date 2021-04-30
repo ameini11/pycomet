@@ -15,8 +15,34 @@ from data_generator import DataGenerator
 tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
 tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
 
-sys.path.append(inp.pro_path)
+# sys.path.append(inp.pro_path)
 import prode as pro
+
+
+
+@tf.function()
+def ode(ic, t, grads, params):
+
+    # Rearranging matrices
+    ic       = tf.transpose(ic)
+    Y, dY_dt = [tf.transpose(grads[i]) for i in range(len(grads))]
+    if mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[:,-1]) for i in [Y, dY_dt]]
+
+    # Getting matrices
+    T_str = str(10000) # = ic[:,0]
+    K_e, K_d, K_r = params[T_str][name] for name in list(inp.MEq_mat.keys())
+    I_O = params[T_str]['atomO_ohe']
+
+    # Computing Residuals - Master Equation
+    excit_term = tf.math.multiply(tf.matmul(K_e, Y), tf.matmul(I_O, Y))
+    disso_term = tf.math.multiply(tf.matmul(K_d, Y), tf.matmul(I_O, Y))
+    recom_term = tf.matmul(K_r, tf.math.pow(tf.matmul(I_O, Y), 3))
+
+    rhs = excit_term + disso_term + recom_term
+    f   = dY_dt - rhs
+
+    return tf.transpose(f)
+
 
 
 @pro.utils.timing
@@ -40,11 +66,20 @@ def main():
         data_test = dataGen.testing_data()
 
     # Initialize Data ---------------------------------------------------------
-    data = pro.data.OpDataSet(
+    data = pro.data.DataSet(
         x_train=[data_train[1], data_train[2]],
         y_train=data_train[3],
         x_valid=[data_valid[1], data_valid[2]],
         y_valid=data_valid[3])
+
+    # data = pro.data.ODE(
+    #     ode_func=ode,
+    #     ode_order=1,
+    #     ode_params=dataGen.ODE_mat,
+    #     x_train=[data_train[1], data_train[2]],
+    #     y_train=data_train[3],
+    #     x_valid=[data_valid[1], data_valid[2]],
+    #     y_valid=data_valid[3])
 
 
     ###########################################################################

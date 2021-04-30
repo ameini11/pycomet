@@ -9,7 +9,7 @@ class InputData(object):
     ###########################################################################
     database_path = os.path.normpath(os.getcwd()+'/../database')
     utils_path = os.path.normpath(os.getcwd()+'/../utils')
-    pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')
+    # pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')
 
     ###########################################################################
     ### Execution Flags
@@ -80,14 +80,14 @@ class InputData(object):
     ### Training
     ###########################################################################
     epochs      = 100000
-    batch_size  = 128
+    batch_size  = 230
 
     optimizer   = 'adam' 
     lr          = 1.e-4
-    decay       = ["exponential", 1000*train_cases, 0.98]
+    decay       = ["exponential", (epochs*train_cases/100), 0.98]
 
-    loss        = 'MALPE'               # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
-    metrics     = ["accuracy"]
+    loss        = {'pts': 'MALPE', 'res': None} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    metrics     = ["mape"]
 
     # Early Stopping Callback -------------------------------------------------
     min_delta   = 1.e-6
