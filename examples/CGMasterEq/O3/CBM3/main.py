@@ -19,7 +19,6 @@ tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
 import prode as pro
 
 
-
 @tf.function()
 def ode(ic, t, grads, params):
 
@@ -42,7 +41,6 @@ def ode(ic, t, grads, params):
     f   = dY_dt - rhs
 
     return tf.transpose(f)
-
 
 
 @pro.utils.timing

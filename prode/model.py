@@ -68,7 +68,7 @@ class Model(object):
             self.loss_pts = losses_module.get(loss['pts'])
             self.loss_res = losses_module.get(loss['res'])
         else:
-            raise ValueError("[PrODE]:   The losses has to be defined as a 'dict()'.")
+            raise ValueError("[PrODE]:   Losses have to be defined as a 'dict()'.")
 
         if self.loss_res is not None and self.data.ode_func is not None:
             self.net.add_residual_evaluation(self.data.residual_loss(self.loss_res))
