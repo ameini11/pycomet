@@ -15,7 +15,7 @@ from data_generator import DataGenerator
 tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
 tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
 
-# sys.path.append(inp.pro_path)
+sys.path.append(inp.pro_path)
 import prode as pro
 
 
@@ -29,7 +29,7 @@ def ode(ic, t, grads, params):
 
     # Getting matrices
     T_str = str(10000) # = ic[:,0]
-    K_e, K_d, K_r = params[T_str][name] for name in list(inp.MEq_mat.keys())
+    K_e, K_d, K_r = [ params[T_str][name] for name in list(inp.MEq_mat.keys()) ]
     I_O = params[T_str]['atomO_ohe']
 
     # Computing Residuals - Master Equation
@@ -62,6 +62,7 @@ def main():
     data_train, data_valid = dataGen.training_data()
     if inp.test_cases > 0:
         data_test = dataGen.testing_data()
+    input('___')
 
     # Initialize Data ---------------------------------------------------------
     data = pro.data.DataSet(

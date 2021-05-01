@@ -1,8 +1,9 @@
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import re
-from tqdm import tqdm
 import sys
+import re
+import os
 
 from sklearn.utils import shuffle
 from scipy.spatial import KDTree
@@ -10,6 +11,9 @@ from pyDOE import lhs
 
 from const      import const
 from ode_solver import ODESolver
+
+from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
 
 
 
@@ -20,12 +24,14 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(self, inputs):
 
+        self.inputs         = inputs
+
         # Data Quantities -----------------------------------------------------
         self.train_cases    = inputs.train_cases                    # Number of training cases
-        self.train_pts      = inputs.train_pts                      # Number of total training pts for each case
         self.valid_pts      = round(inputs.valid*inputs.train_pts)  # Number of validation v for each case
+        self.train_pts      = inputs.train_pts - self.valid_pts     # Number of total training pts for each case
         self.train_pts_dist = inputs.train_pts_dist                 # Training pts distribution
-        self.train_split    = [0.8, 0.15, 0.05]                     # Training pts splitting
+        self.train_split    = [0.7, 0.2, 0.1]                       # Training pts splitting
 
         self.test_cases     = inputs.test_cases                     # Number of testing cases
         self.test_training  = inputs.test_training                  # Test training case [Bool]
@@ -35,6 +41,8 @@ class DataGenerator(object):
         self.mass_frac      = inputs.mass_frac                      # Data in mass fractions [Bool]
 
         self.rtol           = 1.e-5                                 # Rel.Tol for cutting equilibrium
+
+        self.trajectories   = []
 
         # Input Space Variables -----------------------------------------------
         inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
@@ -70,7 +78,7 @@ class DataGenerator(object):
         # ---------------------------------------------------------------------
         def read_rates(file, reac_name):
             '''Read rates coefficients from file.'''
-            print('\n[PrODE]:   Reading rates from files ...')
+            print('[PrODE]:   Reading', reac_name,'rates from file')
 
             shape = (1,self.num_bins) if reac_name == 'diss' else (self.num_bins,self.num_bins)
             rates = np.zeros(shape, dtype=np.float64)
@@ -123,10 +131,13 @@ class DataGenerator(object):
         n = self.train_cases*2 + self.test_cases
 
         # Contructing Design Matrix -------------------------------------------
-        X       = lhs(3, samples=n)
-        X       = np.hstack((np.random.choice(self.Ttr, size=(n,1)), X))
-        X[:,1:] = np.hstack(list(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
+        X       = lhs(3, samples=n-2)
+        X       = np.hstack((np.random.choice(self.Ttr, size=(n-2,1)), X))
+        X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
                                      range(1,4), [self.T0, self.P0, self.XO2])))
+        X_0   = np.array([self.Ttr[ 0], self.T0[ 0], self.P0[ 0], self.XO2[ 0]])
+        X_end = np.array([self.Ttr[-1], self.T0[-1], self.P0[-1], self.XO2[-1]])
+        X     = np.vstack((X_0, X, X_end))
 
         # Generating Initial Conditions ---------------------------------------
         ic = np.zeros((n,self.dim), dtype=np.float64)
@@ -142,7 +153,10 @@ class DataGenerator(object):
         ic = np.hstack((X[:,0:1], ic))
 
         idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
-        return ic[idx_train,:], ic[idx_train,:]
+
+        self.X_tr = X[idx_train,:]
+
+        return ic[idx_train,:], ic[idx_test,:]
 
 
     ###########################################################################
@@ -161,10 +175,7 @@ class DataGenerator(object):
             u = np.tile(ic_i[1:], (m,1))    # NN Input: Initial Condition
             t = t_i[idx,:]                  # NN Input: Time
             y = y_i[idx,:]                  # NN Target
-            if self.mass_frac:
-                mass = np.sum(u, axis=1, keepdims=True)
-                u = np.hstack((np.divide(u, mass), mass))
-                y = np.divide(y, mass)
+            if self.mass_frac: u, y = self.dens2mass_frac(u, y)
             return T, u, t, y
         # ---------------------------------------------------------------------
 
@@ -173,10 +184,13 @@ class DataGenerator(object):
 
             # Solving the ODE
             t_i, y_i = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[str(int(ic_i[0]))])
+            assert (y_i > 0.).all()
 
             # Define data type
-            data_id, pts = 'train', self.train_pts
-            if (i % 2) != 0:
+            if (i % 2) == 0:
+                data_id, pts = 'train', self.train_pts
+                self.trajectories.append([ic_i, t_i, y_i])
+            else:
                 data_id, pts = 'valid', self.valid_pts
 
             # Get data from indices
@@ -186,7 +200,7 @@ class DataGenerator(object):
             if i == 0 or i == 1:
                 data[data_id] = data_i
             else:
-                data[data_id] = np.vstack((data[data_id],data_i))
+                data[data_id] = list(map(lambda x,y: np.vstack((x,y)), data[data_id], data_i))
 
         # # Save data in a text file
         # np.savetxt('train_data.out', np.hstack(tuple(data['train'])), delimiter=',')
@@ -194,6 +208,10 @@ class DataGenerator(object):
 
         data_train = shuffle(*data['train'])
         data_valid = shuffle(*data['valid'])
+
+        # Low manifolds analysis
+        self.low_manifolds()
+        # self.low_manifolds_time()
 
         return data_train, data_valid
 
@@ -209,24 +227,21 @@ class DataGenerator(object):
         if self.test_training: # Test underfitting
             n       = self.test_cases
             idx     = np.random.choice(self.ic_train.shape[0], size=n, replace=False)
-            ic_test = np.hstack((self.ic_test, self.ic_train[idx, :]))
+            ic_test = np.vstack((self.ic_test, self.ic_train[idx, :]))
 
         for i, ic_i in enumerate(tqdm(ic_test, file=sys.stdout)):
 
             # Solving the ODE
             T_i = str(int(ic_i[0]))
             t_i, y_i = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[T_i])
+            assert (y_i >= 0.).all()
 
             # Extract data values
             tree     = KDTree(np.c_[t_i.ravel()])
             d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
             t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
             u_i      = np.tile(ic_i[1:], (t_i.shape[0],1))
-
-            if self.mass_frac:
-                mass = np.sum(u_i, axis=1, keepdims=True)
-                u_i = np.hstack((np.divide(u_i, mass), mass))
-                y_i = np.divide(y_i, mass)
+            if self.mass_frac: u_i, y_i = self.dens2mass_frac(u_i, y_i)
 
             title = 'Tested case (T = '+T_i+' K)'
             if self.test_training and i > n-1:
@@ -257,7 +272,7 @@ class DataGenerator(object):
         return Q_bins
 
     def read_levels(self):
-        '''Retriev all the rot-vib levels'''
+        '''Retriev all the rot-vib levels.'''
 
         data = pd.read_csv(self.levels_file, header=None, skiprows=15, delim_whitespace=True)
         data = data.apply(pd.to_numeric, errors='coerce')
@@ -270,7 +285,7 @@ class DataGenerator(object):
         return g, EeV, num
 
     def read_groups(self):
-        '''Retrieve mapping of each rot-vib level to the respective bin'''
+        '''Retrieve mapping of each rot-vib level to the respective bin.'''
 
         data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
         data = data.apply(pd.to_numeric, errors='coerce')
@@ -278,6 +293,14 @@ class DataGenerator(object):
         bins = np.array(data[1]) - 1    # Level-to-Bin
         num  = max(bins) + 1
         return bins, num
+
+    def dens2mass_frac(self, u, y):
+        '''Transform variables from partial densities to mass fractions.'''
+
+        mass = np.sum(u, axis=1, keepdims=True)
+        u = np.hstack((np.divide(u, mass), mass))
+        y = np.divide(y, mass)
+        return u, y
 
     # -------------------------------------------------------------------------
     # Sampling methods
@@ -288,8 +311,8 @@ class DataGenerator(object):
         tree  = KDTree(np.c_[t.ravel()])
         y_del = np.abs((y[:-1,:] - y[1:,:]) / y[1:,:])
         y_del = y_del[:,np.argmax(ic[:-1])]
-        idx_min = np.where(y_del > self.rtol)[0][0]     # Dynamics start-point
-        idx_max = np.where(y_del > self.rtol/5)[0][-1]  # Dynamics end-point
+        idx_min = np.where(y_del > self.rtol)[0][0]         # Dynamics start-point
+        idx_max = np.where(y_del > self.rtol*1.e-1)[0][-1]  # Dynamics end-point
 
         pts_dist = list(map(lambda i: round(self.train_split[i]*pts), range(2)))
         pts_dist.append(pts - sum(pts_dist))
@@ -324,7 +347,6 @@ class DataGenerator(object):
             delta  = np.vstack(([[0.]], (np.random.rand(pts-2,1)-0.5)*h, [[0.]]))
             t_unif = np.power(10, t_vec + delta)
             d, idx = tree.query(t_unif, k=1)
-
         return idx
 
     def stratified_sampling(self, x, strata):
@@ -335,3 +357,91 @@ class DataGenerator(object):
         x_2 = np.setdiff1d(x, x_1)
         assert np.intersect1d(x_1, x_2).size == 0
         return x_2, x_1
+
+    # -------------------------------------------------------------------------
+    # Low manifolds analysis
+    # -------------------------------------------------------------------------
+    def low_manifolds(self):
+
+        fig = plt.figure()
+        ax  = plt.axes(projection='3d')
+
+        ax.set_xlabel(r'$Y_1$')
+        ax.set_ylabel(r'$Y_2$')
+        ax.set_zlabel(r'$Y_3$')
+
+        path = './low_manifolds/'
+        if not os.path.exists(path): os.makedirs(path)
+
+        if self.P0[0] != self.P0[1]:
+            plt.title(r'Variable Pressure: $P\in[%.2e,%.2e]$ Pa' % (self.P0[0],self.P0[1]))
+            path = path+'P_var.pdf'
+        elif self.XO2[0] != self.XO2[1]:
+            plt.title(r'Variable Composition: $X_{O_2}\in[%.1f,%.1f]$' % (self.XO2[0],self.XO2[1]))
+            path = path+'X_var.pdf'
+        else:
+            plt.title(r'Variable Temperature: $T\in[%d,%d]$ K' % (self.T0[0],self.T0[1]))
+            path = path+'T_var.pdf'
+
+        for i, data_i in enumerate(self.trajectories):
+            ic_i, t_i, y_i = data_i
+            if self.mass_frac: y_i = y_i / np.sum(ic_i[1:])
+            ax.plot3D(y_i[:,0], y_i[:,1], y_i[:,2], 'k')
+            ax.scatter3D(y_i[0,0], y_i[0,1], y_i[0,2], c='r', marker='o', lw=2)
+
+        fig.savefig(path)
+        plt.show()
+
+    def low_manifolds_time(self):
+
+        fig = plt.figure()
+        ax  = plt.axes(projection='3d')
+
+        ax.set_xlabel(r'$Y_1$')
+        ax.set_ylabel(r'$Y_2$')
+        ax.set_zlabel(r'$Y_3$')
+
+        col = ['r', 'g', 'b', 'tab:purple', 'tab:brown', 'tab:pink', \
+               'tab:blue', 'tab:red', 'tab:green', 'tab:orange']
+
+        path = './low_manifolds/time_evol'
+        if not os.path.exists(path): os.makedirs(path)
+
+        if self.P0[0] != self.P0[1]:
+            plt.title(r'Variable Pressure: $P\in[%.2e,%.2e]$ Pa' % (self.P0[0],self.P0[1]))
+            path = path+'P_var.pdf'
+            clm  = 2
+            dt   = 5.e-8
+            lbl  = ' Pa'
+        elif self.XO2[0] != self.XO2[1]:
+            plt.title(r'Variable Composition: $X_{O_2}\in[%.1f,%.1f]$' % (self.XO2[0],self.XO2[1]))
+            path = path+'X_var.pdf'
+            clm  = 3
+            dt   = 5.e-8
+            lbl  = ''
+        else:
+            plt.title(r'Variable Temperature: $T\in[%d,%d]$ K' % (self.T0[0],self.T0[1]))
+            path = path+'T_var.pdf'
+            clm  = 1
+            dt   = 1.e-6
+            lbl  = ' K'
+
+        for i, data_i in enumerate(self.trajectories):
+            ic_i, t_i, y_i = data_i
+            if self.mass_frac: y_i = y_i / np.sum(ic_i[1:])
+            ax.plot3D(y_i[:,0], y_i[:,1], y_i[:,2], 'k')
+
+        for i, data_i in enumerate(self.trajectories):
+            ic_i, t_i, y_i = data_i
+            if self.mass_frac: y_i = y_i / np.sum(ic_i[1:])
+
+            tree   = KDTree(np.c_[t_i.ravel()])
+            t_unif = np.array([[dt*i] for i in range(1,50)])
+            d, idx = tree.query(t_unif, k=1)
+            ax.scatter3D(y_i[0,0], y_i[0,1], y_i[0,2], c='k', marker='o', lw=2)
+            ax.scatter3D(y_i[idx,0], y_i[idx,1], y_i[idx,2], c=col[i], marker='o', \
+                         lw=2, label=('%.2e'+lbl) % self.X_tr[2*i, clm])
+
+        plt.legend()
+        fig.savefig(path)
+        plt.show()
