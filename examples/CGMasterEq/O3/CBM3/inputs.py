@@ -34,9 +34,9 @@ class InputData(object):
     # Input Space Extreme Values ----------------------------------------------
     Ttr = [10000.0e0]                   # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    300.e0]         # Initial TInt
+    T0  = [1000.0e0,   1000.e0]         # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
-    XO2 = [0.5e0,     0.999e0]         # Initial O2 Mole Frac
+    XO2 = [0.2e0,      0.2e0]         # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
@@ -65,14 +65,14 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 10              # Number of training cases
+    train_cases    = 1              # Number of training cases
     train_pts      = 230             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
     test_cases     = 3              # Number of testing cases
-    test_training  = True           # Test training case
+    test_training  = False           # Test training case
     period         = 100            # Plotting frequancy during training [epochs]
 
 

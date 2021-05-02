@@ -31,7 +31,7 @@ class ODESolver(object):
     ###########################################################################
     ### Solve ODE
     ###########################################################################
-    def solve(self, rho_0, params):
+    def solve(self, rho_0, params, eigen_jac=False):
         '''Solving the ODE.'''
 
         # ---------------------------------------------------------------------
@@ -49,7 +49,7 @@ class ODESolver(object):
             return exc_term + dis_term + rec_term
 
         def jac(t, y, arg):
-            ''' Jacobian calculation: jac[i,j] = df[i] / dy[j] '''
+            '''Jacobian calculation: jac[i,j] = df[i] / dy[j].'''
             d = np.shape(y)[0]
             J = np.zeros((d,d), dtype=np.float64)
 
@@ -57,6 +57,13 @@ class ODESolver(object):
             J[:, -1] = np.matmul(arg[0][:,:-1], y[:-1]) + np.matmul(arg[1][:,:-1], y[:-1]) \
                         + 3*np.squeeze(arg[2])*np.power(np.matmul(arg[3], y), 2)
             return J
+
+        def eigen_jac(t, y, arg):
+            '''Eigenvalues of the Jacobian.'''
+            J = jac(t, y, arg)
+            eigen, _ = np.linalg.eig(J)
+
+            return eigen
         # ---------------------------------------------------------------------
 
         if isinstance(params, dict):
@@ -68,14 +75,17 @@ class ODESolver(object):
         # Appending Data
         t = np.array([[self.t0]])
         y = np.expand_dims(rho_0,0)
+        if eigen_jac: eig_J = eigen_jac(self.t0, rho_0, params)
 
         dt = self.dt0
         while r.successful() and r.t <= self.t_end:
             r.integrate(r.t+dt)
+            if eigen_jac: eig_J = np.vstack((eig_J, eigen_jac(r.t, r.y, params)))
             t  = np.vstack((t, np.expand_dims(r.t,0)))
             y  = np.vstack((y, np.expand_dims(r.y,0)))
             dt = min(dt*self.dt_str, self.dt_max)
-        return t, y
+            
+        return (t, y, eig_J) if eigen_jac else (t, y)
 
     def equilibrium(self, rho):
         '''ODE Final Equilibrium Condition.'''

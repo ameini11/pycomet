@@ -11,6 +11,7 @@ import sys
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
+from manifold import Manifold
 
 tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
 tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
@@ -57,6 +58,12 @@ def main():
     ###########################################################################
     ### Data
     ###########################################################################
+    # Manifold Analysis -----------------------------------------------------------
+    manifold = Manifold(inp)
+    trajectories, timescales = manifold.get_trajectories()
+    manifold.plot_timescales(timescales[0])
+    input('___')
+
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
     data_train, data_valid = dataGen.training_data()

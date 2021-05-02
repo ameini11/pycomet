@@ -42,8 +42,6 @@ class DataGenerator(object):
 
         self.rtol           = 1.e-5                                 # Rel.Tol for cutting equilibrium
 
-        self.trajectories   = []
-
         # Input Space Variables -----------------------------------------------
         inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
         self.Ttr, self.T0, self.P0, self.XO2 = list(map(lambda x: np.array(x, dtype=np.float64), inp_var))
@@ -154,8 +152,6 @@ class DataGenerator(object):
 
         idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
 
-        self.X_tr = X[idx_train,:]
-
         return ic[idx_train,:], ic[idx_test,:]
 
 
@@ -189,7 +185,6 @@ class DataGenerator(object):
             # Define data type
             if (i % 2) == 0:
                 data_id, pts = 'train', self.train_pts
-                self.trajectories.append([ic_i, t_i, y_i])
             else:
                 data_id, pts = 'valid', self.valid_pts
 
@@ -208,10 +203,6 @@ class DataGenerator(object):
 
         data_train = shuffle(*data['train'])
         data_valid = shuffle(*data['valid'])
-
-        # Low manifolds analysis
-        self.low_manifolds()
-        # self.low_manifolds_time()
 
         return data_train, data_valid
 
@@ -357,91 +348,4 @@ class DataGenerator(object):
         x_2 = np.setdiff1d(x, x_1)
         assert np.intersect1d(x_1, x_2).size == 0
         return x_2, x_1
-
-    # -------------------------------------------------------------------------
-    # Low manifolds analysis
-    # -------------------------------------------------------------------------
-    def low_manifolds(self):
-
-        fig = plt.figure()
-        ax  = plt.axes(projection='3d')
-
-        ax.set_xlabel(r'$Y_1$')
-        ax.set_ylabel(r'$Y_2$')
-        ax.set_zlabel(r'$Y_3$')
-
-        path = './low_manifolds/'
-        if not os.path.exists(path): os.makedirs(path)
-
-        if self.P0[0] != self.P0[1]:
-            plt.title(r'Variable Pressure: $P\in[%.2e,%.2e]$ Pa' % (self.P0[0],self.P0[1]))
-            path = path+'P_var.pdf'
-        elif self.XO2[0] != self.XO2[1]:
-            plt.title(r'Variable Composition: $X_{O_2}\in[%.1f,%.1f]$' % (self.XO2[0],self.XO2[1]))
-            path = path+'X_var.pdf'
-        else:
-            plt.title(r'Variable Temperature: $T\in[%d,%d]$ K' % (self.T0[0],self.T0[1]))
-            path = path+'T_var.pdf'
-
-        for i, data_i in enumerate(self.trajectories):
-            ic_i, t_i, y_i = data_i
-            if self.mass_frac: y_i = y_i / np.sum(ic_i[1:])
-            ax.plot3D(y_i[:,0], y_i[:,1], y_i[:,2], 'k')
-            ax.scatter3D(y_i[0,0], y_i[0,1], y_i[0,2], c='r', marker='o', lw=2)
-
-        fig.savefig(path)
-        plt.show()
-
-    def low_manifolds_time(self):
-
-        fig = plt.figure()
-        ax  = plt.axes(projection='3d')
-
-        ax.set_xlabel(r'$Y_1$')
-        ax.set_ylabel(r'$Y_2$')
-        ax.set_zlabel(r'$Y_3$')
-
-        col = ['r', 'g', 'b', 'tab:purple', 'tab:brown', 'tab:pink', \
-               'tab:blue', 'tab:red', 'tab:green', 'tab:orange']
-
-        path = './low_manifolds/time_evol'
-        if not os.path.exists(path): os.makedirs(path)
-
-        if self.P0[0] != self.P0[1]:
-            plt.title(r'Variable Pressure: $P\in[%.2e,%.2e]$ Pa' % (self.P0[0],self.P0[1]))
-            path = path+'P_var.pdf'
-            clm  = 2
-            dt   = 5.e-8
-            lbl  = ' Pa'
-        elif self.XO2[0] != self.XO2[1]:
-            plt.title(r'Variable Composition: $X_{O_2}\in[%.1f,%.1f]$' % (self.XO2[0],self.XO2[1]))
-            path = path+'X_var.pdf'
-            clm  = 3
-            dt   = 5.e-8
-            lbl  = ''
-        else:
-            plt.title(r'Variable Temperature: $T\in[%d,%d]$ K' % (self.T0[0],self.T0[1]))
-            path = path+'T_var.pdf'
-            clm  = 1
-            dt   = 1.e-6
-            lbl  = ' K'
-
-        for i, data_i in enumerate(self.trajectories):
-            ic_i, t_i, y_i = data_i
-            if self.mass_frac: y_i = y_i / np.sum(ic_i[1:])
-            ax.plot3D(y_i[:,0], y_i[:,1], y_i[:,2], 'k')
-
-        for i, data_i in enumerate(self.trajectories):
-            ic_i, t_i, y_i = data_i
-            if self.mass_frac: y_i = y_i / np.sum(ic_i[1:])
-
-            tree   = KDTree(np.c_[t_i.ravel()])
-            t_unif = np.array([[dt*i] for i in range(1,50)])
-            d, idx = tree.query(t_unif, k=1)
-            ax.scatter3D(y_i[0,0], y_i[0,1], y_i[0,2], c='k', marker='o', lw=2)
-            ax.scatter3D(y_i[idx,0], y_i[idx,1], y_i[idx,2], c=col[i], marker='o', \
-                         lw=2, label=('%.2e'+lbl) % self.X_tr[2*i, clm])
-
-        plt.legend()
-        fig.savefig(path)
-        plt.show()
+        
