@@ -126,7 +126,7 @@ class DataGenerator(object):
         print('\n[PrODE]: Generating initial conditions ...')
 
         assert self.train_cases >= self.test_cases
-        n = self.train_cases*2 + self.test_cases
+        n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
 
         # Contructing Design Matrix -------------------------------------------
         X       = lhs(3, samples=n-2)
@@ -215,7 +215,7 @@ class DataGenerator(object):
         print('\n[PrODE]: Generating testing pts ...')
 
         ic_test = self.ic_test
-        if self.test_training: # Test underfitting
+        if self.test_training:      # Test underfitting
             n       = self.test_cases
             idx     = np.random.choice(self.ic_train.shape[0], size=n, replace=False)
             ic_test = np.vstack((self.ic_test, self.ic_train[idx, :]))
@@ -263,7 +263,7 @@ class DataGenerator(object):
         return Q_bins
 
     def read_levels(self):
-        '''Retriev all the rot-vib levels.'''
+        '''Retrieve all the ro-vib levels.'''
 
         data = pd.read_csv(self.levels_file, header=None, skiprows=15, delim_whitespace=True)
         data = data.apply(pd.to_numeric, errors='coerce')
@@ -348,4 +348,3 @@ class DataGenerator(object):
         x_2 = np.setdiff1d(x, x_1)
         assert np.intersect1d(x_1, x_2).size == 0
         return x_2, x_1
-        

@@ -13,64 +13,62 @@ import tensorflow.keras.callbacks   as CB
 from .postprocessing import testing_plots
 
 
-class LearningRateTracker(CB.Callback):
+###############################################################################
+### Learning Rate
+###############################################################################
+# class LearningRateTracker(CB.Callback):
+#     """Learning rate tracker."""
+
+#     def __init__(self, filepath=None, log_dir=None, stdout=True):
+#         super(LearningRateTracker, self).__init__()
+
+#         self.file = None if filepath is None \
+#                     else open(filepath+'/lr_tracker.csv', "w", buffering=1)
+#         if self.file is not None: self.file.write("#epoch,lr\n")
+
+#         self.stdout = stdout
+
+#         self.log_dir = log_dir
+#         if self.log_dir is not None:
+#             logs = log_dir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+#             file_writer = tf.summary.create_file_writer(logs + "/metrics")
+#             file_writer.set_as_default()
+
+#     def on_epoch_begin(self, epoch, logs=None):
+#         lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
+#         if self.file is not None:
+#             self.file.write('%d,%.6e\n' % (epoch, lr))
+#             self.file.flush()
+#         if self.stdout:
+#             print("Learning rate value = %.4e" % lr)
+#         if self.log_dir is not None:
+#             tf.summary.scalar('Learning rate', data=lr, step=epoch)
+
+#     def on_train_end(self, logs=None):
+#         if self.file is not None:
+#             self.file.close()
+
+class LearningRateTracker(CB.TensorBoard):
     """Learning rate tracker."""
 
-    def __init__(self, filepath=None, log_dir=None, stdout=True):
+    def __init__(self, filepath=None, stdout=True):
         super(LearningRateTracker, self).__init__()
-
         self.file = None if filepath is None \
                     else open(filepath+'/lr_tracker.csv', "w", buffering=1)
         if self.file is not None: self.file.write("#epoch,lr\n")
 
         self.stdout = stdout
 
-        self.log_dir = log_dir
-        if self.log_dir is not None:
-            logs = log_dir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-            file_writer = tf.summary.create_file_writer(logs + "/metrics")
-            file_writer.set_as_default()
-
     def on_epoch_begin(self, epoch, logs=None):
+        super(LearningRateTracker, self).on_epoch_begin(epoch, logs)
         lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
+        logs = logs or {}
+        if "lr" not in logs: logs["lr"] = lr
         if self.file is not None:
             self.file.write('%d,%.6e\n' % (epoch, lr))
             self.file.flush()
         if self.stdout:
             print("Learning rate value = %.4e" % lr)
-        if self.log_dir is not None:
-            tf.summary.scalar('Learning rate', data=lr, step=epoch)
-
-    def on_train_end(self, logs=None):
-        if self.file is not None:
-            self.file.close()
-
-
-class ResidualTracker(CB.Callback):
-    """Residual loss tracker."""
-
-    def __init__(self, filepath=None, log_dir=None, stdout=True):
-        super(ResidualTracker, self).__init__()
-
-        self.file = None if filepath is None \
-                    else open(filepath+'/res_tracker.csv', "w", buffering=1)
-        if self.file is not None: self.file.write("#epoch,res_loss,res_val_loss\n")
-
-        self.stdout = stdout
-
-        self.log_dir = log_dir
-        if self.log_dir is not None:
-            logs = log_dir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-            file_writer = tf.summary.create_file_writer(logs + "/metrics")
-            file_writer.set_as_default()
-
-    def on_epoch_end(self, epoch, logs=None):
-        if self.file is not None:
-            self.file.write('%d,%.6e\n' % (epoch, self.model.res_loss, self.model.res_val_loss))
-            self.file.flush()
-        if self.log_dir is not None:
-            tf.summary.scalar('res_loss', data=self.model.res_loss, step=epoch)
-            tf.summary.scalar('res_val_loss', data=self.model.res_val_loss, step=epoch)
 
     def on_train_end(self, logs=None):
         if self.file is not None:
@@ -105,6 +103,38 @@ class LRPiecewiseConstantDecay(CB.Callback):
             idx = np.where(greater)[0][-1]
             self.idx = idx+1
         K.set_value(self.model.optimizer.lr, self.values[self.idx])
+
+
+###############################################################################
+### Residual
+###############################################################################
+class ResidualTracker(CB.Callback):
+    """Residual loss tracker."""
+
+    def __init__(self, filepath=None, stdout=True):
+        super(ResidualTracker, self).__init__()
+
+        self.log_res = tf.summary.create_file_writer('logs/scalar/res_loss')
+        self.log_res_val = tf.summary.create_file_writer('logs/scalar/res_val_loss')
+
+        self.file = None if filepath is None \
+                    else open(filepath+'/res_tracker.csv', "w", buffering=1)
+        if self.file is not None: self.file.write("#epoch,res_loss,res_val_loss\n")
+
+        self.stdout = stdout
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.file is not None:
+            self.file.write('%d,%.6e\n' % (epoch, self.model.res_loss, self.model.res_val_loss))
+            self.file.flush()
+        with self.log_res.as_default():
+            tf.summary.scalar(name='residual', data=self.model.res_loss, step=epoch)
+        with self.log_res_val.as_default():
+            tf.summary.scalar(name='residual', data=self.model.res_val_loss, step=epoch)
+
+    def on_train_end(self, logs=None):
+        if self.file is not None:
+            self.file.close()
 
 
 class Timer(CB.Callback):
@@ -189,6 +219,9 @@ class VariableValue(CB.Callback):
         return self.values
 
 
+###############################################################################
+### Visualization
+###############################################################################
 class Plotter(CB.Callback):
     """Plot variables to show the training progress."""
 
