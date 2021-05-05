@@ -138,30 +138,33 @@ class Model(object):
                         )
 
 
-    def predict(self, test_cases, var_names, labels, scales):
+    def predict(self, test_cases, var_names=None, labels=None, scales=None):
 
-        path = self.post_dir+'/testing_plots'
-        if not os.path.exists(path): os.makedirs(path)
+        if var_names is not None:
+            path = self.post_dir+'/testing_plots'
+            if not os.path.exists(path): os.makedirs(path)
 
-        for i, test_i in enumerate(test_cases):
-            if len(test_i) == 3:
-                title, x, y_true = test_i
-                data_val = None
-            else:
-                title, x, y_true, data_val = test_i
-            y_pred = self.net.predict(x)
-
-            testing_plots.plot_test(
-                path,
-                x,
-                y_true,
-                y_pred,
-                var_names,
-                title,
-                i,
-                labels=labels,
-                scales=scales,
-                data_val=data_val)
+        if isinstance(test_cases, (list,tuple)):
+            for i, test_i in enumerate(test_cases):
+                if len(test_i) == 3:
+                    title, x, y_true = test_i
+                    data_val = None
+                else:
+                    title, x, y_true, data_val = test_i
+                y_pred = self.net.predict(x)
+                if var_names is not None:
+                    testing_plots.plot_test(
+                        path,
+                        x,
+                        y_true,
+                        y_pred,
+                        var_names,
+                        title,
+                        i,
+                        labels=labels,
+                        scales=scales,
+                        data_val=data_val)
+        else: return self.net.predict(x)
 
 
     @timing

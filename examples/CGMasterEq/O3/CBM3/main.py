@@ -57,16 +57,6 @@ def main():
     ###########################################################################
     ### Data
     ###########################################################################
-    # Manifold Analysis -------------------------------------------------------
-    # if False:
-    #     manifold = Manifold(inp)
-    #     trajectories, timescales, norm_jac = manifold.get_trajectories(points=True)
-    #     manifold.plot_manifold_struc(trajectories, points=True)
-    #     manifold.plot_timescales(timescales[0])
-    #     for i in norm_jac:
-    #         manifold.plot_norm_jac(i)
-    #         manifold.plot_norm_jac_error(i)
-
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
     data_train, data_valid = dataGen.training_data()
@@ -164,10 +154,11 @@ def main():
 
     # Testing phase -----------------------------------------------------------
     if inp.test_cases > 0 and inp.test_flg > 0:
-        model.predict(data_test, inp.var_names, inp.labels, inp.scales)
+        model.predict(data_test, var_names=inp.var_names, labels=inp.labels, \
+                      scales=inp.scales)
         if inp.log_plot:
-            model.predict(data_test, inp.var_names, inp.labels, ['log', 'log'])
+            model.predict(data_test, var_names=inp.var_names, \
+                          labels=inp.labels, scales=['log', 'log'])
             
-
 if __name__ == "__main__":
     main()
