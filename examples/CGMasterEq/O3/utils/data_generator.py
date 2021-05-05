@@ -12,9 +12,7 @@ from pyDOE import lhs
 from const      import const
 from ode_solver import ODESolver
 
-from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
-
 
 
 class DataGenerator(object):
@@ -25,13 +23,14 @@ class DataGenerator(object):
     def __init__(self, inputs):
 
         self.inputs         = inputs
+        self.header         = '[PrODE - Data Gen]: '
 
         # Data Quantities -----------------------------------------------------
         self.train_cases    = inputs.train_cases                    # Number of training cases
         self.valid_pts      = round(inputs.valid*inputs.train_pts)  # Number of validation v for each case
         self.train_pts      = inputs.train_pts - self.valid_pts     # Number of total training pts for each case
         self.train_pts_dist = inputs.train_pts_dist                 # Training pts distribution
-        self.train_split    = [0.7, 0.2, 0.1]                       # Training pts splitting
+        self.train_split    = [0.8, 0.12, 0.08]                       # Training pts splitting
 
         self.test_cases     = inputs.test_cases                     # Number of testing cases
         self.test_training  = inputs.test_training                  # Test training case [Bool]
@@ -39,8 +38,6 @@ class DataGenerator(object):
 
         self.dim            = inputs.G_dim                          # Data dimensionality
         self.mass_frac      = inputs.mass_frac                      # Data in mass fractions [Bool]
-
-        self.rtol           = 1.e-5                                 # Rel.Tol for cutting equilibrium
 
         # Input Space Variables -----------------------------------------------
         inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
@@ -76,7 +73,7 @@ class DataGenerator(object):
         # ---------------------------------------------------------------------
         def read_rates(file, reac_name):
             '''Read rates coefficients from file.'''
-            print('[PrODE]:   Reading', reac_name,'rates from file')
+            print(self.header + '  Reading', reac_name, 'rates from file')
 
             shape = (1,self.num_bins) if reac_name == 'diss' else (self.num_bins,self.num_bins)
             rates = np.zeros(shape, dtype=np.float64)
@@ -108,7 +105,7 @@ class DataGenerator(object):
     def build_matrices(self):
         '''Build Master Equation matrices.'''
 
-        print('\n[PrODE]: Building Master Equation matrices ...')
+        print('\n' + self.header + 'Building Master Equation matrices ...')
 
         mat = dict()
         rates_coeff = self.get_rates()
@@ -123,19 +120,16 @@ class DataGenerator(object):
     ###########################################################################
     def initial_cond(self):
 
-        print('\n[PrODE]: Generating initial conditions ...')
+        print('\n' + self.header + 'Generating initial conditions ...')
 
         assert self.train_cases >= self.test_cases
         n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
 
         # Contructing Design Matrix -------------------------------------------
-        X       = lhs(3, samples=n-2)
-        X       = np.hstack((np.random.choice(self.Ttr, size=(n-2,1)), X))
+        X       = lhs(3, samples=n)
+        X       = np.hstack((np.random.choice(self.Ttr, size=(n,1)), X))
         X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
                                      range(1,4), [self.T0, self.P0, self.XO2])))
-        X_0   = np.array([self.Ttr[ 0], self.T0[ 0], self.P0[ 0], self.XO2[ 0]])
-        X_end = np.array([self.Ttr[-1], self.T0[-1], self.P0[-1], self.XO2[-1]])
-        X     = np.vstack((X_0, X, X_end))
 
         # Generating Initial Conditions ---------------------------------------
         ic = np.zeros((n,self.dim), dtype=np.float64)
@@ -160,7 +154,7 @@ class DataGenerator(object):
     ###########################################################################
     def training_data(self):
 
-        print('\n[PrODE]: Generating training pts ...')
+        print('\n' + self.header + 'Generating training pts ...')
 
         # ---------------------------------------------------------------------
         def get_data(idx):
@@ -179,7 +173,8 @@ class DataGenerator(object):
         for i, ic_i in enumerate(tqdm(self.ic_train, file=sys.stdout)):
 
             # Solving the ODE
-            t_i, y_i = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[str(int(ic_i[0]))])
+            mat = self.ODE_mat[str(int(ic_i[0]))]
+            t_i, y_i, norm_J_i, eig_J_i = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=True)
             assert (y_i > 0.).all()
 
             # Define data type
@@ -189,8 +184,15 @@ class DataGenerator(object):
                 data_id, pts = 'valid', self.valid_pts
 
             # Get data from indices
-            idx = self.get_indices(ic_i[1:], t_i, y_i, pts)
+            idx = self.get_indices(ic_i[1:], t_i, norm_J_i, pts)
             data_i = get_data(idx)
+
+            # marker_style = dict(marker='o', lw=0.5, ls='none', \
+            #                     fillstyle='full', markersize=2)
+            # plt.xscale('log')
+            # plt.plot(data_i[2], data_i[3], **marker_style)
+            # plt.grid()
+            # plt.show()
 
             if i == 0 or i == 1:
                 data[data_id] = data_i
@@ -212,7 +214,7 @@ class DataGenerator(object):
     ###########################################################################
     def testing_data(self):
 
-        print('\n[PrODE]: Generating testing pts ...')
+        print('\n' + self.header + 'Generating testing pts ...')
 
         ic_test = self.ic_test
         if self.test_training:      # Test underfitting
@@ -296,14 +298,13 @@ class DataGenerator(object):
     # -------------------------------------------------------------------------
     # Sampling methods
     # -------------------------------------------------------------------------
-    def get_indices(self, ic, t, y, pts):
+    def get_indices(self, ic, t, QoI, pts):
         '''Get meaningful values by selecting indices.'''
 
         tree  = KDTree(np.c_[t.ravel()])
-        y_del = np.abs((y[:-1,:] - y[1:,:]) / y[1:,:])
-        y_del = y_del[:,np.argmax(ic[:-1])]
-        idx_min = np.where(y_del > self.rtol)[0][0]         # Dynamics start-point
-        idx_max = np.where(y_del > self.rtol*1.e-1)[0][-1]  # Dynamics end-point
+        QoI_del = np.amax(np.abs((QoI[:-1,:] - QoI[1:,:]) / QoI[1:,:]), axis=1, keepdims=True)
+        idx_min = np.where(QoI_del > 2.e-5)[0][ 0]  # Dynamics start-point
+        idx_max = np.where(QoI_del > 1.e-8)[0][-1]  # Dynamics end-point
 
         pts_dist = list(map(lambda i: round(self.train_split[i]*pts), range(2)))
         pts_dist.append(pts - sum(pts_dist))
@@ -312,14 +313,14 @@ class DataGenerator(object):
         idx_0 = self.sampling(idx_min, idx_max, t, tree, pts_dist[0])
 
         # >>> Sampling the initial dynamics
-        idx_1 = self.sampling(10, idx_min-10, t, tree, pts_dist[1]-1)
+        idx_1 = self.sampling(5, idx_min-2, t, tree, pts_dist[1]-1)
         idx_1 = np.insert(idx_1, 0, 0)    # Add initial condition
 
         # >>> Sampling the equilibrium
-        idx_2 = self.sampling(idx_max+10, -10, t, tree, pts_dist[2])
+        idx_2 = self.sampling(idx_max+2, -3000, t, tree, pts_dist[2])
 
         # Merging indices
-        idx = np.concatenate([idx_0,idx_1,idx_2])
+        idx = np.sort(np.concatenate([idx_0,idx_1,idx_2]))
         _, counts = np.unique(idx, return_counts=True)
         assert pts == np.sum(counts)
 

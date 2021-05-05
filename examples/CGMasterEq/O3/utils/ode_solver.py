@@ -25,13 +25,13 @@ class ODESolver(object):
 
         # ODE Matrices characterization
         self.mat_name = mat_name     # Names
-        self.mat_mask = mat_mask     # Active or not
+        self.mat_mask = mat_mask     # Activation flags
 
 
     ###########################################################################
     ### Solve ODE
     ###########################################################################
-    def solve(self, rho_0, params, eigen_jac=False):
+    def solve(self, rho_0, params, eval_jac=False, eval_f=False):
         '''Solving the ODE.'''
 
         # ---------------------------------------------------------------------
@@ -58,12 +58,14 @@ class ODESolver(object):
                         + 3*np.squeeze(arg[2])*np.power(np.matmul(arg[3], y), 2)
             return J
 
-        def eigen_jac(t, y, arg):
+        def eval_J(t, y, arg):
             '''Eigenvalues of the Jacobian.'''
             J = jac(t, y, arg)
+            # norm = np.hstack(([np.linalg.norm(i) for i in np.split(J, J.shape[1], axis=1)]))
+            norm = np.linalg.norm(J)
             eigen, _ = np.linalg.eig(J)
 
-            return eigen
+            return norm, eigen
         # ---------------------------------------------------------------------
 
         if isinstance(params, dict):
@@ -75,17 +77,26 @@ class ODESolver(object):
         # Appending Data
         t = np.array([[self.t0]])
         y = np.expand_dims(rho_0,0)
-        if eigen_jac: eig_J = eigen_jac(self.t0, rho_0, params)
+        if eval_jac: norm_J, eig_J = eval_J(self.t0, rho_0, params)
+        if eval_f:   norm_f        = np.linalg.norm(f(self.t0, rho_0, params))
 
         dt = self.dt0
         while r.successful() and r.t <= self.t_end:
             r.integrate(r.t+dt)
-            if eigen_jac: eig_J = np.vstack((eig_J, eigen_jac(r.t, r.y, params)))
+            if eval_jac:
+                norm_J, eig_J = list(map(lambda x,y: np.vstack((x,y)), \
+                                [norm_J, eig_J], eval_J(r.t, r.y, params)))
+            if eval_f:
+                norm_f =  np.vstack((norm_f, np.linalg.norm(f(r.t, r.y, params))))
             t  = np.vstack((t, np.expand_dims(r.t,0)))
             y  = np.vstack((y, np.expand_dims(r.y,0)))
             dt = min(dt*self.dt_str, self.dt_max)
-            
-        return (t, y, eig_J) if eigen_jac else (t, y)
+
+        res = [t, y]
+        if eval_jac: res.extend([norm_J, eig_J])
+        if eval_f:   res.append(norm_f)
+
+        return res
 
     def equilibrium(self, rho):
         '''ODE Final Equilibrium Condition.'''

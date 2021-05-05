@@ -34,14 +34,14 @@ class InputData(object):
     # Input Space Extreme Values ----------------------------------------------
     Ttr = [10000.0e0]                   # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [1000.0e0,   1000.e0]         # Initial TInt
-    P0  = [1.013250e3, 1.013250e3]      # Initial P
-    XO2 = [0.2e0,      0.2e0]         # Initial O2 Mole Frac
+    T0  = [300.0e0,    20000.e0]         # Initial TInt
+    P0  = [1.013250e3, 1.013250e5]      # Initial P
+    XO2 = [0.1e0,     0.95e0]         # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
-    t0, t_end = 1.e-10, 1.e-4       # Time limits for testing
+    t0, t_end = 1.e-12, 1.e-3       # Time limits for testing
     mass_frac = True               # Output data in mass fractions [Bool]
     if mass_frac: u_dim += 1
 
@@ -65,13 +65,13 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 1              # Number of training cases
-    train_pts      = 230             # Number of total training pts for each case
+    train_cases    = 40              # Number of training cases
+    train_pts      = 200             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 3              # Number of testing cases
+    test_cases     = 1              # Number of testing cases
     test_training  = False           # Test training case
     period         = 100            # Plotting frequancy during training [epochs]
 

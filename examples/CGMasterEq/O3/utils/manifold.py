@@ -5,106 +5,31 @@ import sys
 import re
 import os
 
-from sklearn.utils import shuffle
 from scipy.spatial import KDTree
 from pyDOE import lhs
 
-from const      import const
-from ode_solver import ODESolver
+from const          import const
+from ode_solver     import ODESolver
+from data_generator import DataGenerator
 
 from mpl_toolkits import mplot3d
 import matplotlib.pyplot as plt
 
 
 
-class Manifold(object):
+class Manifold(DataGenerator):
 
     ###########################################################################
     ### Initialization
     ###########################################################################
     def __init__(self, inputs):
+        super(Manifold, self).__init__(inputs)
 
-        self.path = './fig/manifold/'
-
-        # Trajectories --------------------------------------------------------
-        self.train_cases    = inputs.train_cases    # Number of cases
-        self.mass_frac      = inputs.mass_frac      # Data in mass fractions [Bool]
-        self.dim            = inputs.G_dim          # ODE dimensionality
-
-        # Input Space Variables -----------------------------------------------
-        inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
-        self.Ttr, self.T0, self.P0, self.XO2 = list(map(lambda x: np.array(x, dtype=np.float64), inp_var))
-        self.T_str = list(map(lambda x: str(int(x)), self.Ttr))     # Temp. in string form
-
-        # Retrieving Molecular data -------------------------------------------
-        self.levels_file = inputs.database_path + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = inputs.database_path + '/grouping/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
-        self.g, self.EeV, self.num_lev = self.read_levels()
-        self.bins, self.num_bins       = self.read_groups()
-
-        # Retrieving Rates coefficients ---------------------------------------
-        self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + inputs.grouping + '/'
-        self.react_file = {'diss': 'Diss_Corrected.dat', 'exch': 'Exch_Type1.dat', 'inel': 'Inel.dat'}
-
-        # Building Master Equation matrices -----------------------------------
-        mat_name     = list(inputs.MEq_mat.keys())
-        mat_mask     = list(inputs.MEq_mat.values())
-        self.ODE_sol = ODESolver(mat_name, mat_mask)
-        self.ODE_mat = self.build_matrices()
+        self.path   = './fig/manifold/'
+        self.header = '[PrODE - Manifold]: '
 
         # Generating initial conditions ---------------------------------------
         self.ic, self.X = self.initial_cond()
-
-
-    ###########################################################################
-    ### Master Equation matrices
-    ###########################################################################
-    def get_rates(self):
-        '''Retrieve rates coefficients from file.'''
-
-        # ---------------------------------------------------------------------
-        def read_rates(file, reac_name):
-            '''Read rates coefficients from file.'''
-            print('[PrODE - Manifold]:   Reading', reac_name,'rates from file')
-
-            shape = (1,self.num_bins) if reac_name == 'diss' else (self.num_bins,self.num_bins)
-            rates = np.zeros(shape, dtype=np.float64)
-
-            infile = open(file, 'r')
-            for line in infile:
-                reac_eq, rate_str = line.split(':')
-
-                rate = float(rate_str.split(',')[0]) * 1.e-6
-                bins_idx = re.findall(r"\((.*?)\)",reac_eq)
-
-                if reac_name == 'diss':
-                    rates[0,int(bins_idx[0])-1] = rate
-                else:
-                    rates[int(bins_idx[0])-1,int(bins_idx[1])-1] = rate
-            infile.close()
-            return rates
-        # ---------------------------------------------------------------------
-
-        rates_coeff = dict()
-        for T_i in self.T_str:
-            rates_coeff[T_i] = dict()
-            for reac in self.react_file:
-                data_file = self.rates_path + 'T' + T_i + 'K/' + self.react_file[reac]
-                rates_coeff[T_i][reac] = read_rates(data_file, reac)
-        return rates_coeff
-
-
-    def build_matrices(self):
-        '''Build Master Equation matrices.'''
-
-        print('\n[PrODE - Manifold]: Building Master Equation matrices ...')
-
-        mat = dict()
-        rates_coeff = self.get_rates()
-        for i, T_i in enumerate(self.T_str):
-            Q_bins_T = self.compute_partition_func(self.Ttr[i])
-            mat[T_i] = self.ODE_sol.get_matrices(rates_coeff[T_i], Q_bins_T, self.Ttr[i])
-        return mat
 
 
     ###########################################################################
@@ -112,26 +37,26 @@ class Manifold(object):
     ###########################################################################
     def initial_cond(self):
 
-        print('\n[PrODE - Manifold]: Generating initial conditions ...')
+        print('\n' + self.header + 'Generating initial conditions ...')
 
         n = self.train_cases
-        if n > 2: n = n-2
+        # if n > 2: n = n-2
 
         # Contructing Design Matrix -------------------------------------------
         X       = lhs(3, samples=n)
         X       = np.hstack((np.random.choice(self.Ttr, size=(n,1)), X))
         X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
                                      range(1,4), [self.T0, self.P0, self.XO2])))
-        if n > 2:
-            X_0   = np.array([self.Ttr[ 0], self.T0[ 0], self.P0[ 0], self.XO2[ 0]])
-            X_end = np.array([self.Ttr[-1], self.T0[-1], self.P0[-1], self.XO2[-1]])
-            X     = np.vstack((X_0, X, X_end))
+        # if n > 2:
+        #     X_0   = np.array([self.Ttr[ 0], self.T0[ 0], self.P0[ 0], self.XO2[ 0]])
+        #     X_end = np.array([self.Ttr[-1], self.T0[-1], self.P0[-1], self.XO2[-1]])
+        #     X     = np.vstack((X_0, X, X_end))
 
         # Generating Initial Conditions ---------------------------------------
-        ic = np.zeros((n,self.dim), dtype=np.float64)
-        for i in range(n):
+        ic = np.zeros((X.shape[0], self.dim), dtype=np.float64)
+        for i, X_i in enumerate(X):
 
-            Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
+            Ttr, T0, P0, XO2 = [ X_i[j] for j in range(4) ]
             XO  = 1. - XO2
             nd  = P0 / (const.UKb * T0)
 
@@ -146,59 +71,35 @@ class Manifold(object):
     ###########################################################################
     ### Trajectories
     ###########################################################################
-    def get_trajectories(self):
+    def get_trajectories(self, points=False):
 
-        print('\n[PrODE - Manifold]: Generating trajectories ...')
+        print('\n' + self.header + 'Generating trajectories ...')
 
-        trajectories, t_scales = [], []
+        trajectories, t_scales, norm_jac = [], [], []
         for ic_i in tqdm(self.ic, file=sys.stdout):
 
             # Solving the ODE
-            mat         = self.ODE_mat[str(int(ic_i[0]))]
-            t, y, eig_J = self.ODE_sol.solve(ic_i[1:], mat, eigen_jac=True)
+            mat = self.ODE_mat[str(int(ic_i[0]))]
+            t, y, norm_J, eig_J = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=True)
             if self.mass_frac: y = y / np.sum(ic_i[1:])
             assert (y > 0.).all()
+
+            if points:
+                idx = self.get_indices(ic_i[1:], t, norm_J, self.train_pts)
+                t, y = t[idx,:], y[idx,:]
+
+            marker_style = dict(marker='o', lw=0.5, ls='none', \
+                                fillstyle='full', markersize=2)
+            plt.xscale('log')
+            plt.plot(t, y, **marker_style)
+            plt.grid()
+            plt.show()
             
-            t_scales.append([t, np.reciprocal(np.absolute(eig_J.real))])
-            trajectories.append([t, y])
+            trajectories.append((t, y))
+            norm_jac.append((t, norm_J))
+            t_scales.append((t, np.reciprocal(np.absolute(eig_J.real))))
 
-        return trajectories, t_scales
-
-
-    ###########################################################################
-    ### Util Functions
-    ###########################################################################
-    def compute_partition_func(self, T):
-        '''Compute bins partition function.'''
-
-        q = self.g * np.exp( - self.EeV * const.Ue / (T * const.UKb) )
-        Q_bins = np.zeros(self.num_bins)
-        for i_lev in range(self.num_lev):
-            Q_bins[self.bins[i_lev]] = Q_bins[self.bins[i_lev]] + q[i_lev]
-        return Q_bins
-
-    def read_levels(self):
-        '''Retriev all the rot-vib levels.'''
-
-        data = pd.read_csv(self.levels_file, header=None, skiprows=15, delim_whitespace=True)
-        data = data.apply(pd.to_numeric, errors='coerce')
-        vqn  = np.array(data[0])                    # Vibrational Q.N.
-        jqn  = np.array(data[1])                    # Rotational  Q.N.
-        g    = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
-        EeV  = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
-        EeV  = EeV - EeV[0]
-        num  = len(vqn)
-        return g, EeV, num
-
-    def read_groups(self):
-        '''Retrieve mapping of each rot-vib level to the respective bin.'''
-
-        data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
-        data = data.apply(pd.to_numeric, errors='coerce')
-        idx  = np.array(data[0])                                                                           
-        bins = np.array(data[1]) - 1    # Level-to-Bin
-        num  = max(bins) + 1
-        return bins, num
+        return trajectories, t_scales, norm_jac
 
 
     ###########################################################################
@@ -213,17 +114,18 @@ class Manifold(object):
         ax.set_zlabel(r'$Y_3$')
         return fig, ax
 
-    def plot_manifold_struc(self, trajectories):
+    def plot_manifold_struc(self, trajectories, points=False):
 
         fig, ax = self.plot_setup()
         path = self.path + '/struc/'
+        if points: path = path + 'pts/'
         if not os.path.exists(path): os.makedirs(path)
 
         if self.P0[0] != self.P0[1]:
             plt.title(r'Variable Pressure: $P\in[%.2e,%.2e]$ Pa' % (self.P0[0],self.P0[1]))
             path = path+'P_var.pdf'
         elif self.XO2[0] != self.XO2[1]:
-            plt.title(r'Variable Composition: $X_{O_2}\in[%.1f,%.1f]$' % (self.XO2[0],self.XO2[1]))
+            plt.title(r'Variable Composition: $X_{O_2}\in[%.2f,%.2f]$' % (self.XO2[0],self.XO2[1]))
             path = path+'X_var.pdf'
         else:
             plt.title(r'Variable Temperature: $T\in[%d,%d]$ K' % (self.T0[0],self.T0[1]))
@@ -231,10 +133,12 @@ class Manifold(object):
 
         for i, data in enumerate(trajectories):
             t, y = data
-            ax.plot3D(y[:,0], y[:,1], y[:,2], 'k')
-            ax.scatter3D(y[0,0], y[0,1], y[0,2], c='r', marker='o', lw=2)
+            if points: ax.scatter3D(y[:,0], y[:,1], y[:,2], c='k', marker='o', lw=1)
+            else: ax.plot3D(y[:,0], y[:,1], y[:,2], c='k')
+            ax.scatter3D(y[0,0], y[0,1], y[0,2], c='r', marker='o', lw=1)
         fig.savefig(path)
         plt.show()
+        plt.close()
 
     def plot_manifold_time(self, trajectories):
 
@@ -276,7 +180,7 @@ class Manifold(object):
                          label=('%.2e'+lbl) % self.X[i, clm])
         plt.legend()
         fig.savefig(path)
-        plt.show()
+        plt.close()
 
     def plot_timescales(self, timescales):
         t, t_scales = timescales
@@ -290,4 +194,43 @@ class Manifold(object):
         plt.loglog(t, t_scales, lw=1)
         plt.grid()
         fig.savefig(path+'/timescales.pdf')
+        plt.close()
+
+    def plot_norm_jac(self, norm_jac):
+        t, norm_J = norm_jac
+        path = self.path
+        if not os.path.exists(path): os.makedirs(path)
+
+        fig = plt.figure()
+        plt.xlabel(r'$t\quad[s]$')
+        plt.ylabel(r'$\|\|\/\mathcal{J}_i\/\|\|_\mathcal{F}$')
+        plt.title('Frobenius norm of the Jacobian matrix')
+
+        plt.loglog(t, norm_J, lw=1)
+        plt.grid()
+        fig.savefig(path+'/norm_jac.pdf')
+        plt.show()
+        plt.close()
+
+    def plot_norm_jac_error(self, norm_jac):
+        t, norm_J = norm_jac
+        path = self.path
+        if not os.path.exists(path): os.makedirs(path)
+
+        fig = plt.figure()
+        plt.xlabel(r'$t\quad[s]$')
+        plt.ylabel(r'$\|\|\/\mathcal{J}_i\/\|\|_\mathcal{F}$')
+        plt.title('Frobenius norm of the Jacobian matrix')
+
+        norm_J_del = np.amax(np.abs((norm_J[:-1,:] - norm_J[1:,:]) / norm_J[1:,:]), axis=1, keepdims=True)
+        idx_min = np.where(norm_J_del > 1.e-6)[0][0]    # Dynamics start-point
+        idx_max = np.where(norm_J_del > 1.e-12)[0][-1]  # Dynamics end-point
+
+        plt.semilogx(t[:-1,:], norm_J_del, lw=1)
+        plt.scatter(t[idx_min,:], norm_J_del[idx_min,:], marker='x')
+        plt.scatter(t[idx_max,:], norm_J_del[idx_max,:], marker='x')
+        plt.grid()
+
+        fig.savefig(path+'/norm_jac_error.pdf')
+        plt.show()
         plt.close()

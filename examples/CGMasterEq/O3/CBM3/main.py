@@ -1,12 +1,11 @@
-# Tensorflow/Keras set up
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 tf.keras.backend.set_floatx('float64')
-from tensorflow.keras import callbacks
 
-import numpy as np
 import sys
+import numpy as np
+from tensorflow.keras import callbacks
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
@@ -58,18 +57,21 @@ def main():
     ###########################################################################
     ### Data
     ###########################################################################
-    # Manifold Analysis -----------------------------------------------------------
-    manifold = Manifold(inp)
-    trajectories, timescales = manifold.get_trajectories()
-    manifold.plot_timescales(timescales[0])
-    input('___')
+    # Manifold Analysis -------------------------------------------------------
+    # if False:
+    #     manifold = Manifold(inp)
+    #     trajectories, timescales, norm_jac = manifold.get_trajectories(points=True)
+    #     manifold.plot_manifold_struc(trajectories, points=True)
+    #     manifold.plot_timescales(timescales[0])
+    #     for i in norm_jac:
+    #         manifold.plot_norm_jac(i)
+    #         manifold.plot_norm_jac_error(i)
 
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
     data_train, data_valid = dataGen.training_data()
     if inp.test_cases > 0:
         data_test = dataGen.testing_data()
-    input('___')
 
     # Initialize Data ---------------------------------------------------------
     data = pro.data.DataSet(
