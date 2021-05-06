@@ -48,6 +48,94 @@ from .postprocessing import testing_plots
 #         if self.file is not None:
 #             self.file.close()
 
+@keras_export('keras.callbacks.ReduceLROnPlateau')
+class ReduceLROnPlateau(CB.Callback):
+    """Learning rate tracker."""
+
+  def __init__(self,
+               monitor='val_loss',
+               factor=0.1,
+               patience=10,
+               verbose=0,
+               mode='auto',
+               min_delta=1e-4,
+               cooldown=0,
+               min_lr=0,
+               **kwargs):
+    super(ReduceLROnPlateau, self).__init__(
+               monitor,
+               factor,
+               patience,
+               verbose,
+               mode,
+               min_delta,
+               cooldown,
+               min_lr,
+               **kwargs)
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        logs['lr'] = K.get_value(self.model.optimizer._decayed_lr(tf.float64))
+        current = logs.get(self.monitor)
+        if current is None:
+            logging.warning('Learning rate reduction is conditioned on metric `%s` '
+                          'which is not available. Available metrics are: %s',
+                          self.monitor, ','.join(list(logs.keys())))
+        else:
+            if self.in_cooldown():
+                self.cooldown_counter -= 1
+                self.wait = 0
+
+            if self.monitor_op(current, self.best):
+                self.best = current
+                self.wait = 0
+            elif not self.in_cooldown():
+                self.wait += 1
+                if self.wait >= self.patience:
+                    old_lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
+                    if old_lr > self.min_lr:
+                        new_lr = old_lr * self.factor
+                        new_lr = max(new_lr, self.min_lr)
+                        K.set_value(self.model.optimizer.lr, new_lr)
+                        if self.verbose > 0:
+                            print('\nEpoch %05d: ReduceLROnPlateau reducing learning '
+                            'rate to %s.' % (epoch + 1, new_lr))
+                        self.cooldown_counter = self.cooldown
+                        self.wait = 0
+
+
+@keras_export('keras.callbacks.LRPiecewiseConstantDecay')
+class LRPiecewiseConstantDecay(CB.Callback):
+    """Learning rate scheduler which sets the learning rate according to schedule.
+
+  Arguments:
+      schedule: a function that takes an epoch index
+          (integer, indexed from 0) and current learning rate
+          as inputs and returns a new learning rate as output (float).
+  """
+
+    def __init__(self, boundaries, values):
+        super(LRPiecewiseConstantDecay, self).__init__()
+
+        if len(boundaries) != len(values) - 1:
+            raise ValueError(
+            "The length of boundaries should be 1 less than the length of values")
+
+        self.boundaries = np.array(boundaries)
+        self.values     = np.array(values)
+        self.idx        = 0
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if not hasattr(self.model.optimizer, "lr"):
+            raise ValueError('Optimizer must have a "lr" attribute.')
+        greater = self.boundaries < epoch
+        if True in greater:
+            idx = np.where(greater)[0][-1]
+            self.idx = idx+1
+        K.set_value(self.model.optimizer.lr, self.values[self.idx])
+
+
+@keras_export('keras.callbacks.LearningRateTracker')
 class LearningRateTracker(CB.Callback):
     """Learning rate tracker."""
 
@@ -82,39 +170,10 @@ class LearningRateTracker(CB.Callback):
             self.file.close()
 
 
-class LRPiecewiseConstantDecay(CB.Callback):
-    """Learning rate scheduler which sets the learning rate according to schedule.
-
-  Arguments:
-      schedule: a function that takes an epoch index
-          (integer, indexed from 0) and current learning rate
-          as inputs and returns a new learning rate as output (float).
-  """
-
-    def __init__(self, boundaries, values):
-        super(LRPiecewiseConstantDecay, self).__init__()
-
-        if len(boundaries) != len(values) - 1:
-            raise ValueError(
-            "The length of boundaries should be 1 less than the length of values")
-
-        self.boundaries = np.array(boundaries)
-        self.values     = np.array(values)
-        self.idx        = 0
-
-    def on_epoch_begin(self, epoch, logs=None):
-        if not hasattr(self.model.optimizer, "lr"):
-            raise ValueError('Optimizer must have a "lr" attribute.')
-        greater = self.boundaries < epoch
-        if True in greater:
-            idx = np.where(greater)[0][-1]
-            self.idx = idx+1
-        K.set_value(self.model.optimizer.lr, self.values[self.idx])
-
-
 ###############################################################################
 ### Residual
 ###############################################################################
+@keras_export('keras.callbacks.ResidualTracker')
 class ResidualTracker(CB.Callback):
     """Residual loss tracker."""
 
@@ -148,6 +207,7 @@ class ResidualTracker(CB.Callback):
             self.file.close()
 
 
+@keras_export('keras.callbacks.Timer')
 class Timer(CB.Callback):
     """Stop training when training time reaches the threshold.
     This Timer starts after the first call of `on_train_begin`.
@@ -174,6 +234,7 @@ class Timer(CB.Callback):
                     (time.time() - self.t_start) / 60, epoch))
 
 
+@keras_export('keras.callbacks.VariableValue')
 class VariableValue(CB.Callback):
     """Get the variable values.
 
