@@ -76,8 +76,6 @@ class Model(object):
         # Defining metrics
         if metrics is not None:
             self.metrics = [ metrics_module.get(m) for m in metrics ]
-        else:
-            self.metrics = None
 
         # Compiling
         self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
@@ -180,5 +178,7 @@ class Model(object):
         if not os.path.exists(path): os.makedirs(path)
 
         training_plots.plot_loss_history(self.history, path)
-        training_plots.plot_model_accuracy(self.history, path)
+        if self.metrics is not None:
+            for met in self.metrics:
+                training_plots.plot_metric(self.history, path, met.name)
         training_plots.plot_lr(path, self.train_dir)

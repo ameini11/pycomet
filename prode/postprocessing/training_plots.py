@@ -1,12 +1,19 @@
-import numpy    as np
-from matplotlib import pyplot as plt
+import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 
 def plot_loss_history(history, path):
     """Loss History plotting."""
-
     fig = plt.figure()
+
+    y = history.history['loss']
+    if np.log10(y[0])/np.log10(y[-1]) > 3:
+        value = np.power(10, np.log10(y[-1])*3)
+        delta = np.absolute(y - value)
+        index = delta.argmin()
+        plt.ylim((0., y[index]))
+
     plt.plot(history.history['loss'],     lw=1, label='Training')
     plt.plot(history.history['val_loss'], lw=1, label='Validation')
     plt.xlabel('Epoch')
@@ -19,18 +26,17 @@ def plot_loss_history(history, path):
     plt.close()
 
 
-def plot_model_accuracy(history, path):
-    """Model Accuracy plotting."""
+def plot_metric(history, path, metric):
+    """Metric plotting."""
 
     fig = plt.figure()
-    plt.plot(history.history['accuracy'],     lw=1, label='Training')
-    plt.plot(history.history['val_accuracy'], lw=1, label='Validation')
+    plt.plot(history.history[metric],        lw=1, label='Training')
+    plt.plot(history.history['val_'+metric], lw=1, label='Validation')
     plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
+    plt.ylabel(metric)
     plt.legend()
     plt.grid()
-    plt.title('Model Accuracy')
-    fig.savefig(path+'/model_acc.pdf')
+    fig.savefig(path+'/metric_'+metric+'.pdf')
     plt.close()
 
 
@@ -47,5 +53,5 @@ def plot_lr(path, path_file):
     plt.xlabel('Epoch')
     plt.title('Learning Rate')
     plt.grid()
-    fig.savefig(path+'/lr_tracker.pdf')
+    fig.savefig(path+'/lr.pdf')
     plt.close()

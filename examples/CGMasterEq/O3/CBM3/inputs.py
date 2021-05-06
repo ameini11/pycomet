@@ -65,7 +65,7 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 100            # Number of training cases
+    train_cases    = 10            # Number of training cases
     train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
@@ -79,7 +79,7 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs      = 100000
+    epochs      = 10
     batch_size  = 128
 
     optimizer   = 'adam' 
@@ -87,7 +87,7 @@ class InputData(object):
     decay       = ["exponential", (epochs*train_cases/100), 0.98]
 
     loss        = {'pts': 'MALPE', 'res': None} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
-    metrics     = ["mape"]
+    metrics     = ['mape']
 
     # Early Stopping Callback -------------------------------------------------
     min_delta   = 1.e-6
