@@ -34,15 +34,15 @@ class InputData(object):
     # Input Space Extreme Values ----------------------------------------------
     Ttr = [10000.0e0]                   # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    20000.e0]         # Initial TInt
+    T0  = [300.0e0,    20000.e0]        # Initial TInt
     P0  = [1.013250e3, 1.013250e5]      # Initial P
-    XO2 = [0.1e0,	0.95e0]         # Initial O2 Mole Frac
+    XO2 = [0.1e0,      0.95e0]          # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
-    t0, t_end = 1.e-12, 1.e-3       # Time limits for testing
-    mass_frac = True               # Output data in mass fractions [Bool]
+    t0, t_end = 1.e-12, 1.e-3           # Time limits for testing
+    mass_frac = True                    # Output data in mass fractions [Bool]
     if mass_frac: u_dim += 1
 
 
@@ -65,8 +65,8 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 100              # Number of training cases
-    train_pts      = 160             # Number of total training pts for each case
+    train_cases    = 100            # Number of training cases
+    train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
