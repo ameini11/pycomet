@@ -49,29 +49,30 @@ from .postprocessing import testing_plots
 #             self.file.close()
 
 @keras_export('keras.callbacks.ReduceLROnPlateau')
-class ReduceLROnPlateau(CB.Callback):
+class ReduceLROnPlateau(CB.ReduceLROnPlateau):
     """Learning rate tracker."""
 
-  def __init__(self,
-               monitor='val_loss',
-               factor=0.1,
-               patience=10,
-               verbose=0,
-               mode='auto',
-               min_delta=1e-4,
-               cooldown=0,
-               min_lr=0,
-               **kwargs):
-    super(ReduceLROnPlateau, self).__init__(
-               monitor,
-               factor,
-               patience,
-               verbose,
-               mode,
-               min_delta,
-               cooldown,
-               min_lr,
-               **kwargs)
+    def __init__(
+        self,
+        monitor='val_loss',
+        factor=0.1,
+        patience=10,
+        verbose=0,
+        mode='auto',
+        min_delta=1e-4,
+        cooldown=0,
+        min_lr=0,
+        **kwargs):
+        super(ReduceLROnPlateau, self).__init__(
+            monitor,
+            factor,
+            patience,
+            verbose,
+            mode,
+            min_delta,
+            cooldown,
+            min_lr,
+            **kwargs)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -96,7 +97,7 @@ class ReduceLROnPlateau(CB.Callback):
                     if old_lr > self.min_lr:
                         new_lr = old_lr * self.factor
                         new_lr = max(new_lr, self.min_lr)
-                        K.set_value(self.model.optimizer.lr, new_lr)
+                        K.set_value(self.model.optimizer._decayed_lr(tf.float64), new_lr)
                         if self.verbose > 0:
                             print('\nEpoch %05d: ReduceLROnPlateau reducing learning '
                             'rate to %s.' % (epoch + 1, new_lr))
