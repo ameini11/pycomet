@@ -66,7 +66,7 @@ class Model(object):
         # Initializing the loss functions
         if isinstance(loss, dict):
             self.loss_pts = losses_module.get(loss['pts'])
-            self.loss_res = losses_module.get(loss['res'])
+            self.loss_res = losses_module.get(loss['res']) if loss['res'] is not None else None
         else:
             raise ValueError("[PrODE]:   Losses have to be defined as a 'dict()'.")
 

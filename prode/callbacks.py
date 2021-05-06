@@ -48,11 +48,16 @@ from .postprocessing import testing_plots
 #         if self.file is not None:
 #             self.file.close()
 
-class LearningRateTracker(CB.TensorBoard):
+class LearningRateTracker(CB.Callback):
     """Learning rate tracker."""
 
-    def __init__(self, filepath=None, stdout=True):
+    def __init__(self, filepath=None, log_dir=None, stdout=True):
         super(LearningRateTracker, self).__init__()
+
+        self.log_dir = log_dir
+        if self.log_dir is not None:
+            self.log_lr = tf.summary.create_file_writer(log_dir + '/scalars/lr')
+
         self.file = None if filepath is None \
                     else open(filepath+'/lr_tracker.csv', "w", buffering=1)
         if self.file is not None: self.file.write("#epoch,lr\n")
@@ -60,10 +65,12 @@ class LearningRateTracker(CB.TensorBoard):
         self.stdout = stdout
 
     def on_epoch_begin(self, epoch, logs=None):
-        super(LearningRateTracker, self).on_epoch_begin(epoch, logs)
         lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
-        logs = logs or {}
-        if "lr" not in logs: logs["lr"] = lr
+        # logs = logs or {}
+        # if "lr" not in logs: logs["lr"] = lr
+        if self.log_dir is not None:
+            with self.log_lr.as_default():
+                tf.summary.scalar(name='lr', data=lr, step=epoch)
         if self.file is not None:
             self.file.write('%d,%.6e\n' % (epoch, lr))
             self.file.flush()
@@ -111,11 +118,14 @@ class LRPiecewiseConstantDecay(CB.Callback):
 class ResidualTracker(CB.Callback):
     """Residual loss tracker."""
 
-    def __init__(self, filepath=None, stdout=True):
+    def __init__(self, filepath=None, log_dir=None, stdout=True):
         super(ResidualTracker, self).__init__()
 
-        self.log_res = tf.summary.create_file_writer('logs/scalar/res_loss')
-        self.log_res_val = tf.summary.create_file_writer('logs/scalar/res_val_loss')
+        self.log_dir = log_dir
+        if self.log_dir is not None:
+            logs = log_dir + '/scalars/'
+            self.log_res = tf.summary.create_file_writer(logs+'res_loss')
+            self.log_res_val = tf.summary.create_file_writer(logs+'res_val_loss')
 
         self.file = None if filepath is None \
                     else open(filepath+'/res_tracker.csv', "w", buffering=1)
@@ -127,10 +137,11 @@ class ResidualTracker(CB.Callback):
         if self.file is not None:
             self.file.write('%d,%.6e\n' % (epoch, self.model.res_loss, self.model.res_val_loss))
             self.file.flush()
-        with self.log_res.as_default():
-            tf.summary.scalar(name='residual', data=self.model.res_loss, step=epoch)
-        with self.log_res_val.as_default():
-            tf.summary.scalar(name='residual', data=self.model.res_val_loss, step=epoch)
+        if self.log_dir is not None:
+            with self.log_res.as_default():
+                tf.summary.scalar(name='residual', data=self.model.res_loss, step=epoch)
+            with self.log_res_val.as_default():
+                tf.summary.scalar(name='residual', data=self.model.res_val_loss, step=epoch)
 
     def on_train_end(self, logs=None):
         if self.file is not None:

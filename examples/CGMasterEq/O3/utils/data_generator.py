@@ -133,7 +133,7 @@ class DataGenerator(object):
 
         # Generating Initial Conditions ---------------------------------------
         ic = np.zeros((n,self.dim), dtype=np.float64)
-        for i in range(n):
+        for i in tqdm(range(n)):
 
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
             XO  = 1. - XO2
