@@ -36,7 +36,7 @@ class InputData(object):
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
     T0  = [300.0e0,    20000.e0]         # Initial TInt
     P0  = [1.013250e3, 1.013250e5]      # Initial P
-    XO2 = [0.1e0,     0.95e0]         # Initial O2 Mole Frac
+    XO2 = [0.1e0,	0.95e0]         # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
@@ -65,14 +65,14 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 40              # Number of training cases
-    train_pts      = 200             # Number of total training pts for each case
+    train_cases    = 100              # Number of training cases
+    train_pts      = 160             # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 1              # Number of testing cases
-    test_training  = False           # Test training case
+    test_cases     = 3              # Number of testing cases
+    test_training  = True           # Test training case
     period         = 100            # Plotting frequancy during training [epochs]
 
 
@@ -80,7 +80,7 @@ class InputData(object):
     ### Training
     ###########################################################################
     epochs      = 100000
-    batch_size  = 230
+    batch_size  = 128
 
     optimizer   = 'adam' 
     lr          = 1.e-4

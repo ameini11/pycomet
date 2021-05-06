@@ -1,3 +1,4 @@
+# Tensorflow/Keras set up
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
@@ -10,7 +11,6 @@ from tensorflow.keras import callbacks
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
-from manifold import Manifold
 
 tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
 tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
@@ -160,5 +160,6 @@ def main():
             model.predict(data_test, var_names=inp.var_names, \
                           labels=inp.labels, scales=['log', 'log'])
             
+
 if __name__ == "__main__":
     main()

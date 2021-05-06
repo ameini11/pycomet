@@ -9,7 +9,6 @@ from tensorflow.keras import callbacks
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
-from data_generator import DataGenerator
 from manifold import Manifold
 
 tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
