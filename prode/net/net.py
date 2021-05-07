@@ -6,7 +6,7 @@ class Net(tf.keras.Model):
 
     # Initialization
     ###########################################################################
-    def __init__(self):
+    def __init__(self, name='net'):
         super(Net, self).__init__()
         self.training     = True     # Boolean value for training other layers parameters
 

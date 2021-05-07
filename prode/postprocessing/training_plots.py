@@ -3,22 +3,17 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 
-def plot_loss_history(history, path):
+def plot_loss_history(history, path, scale='log'):
     """Loss History plotting."""
     fig = plt.figure()
 
-    y = history.history['loss']
-    if np.log10(y[0])/np.log10(y[-1]) > 3:
-        value = np.power(10, np.log10(y[-1])*3)
-        delta = np.absolute(y - value)
-        index = delta.argmin()
-        plt.ylim((0., y[index]))
+    plt.ylim(limits(history.history['loss']))
+    plt.yscale(scale)
 
     plt.plot(history.history['loss'],     lw=1, label='Training')
     plt.plot(history.history['val_loss'], lw=1, label='Validation')
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.yscale('log')
     plt.legend()
     plt.grid()
     plt.title('Training History')
@@ -26,10 +21,14 @@ def plot_loss_history(history, path):
     plt.close()
 
 
-def plot_metric(history, path, metric):
+def plot_metric(history, path, metric, scale='log'):
     """Metric plotting."""
 
     fig = plt.figure()
+
+    plt.ylim(limits(history.history[metric]))
+    plt.yscale(scale)
+
     plt.plot(history.history[metric],        lw=1, label='Training')
     plt.plot(history.history['val_'+metric], lw=1, label='Validation')
     plt.xlabel('Epoch')
@@ -55,3 +54,12 @@ def plot_lr(path, path_file):
     plt.grid()
     fig.savefig(path+'/lr.pdf')
     plt.close()
+
+
+def limits(y):
+    if np.log10(y[0])-np.log10(y[-1]) > 3:
+        value = np.power(10, np.log10(y[-1])+3)
+        delta = np.absolute(y - value)
+        index = delta.argmin()
+        return None, y[index]
+    else: return None, None

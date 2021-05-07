@@ -17,41 +17,13 @@ from .postprocessing import testing_plots
 ###############################################################################
 ### Learning Rate
 ###############################################################################
-# class LearningRateTracker(CB.Callback):
-#     """Learning rate tracker."""
-
-#     def __init__(self, filepath=None, log_dir=None, stdout=True):
-#         super(LearningRateTracker, self).__init__()
-
-#         self.file = None if filepath is None \
-#                     else open(filepath+'/lr_tracker.csv', "w", buffering=1)
-#         if self.file is not None: self.file.write("#epoch,lr\n")
-
-#         self.stdout = stdout
-
-#         self.log_dir = log_dir
-#         if self.log_dir is not None:
-#             logs = log_dir + "/scalars/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-#             file_writer = tf.summary.create_file_writer(logs + "/metrics")
-#             file_writer.set_as_default()
-
-#     def on_epoch_begin(self, epoch, logs=None):
-#         lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
-#         if self.file is not None:
-#             self.file.write('%d,%.6e\n' % (epoch, lr))
-#             self.file.flush()
-#         if self.stdout:
-#             print("Learning rate value = %.4e" % lr)
-#         if self.log_dir is not None:
-#             tf.summary.scalar('Learning rate', data=lr, step=epoch)
-
-#     def on_train_end(self, logs=None):
-#         if self.file is not None:
-#             self.file.close()
-
 @keras_export('keras.callbacks.ReduceLROnPlateau')
-class ReduceLROnPlateau(CB.ReduceLROnPlateau):
-    """Learning rate tracker."""
+class LRPerformanceDecay(CB.ReduceLROnPlateau):
+    """Reduce learning rate when a metric has stopped improving.
+    Models often benefit from reducing the learning rate by a factor
+    of 2-10 once learning stagnates. This callback monitors a
+    quantity and if no improvement is seen for a 'patience' number
+    of epochs, the learning rate is reduced."""
 
     def __init__(
         self,
@@ -65,14 +37,14 @@ class ReduceLROnPlateau(CB.ReduceLROnPlateau):
         min_lr=0,
         **kwargs):
         super(ReduceLROnPlateau, self).__init__(
-            monitor,
-            factor,
-            patience,
-            verbose,
-            mode,
-            min_delta,
-            cooldown,
-            min_lr,
+            monitor=monitor,
+            factor=factor,
+            patience=patience,
+            verbose=verbose,
+            mode=mode,
+            min_delta=min_delta,
+            cooldown=cooldown,
+            min_lr=min_lr,
             **kwargs)
 
     def on_epoch_end(self, epoch, logs=None):
@@ -108,13 +80,7 @@ class ReduceLROnPlateau(CB.ReduceLROnPlateau):
 
 @keras_export('keras.callbacks.LRPiecewiseConstantDecay')
 class LRPiecewiseConstantDecay(CB.Callback):
-    """Learning rate scheduler which sets the learning rate according to schedule.
-
-  Arguments:
-      schedule: a function that takes an epoch index
-          (integer, indexed from 0) and current learning rate
-          as inputs and returns a new learning rate as output (float).
-  """
+    """A Learning Rate Schedule that uses a piecewise constant decay schedule."""
 
     def __init__(self, boundaries, values):
         super(LRPiecewiseConstantDecay, self).__init__()
@@ -127,14 +93,18 @@ class LRPiecewiseConstantDecay(CB.Callback):
         self.values     = np.array(values)
         self.idx        = 0
 
-    def on_epoch_begin(self, epoch, logs=None):
+    def on_epoch_end(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, "lr"):
             raise ValueError('Optimizer must have a "lr" attribute.')
         greater = self.boundaries < epoch
         if True in greater:
             idx = np.where(greater)[0][-1]
             self.idx = idx+1
-        K.set_value(self.model.optimizer.lr, self.values[self.idx])
+            new_lr = self.values[self.idx]
+            K.set_value(self.model.optimizer.lr, new_lr)
+            if self.verbose > 0:
+                print('\nEpoch %05d: LRPiecewiseConstantDecay reducing learning '
+                'rate to %s.' % (epoch + 1, new_lr))
 
 
 @keras_export('keras.callbacks.LearningRateTracker')
@@ -156,8 +126,6 @@ class LearningRateTracker(CB.Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
         lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
-        # logs = logs or {}
-        # if "lr" not in logs: logs["lr"] = lr
         if self.log_dir is not None:
             with self.log_lr.as_default():
                 tf.summary.scalar(name='lr', data=lr, step=epoch)
@@ -209,14 +177,13 @@ class ResidualTracker(CB.Callback):
             self.file.close()
 
 
+###############################################################################
+### Time
+###############################################################################
 @keras_export('keras.callbacks.Timer')
 class Timer(CB.Callback):
     """Stop training when training time reaches the threshold.
-    This Timer starts after the first call of `on_train_begin`.
-
-    Args:
-        available_time (float): Total time (in minutes) available for the training.
-    """
+    This Timer starts after the first call of `on_train_begin`."""
 
     def __init__(self, available_time):
         super(Timer, self).__init__()
@@ -236,6 +203,9 @@ class Timer(CB.Callback):
                     (time.time() - self.t_start) / 60, epoch))
 
 
+###############################################################################
+### Variables
+###############################################################################
 @keras_export('keras.callbacks.VariableValue')
 class VariableValue(CB.Callback):
     """Get the variable values.
@@ -297,7 +267,7 @@ class VariableValue(CB.Callback):
 ### Visualization
 ###############################################################################
 class Plotter(CB.Callback):
-    """Plot variables to show the training progress."""
+    """Plot variables in order to check the training progress."""
 
     def __init__(
         self,

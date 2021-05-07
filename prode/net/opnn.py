@@ -42,7 +42,7 @@ class OpNN(Net):
             self.act_branch = self.act_trunk = activations.get(activation)
 
         self.kernel_initializer = initializers.get(kernel_initializer)
-        self.regularizer        = regularizers.get(regularization)
+        self.regularizer        = regularizers.get(*regularization)
         self.dropout_rate       = dropout_rate
         if batch_norm not in [None, "before", "after"]:
             raise ValueError(
@@ -55,6 +55,7 @@ class OpNN(Net):
         self.weight_norm   = weight_norm
         self.use_end_scale = use_end_scale
 
+
         ### Blocks Initialization ---------------------------------------------
         self.branches   = [ layers.FNNBlock(
                                 self.layer_size_branch,
@@ -64,7 +65,7 @@ class OpNN(Net):
                                 dropout_rate=self.dropout_rate,
                                 batch_norm=self.batch_norm,
                                 weight_norm=self.weight_norm,
-                                name='Branch'+str(i)) for i in range(self.G_dim) ]
+                                name='Branch_'+str(i)) for i in range(self.G_dim) ]
 
         self.trunk      =   layers.FNNBlock(
                                 self.layer_size_trunk,
@@ -165,7 +166,7 @@ class OpNN(Net):
         if self.res_loss_fn is not None:
             return steps.train_step(self, data)
         else:
-            return super(FNN, self).train_step(data)
+            return super(OpNN, self).train_step(data)
 
 
     # Testing Step
@@ -174,4 +175,4 @@ class OpNN(Net):
         if self.res_loss_fn is not None:
             return steps.test_step(self, data)
         else:
-            return super(FNN, self).test_step(data)
+            return super(OpNN, self).test_step(data)

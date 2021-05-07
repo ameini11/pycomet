@@ -77,6 +77,14 @@ class Model(object):
         if metrics is not None:
             self.metrics = [ metrics_module.get(m) for m in metrics ]
 
+        # Building
+        if not self.net.built:
+            if isinstance(self.data.train_x, (list,tuple)):
+                inputs_shape = [inp.shape for inp in self.data.train_x]
+            else:
+                inputs_shape = self.data.train_x.shape
+            self.net.build(inputs_shape)
+
         # Compiling
         self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
                          metrics=self.metrics, loss_weights=loss_weights)

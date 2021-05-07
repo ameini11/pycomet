@@ -25,18 +25,18 @@ class ODE(DataSet):
         col_y=None,
         standardize=False):
         super(ODE, self).__init__(
-            x_train,
-            y_train,
-            x_valid,
-            y_valid,
-            x_test,
-            y_test,
-            fname_train,
-            fname_valid,
-            fname_test,
-            col_x,
-            col_y,
-            standardize)
+            x_train=x_train,
+            y_train=y_train,
+            x_valid=x_valid,
+            y_valid=y_valid,
+            x_test=x_test,
+            y_test=y_test,
+            fname_train=fname_train,
+            fname_valid=fname_valid,
+            fname_test=fname_test,
+            col_x=col_x,
+            col_y=col_y,
+            standardize=standardize)
 
         self.ode_func   = ode_func
         self.ode_order  = ode_order
