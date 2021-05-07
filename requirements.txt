@@ -1,5 +1,6 @@
 graphviz
 matplotlib
+netron
 numpy
 pydot
 pydotplus
@@ -7,5 +8,4 @@ salib
 scikit-learn
 scipy
 tensorflow>=2.4.0
-tensorflow-addons>=0.12 
-
+tensorflow-addons>=0.12

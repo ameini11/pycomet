@@ -7,6 +7,7 @@ tf.keras.backend.set_floatx('float64')
 import sys
 import numpy as np
 from tensorflow.keras import callbacks
+import tensorflow.keras.layers as lay
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
@@ -24,7 +25,7 @@ def ode(ic, t, grads, params):
 
     # Rearranging matrices
     ic       = tf.transpose(ic)
-    Y, dY_dt = [tf.transpose(grads[i]) for i in range(len(grads))]
+    Y, dY_dt = [tf.transpose(grad) for grad in grads]
     if mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[:,-1]) for i in [Y, dY_dt]]
 
     # Getting matrices
@@ -60,31 +61,25 @@ def main():
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
     data_train, data_valid = dataGen.training_data()
-    if inp.test_cases > 0:
+    if inp.test_flg > 0:
         data_test = dataGen.testing_data()
 
     # Initialize Data ---------------------------------------------------------
-    data = pro.data.DataSet(
+    data = pro.data.ODE(
+        ode_func=ode,
+        ode_order=1,
+        ode_params=dataGen.ODE_mat,
         x_train=[data_train[1], data_train[2]],
         y_train=data_train[3],
         x_valid=[data_valid[1], data_valid[2]],
         y_valid=data_valid[3])
-
-    # data = pro.data.ODE(
-    #     ode_func=ode,
-    #     ode_order=1,
-    #     ode_params=dataGen.ODE_mat,
-    #     x_train=[data_train[1], data_train[2]],
-    #     y_train=data_train[3],
-    #     x_valid=[data_valid[1], data_valid[2]],
-    #     y_valid=data_valid[3])
 
 
     ###########################################################################
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    net_init = pro.net.FuncOpNN(
+    net = pro.net.OpNN(
         inp.u_dim, inp.y_dim, inp.G_dim,
         inp.layer_size_branch,
         inp.layer_size_trunk,
@@ -96,32 +91,32 @@ def main():
 
     # Apply I/O Transformation ------------------------------------------------
     if inp.mass_frac:
-        output_fn = tf.keras.layers.Softmax(axis=-1)
-        branch_fn = lambda x: x
+        output_fn = lay.Softmax(axis=-1,    name='output_fn')
+        branch_fn = lay.Lambda(lambda x: x, name='branch_fn')
     else:
-        output_fn = tf.math.exp
-        branch_fn = tf.math.log
+        output_fn = lay.Lambda(tf.math.exp, name='output_fn')
+        branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
+    trunk_fn = lay.Lambda(lambda x: x * inp.scale_fac, name='trunk_fn')
 
-    net_init.apply_feature_transform({
-        "branch": branch_fn,
-        "trunk" : lambda x: x * inp.scale_fac})
-    net_init.apply_output_transform(output_fn)
-
-    # Uncompiled Net ----------------------------------------------------------
-    net = net_init.get_uncompiled_model()
+    net.apply_input_transform({"branch": branch_fn, "trunk" : trunk_fn})
+    net.apply_output_transform(output_fn)
 
 
     ###########################################################################
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.name)
+    model = pro.model.Model(data, net, inp.name, visualize_graph=True)
+
+    # Build Model -------------------------------------------------------------
+    model.build()
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
                   decay=inp.decay, loss_weights=None)
     if model.killall: return
 
+    # Restore Model Weights ---------------------------------------------------
     if inp.load_flg > 0:
         model.restore_net(from_ckpt=int(inp.load_flg-1))
 

@@ -8,7 +8,8 @@ from . import regularizers
 
 
 @tf.keras.utils.register_keras_serializable()
-class FNNBlock(tf.keras.layers.Layer):
+class FFBlock(tf.keras.layers.Layer):
+    """Simple Feed-forward block."""
 
     # Initialization
     ###########################################################################
@@ -21,8 +22,8 @@ class FNNBlock(tf.keras.layers.Layer):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name=None):
-        super(FNNBlock, self).__init__(name=name)
+        name='ff_block'):
+        super(FFBlock, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size          = layer_size
@@ -66,10 +67,8 @@ class FNNBlock(tf.keras.layers.Layer):
     ###########################################################################
     def call(self, x):
 
-        self.x = x
-
         # Input layer
-        y = self.x
+        y = x
 
         # Hidden layers
         for i in range(len(self.layer_size) - 2):
@@ -83,9 +82,9 @@ class FNNBlock(tf.keras.layers.Layer):
                 y = layer[-1](y)
 
         # Output layer
-        self.y = self.lays[-1](y)
+        y = self.lays[-1](y)
 
-        return self.y
+        return y
 
 
     # Layers Definition

@@ -11,8 +11,6 @@ class FuncNet(object):
         self.inp_trans  = None
         self.out_trans  = None
 
-        # self.res_loss   = None
-
     ### Model Initialization (Functional API) ---------------------------------
     def get_uncompiled_model(self):
 
@@ -24,7 +22,7 @@ class FuncNet(object):
 
     # Functions
     ###########################################################################
-    def apply_feature_transform(self, transform):
+    def apply_input_transform(self, transform):
         """Compute the features by appling a transform to the network inputs, i.e.,
         features = transform(inputs). Then, outputs = network(features).
         """
@@ -35,9 +33,3 @@ class FuncNet(object):
         outputs = transform(inputs, outputs).
         """
         self.out_trans = transform
-
-    # def add_residual_evaluation(self, loss_fn):
-    #     """Apply a transform to the network outputs, i.e.,
-    #     outputs = transform(inputs, outputs).
-    #     """
-    #     self.res_loss = loss_fn

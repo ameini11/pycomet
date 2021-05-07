@@ -122,7 +122,6 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating initial conditions ...')
 
-        assert self.train_cases >= self.test_cases
         n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
 
         # Contructing Design Matrix -------------------------------------------
@@ -218,6 +217,7 @@ class DataGenerator(object):
 
         ic_test = self.ic_test
         if self.test_training:      # Test underfitting
+            assert self.train_cases >= self.test_cases
             n       = self.test_cases
             idx     = np.random.choice(self.ic_train.shape[0], size=n, replace=False)
             ic_test = np.vstack((self.ic_test, self.ic_train[idx, :]))

@@ -9,6 +9,7 @@ from . import layers
 from .net import Net
 
 
+@tf.keras.utils.register_keras_serializable()
 class OpNN(Net):
     """Deep Operator neural network."""
 
@@ -16,6 +17,8 @@ class OpNN(Net):
     ###########################################################################
     def __init__(
         self,
+        u_dim,
+        y_dim,
         G_dim,
         layer_size_branch,
         layer_size_trunk,
@@ -26,10 +29,12 @@ class OpNN(Net):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='opnn'):
+        name='op_nn'):
         super(OpNN, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
+        self.u_dim = u_dim
+        self.y_dim = y_dim
         self.G_dim = G_dim
 
         self.layer_size_branch = layer_size_branch
@@ -46,7 +51,8 @@ class OpNN(Net):
         self.dropout_rate       = dropout_rate
         if batch_norm not in [None, "before", "after"]:
             raise ValueError(
-                "batch_norm == {}. Available choices: {{None|'before'|'after'}}.".format(
+                "\n[PrODE]: batch_norm == {}. Available choices: "
+                "{{None|'before'|'after'}}.".format(
                     batch_norm
                 )
             )
@@ -55,9 +61,8 @@ class OpNN(Net):
         self.weight_norm   = weight_norm
         self.use_end_scale = use_end_scale
 
-
         ### Blocks Initialization ---------------------------------------------
-        self.branches   = [ layers.FNNBlock(
+        self.branches   = [ layers.FFBlock(
                                 self.layer_size_branch,
                                 self.act_branch,
                                 self.kernel_initializer,
@@ -67,7 +72,7 @@ class OpNN(Net):
                                 weight_norm=self.weight_norm,
                                 name='Branch_'+str(i)) for i in range(self.G_dim) ]
 
-        self.trunk      =   layers.FNNBlock(
+        self.trunk      =   layers.FFBlock(
                                 self.layer_size_trunk,
                                 self.act_trunk,
                                 self.kernel_initializer,
@@ -124,20 +129,20 @@ class OpNN(Net):
     def call(self, x):
 
         # Inputs
-        self.x = x
-        if isinstance(self.x, (list, tuple)):
-            self.x_u, self.x_y = x[0], x[1]
+        if isinstance(x, (list, tuple)):
+            x_u, x_y = x[0], x[1]
         else:
-            self.x_u, self.x_y = tf.split(x, [x.shape[1]-1, 1], axis=1)
+            raise ValueError('\n[PrODE]: The inputs for "',self.net.name,'" net '
+                             'have to be a list or tuple')
 
         # Input transformation
         if self.inp_trans is not None:
             if isinstance(self.inp_trans, dict):
-                x_u = lay.Lambda(self.inp_trans["branch"])(self.x_u)
-                x_y = lay.Lambda(self.inp_trans["trunk"])(self.x_y)
+                x_u = self.inp_trans["branch"](x_u)
+                x_y = self.inp_trans["trunk"](x_y)
             else:
-                x_u = lay.Lambda(self.inp_trans)(self.x_u)
-                x_y = lay.Lambda(self.inp_trans)(self.x_y)
+                x_u = self.inp_trans(x_u)
+                x_y = self.inp_trans(x_y)
 
         # Branch/-es
         G_u = [ self.branches[i](x_u) for i in range(self.G_dim) ]
@@ -147,32 +152,38 @@ class OpNN(Net):
 
         # Output layer
         G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]
+        G_uy = lay.Concatenate()(G_uy)
         if self.use_end_scale:
-            G_uy = self.end_scale(tf.concat(G_uy, 1))
+            G_uy = self.end_scale(G_uy)
 
         # Output transformation
         if self.out_trans is not None:
-            G_uy = lay.Lambda(self.out_trans)(G_uy)
-
-        # Outputs
-        self.y = G_uy
+            G_uy = self.out_trans(G_uy)
         
-        return self.y
+        return G_uy
 
 
+    # Steps
+    ###########################################################################
     # Training Step
-    ##########################################################################
     def train_step(self, data):
         if self.res_loss_fn is not None:
             return steps.train_step(self, data)
         else:
             return super(OpNN, self).train_step(data)
 
-
     # Testing Step
-    ##########################################################################
     def test_step(self, data):
         if self.res_loss_fn is not None:
             return steps.test_step(self, data)
         else:
             return super(OpNN, self).test_step(data)
+
+
+    # Graph
+    ###########################################################################
+    def build_graph(self):
+        x_u = tf.keras.Input(shape=(self.u_dim,), name="branch_input")
+        x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
+        x   = [x_u, x_y]
+        return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)

@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 
+@tf.keras.utils.register_keras_serializable()
 class Net(tf.keras.Model):
     """Network base class."""
 
@@ -40,7 +41,7 @@ class Net(tf.keras.Model):
 
     # Functions
     ###########################################################################
-    def apply_feature_transform(self, transform):
+    def apply_input_transform(self, transform):
         """Compute the features by appling a transform to the network inputs, i.e.,
         features = transform(inputs). Then, outputs = network(features)."""
         self.inp_trans = transform

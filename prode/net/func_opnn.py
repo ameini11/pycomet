@@ -10,7 +10,7 @@ from .func_net import FuncNet
 
 
 class FuncOpNN(FuncNet):
-    """Deep Operator neural networks with Keras Functional API"""
+    """Deep Operator neural networks with Keras Functional API."""
 
     # Initialization
     ###########################################################################
@@ -29,9 +29,11 @@ class FuncOpNN(FuncNet):
         batch_norm=None,
         weight_norm=False,
         name='func_opnn'):
-        super(FuncOpNN, self).__init__(name=name)
+        super(FuncOpNN, self).__init__()
         
         ### Hyperparameters Initialization ------------------------------------
+        self.name  = name
+
         self.u_dim = u_dim
         self.y_dim = y_dim
         self.G_dim = G_dim
@@ -50,7 +52,8 @@ class FuncOpNN(FuncNet):
         self.dropout_rate       = dropout_rate
         if batch_norm not in [None, "before", "after"]:
             raise ValueError(
-                "batch_norm == {}. Available choices: {{None|'before'|'after'}}.".format(
+                "\n[PrODE]: batch_norm == {}. Available choices: "
+                "{{None|'before'|'after'}}.".format(
                     batch_norm
                 )
             )
@@ -59,9 +62,8 @@ class FuncOpNN(FuncNet):
         self.weight_norm   = weight_norm
         self.use_end_scale = use_end_scale
 
-
         ### Blocks Initialization ---------------------------------------------
-        self.branches   = [ layers.FNNBlock(
+        self.branches   = [ layers.FFBlock(
                                 self.layer_size_branch,
                                 self.act_branch,
                                 self.kernel_initializer,
@@ -71,7 +73,7 @@ class FuncOpNN(FuncNet):
                                 weight_norm=self.weight_norm,
                                 name='Branch_'+str(i)) for i in range(self.G_dim) ]
 
-        self.trunk      =   layers.FNNBlock(
+        self.trunk      =   layers.FFBlock(
                                 self.layer_size_trunk,
                                 self.act_trunk,
                                 self.kernel_initializer,
@@ -81,59 +83,52 @@ class FuncOpNN(FuncNet):
                                 weight_norm=self.weight_norm,
                                 name='Trunk')
 
-        if self.use_end_scale:
-            self.end_scale = lay.Dense(
-                                    units=self.G_dim,
-                                    activation='linear',
-                                    use_bias=True,
-                                    kernel_initializer=self.kernel_initializer,
-                                    bias_initializer="zeros",
-                                    kernel_regularizer=None,
-                                    bias_regularizer=None,
-                                    activity_regularizer=None,
-                                    kernel_constraint=None,
-                                    bias_constraint=None,
-                                    name='FinalScale'
-                                )
+        self.end_scale  =   lay.Dense(
+                                units=self.G_dim,
+                                activation='linear',
+                                use_bias=True,
+                                kernel_initializer=self.kernel_initializer,
+                                bias_initializer="zeros",
+                                kernel_regularizer=None,
+                                bias_regularizer=None,
+                                activity_regularizer=None,
+                                kernel_constraint=None,
+                                bias_constraint=None,
+                                name='FinalScale') if self.use_end_scale else None
 
 
     ### Model Initialization (Functional API) -----------------------------
     def get_uncompiled_model(self):
 
         # Input layer
-        self.x_u = tf.keras.Input(shape=(self.u_dim,), name="branch_input")
-        self.x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
+        x_u = tf.keras.Input(shape=(self.u_dim,), name="branch_input")
+        x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
 
         # Input Transformation
-        self.u, self.y = self.x_u, self.x_y
         if self.inp_trans is not None:
             if isinstance(self.inp_trans, dict):
-                self.u = self.inp_trans["branch"](self.x_u)
-                self.y = self.inp_trans["trunk"](self.x_y)
+                x_u = self.inp_trans["branch"](x_u)
+                x_y = self.inp_trans["trunk"](x_y)
             else:
-                self.u = self.inp_trans(self.x_u)
-                self.y = self.inp_trans(self.x_y)
+                x_u = self.inp_trans(x_u)
+                x_y = self.inp_trans(x_y)
 
         # Branch/-es
-        self.G_u = [ self.branches[i](self.u) for i in range(self.G_dim) ]
+        G_u = [ self.branches[i](x_u) for i in range(self.G_dim) ]
 
         # Trunk
-        self.G_y = self.trunk(self.y)
+        G_y = self.trunk(x_y)
 
         # Output layer
-        self.G_uy = [ lay.Dot(axes=1)([self.G_u[i], self.G_y]) for i in range(self.G_dim) ]
+        G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]
+        G_uy = lay.Concatenate()(G_uy)
         if self.use_end_scale:
-            self.G_uy = self.end_scale(tf.concat(self.G_uy, 1))
+            G_uy = self.end_scale(G_uy)
 
         if self.out_trans is not None:
-            self.G_uy = self.out_trans(self.G_uy)
-
-        self.y = self.G_uy
+            G_uy = self.out_trans(G_uy)
 
         # Keras Model
-        model = tf.keras.Model(inputs=[self.x_u, self.x_y], outputs=self.y)
-
-        # if self.res_loss is not None:
-        #     model.add_loss(self.res_loss(self, self.x_u, self.x_y), name='res_loss')
+        model = tf.keras.Model(inputs=[x_u, x_y], outputs=G_uy, name=self.name)
 
         return model

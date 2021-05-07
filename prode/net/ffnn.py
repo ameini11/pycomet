@@ -9,13 +9,15 @@ from . import steps
 from .net import Net
 
 
-class FNN(Net):
-    """Feed-forward neural network."""
+@tf.keras.utils.register_keras_serializable()
+class FFNN(Net):
+    """Feed-Forward neural network."""
 
     # Initialization
     ###########################################################################
     def __init__(
         self,
+        dim,
         layer_size,
         activation,
         kernel_initializer,
@@ -23,10 +25,11 @@ class FNN(Net):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='fnn'):
-        super(FNN, self).__init__(name=name)
+        name='ff_nn'):
+        super(FFNN, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
+        self.dim                 = self.dim
         self.layer_size          = layer_size
         self.activation          = activations.get(activation)
         self.kernel_initializer  = initializers.get(kernel_initializer)
@@ -34,23 +37,24 @@ class FNN(Net):
         self.dropout_rate        = dropout_rate
         if batch_norm not in [None, "before", "after"]:
             raise ValueError(
-                "batch_norm == {}. Available choices: {{None|'before'|'after'}}.".format(
+                "\n[PrODE]: batch_norm == {}. Available choices: "
+                "{{None|'before'|'after'}}.".format(
                     batch_norm
                 )
             )
+
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 
         ### Layers Initialization ---------------------------------------------
-        self.block = layers.FNNBlock(
+        self.block = layers.FFBlock(
                         self.layer_size,
                         self.activation,
                         self.kernel_initializer,
                         regularization=self.regularizer,
                         dropout_rate=self.dropout_rate,
                         batch_norm=self.batch_norm,
-                        weight_norm=self.weight_norm,
-                        name=self.name)
+                        weight_norm=self.weight_norm)
 
 
     # Configuration update
@@ -79,25 +83,24 @@ class FNN(Net):
     ###########################################################################
     def call(self, x):
 
-        self.x = x
-
         # Input Transform
         y = x
         if self.inp_trans is not None:
-            y = lay.Lambda(self.inp_trans)(y)
+            y = self.input_fn(y)
 
         # Block Layer
-        self.y = self.block(y)
+        y = self.block(y)
 
         # Output Transform
         if self.out_trans is not None:
-            self.y = lay.Lambda(self.out_trans)(self.y)
+            y = self.output_fn(y)
 
-        return self.y
+        return y
 
 
+    # Steps
+    ###########################################################################
     # Training Step
-    ##########################################################################
     def train_step(self, data):
         if self.res_loss_fn is not None:
             return steps.train_step(self, data)
@@ -106,9 +109,15 @@ class FNN(Net):
 
 
     # Testing Step
-    ##########################################################################
     def test_step(self, data):
         if self.res_loss_fn is not None:
             return steps.test_step(self, data)
         else:
             return super(FNN, self).test_step(data)
+
+
+    # Graph
+    ###########################################################################
+    def build_graph(self):
+        x= tf.keras.Input(shape=(self.dim,))
+        return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)

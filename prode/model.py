@@ -11,16 +11,20 @@ from .optimizers     import get_train_opt
 from .postprocessing import training_plots, testing_plots
 from .utils          import timing
 
+import netron
 
 class Model(object):
-    """The ``Model`` class trains a ``Net`` on a ``Data``.
+    """The `Model` class trains a `Net` on a `Data`."""
 
-    Args:
-        data: ``deepxde.data.Data`` instance.
-        net: ``deepxde.maps.Map`` instance.
-    """
+    def __init__(
+        self,
+        data,
+        net,
+        name,
+        path='./',
+        save_format='h5',
+        visualize_graph=False):
 
-    def __init__(self, data, net, name, path='./', save_format='h5'):
         self.data = data
         self.net  = net
         self.name = name
@@ -30,6 +34,8 @@ class Model(object):
 
         self.loss_pts  = None
         self.loss_res  = None
+
+        self.visualize_graph = visualize_graph
 
         # Define paths
         self.train_dir = path+"/training"
@@ -42,10 +48,38 @@ class Model(object):
 
         # Define saving format
         self.save_format = save_format
-        self.save_path   = self.name
+        self.save_path   = self.name+'_weights'
         if self.save_format == 'h5': self.save_path = self.save_path + '.h5'
 
-        self.killall  = False
+        self.killall = False
+
+
+    @timing
+    def build(self):
+        print('\n[PrODE]: Building the "',self.net.name,'" net ...', sep='')
+
+        if self.net.name.startswith('func'):
+            self.net  = self.net.get_uncompiled_model()
+            net_graph = self.net
+        else:
+            if not self.net.built:
+                if isinstance(self.data.train_x, (list,tuple)):
+                    inputs_shape = [inp.shape for inp in self.data.train_x]
+                else:
+                    inputs_shape = self.data.train_x.shape
+                self.net.build(inputs_shape)
+            net_graph = self.net.build_graph()
+
+        net_graph.summary()
+        if self.visualize_graph:
+            net_graph.save(self.name+'_struct.h5', save_format='h5')
+            netron.start(self.name+'_struct.h5')
+            tf.keras.utils.plot_model(net_graph, self.train_dir+"/"+self.name+".png")
+        
+        asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
+        if asw.lower() != 'y':
+            self.killall = True
+            print('[PrODE]:   All the processes will be stopped.\n')
 
 
     @timing
@@ -58,7 +92,7 @@ class Model(object):
         decay=None,
         loss_weights=None,
     ):
-        print('\n[PrODE]: Compiling the model ...\n')
+        print('\n[PrODE]: Compiling the "',self.net.name,'" net ...', sep='')
 
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
@@ -77,24 +111,9 @@ class Model(object):
         if metrics is not None:
             self.metrics = [ metrics_module.get(m) for m in metrics ]
 
-        # Building
-        if not self.net.built:
-            if isinstance(self.data.train_x, (list,tuple)):
-                inputs_shape = [inp.shape for inp in self.data.train_x]
-            else:
-                inputs_shape = self.data.train_x.shape
-            self.net.build(inputs_shape)
-
         # Compiling
         self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
                          metrics=self.metrics, loss_weights=loss_weights)
-        self.net.summary()
-        tf.keras.utils.plot_model(self.net, self.train_dir+"/"+self.name+".png")
-        
-        asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
-        if asw.lower() != 'y':
-            self.killall = True
-            print('[PrODE]:   All the processes will be stopped.\n')
 
 
     @timing
@@ -121,18 +140,25 @@ class Model(object):
         validation_split=0.2,
         validation_data=None
     ):
-        print('\n[PrODE]: Training the model ...\n')
-        MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", monitor='val_loss', save_best_only=True, save_weights_only=True)
-        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, write_graph=True, write_images=True)
-        LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, log_dir=self.TB_dir, stdout=True)
+        print('\n[PrODE]: Training the model ...')
+
+        # Defining callbacks
+        MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", \
+                monitor='val_loss', save_best_only=True, save_weights_only=True)
+        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
+                write_graph=True, write_images=True)
+        LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, \
+                log_dir=self.TB_dir, stdout=True)
         callbacks.extend([MC, TB, LR])
 
-        print('[PrODE]:   Number of Training pts:     %10d' % self.data.train_y.shape[0])
+        # Defining train/valid pts
+        print('[PrODE]:   Number of Training pts:     %8d' % self.data.train_y.shape[0])
         if self.data.valid_x is not None:
             validation_data  = (self.data.valid_x, self.data.valid_y)
             validation_split = None
-            print('[PrODE]:   Number of Validation pts:   %10d\n' % self.data.valid_y.shape[0])
+            print('[PrODE]:   Number of Validation pts:   %8d\n' % self.data.valid_y.shape[0])
 
+        # Fit the model
         self.history = self.net.fit(
                         x=self.data.train_x,
                         y=self.data.train_y, 
@@ -140,8 +166,7 @@ class Model(object):
                         epochs=epochs,
                         callbacks=callbacks,
                         validation_split=validation_split,
-                        validation_data=validation_data
-                        )
+                        validation_data=validation_data)
 
 
     def predict(self, test_cases, var_names=None, labels=None, scales=None):
@@ -175,13 +200,13 @@ class Model(object):
 
     @timing
     def save(self):
-        print('\n[PrODE]: Saving model weights ...\n')
+        print('\n[PrODE]: Saving model weights ...')
         self.net.save_weights(self.save_path, overwrite=True, save_format=self.save_format)
 
 
     @timing
     def visualize_training(self):
-        print('\n[PrODE]: Postprocessing training evolution ...\n')
+        print('\n[PrODE]: Postprocessing training evolution ...')
         path = self.post_dir+'/training_plots'
         if not os.path.exists(path): os.makedirs(path)
 
