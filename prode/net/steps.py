@@ -15,8 +15,9 @@ def train_step(model, data):
         y_pred, model.res_loss = model.res_loss_fn(model, x)
         loss = model.compiled_loss(y, y_pred, sample_weight, \
                regularization_losses=model.losses)
+        total_loss = loss + model.res_loss
 
-    model.optimizer.minimize(loss+model.res_loss, \
+    model.optimizer.minimize(total_loss, \
                model.trainable_variables, tape=tape)
     model.compiled_metrics.update_state(y, y_pred, sample_weight)
 

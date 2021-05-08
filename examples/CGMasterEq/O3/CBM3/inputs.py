@@ -79,14 +79,14 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs      = 10
+    epochs      = 1000
     batch_size  = 128
 
     optimizer   = 'adam' 
     lr          = 1.e-4
     decay       = ["exponential", (epochs*train_cases/100), 0.98]
 
-    loss        = {'pts': 'MALPE', 'res': None} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    loss        = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics     = ['mape']
 
     # Early Stopping Callback -------------------------------------------------

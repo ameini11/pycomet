@@ -53,13 +53,15 @@ class ODE(DataSet):
 
             if isinstance(inputs, (list, tuple)):
                 ic, t = inputs[0], inputs[1]
+                input_is_list = True
             else:
                 ic, t = tf.split(inputs, [inputs.shape[1]-1, 1], axis=1)
+                input_is_list = False
 
-            grads    = self.grad_fn(type(inputs), model, ic, t)
+            grads    = self.grad_fn(input_is_list, model, ic, t)
 
             res_pred = self.ode_func(ic, t, grads, self.ode_params)
-            res_true = tf.zeros(res_pred.shape, dtype=tf.dtypes.float64)
+            res_true = tf.zeros(res_pred.shape)
 
             return grads[0], loss(res_true, res_pred)
         

@@ -1,3 +1,4 @@
+import tensorflow as tf
 import tensorflow.keras.layers as lay
 
 from . import activations

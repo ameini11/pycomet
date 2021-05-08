@@ -26,7 +26,7 @@ def ode(ic, t, grads, params):
     # Rearranging matrices
     ic       = tf.transpose(ic)
     Y, dY_dt = [tf.transpose(grad) for grad in grads]
-    if mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[:,-1]) for i in [Y, dY_dt]]
+    if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
 
     # Getting matrices
     T_str = str(10000) # = ic[:,0]
@@ -106,7 +106,7 @@ def main():
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.name, visualize_graph=True)
+    model = pro.model.Model(data, net, inp.name, visualize_graph=False)
 
     # Build Model -------------------------------------------------------------
     model.build()

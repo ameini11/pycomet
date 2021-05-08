@@ -5,6 +5,7 @@ from . import activations
 from . import initializers
 from . import regularizers
 from . import layers
+from . import steps
 
 from .net import Net
 
@@ -132,8 +133,8 @@ class OpNN(Net):
         if isinstance(x, (list, tuple)):
             x_u, x_y = x[0], x[1]
         else:
-            raise ValueError('\n[PrODE]: The inputs for "',self.net.name,'" net '
-                             'have to be a list or tuple')
+            raise ValueError('[PrODE]: The inputs for the Deep Operator net '
+                             'have to be a list or tuple.')
 
         # Input transformation
         if self.inp_trans is not None:

@@ -134,7 +134,7 @@ class ODESolver(object):
         ODE_mat[self.mat_name[0]] = self.excit(self.mat_mask[0], rates_coeff, Q_bins) / const.mO
         ODE_mat[self.mat_name[1]] = self.disso(self.mat_mask[1], rates_coeff) / const.mO
         ODE_mat[self.mat_name[2]] = self.recom(self.mat_mask[2], rates_coeff, Q_bins, T) / const.mO**2 * 2
-        ODE_mat['atomO_ohe']      = np.array([[0,0,0,1]], dtype=np.int32)
+        ODE_mat['atomO_ohe']      = np.array([[0.,0.,0.,1.]], dtype=np.float64)
         return ODE_mat
 
     def excit(self, mask, rates_coeff, Q_bins):
