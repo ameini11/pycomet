@@ -16,7 +16,7 @@ class InputData(object):
     ###########################################################################
     load_flg  = 0       # Loading model     0: no, 1: saved model, 2: ckpt
     train_flg = 1       # Training          0: no, 1: Yes
-    test_flg  = 1       # Evaluating        0: no, 1: after training, 2: also during training
+    test_flg  = 0       # Evaluating        0: no, 1: after training, 2: also during training
     # video_flg = 0       # Video history     0: no, 1: yes
     save_flg  = 1       # Saving model      0: no, 1: yes
 
@@ -65,7 +65,7 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 10            # Number of training cases
+    train_cases    = 1            # Number of training cases
     train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution

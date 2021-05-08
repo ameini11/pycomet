@@ -175,6 +175,7 @@ class OpNN(Net):
 
     # Testing Step
     def test_step(self, data):
+        # return super(OpNN, self).test_step(data)
         if self.res_loss_fn is not None:
             return steps.test_step(self, data)
         else:

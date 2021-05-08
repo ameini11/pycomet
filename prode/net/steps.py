@@ -4,7 +4,6 @@ from tensorflow.python.keras.engine import data_adapter
 
 
 
-@tf.function
 def train_step(model, data):
     """Custom train step."""
 
@@ -26,16 +25,13 @@ def train_step(model, data):
     return {**res_metr, **metr}
 
 
-@tf.function
 def test_step(model, data):
     """Custom test step."""
     
     data = data_adapter.expand_1d(data)
     x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
 
-    # Updates stateful loss metrics.
-    y_pred, model.res_val_loss = model.res_loss_fn(model, x)
-
+    y_pred, model.res_val_loss = model.res_loss_fn(model, x, training=False)
     model.compiled_loss(y, y_pred, sample_weight, \
                        regularization_losses=model.losses)
     model.compiled_metrics.update_state(y, y_pred, sample_weight)

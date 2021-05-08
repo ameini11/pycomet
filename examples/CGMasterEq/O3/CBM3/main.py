@@ -29,9 +29,8 @@ def ode(ic, t, grads, params):
     if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
 
     # Getting matrices
-    T_str = str(10000) # = ic[:,0]
-    K_e, K_d, K_r = [ params[T_str][name] for name in list(inp.MEq_mat.keys()) ]
-    I_O = params[T_str]['atomO_ohe']
+    T_str = str(10000) # = ic[0,:]
+    K_e, K_d, K_r, I_O = [ params[T_str][name] for name in params[T_str] ]
 
     # Computing Residuals - Master Equation
     excit_term = tf.math.multiply(tf.matmul(K_e, Y), tf.matmul(I_O, Y))
@@ -39,9 +38,9 @@ def ode(ic, t, grads, params):
     recom_term = tf.matmul(K_r, tf.math.pow(tf.matmul(I_O, Y), 3))
 
     rhs = excit_term + disso_term + recom_term
-    f   = dY_dt - rhs
+    f   = tf.transpose(dY_dt - rhs)
 
-    return tf.transpose(f)
+    return f
 
 
 @pro.utils.timing
