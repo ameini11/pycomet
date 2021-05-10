@@ -21,7 +21,7 @@ from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
-sys.path.append(inp.pro_path)
+sys.path.append(inp.pro_path)   # <<< Remove this line if you install prode as a Pthon package
 import prode as pro
 
 

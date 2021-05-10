@@ -7,7 +7,7 @@ class InputData(object):
     ###########################################################################
     database_path = os.path.normpath(os.getcwd()+'/../database')
     utils_path = os.path.normpath(os.getcwd()+'/../utils')
-    pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')
+    pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')   # <<< Remove this line if you install prode as a Pthon package
 
 
     ###########################################################################
