@@ -123,12 +123,20 @@ class DataGenerator(object):
         print('\n' + self.header + 'Generating initial conditions ...')
 
         n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
+        unit_vec = np.array([[1.]*self.inputs.dim])
 
         # Contructing Design Matrix -------------------------------------------
-        X       = lhs(3, samples=n)
-        X       = np.hstack((np.random.choice(self.Ttr, size=(n,1)), X))
+        X       = lhs(self.inputs.dim, samples=n)
+        X[:,:1] = np.random.choice(self.Ttr, size=(n,1))
         X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
                                      range(1,4), [self.T0, self.P0, self.XO2])))
+        # Sort wrt the norm of the projection
+        norm_fn = lambda i,x: (X[:,i:i+1] - x[0])/(x[1] - x[0]) \
+                              if x[1] != x[0] else np.ones(X[:,i:i+1].shape)
+        X_norm  = np.hstack(tuple(map(norm_fn, range(0,4), [self.Ttr, self.T0, self.P0, self.XO2])))
+        proj    = (np.dot(X_norm, unit_vec.transpose()) \
+                    / np.dot(unit_vec, unit_vec.transpose())) * unit_vec
+        X       = X[np.linalg.norm(proj, axis=1).argsort()]
 
         # Generating Initial Conditions ---------------------------------------
         ic = np.zeros((n,self.dim), dtype=np.float64)

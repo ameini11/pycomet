@@ -220,19 +220,31 @@ class Model(object):
 
 
     # ======================================================================= #
+    # @timing
+    # def visualize_training(self, history=None):
+    #     print('\n[PrODE]: Postprocessing training quantities ...')
+    #     if history is None:
+    #         history = self.history
+
+    #     path = self.post_dir+'/training_plots'
+    #     if not os.path.exists(path): os.makedirs(path)
+
+    #     training_plots.plot_lr(self.train_dir+'/lr.csv', path)
+    #     training_plots.plot_loss(history, path)
+    #     if self.metrics is not None:
+    #         for met in self.metrics:
+    #             training_plots.plot_metric(history, path, met.name)
+    #     if self.loss_res is not None:
+    #         training_plots.plot_residual(history, path)
+
+    # ======================================================================= #
     @timing
     def visualize_training(self, history=None):
         print('\n[PrODE]: Postprocessing training quantities ...')
-        if history is None:
-            history = self.history
 
-        path = self.post_dir+'/training_plots'
+        path = './training_plots'
         if not os.path.exists(path): os.makedirs(path)
 
-        training_plots.plot_lr(self.train_dir+'/lr.csv', path)
+        training_plots.plot_lr('./lr.csv', path)
         training_plots.plot_loss(history, path)
-        if self.metrics is not None:
-            for met in self.metrics:
-                training_plots.plot_metric(history, path, met.name)
-        if self.loss_res is not None:
-            training_plots.plot_residual(history, path)
+        training_plots.plot_residual(history, path)

@@ -78,14 +78,15 @@ def plot_lr(history, path):
 ### Util Functions
 ###########################################################################
 def limits(y):
-    y_min = y.min().min()
-    y_max = y.max().max()
-    if np.log10(y_min)-np.log10(y_max) > 3:
-        value = np.power(10, np.log10(y_min)+3)
+    y = y.to_numpy()
+    y_min, y_max = np.amin(y[-100:-1,:]), np.amax(y)
+    if np.log10(y_max)-np.log10(y_min) > 2:
+        value = np.power(10, np.log10(y_min)+2)
         delta = np.absolute(y - value)
-        index = delta.argmin()
+        index = np.unravel_index(delta.argmin(), delta.shape)
         return y_min*0.9, y[index]
-    else: return y_min*0.9, y_max*1.1
+    else:
+        return y_min*0.9, y_max*1.1
 
 def get_data(history):
     if isinstance(history, str):
