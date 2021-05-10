@@ -31,9 +31,10 @@ class InputData(object):
     u_dim = 4       # Branch input dimensionality
 
     # Input Space Extreme Values ----------------------------------------------
-    Ttr = [10000.0e0]                   # Tanslational Temperature
+    dim = 4                             # Input Space Dimensionality
+    Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    1000.e0]        # Initial TInt
+    T0  = [300.0e0,    1000.e0]         # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
     XO2 = [0.95e0,     0.95e0]          # Initial O2 Mole Frac
 
