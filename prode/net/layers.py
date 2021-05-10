@@ -123,8 +123,8 @@ class FFBlock(tf.keras.layers.Layer):
             activity_regularizer=None,
             kernel_constraint=None,
             bias_constraint=None,
-            name=name
-        )
+            name=name)
+        
         if self.weight_norm:
             l = tfa.layers.WeightNormalization(l)
 

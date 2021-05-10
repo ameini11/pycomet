@@ -2,8 +2,6 @@ import os
 
 class InputData(object):
 
-    num_threads = 16
-
     ###########################################################################
     ### Paths
     ###########################################################################
@@ -11,12 +9,13 @@ class InputData(object):
     utils_path = os.path.normpath(os.getcwd()+'/../utils')
     pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')
 
+
     ###########################################################################
     ### Execution Flags
     ###########################################################################
     load_flg  = 0       # Loading model     0: no, 1: saved model, 2: ckpt
     train_flg = 1       # Training          0: no, 1: Yes
-    test_flg  = 0       # Evaluating        0: no, 1: after training, 2: also during training
+    test_flg  = 1       # Evaluating        0: no, 1: after training, 2: also during training
     # video_flg = 0       # Video history     0: no, 1: yes
     save_flg  = 1       # Saving model      0: no, 1: yes
 
@@ -34,7 +33,7 @@ class InputData(object):
     # Input Space Extreme Values ----------------------------------------------
     Ttr = [10000.0e0]                   # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    5000.e0]        # Initial TInt
+    T0  = [300.0e0,    1000.e0]        # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
     XO2 = [0.95e0,     0.95e0]          # Initial O2 Mole Frac
 
@@ -65,7 +64,7 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 1            # Number of training cases
+    train_cases    = 10            # Number of training cases
     train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
@@ -91,7 +90,7 @@ class InputData(object):
 
     # Early Stopping Callback -------------------------------------------------
     min_delta   = 1.e-6
-    patience    = 20000
+    patience    = 1000
 
 
     ###########################################################################

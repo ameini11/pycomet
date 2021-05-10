@@ -9,14 +9,12 @@ class Net(tf.keras.Model):
     ###########################################################################
     def __init__(self, name='net'):
         super(Net, self).__init__()
-        self.training     = True     # Boolean value for training other layers parameters
+        self.training     = True     # Boolean: cen be used for training specific layers parameters
 
         self.inp_trans    = None
         self.out_trans    = None
 
         self.res_loss_fn  = None
-        self.res_loss     = 0.
-        self.res_val_loss = 0.
 
 
     # Configuration update
@@ -28,9 +26,7 @@ class Net(tf.keras.Model):
             'training':     self.training,
             'inp_trans':    self.inp_trans,
             'out_trans':    self.out_trans,
-            'res_loss_fn':  self.res_loss_fn,
-            'res_loss':     self.res_loss,
-            'res_val_loss': self.res_val_loss
+            'res_loss_fn':  self.res_loss_fn
         })
         return config
 
@@ -51,6 +47,6 @@ class Net(tf.keras.Model):
         outputs = transform(inputs, outputs)."""
         self.out_trans = transform
 
-    def add_residual_evaluation(self, loss_fn):
+    def add_residual_loss(self, loss_fn):
         """Add the residual loss function to loss list."""
         self.res_loss_fn = loss_fn

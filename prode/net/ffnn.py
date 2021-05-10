@@ -114,7 +114,7 @@ class FFNN(Net):
         if self.res_loss_fn is not None:
             return steps.test_step(self, data)
         else:
-            return super(FNN, self).test_step(data)
+            return super(OpNN, self).test_step(data)
 
 
     # Graph

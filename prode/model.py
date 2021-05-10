@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.callbacks as CB
 
@@ -13,9 +14,11 @@ from .utils          import timing
 
 import netron
 
+
 class Model(object):
     """The `Model` class trains a `Net` on a `Data`."""
 
+    # ======================================================================= #
     def __init__(
         self,
         data,
@@ -54,6 +57,7 @@ class Model(object):
         self.killall = False
 
 
+    # ======================================================================= #
     @timing
     def build(self):
         print('\n[PrODE]: Building the "',self.net.name,'" net ...', sep='')
@@ -70,6 +74,7 @@ class Model(object):
                 self.net.build(inputs_shape)
             net_graph = self.net.build_graph()
 
+        # Visualize net/graph
         net_graph.summary()
         if self.visualize_graph:
             net_graph.save(self.name+'_struct.h5', save_format='h5')
@@ -77,11 +82,12 @@ class Model(object):
             tf.keras.utils.plot_model(net_graph, self.train_dir+"/"+self.name+".png")
         
         asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
-        if asw.lower() != 'y':
+        if not asw.lower().startswith('y'):
             self.killall = True
             print('[PrODE]:   All the processes will be stopped.\n')
 
 
+    # ======================================================================= #
     @timing
     def compile(
         self,
@@ -105,7 +111,7 @@ class Model(object):
             raise ValueError("[PrODE]:   Losses have to be defined as a 'dict()'.")
 
         if self.loss_res is not None and self.data.ode_func is not None:
-            self.net.add_residual_evaluation(self.data.residual_loss(self.loss_res))
+            self.net.add_residual_loss(self.data.residual_loss(self.loss_res))
 
         # Defining metrics
         if metrics is not None:
@@ -116,6 +122,7 @@ class Model(object):
                          metrics=self.metrics, loss_weights=loss_weights)
 
 
+    # ======================================================================= #
     @timing
     def restore_net(self, from_ckpt=True):
         # Either restore the latest model, or create a fresh one
@@ -131,6 +138,7 @@ class Model(object):
             self.net.load_weights(self.save_path)
 
 
+    # ======================================================================= #
     @timing
     def fit(
         self,
@@ -147,8 +155,8 @@ class Model(object):
                 monitor='val_loss', save_best_only=True, save_weights_only=True)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
                 write_graph=True, write_images=True)
-        LR = callbacks_module.LearningRateTracker(filepath=self.train_dir, \
-                log_dir=self.TB_dir, stdout=True)
+        LR = callbacks_module.LearningRateTracker(file=self.train_dir+'/lr.csv', \
+                log_dir=self.TB_dir, verbose=True)
         callbacks.extend([MC, TB, LR])
 
         # Defining train/valid pts
@@ -168,22 +176,27 @@ class Model(object):
                         validation_split=validation_split,
                         validation_data=validation_data)
 
+        # Save `history.history` in a file
+        hist_df = pd.DataFrame.from_dict(self.history.history)
+        with open(self.train_dir+'/history.csv', mode='w') as f:
+            hist_df.to_csv(path_or_buf=f, index=False)
 
+
+    # ======================================================================= #
     def predict(self, test_cases, var_names=None, labels=None, scales=None):
 
         if var_names is not None:
             path = self.post_dir+'/testing_plots'
             if not os.path.exists(path): os.makedirs(path)
 
-        if isinstance(test_cases, (list,tuple)):
-            for i, test_i in enumerate(test_cases):
-                if len(test_i) == 3:
-                    title, x, y_true = test_i
-                    data_val = None
-                else:
-                    title, x, y_true, data_val = test_i
-                y_pred = self.net.predict(x)
-                if var_names is not None:
+            if isinstance(test_cases, (list,tuple)):
+                for i, test_i in enumerate(test_cases):
+                    if len(test_i) == 3:
+                        title, x, y_true = test_i
+                        data_val = None
+                    else:
+                        title, x, y_true, data_val = test_i
+                    y_pred = self.net.predict(x)
                     testing_plots.plot_test(
                         path,
                         x,
@@ -195,23 +208,31 @@ class Model(object):
                         labels=labels,
                         scales=scales,
                         data_val=data_val)
-        else: return self.net.predict(x)
+        else:
+            return self.net.predict(x)
 
 
+    # ======================================================================= #
     @timing
     def save(self):
         print('\n[PrODE]: Saving model weights ...')
         self.net.save_weights(self.save_path, overwrite=True, save_format=self.save_format)
 
 
+    # ======================================================================= #
     @timing
-    def visualize_training(self):
-        print('\n[PrODE]: Postprocessing training evolution ...')
+    def visualize_training(self, history=None):
+        print('\n[PrODE]: Postprocessing training quantities ...')
+        if history is None:
+            history = self.history
+
         path = self.post_dir+'/training_plots'
         if not os.path.exists(path): os.makedirs(path)
 
-        training_plots.plot_loss_history(self.history, path)
+        training_plots.plot_lr(self.train_dir+'/lr.csv', path)
+        training_plots.plot_loss(history, path)
         if self.metrics is not None:
             for met in self.metrics:
-                training_plots.plot_metric(self.history, path, met.name)
-        training_plots.plot_lr(path, self.train_dir)
+                training_plots.plot_metric(history, path, met.name)
+        if self.loss_res is not None:
+            training_plots.plot_residual(history, path)

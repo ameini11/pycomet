@@ -41,11 +41,10 @@ class ODESolver(object):
             - arg[0] = Excitation rates
             - arg[1] = Dissociation rates
             - arg[2] = Recombination rates
-            - arg[3] = Atomic Ox Identity matrix
             '''
-            exc_term = np.matmul(arg[0], y) * np.matmul(arg[3], y)
-            dis_term = np.matmul(arg[1], y) * np.matmul(arg[3], y)
-            rec_term = np.squeeze(arg[2]) * np.power(np.matmul(arg[3], y), 3)
+            exc_term = np.matmul(arg[0], y) * y[-1]
+            dis_term = np.matmul(arg[1], y) * y[-1]
+            rec_term = np.squeeze(arg[2]) * np.power(y[-1], 3)
             return exc_term + dis_term + rec_term
 
         def jac(t, y, arg):
@@ -53,9 +52,9 @@ class ODESolver(object):
             d = np.shape(y)[0]
             J = np.zeros((d,d), dtype=np.float64)
 
-            J[:,:-1] = (arg[0][:,:-1] + arg[1][:,:-1]) * np.matmul(arg[3], y)
+            J[:,:-1] = (arg[0][:,:-1] + arg[1][:,:-1]) * y[-1]
             J[:, -1] = np.matmul(arg[0][:,:-1], y[:-1]) + np.matmul(arg[1][:,:-1], y[:-1]) \
-                        + 3*np.squeeze(arg[2])*np.power(np.matmul(arg[3], y), 2)
+                        + 3*np.squeeze(arg[2])*np.power(y[-1], 2)
             return J
 
         def eval_J(t, y, arg):
@@ -134,7 +133,6 @@ class ODESolver(object):
         ODE_mat[self.mat_name[0]] = self.excit(self.mat_mask[0], rates_coeff, Q_bins) / const.mO
         ODE_mat[self.mat_name[1]] = self.disso(self.mat_mask[1], rates_coeff) / const.mO
         ODE_mat[self.mat_name[2]] = self.recom(self.mat_mask[2], rates_coeff, Q_bins, T) / const.mO**2 * 2
-        ODE_mat['atomO_ohe']      = np.array([[0.,0.,0.,1.]], dtype=np.float64)
         return ODE_mat
 
     def excit(self, mask, rates_coeff, Q_bins):

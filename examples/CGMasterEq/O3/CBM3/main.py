@@ -1,47 +1,51 @@
+# *************************************************************************** #
 # Tensorflow/Keras set up
+
+NUM_THREADS = 16
+DTYPE       = 'float64'
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
-tf.keras.backend.set_floatx('float64')
+tf.keras.backend.set_floatx(DTYPE)
+tf.config.threading.set_inter_op_parallelism_threads(NUM_THREADS)
+tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
+
+# *************************************************************************** #
 
 import sys
 import numpy as np
-from tensorflow.keras import callbacks
 import tensorflow.keras.layers as lay
+from tensorflow.keras import callbacks
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
-tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
-tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
-
 sys.path.append(inp.pro_path)
 import prode as pro
 
 
-@tf.function()
 def ode(ic, t, grads, params):
 
     # Rearranging matrices
     ic       = tf.transpose(ic)
     Y, dY_dt = [tf.transpose(grad) for grad in grads]
     if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
+    Y_O = Y[-2:-1,:]
 
     # Getting matrices
     T_str = str(10000) # = ic[0,:]
-    K_e, K_d, K_r, I_O = [ params[T_str][name] for name in params[T_str] ]
+    K_e, K_d, K_r = [ params[T_str][name] for name in params[T_str] ]
 
     # Computing Residuals - Master Equation
-    excit_term = tf.math.multiply(tf.matmul(K_e, Y), tf.matmul(I_O, Y))
-    disso_term = tf.math.multiply(tf.matmul(K_d, Y), tf.matmul(I_O, Y))
-    recom_term = tf.matmul(K_r, tf.math.pow(tf.matmul(I_O, Y), 3))
+    excit_term = tf.math.multiply(tf.matmul(K_e, Y), Y_O)
+    disso_term = tf.math.multiply(tf.matmul(K_d, Y), Y_O)
+    recom_term = tf.matmul(K_r, tf.math.pow(Y_O, 3))
 
     rhs = excit_term + disso_term + recom_term
     f   = tf.transpose(dY_dt - rhs)
 
     return f
-
 
 @pro.utils.timing
 def main():
@@ -51,7 +55,7 @@ def main():
     print("--------------------------------------------------------------------------------------------------")
     print(" TensorFlow version: {}".format(tf.__version__))
     print(" Eager execution:    {}".format(tf.executing_eagerly()))
-    print(" Number of threads:  {}".format(inp.num_threads))
+    print(" Number of threads:  {}".format(NUM_THREADS))
     print("--------------------------------------------------------------------------------------------------")
 
     ###########################################################################

@@ -103,6 +103,8 @@ class OpNN(Net):
 
         config = super().get_config().copy()
         config.update({
+            'u_dim':              self.u_dim,
+            'y_dim':              self.y_dim,
             'G_dim':              self.G_dim,
             'layer_size_branch':  self.layer_size_branch,
             'layer_size_trunk':   self.layer_size_trunk,
@@ -175,7 +177,6 @@ class OpNN(Net):
 
     # Testing Step
     def test_step(self, data):
-        # return super(OpNN, self).test_step(data)
         if self.res_loss_fn is not None:
             return steps.test_step(self, data)
         else:
@@ -189,3 +190,4 @@ class OpNN(Net):
         x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
         x   = [x_u, x_y]
         return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)
+        

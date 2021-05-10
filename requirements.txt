@@ -2,6 +2,7 @@ graphviz
 matplotlib
 netron
 numpy
+pandas
 pydot
 pydotplus
 salib

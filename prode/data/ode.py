@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.python.ops import array_ops
 
 from .dataset import DataSet
 from . import gradients
@@ -53,7 +52,6 @@ class ODE(DataSet):
     def residual_loss(self, loss):
         '''Residual loss function definition.'''
 
-        @tf.function
         def res_loss_fn(model, inputs, training=True):
 
             if self.input_is_list:
@@ -67,7 +65,7 @@ class ODE(DataSet):
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads, self.ode_params)
-            res_true = array_ops.zeros_like(res_pred)
+            res_true = tf.zeros_like(res_pred)
             res_loss = loss(res_true, res_pred)
 
             return y_pred, res_loss

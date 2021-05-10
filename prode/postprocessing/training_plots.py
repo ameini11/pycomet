@@ -3,63 +3,92 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 
-def plot_loss_history(history, path, scale='log'):
+###########################################################################
+### Plotting Training Quantities
+###########################################################################
+def plot_loss(history, path, scale='log'):
     """Loss History plotting."""
+    data = get_data(history)
+
     fig = plt.figure()
 
-    plt.ylim(limits(history.history['loss']))
+    plt.ylim(limits(data[['loss','val_loss']]))
     plt.yscale(scale)
 
-    plt.plot(history.history['loss'],     lw=1, label='Training')
-    plt.plot(history.history['val_loss'], lw=1, label='Validation')
+    plt.plot(data[['loss']],     lw=1, label='Training')
+    plt.plot(data[['val_loss']], lw=1, label='Validation')
     plt.xlabel('Epoch')
-    plt.ylabel('Loss')
     plt.legend()
     plt.grid()
-    plt.title('Training History')
-    fig.savefig(path+'/loss_history.pdf')
+    plt.title('Loss History')
+    fig.savefig(path+'/loss.pdf')
     plt.close()
 
-
-def plot_metric(history, path, metric, scale='log'):
-    """Metric plotting."""
+def plot_residual(history, path, scale='log'):
+    """Residual History plotting."""
+    data = get_data(history)
 
     fig = plt.figure()
 
-    plt.ylim(limits(history.history[metric]))
+    plt.ylim(limits(data[['res_loss','val_res_loss']]))
+    plt.yscale(scale)
+
+    plt.plot(data[['res_loss']],     lw=1, label='Training')
+    plt.plot(data[['val_res_loss']], lw=1, label='Validation')
+    plt.xlabel('Epoch')
+    plt.legend()
+    plt.grid()
+    plt.title('Residual History')
+    fig.savefig(path+'/residual.pdf')
+    plt.close()
+
+def plot_metric(history, path, metric, scale='log'):
+    """Metric History plotting."""
+    data = get_data(history)
+
+    fig = plt.figure()
+
+    plt.ylim(limits(data[[metric,'val_'+metric]]))
     plt.yscale(scale)
 
     plt.plot(history.history[metric],        lw=1, label='Training')
     plt.plot(history.history['val_'+metric], lw=1, label='Validation')
     plt.xlabel('Epoch')
-    plt.ylabel(metric)
+    plt.title(r'$\it{%s}$' % metric.replace("_", "\ ").title() + '  Metric History')
     plt.legend()
     plt.grid()
     fig.savefig(path+'/metric_'+metric+'.pdf')
     plt.close()
 
-
-def plot_lr(path, path_file):
+def plot_lr(history, path):
     """Learning Rate plotting."""
-
-    data = pd.read_csv(path_file+'/lr_tracker.csv', header=None, skiprows=0)
-    data = data.apply(pd.to_numeric, errors='coerce')
-    epoch, lr = [ np.expand_dims(np.array(data[i]), axis=1) for i in range(2) ]
+    data = get_data(history)
 
     fig = plt.figure()
-    plt.plot(epoch, lr, 'r', lw=1)
+    plt.plot(data[['lr']], 'r', lw=1)
     plt.ticklabel_format(axis="y", style="sci", scilimits=(0,0))
     plt.xlabel('Epoch')
-    plt.title('Learning Rate')
+    plt.title('Learning Rate History')
     plt.grid()
     fig.savefig(path+'/lr.pdf')
     plt.close()
 
 
+###########################################################################
+### Util Functions
+###########################################################################
 def limits(y):
-    if np.log10(y[0])-np.log10(y[-1]) > 3:
-        value = np.power(10, np.log10(y[-1])+3)
+    y_min = y.min().min()
+    y_max = y.max().max()
+    if np.log10(y_min)-np.log10(y_max) > 3:
+        value = np.power(10, np.log10(y_min)+3)
         delta = np.absolute(y - value)
         index = delta.argmin()
-        return None, y[index]
-    else: return None, None
+        return y_min*0.9, y[index]
+    else: return y_min*0.9, y_max*1.1
+
+def get_data(history):
+    if isinstance(history, str):
+        return pd.read_csv(history)
+    else:
+        return pd.DataFrame.from_dict(history.history)
