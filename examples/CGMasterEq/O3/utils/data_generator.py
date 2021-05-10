@@ -95,6 +95,7 @@ class DataGenerator(object):
 
         rates_coeff = dict()
         for T_i in self.T_str:
+            if T_i in rates_coeff: continue
             rates_coeff[T_i] = dict()
             for reac in self.react_file:
                 data_file = self.rates_path + 'T' + T_i + 'K/' + self.react_file[reac]
