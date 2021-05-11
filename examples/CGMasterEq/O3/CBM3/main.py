@@ -55,6 +55,7 @@ def main():
     print("--------------------------------------------------------------------------------------------------")
     print(" TensorFlow version: {}".format(tf.__version__))
     print(" Eager execution:    {}".format(tf.executing_eagerly()))
+    print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
     print(" Number of threads:  {}".format(NUM_THREADS))
     print("--------------------------------------------------------------------------------------------------")
 

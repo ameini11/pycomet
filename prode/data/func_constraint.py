@@ -14,7 +14,7 @@ class FuncConstraint(Data):
         domain,
         constraint,
         func,
-        num_train;
+        num_train,
         anchors,
         num_test,
         distr_train="uniform"
