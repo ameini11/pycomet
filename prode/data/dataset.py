@@ -59,7 +59,7 @@ class DataSet(Data):
             scaler = preprocessing.StandardScaler(with_mean=True, with_std=True)
             x = scaler.fit_transform(x)
             var = [ scaler.transform(arg) if arg is not None else None for arg in args ]
-            return scaler, x, *var
+            return scaler, x, var
 
         self.scaler_x, self.train_x, self.valid_x, self.test_x = \
                     standardize_one(self.train_x, self.valid_x, self.test_x)
