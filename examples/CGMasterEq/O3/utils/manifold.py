@@ -25,7 +25,7 @@ class Manifold(DataGenerator):
     def __init__(self, inputs):
         super(Manifold, self).__init__(inputs)
 
-        self.path   = './fig/manifold/'
+        self.path   = './fig/'
         self.header = '[PrODE - Manifold]: '
 
         # Generating initial conditions ---------------------------------------
@@ -39,18 +39,22 @@ class Manifold(DataGenerator):
 
         print('\n' + self.header + 'Generating initial conditions ...')
 
-        n = self.train_cases
-        # if n > 2: n = n-2
+        n = self.test_cases
+        unit_vec = np.array([[1.]*self.inp_dim])
 
         # Contructing Design Matrix -------------------------------------------
-        X       = lhs(3, samples=n)
-        X       = np.hstack((np.random.choice(self.Ttr, size=(n,1)), X))
+        X       = lhs(self.inp_dim, samples=n)
+        X[:,:1] = np.random.choice(self.Ttr, size=(n,1))
         X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
                                      range(1,4), [self.T0, self.P0, self.XO2])))
-        # if n > 2:
-        #     X_0   = np.array([self.Ttr[ 0], self.T0[ 0], self.P0[ 0], self.XO2[ 0]])
-        #     X_end = np.array([self.Ttr[-1], self.T0[-1], self.P0[-1], self.XO2[-1]])
-        #     X     = np.vstack((X_0, X, X_end))
+
+        # Sort wrt the norm of the projection
+        norm_fn = lambda i,x: (X[:,i:i+1] - x[0])/(x[1] - x[0]) \
+                              if x[1] != x[0] else np.ones(X[:,i:i+1].shape)
+        X_norm  = np.hstack(tuple(map(norm_fn, range(0,4), [self.Ttr, self.T0, self.P0, self.XO2])))
+        proj    = (np.dot(X_norm, unit_vec.transpose()) \
+                    / np.dot(unit_vec, unit_vec.transpose())) * unit_vec
+        X       = X[np.linalg.norm(proj, axis=1).argsort()]
 
         # Generating Initial Conditions ---------------------------------------
         ic = np.zeros((X.shape[0], self.dim), dtype=np.float64)
@@ -71,18 +75,23 @@ class Manifold(DataGenerator):
     ###########################################################################
     ### Trajectories
     ###########################################################################
-    def get_trajectories(self, points=False):
+    def get_trajectories(self, points=False, eval_jac=False):
 
         print('\n' + self.header + 'Generating trajectories ...')
 
-        trajectories, t_scales, norm_jac = [], [], []
-        for ic_i in tqdm(self.ic, file=sys.stdout):
+        for i, ic_i in enumerate(tqdm(self.ic, file=sys.stdout)):
 
             # Solving the ODE
-            mat = self.ODE_mat[str(int(ic_i[0]))]
-            t, y, norm_J, eig_J = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=True)
-            if self.mass_frac: y = y / np.sum(ic_i[1:])
+            mat  = self.ODE_mat[str(int(ic_i[0]))]
+            data = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac)
+            if len(data) > 2:
+                t, y, norm_J, eig_J = data
+            else:
+                t, y = data
             assert (y > 0.).all()
+
+            u = np.tile(ic_i[1:], (t.shape[0],1))
+            if self.mass_frac: u, y = self.dens2mass_frac(u, y)
 
             if points:
                 idx = self.get_indices(ic_i[1:], t, norm_J, self.train_pts)
@@ -94,12 +103,22 @@ class Manifold(DataGenerator):
             plt.plot(t, y, **marker_style)
             plt.grid()
             plt.show()
-            
-            trajectories.append((t, y))
-            norm_jac.append((t, norm_J))
-            t_scales.append((t, np.reciprocal(np.absolute(eig_J.real))))
 
-        return trajectories, t_scales, norm_jac
+            if i == 0:
+                trajectories = [([u, t], y)]
+                if eval_jac:
+                    norm_jac = [(t, norm_J)]
+                    t_scales = [(t, np.reciprocal(np.absolute(eig_J.real)))]
+            else:
+                trajectories.append(([u, t], y))
+                if eval_jac:
+                    norm_jac.append((t, norm_J))
+                    t_scales.append((t, np.reciprocal(np.absolute(eig_J.real))))
+
+        if eval_jac:
+            return trajectories, t_scales, norm_jac
+        else:
+            return trajectories
 
 
     ###########################################################################
@@ -114,10 +133,10 @@ class Manifold(DataGenerator):
         ax.set_zlabel(r'$Y_3$')
         return fig, ax
 
-    def plot_manifold_struc(self, trajectories, points=False):
+    def plot_manifold_struc(self, trajectories, points=False, id_data='true'):
 
         fig, ax = self.plot_setup()
-        path = self.path + '/struc/'
+        path = self.path + '/struc_'+id_data+'/'
         if points: path = path + 'pts/'
         if not os.path.exists(path): os.makedirs(path)
 
@@ -140,10 +159,10 @@ class Manifold(DataGenerator):
         plt.show()
         plt.close()
 
-    def plot_manifold_time(self, trajectories):
+    def plot_manifold_time(self, trajectories, id_data='true'):
 
         fig, ax = self.plot_setup()
-        path = self.path + '/time/'
+        path = self.path + '/time_'+id_data+'/'
         if not os.path.exists(path): os.makedirs(path)
 
         if self.P0[0] != self.P0[1]:
@@ -182,9 +201,9 @@ class Manifold(DataGenerator):
         fig.savefig(path)
         plt.close()
 
-    def plot_timescales(self, timescales):
+    def plot_timescales(self, timescales, id_data='true'):
         t, t_scales = timescales
-        path = self.path + '/time/'
+        path = self.path + '/time_'+id_data+'/'
         if not os.path.exists(path): os.makedirs(path)
 
         fig = plt.figure()
@@ -232,5 +251,38 @@ class Manifold(DataGenerator):
         plt.grid()
 
         fig.savefig(path+'/norm_jac_error.pdf')
+        plt.show()
+        plt.close()
+
+    def plot_comparison(self, trajectories):
+
+        fig, ax = self.plot_setup()
+        path = self.path + '/struc_comparison/'
+        if not os.path.exists(path): os.makedirs(path)
+
+        if self.P0[0] != self.P0[1]:
+            plt.title(r'Variable Pressure: $P\in[%.2e,%.2e]$ Pa' % (self.P0[0],self.P0[1]))
+            path = path+'P_var.pdf'
+        elif self.XO2[0] != self.XO2[1]:
+            plt.title(r'Variable Composition: $X_{O_2}\in[%.2f,%.2f]$' % (self.XO2[0],self.XO2[1]))
+            path = path+'X_var.pdf'
+        else:
+            plt.title(r'Variable Temperature: $T\in[%d,%d]$ K' % (self.T0[0],self.T0[1]))
+            path = path+'T_var.pdf'
+
+        # Solution
+        for i, data in enumerate(trajectories):
+            y_true, y_pred = data
+
+            name = 'True' if i == 0 else None
+            ax.plot3D(y_true[:,0], y_true[:,1], y_true[:,2], c='b', lw=1, label=name)
+            ax.scatter3D(y_true[0,0], y_true[0,1], y_true[0,2], c='b', marker='o', lw=1)
+
+            name = 'Pred' if i == 0 else None
+            plt.plot(y_pred[:,0], y_pred[:,1], y_pred[:,2], c='r', lw=1, label=name)
+            ax.scatter3D(y_pred[0,0], y_pred[0,1], y_pred[0,2], c='r', marker='o', lw=1)
+
+        plt.legend()
+        fig.savefig(path)
         plt.show()
         plt.close()

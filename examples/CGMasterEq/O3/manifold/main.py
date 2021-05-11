@@ -1,22 +1,27 @@
+# *************************************************************************** #
+# Tensorflow/Keras set up
+
+NUM_THREADS = 16
+DTYPE       = 'float64'
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
-tf.keras.backend.set_floatx('float64')
+tf.keras.backend.set_floatx(DTYPE)
+tf.config.threading.set_inter_op_parallelism_threads(NUM_THREADS)
+tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
+
+# *************************************************************************** #
 
 import sys
 import numpy as np
+import tensorflow.keras.layers as lay
 from tensorflow.keras import callbacks
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from manifold import Manifold
 
-tf.config.threading.set_inter_op_parallelism_threads(inp.num_threads)
-tf.config.threading.set_intra_op_parallelism_threads(inp.num_threads)
-
-sys.path.append(inp.pro_path)
 import prode as pro
-
 
 
 @pro.utils.timing
@@ -27,27 +32,30 @@ def main():
     print("--------------------------------------------------------------------------------------------------")
     print(" TensorFlow version: {}".format(tf.__version__))
     print(" Eager execution:    {}".format(tf.executing_eagerly()))
-    print(" Number of threads:  {}".format(inp.num_threads))
+    print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
+    print(" Number of threads:  {}".format(NUM_THREADS))
     print("--------------------------------------------------------------------------------------------------")
 
     ###########################################################################
-    ### True Data
+    ### Data
     ###########################################################################
-    if False:
-        manifold = Manifold(inp)
-        trajectories, timescales, norm_jac = manifold.get_trajectories(points=True)
-        manifold.plot_manifold_struc(trajectories, points=True)
-        manifold.plot_timescales(timescales[0])
-        for i in norm_jac:
-            manifold.plot_norm_jac(i)
-            manifold.plot_norm_jac_error(i)
+    manifold     = Manifold(inp)
+    trajectories = manifold.get_trajectories()
+
+    # Initialize Data ---------------------------------------------------------
+    data = pro.data.ODE(
+        ode_func=None,
+        ode_order=1,
+        ode_params=manifold.ODE_mat,
+        x_train=trajectories[0][0],
+        y_train=trajectories[0][1])
 
 
     ###########################################################################
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    net_init = pro.net.FuncOpNN(
+    net = pro.net.OpNN(
         inp.u_dim, inp.y_dim, inp.G_dim,
         inp.layer_size_branch,
         inp.layer_size_trunk,
@@ -59,45 +67,44 @@ def main():
 
     # Apply I/O Transformation ------------------------------------------------
     if inp.mass_frac:
-        output_fn = tf.keras.layers.Softmax(axis=-1)
-        branch_fn = lambda x: x
+        output_fn = lay.Softmax(axis=-1,    name='output_fn')
+        branch_fn = lay.Lambda(lambda x: x, name='branch_fn')
     else:
-        output_fn = tf.math.exp
-        branch_fn = tf.math.log
+        output_fn = lay.Lambda(tf.math.exp, name='output_fn')
+        branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
+    trunk_fn = lay.Lambda(lambda x: x * inp.scale_fac, name='trunk_fn')
 
-    net_init.apply_feature_transform({
-        "branch": branch_fn,
-        "trunk" : lambda x: x * inp.scale_fac})
-    net_init.apply_output_transform(output_fn)
-
-    # Uncompiled Net ----------------------------------------------------------
-    net = net_init.get_uncompiled_model()
+    net.apply_input_transform({"branch": branch_fn, "trunk" : trunk_fn})
+    net.apply_output_transform(output_fn)
 
 
     ###########################################################################
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(None, net, inp.name)
+    model = pro.model.Model(data, net, inp.name, visualize_graph=False)
+
+    # Build Model -------------------------------------------------------------
+    model.build()
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
                   decay=inp.decay, loss_weights=None)
     if model.killall: return
 
+    # Restore Model Weights ---------------------------------------------------
     model.restore_net(from_ckpt=int(inp.load_flg-1))
-    
+
 
     ###########################################################################
     ### Postprocessing
     ###########################################################################
-    # Testing phase -----------------------------------------------------------
-    if inp.test_cases > 0 and inp.test_flg > 0:
-        model.predict(data_test, var_names=inp.var_names, labels=inp.labels, \
-                      scales=inp.scales)
-        if inp.log_plot:
-            model.predict(data_test, var_names=inp.var_names, \
-                          labels=inp.labels, scales=['log', 'log'])
+    data = []
+    for traj_i in trajectories:
+        x, y_true = traj_i
+        y_pred = net.predict(x)
+        data.append((y_true, y_pred))
+    manifold.plot_comparison(data)
             
 
 if __name__ == "__main__":

@@ -22,7 +22,6 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(self, inputs):
 
-        self.inputs         = inputs
         self.header         = '[PrODE - Data Gen]: '
 
         # Data Quantities -----------------------------------------------------
@@ -30,12 +29,13 @@ class DataGenerator(object):
         self.valid_pts      = round(inputs.valid*inputs.train_pts)  # Number of validation v for each case
         self.train_pts      = inputs.train_pts - self.valid_pts     # Number of total training pts for each case
         self.train_pts_dist = inputs.train_pts_dist                 # Training pts distribution
-        self.train_split    = [0.8, 0.12, 0.08]                       # Training pts splitting
+        self.train_split    = [0.8, 0.12, 0.08]                     # Training pts splitting
 
         self.test_cases     = inputs.test_cases                     # Number of testing cases
         self.test_training  = inputs.test_training                  # Test training case [Bool]
         self.t0, self.t_end = inputs.t0, inputs.t_end               # Time limits for testing
 
+        self.inp_dim        = inputs.inp_dim                        # Input Space Dimensionality
         self.dim            = inputs.G_dim                          # Data dimensionality
         self.mass_frac      = inputs.mass_frac                      # Data in mass fractions [Bool]
 
@@ -124,10 +124,10 @@ class DataGenerator(object):
         print('\n' + self.header + 'Generating initial conditions ...')
 
         n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
-        unit_vec = np.array([[1.]*self.inputs.dim])
+        unit_vec = np.array([[1.]*self.inp_dim])
 
         # Contructing Design Matrix -------------------------------------------
-        X       = lhs(self.inputs.dim, samples=n)
+        X       = lhs(self.inp_dim, samples=n)
         X[:,:1] = np.random.choice(self.Ttr, size=(n,1))
         X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
                                      range(1,4), [self.T0, self.P0, self.XO2])))
