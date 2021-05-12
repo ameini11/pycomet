@@ -228,6 +228,7 @@ class VariableValue(CB.Callback):
 ###############################################################################
 ### Visualization
 ###############################################################################
+@keras_export('keras.callbacks.Plotter')
 class Plotter(CB.Callback):
     """Plot variables in order to check the training progress."""
 

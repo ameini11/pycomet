@@ -95,16 +95,18 @@ def main():
     # Restore Model Weights ---------------------------------------------------
     model.restore_net(from_ckpt=int(inp.load_flg-1))
 
+    print(model.net.trainable_weights)
+
 
     ###########################################################################
     ### Postprocessing
     ###########################################################################
-    data = []
-    for traj_i in trajectories:
-        x, y_true = traj_i
-        y_pred = net.predict(x)
-        data.append((y_true, y_pred))
-    manifold.plot_comparison(data)
+    # data = []
+    # for traj_i in trajectories:
+    #     x, y_true = traj_i
+    #     y_pred = net.predict(x)
+    #     data.append((y_true, y_pred))
+    # manifold.plot_comparison(data)
             
 
 if __name__ == "__main__":

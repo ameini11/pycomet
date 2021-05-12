@@ -1,16 +1,16 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
+from .. import layers
 from . import activations
 from . import initializers
 from . import regularizers
-from . import layers
 from . import steps
 
 from .net import Net
 
 
-@tf.keras.utils.register_keras_serializable()
+@tf.keras.utils.register_keras_serializable(package='prode', name='ffnn')
 class FFNN(Net):
     """Feed-Forward neural network."""
 
@@ -26,7 +26,7 @@ class FFNN(Net):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='ff_nn'):
+        name='ffnn'):
         super(FFNN, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
@@ -34,16 +34,8 @@ class FFNN(Net):
         self.layer_size          = layer_size
         self.activation          = activations.get(activation)
         self.kernel_initializer  = initializers.get(kernel_initializer)
-        self.regularizer         = regularizers.get(regularization)
+        self.regularizer         = regularizers.get(**regularization)
         self.dropout_rate        = dropout_rate
-        if batch_norm not in [None, "before", "after"]:
-            raise ValueError(
-                "\n[PrODE]: batch_norm == {}. Available choices: "
-                "{{None|'before'|'after'}}.".format(
-                    batch_norm
-                )
-            )
-
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 

@@ -15,7 +15,8 @@ class InputData(object):
     ###########################################################################
     load_flg  = 0       # Loading model     0: no, 1: saved model, 2: ckpt
     train_flg = 1       # Training          0: no, 1: Yes
-    test_flg  = 1       # Evaluating        0: no, 1: after training, 2: also during training
+    test_flg  = 0       # Evaluating        0: no, 1: after training, 2: also during training
+    plot_flg  = 0       # Plotting          0: no, 1: after training, 2: also during training
     # video_flg = 0       # Video history     0: no, 1: yes
     save_flg  = 1       # Saving model      0: no, 1: yes
 
@@ -34,7 +35,7 @@ class InputData(object):
     dim = 4                             # Input Space Dimensionality
     Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    1000.e0]         # Initial TInt
+    T0  = [300.0e0,    300.e0]         # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
     XO2 = [0.95e0,     0.95e0]          # Initial O2 Mole Frac
 
@@ -53,7 +54,7 @@ class InputData(object):
     layer_size_trunk   = [y_dim, 16, 16, 8]
     activation         = {"branch": 'elu', "trunk": 'sigmoid'}
     kernel_initializer = "GlorotNormal"
-    regularization     = ["l1+l2", 1.e-4, 1.e-4]
+    regularization     = {'name': 'l1+l2', 'l1': 1.e-4, 'l2': 1.e-4}
     dropout_rate       = 0
     batch_norm         = None
 
@@ -65,7 +66,7 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 10            # Number of training cases
+    train_cases    = 1            # Number of training cases
     train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
@@ -73,25 +74,31 @@ class InputData(object):
     # Testing -----------------------------------------------------------------
     test_cases     = 3              # Number of testing cases
     test_training  = True           # Test training case
-    period         = 100            # Plotting frequancy during training [epochs]
+    period         = 100            # Plotting frequency during training [epochs]
 
 
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs      = 1000
-    batch_size  = 128
+    epochs       = 1000
+    batch_size   = 128
 
-    optimizer   = 'adam' 
-    lr          = 1.e-4
-    decay       = ["exponential", (epochs*train_cases/100), 0.98]
+    optimizer    = 'adam' 
+    lr           = 1.e-4
 
-    loss        = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
-    metrics     = ['mape']
+    # Learning rate scheduler -------------------------------------------------
+    decay_epochs = 100
+    decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
+    decay        = ["exponential", decay_steps, 0.98]
+
+    # Losses ------------------------------------------------------------------
+    # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
+    loss         = {'pts': 'ZERO', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    metrics      = ['mape']
 
     # Early Stopping Callback -------------------------------------------------
-    min_delta   = 1.e-6
-    patience    = 1000
+    min_delta    = 1.e-6
+    patience     = 1000
 
 
     ###########################################################################

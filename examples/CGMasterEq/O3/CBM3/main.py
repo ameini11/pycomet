@@ -25,27 +25,48 @@ sys.path.append(inp.pro_path)   # <<< Remove this line if you install prode as a
 import prode as pro
 
 
+# def ode(ic, t, grads, params):
+
+#     # Rearranging matrices
+#     ic       = tf.transpose(ic)
+#     Y, dY_dt = [tf.transpose(grad) for grad in grads]
+#     if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
+#     Y_O = Y[-2:-1,:]
+
+#     # Getting matrices
+#     T_str = str(10000) # = ic[0,:]
+#     K_e, K_d, K_r = [ params[T_str][name] for name in params[T_str] ]
+
+#     # Computing Residuals - Master Equation
+#     excit_term = tf.math.multiply(tf.matmul(K_e, Y), Y_O)
+#     disso_term = tf.math.multiply(tf.matmul(K_d, Y), Y_O)
+#     recom_term = tf.matmul(K_r, tf.math.pow(Y_O, 3))
+
+#     rhs = excit_term + disso_term + recom_term
+#     f   = tf.transpose(dY_dt - rhs)
+
+#     return f
+
 def ode(ic, t, grads, params):
 
-    # Rearranging matrices
-    ic       = tf.transpose(ic)
-    Y, dY_dt = [tf.transpose(grad) for grad in grads]
-    if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
-    Y_O = Y[-2:-1,:]
+    Y, dY_dt = [tf.math.multiply(grad,ic[:,-1]) for grad in grads]
+    Y_O      = Y[:,-2:]
 
-    # Getting matrices
+    # Getting rate coeff. matrices
     T_str = str(10000) # = ic[0,:]
-    K_e, K_d, K_r = [ params[T_str][name] for name in params[T_str] ]
+    K_e, K_d, K_r = [ tf.transpose(params[T_str][name]) for name in params[T_str] ]
 
-    # Computing Residuals - Master Equation
-    excit_term = tf.math.multiply(tf.matmul(K_e, Y), Y_O)
-    disso_term = tf.math.multiply(tf.matmul(K_d, Y), Y_O)
-    recom_term = tf.matmul(K_r, tf.math.pow(Y_O, 3))
+    # Computing Master Equation RHS
+    excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
+    disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
+    recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
+    rhs        = excit_term + disso_term + recom_term
 
-    rhs = excit_term + disso_term + recom_term
-    f   = tf.transpose(dY_dt - rhs)
+    # Computing residual
+    res = dY_dt - rhs
 
-    return f
+    return res
+
 
 @pro.utils.timing
 def main():

@@ -2,12 +2,13 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow.keras.layers as lay
 
+from .. import config as conf
 from . import activations
 from . import initializers
 from . import regularizers
 
 
-@tf.keras.utils.register_keras_serializable()
+@tf.keras.utils.register_keras_serializable(package='prode', name='ffblock')
 class FFBlock(tf.keras.layers.Layer):
     """Simple Feed-forward block."""
 
@@ -31,6 +32,13 @@ class FFBlock(tf.keras.layers.Layer):
         self.kernel_initializer  = kernel_initializer
         self.regularizer         = regularization
         self.dropout_rate        = dropout_rate
+        if batch_norm not in [None, "before", "after"]:
+            raise ValueError(
+                "\n[PrODE]: batch_norm == {}. Available choices: "
+                "{{None|'before'|'after'}}.".format(
+                    batch_norm
+                )
+            )
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 
@@ -38,7 +46,7 @@ class FFBlock(tf.keras.layers.Layer):
         # Hidden Layers
         self.lays = [ self.DenseBlock(i+1) for i in range(len(self.layer_size)-2) ]
         # Output Layer
-        self.lays.append( self.Dense(self.layer_size[-1], name=self.name+'_output') )
+        self.lays.append( self.Dense(self.layer_size[-1], name='output:') )
 
 
     # Configuration update
@@ -98,14 +106,14 @@ class FFBlock(tf.keras.layers.Layer):
             bias    = False
 
         l = [ self.Dense(self.layer_size[number], activation=act_fun, \
-                         use_bias=bias, name=self.name+'_hid'+str(number)) ]
+                         use_bias=bias, name='hidden:'+str(number-1)) ]
 
         if self.batch_norm is not None:
-            bn = lay.BatchNormalization(name=self.name+'_normHid'+str(number))
+            bn = lay.BatchNormalization(name='hidden_batchNorm:'+str(number-1))
             l.append(bn)
 
         if self.dropout_rate > 0:
-            do = lay.Dropout(self.dropout_rate, name=self.name+'_dropHid'+str(number))
+            do = lay.Dropout(self.dropout_rate, name='hidden_dropout:'+str(number-1))
             l.append(do)
 
         return l
@@ -134,25 +142,34 @@ class FFBlock(tf.keras.layers.Layer):
 # --------------------------------------------------------------------------- #
 
 
-@tf.keras.utils.register_keras_serializable()
-class ScaleLayer(tf.keras.layers.Layer):
+@tf.keras.utils.register_keras_serializable(package='prode', name='scale')
+class Scale(tf.keras.layers.Layer):
 
     # Initialization
     ###########################################################################
     def __init__(
         self,
         value=1.,
-        name='scale'):
-        super(ScaleLayer, self).__init__(name=name)
+        name='scale',
+        trans_fn=None):
+        super(Scale, self).__init__(name=name)
 
-        self.scale = tf.Variable(value)
-        
+        self.scale = tf.Variable(initial_value=value, trainable=True, \
+                                 name='scale_factor', dtype=conf.real(tf))
+        if trans_fn is not None:
+            self.trans_fn = trans_fn
+        else:
+            self.trans_fn = lambda x: x
+
 
     # Configuration update
     ###########################################################################
     def get_config(self):
         config = super().get_config().copy()
-        config.update({'scale': self.scale})
+        config.update({
+            'scale':    self.scale,
+            'trans_fn': self.trans_fn
+        })
         return config
 
     @classmethod
@@ -163,4 +180,4 @@ class ScaleLayer(tf.keras.layers.Layer):
     # Calling
     ###########################################################################
     def call(self, x):
-        return x * self.scale
+        return self.trans_fn(x * self.scale)

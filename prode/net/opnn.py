@@ -1,16 +1,16 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
+from .. import layers
 from . import activations
 from . import initializers
 from . import regularizers
-from . import layers
 from . import steps
 
 from .net import Net
 
 
-@tf.keras.utils.register_keras_serializable()
+@tf.keras.utils.register_keras_serializable(package='prode', name='opnn')
 class OpNN(Net):
     """Deep Operator neural network."""
 
@@ -30,7 +30,7 @@ class OpNN(Net):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='op_nn'):
+        name='opnn'):
         super(OpNN, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
@@ -48,17 +48,15 @@ class OpNN(Net):
             self.act_branch = self.act_trunk = activations.get(activation)
 
         self.kernel_initializer = initializers.get(kernel_initializer)
-        self.regularizer        = regularizers.get(*regularization)
+        self.regularizer        = regularizers.get(**regularization)
         self.dropout_rate       = dropout_rate
-        if batch_norm not in [None, "before", "after"]:
-            raise ValueError(
-                "\n[PrODE]: batch_norm == {}. Available choices: "
-                "{{None|'before'|'after'}}.".format(
-                    batch_norm
-                )
-            )
 
-        self.batch_norm    = batch_norm
+        if isinstance(activation, dict):
+            self.batch_norm_branch = batch_norm["branch"]
+            self.batch_norm_trunk  = batch_norm["trunk"]
+        else:
+            self.batch_norm_branch = self.batch_norm_trunk = batch_norm
+
         self.weight_norm   = weight_norm
         self.use_end_scale = use_end_scale
 
@@ -69,9 +67,9 @@ class OpNN(Net):
                                 self.kernel_initializer,
                                 regularization=self.regularizer,
                                 dropout_rate=self.dropout_rate,
-                                batch_norm=self.batch_norm,
+                                batch_norm=self.batch_norm_branch,
                                 weight_norm=self.weight_norm,
-                                name='Branch_'+str(i)) for i in range(self.G_dim) ]
+                                name='Branch:'+str(i)) for i in range(self.G_dim) ]
 
         self.trunk      =   layers.FFBlock(
                                 self.layer_size_trunk,
@@ -79,9 +77,9 @@ class OpNN(Net):
                                 self.kernel_initializer,
                                 regularization=self.regularizer,
                                 dropout_rate=self.dropout_rate,
-                                batch_norm=self.batch_norm,
+                                batch_norm=self.batch_norm_trunk,
                                 weight_norm=self.weight_norm,
-                                name='Trunk')
+                                name='Trunk:0')
 
         self.end_scale  =   lay.Dense(
                                 units=self.G_dim,
@@ -113,7 +111,8 @@ class OpNN(Net):
             'kernel_initializer': self.kernel_initializer,
             'regularizer':        self.regularizer,
             'dropout_rate':       self.dropout_rate,
-            'batch_norm':         self.batch_norm,
+            'batch_norm_branch':  self.batch_norm_branch,
+            'batch_norm_trunk':   self.batch_norm_trunk,
             'weight_norm':        self.weight_norm,
             'use_end_scale':      self.use_end_scale,
             'branches':           self.branches,

@@ -1,10 +1,10 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
+from .. import layers
 from . import activations
 from . import initializers
 from . import regularizers
-from . import layers
 
 from .func_net import FuncNet
 
@@ -48,15 +48,14 @@ class FuncOpNN(FuncNet):
             self.act_branch = self.act_trunk = activations.get(activation)
 
         self.kernel_initializer = initializers.get(kernel_initializer)
-        self.regularizer        = regularizers.get(*regularization)
+        self.regularizer        = regularizers.get(**regularization)
         self.dropout_rate       = dropout_rate
-        if batch_norm not in [None, "before", "after"]:
-            raise ValueError(
-                "\n[PrODE]: batch_norm == {}. Available choices: "
-                "{{None|'before'|'after'}}.".format(
-                    batch_norm
-                )
-            )
+
+        if isinstance(activation, dict):
+            self.batch_norm_branch = batch_norm["branch"]
+            self.batch_norm_trunk  = batch_norm["trunk"]
+        else:
+            self.batch_norm_branch = self.batch_norm_trunk = batch_norm
 
         self.batch_norm    = batch_norm
         self.weight_norm   = weight_norm
@@ -69,7 +68,7 @@ class FuncOpNN(FuncNet):
                                 self.kernel_initializer,
                                 regularization=self.regularizer,
                                 dropout_rate=self.dropout_rate,
-                                batch_norm=self.batch_norm,
+                                batch_norm=self.batch_norm_branch,
                                 weight_norm=self.weight_norm,
                                 name='Branch_'+str(i)) for i in range(self.G_dim) ]
 
@@ -79,7 +78,7 @@ class FuncOpNN(FuncNet):
                                 self.kernel_initializer,
                                 regularization=self.regularizer,
                                 dropout_rate=self.dropout_rate,
-                                batch_norm=self.batch_norm,
+                                batch_norm=self.batch_norm_trunk,
                                 weight_norm=self.weight_norm,
                                 name='Trunk')
 
