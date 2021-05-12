@@ -51,7 +51,7 @@ class OpNN(Net):
         self.regularizer        = regularizers.get(**regularization)
         self.dropout_rate       = dropout_rate
 
-        if isinstance(activation, dict):
+        if isinstance(batch_norm, dict):
             self.batch_norm_branch = batch_norm["branch"]
             self.batch_norm_trunk  = batch_norm["trunk"]
         else:
@@ -92,7 +92,7 @@ class OpNN(Net):
                                 activity_regularizer=None,
                                 kernel_constraint=None,
                                 bias_constraint=None,
-                                name='FinalScale') if self.use_end_scale else None
+                                name='FinalScale:0') if self.use_end_scale else None
 
 
     # Configuration update

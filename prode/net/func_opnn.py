@@ -51,13 +51,12 @@ class FuncOpNN(FuncNet):
         self.regularizer        = regularizers.get(**regularization)
         self.dropout_rate       = dropout_rate
 
-        if isinstance(activation, dict):
+        if isinstance(batch_norm, dict):
             self.batch_norm_branch = batch_norm["branch"]
             self.batch_norm_trunk  = batch_norm["trunk"]
         else:
             self.batch_norm_branch = self.batch_norm_trunk = batch_norm
 
-        self.batch_norm    = batch_norm
         self.weight_norm   = weight_norm
         self.use_end_scale = use_end_scale
 
@@ -70,7 +69,7 @@ class FuncOpNN(FuncNet):
                                 dropout_rate=self.dropout_rate,
                                 batch_norm=self.batch_norm_branch,
                                 weight_norm=self.weight_norm,
-                                name='Branch_'+str(i)) for i in range(self.G_dim) ]
+                                name='Branch:'+str(i)) for i in range(self.G_dim) ]
 
         self.trunk      =   layers.FFBlock(
                                 self.layer_size_trunk,
@@ -80,7 +79,7 @@ class FuncOpNN(FuncNet):
                                 dropout_rate=self.dropout_rate,
                                 batch_norm=self.batch_norm_trunk,
                                 weight_norm=self.weight_norm,
-                                name='Trunk')
+                                name='Trunk:0')
 
         self.end_scale  =   lay.Dense(
                                 units=self.G_dim,
@@ -93,7 +92,7 @@ class FuncOpNN(FuncNet):
                                 activity_regularizer=None,
                                 kernel_constraint=None,
                                 bias_constraint=None,
-                                name='FinalScale') if self.use_end_scale else None
+                                name='FinalScale:0') if self.use_end_scale else None
 
 
     ### Model Initialization (Functional API) -----------------------------

@@ -240,14 +240,13 @@ class Plotter(CB.Callback):
         scales,
         log_flg,
         train_dir,
-        period
-    ):
+        period):
         super(Plotter, self).__init__()
         self.test_cases = test_cases
-        self.var_names = var_names
-        self.labels = labels
-        self.scales = scales
-        self.log_flg = log_flg
+        self.var_names  = var_names
+        self.labels     = labels
+        self.scales     = scales
+        self.log_flg    = log_flg
 
         self.path = train_dir+'/testing_plots'
         if not os.path.exists(self.path): os.makedirs(self.path)
@@ -258,11 +257,15 @@ class Plotter(CB.Callback):
 
         if epoch % self.period == 0:
             for i, test_i in enumerate(self.test_cases):
-                if len(test_i) == 3:
+                if len(test_i) == 4:
+                    title, x, y_true, data_valid = test_i
+                elif len(test_i) == 3:
                     title, x, y_true = test_i
-                    data_val = None
-                else:
-                    title, x, y_true, data_val = test_i
+                    data_valid = None
+                elif len(test_i) == 2:
+                    x, y_true = test_i
+                    title = data_valid = None
+
                 y_pred = self.model.predict(x)
 
                 testing_plots.plot_test(self.path, x, y_true, y_pred, self.var_names,
@@ -270,7 +273,7 @@ class Plotter(CB.Callback):
                 if self.log_flg:
                     testing_plots.plot_test(self.path, x, y_true, y_pred, self.var_names,
                         title, i, labels=self.labels, scales=['log','log'], data_val=data_val)
-               
+
 
 # class MovieDumper(CB.Callback):
 #     """Dump a movie to show the training progress of the function along a line.

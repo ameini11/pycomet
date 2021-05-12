@@ -96,8 +96,7 @@ class Model(object):
         loss="MSE",
         metrics=None,
         decay=None,
-        loss_weights=None,
-    ):
+        loss_weights=None):
         print('\n[PrODE]: Compiling the "',self.net.name,'" net ...', sep='')
 
         # Initializing the optimizer
@@ -124,18 +123,32 @@ class Model(object):
 
     # ======================================================================= #
     @timing
-    def restore_net(self, from_ckpt=True):
-        # Either restore the latest model, or create a fresh one
-        # if there is no checkpoint available.
-        if from_ckpt:
-            checkpoints = [self.ckpt_dir + "/" + name for name in os.listdir(self.ckpt_dir)]
-            if checkpoints:
-                latest_checkpoint = max(checkpoints, key=os.path.getctime)
-                print("\n[PrODE]: Restoring model from checkpoint", latest_checkpoint, end='.')
-                self.net = tf.keras.models.load_model(latest_checkpoint)
+    def make_or_restore(self, loading=0):
+        """Either restore the latest model, or create a fresh one if there is 
+        no saved model/checkpoint available."""
+        if loading == 0:
+            print("[PrODE]:   Making new model")
+            return
+        elif loading is in [1,2]:
+            if loading == 1:
+                path = self.save_path
+                print("[PrODE]:   Restoring model from file", path)
+            elif loading == 2:
+                ckpts = [self.ckpt_dir + "/" + name for name in os.listdir(self.ckpt_dir)]
+                if ckpts:
+                    path = max(ckpts, key=os.path.getctime)
+                    print("[PrODE]:   Restoring model from checkpoint", path)
+                else:
+                    print("[PrODE]:   No checkpoints available: making new model")
+                    return
+            self.net.load_weights(path)
         else:
-            print("\n[PrODE]: Restoring model from file", self.save_path, end='.')
-            self.net.load_weights(self.save_path)
+            raise ValueError(
+                "\n[PrODE]: In `model.make_or_restore` you should pass as "
+                "`loading` argument one of these 3 values:\n"
+                "   >> 0: making new model;\n"
+                "   >> 1: restoring model from saved one (with same name);\n"
+                "   >> 2: restoring model from last checkpoint.")
 
 
     # ======================================================================= #
@@ -146,12 +159,11 @@ class Model(object):
         batch_size=None,
         callbacks=[],
         validation_split=0.2,
-        validation_data=None
-    ):
+        validation_data=None):
         print('\n[PrODE]: Training the model ...')
 
         # Defining callbacks
-        MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/cp-{epoch:04d}.ckpt", \
+        MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/weights_{epoch:06d}.h5", \
                 monitor='val_loss', save_best_only=True, save_weights_only=True)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
                 write_graph=True, write_images=True)
@@ -183,33 +195,38 @@ class Model(object):
 
 
     # ======================================================================= #
-    def predict(self, test_cases, var_names=None, labels=None, scales=None):
+    def predict(
+        self,
+        test_case,
+        plotting=True,
+        test_case_num=0,
+        var_names=None,
+        labels=None,
+        scales=None):
 
-        if var_names is not None:
+        if isinstance(test_case, (list,tuple)):
+            if len(test_case) == 4:
+                title, x, y_true, data_valid = test_case
+            elif len(test_case) == 3:
+                title, x, y_true = test_case
+                data_valid = None
+            elif len(test_case) == 2:
+                x, y_true = test_case
+                title = data_valid = None
+            else:
+                x = test_case
+                title = y_true = data_valid = None
+
+        y_pred = self.net.predict(x)
+
+        if plotting:
             path = self.post_dir+'/testing_plots'
-            if not os.path.exists(path): os.makedirs(path)
-
-            if isinstance(test_cases, (list,tuple)):
-                for i, test_i in enumerate(test_cases):
-                    if len(test_i) == 3:
-                        title, x, y_true = test_i
-                        data_val = None
-                    else:
-                        title, x, y_true, data_val = test_i
-                    y_pred = self.net.predict(x)
-                    testing_plots.plot_test(
-                        path,
-                        x,
-                        y_true,
-                        y_pred,
-                        var_names,
-                        title,
-                        i,
-                        labels=labels,
-                        scales=scales,
-                        data_val=data_val)
+            if not os.path.exists(path):
+                os.makedirs(path)
+            testing_plots.plot_test(path, x, y_true, y_pred, var_names, title, \
+                test_case_num, labels=labels, scales=scales, data_valid=data_valid)
         else:
-            return self.net.predict(x)
+            return y_pred
 
 
     # ======================================================================= #

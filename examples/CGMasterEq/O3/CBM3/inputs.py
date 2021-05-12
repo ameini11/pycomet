@@ -56,7 +56,8 @@ class InputData(object):
     kernel_initializer = "GlorotNormal"
     regularization     = {'name': 'l1+l2', 'l1': 1.e-4, 'l2': 1.e-4}
     dropout_rate       = 0
-    batch_norm         = None
+    batch_norm         = {"branch": None, "trunk": None}
+    # NB: Not use both `dropout_rate` and `batch_norm` together >> too regularization
 
     # Input Transformation Quantities -----------------------------------------
     scale_fac = 1.e7
@@ -93,8 +94,8 @@ class InputData(object):
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'ZERO', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
-    metrics      = ['mape']
+    loss         = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    metrics      = ['MALPE']
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6

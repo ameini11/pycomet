@@ -150,11 +150,12 @@ class Scale(tf.keras.layers.Layer):
     def __init__(
         self,
         value=1.,
-        name='scale',
-        trans_fn=None):
+        trainable=True,
+        trans_fn=None,
+        name='scale'):
         super(Scale, self).__init__(name=name)
 
-        self.scale = tf.Variable(initial_value=value, trainable=True, \
+        self.scale = tf.Variable(initial_value=value, trainable=trainable, \
                                  name='scale_factor', dtype=conf.real(tf))
         if trans_fn is not None:
             self.trans_fn = trans_fn

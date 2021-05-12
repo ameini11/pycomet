@@ -104,6 +104,9 @@ def main():
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
+    if inp.regularization['name'] == 'fine_tuning':
+        # Load weights from pretrained model
+        inp.regularization.update({'weights_SP': model.net.trainable_weights})
     net = pro.net.OpNN(
         inp.u_dim, inp.y_dim, inp.G_dim,
         inp.layer_size_branch,
@@ -121,7 +124,9 @@ def main():
     else:
         output_fn = lay.Lambda(tf.math.exp, name='output_fn')
         branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
-    trunk_fn = lay.Lambda(lambda x: x * inp.scale_fac, name='trunk_fn')
+
+    trunk_fn = pro.layers.Scale(value=inp.scale_fac, trans_fn=tf.math.log, name='trunk_fn')
+    # trunk_fn = lay.Lambda(lambda x: x * inp.scale_fac, name='trunk_fn')
 
     net.apply_input_transform({"branch": branch_fn, "trunk" : trunk_fn})
     net.apply_output_transform(output_fn)
@@ -141,9 +146,8 @@ def main():
                   decay=inp.decay, loss_weights=None)
     if model.killall: return
 
-    # Restore Model Weights ---------------------------------------------------
-    if inp.load_flg > 0:
-        model.restore_net(from_ckpt=int(inp.load_flg-1))
+    # Make or restore Model Weights -------------------------------------------
+    model.make_or_restore(loading=inp.load_flg)
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:
@@ -174,11 +178,11 @@ def main():
 
     # Testing phase -----------------------------------------------------------
     if inp.test_cases > 0 and inp.test_flg > 0:
-        model.predict(data_test, var_names=inp.var_names, labels=inp.labels, \
-                      scales=inp.scales)
-        if inp.log_plot:
-            model.predict(data_test, var_names=inp.var_names, \
-                          labels=inp.labels, scales=['log', 'log'])
+        plot_style = dict(plotting=inp.plot_flg, var_names=inp.var_names, labels=inp.labels)
+        for i, test_i in enumerate(data_test):
+            model.predict(test_i, test_case_num=i, scales=inp.scales, **plot_style)
+            if inp.log_plot:
+                model.predict(test_i, test_case_num=i, scales=['log', 'log'], **plot_style)
             
 
 if __name__ == "__main__":
