@@ -6,7 +6,6 @@ from tensorflow.python.framework import dtypes, tensor_shape
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.engine.input_spec import InputSpec
 
-from . import config as conf
 from . import activations
 from . import initializers
 from . import regularizers

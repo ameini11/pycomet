@@ -13,9 +13,7 @@ def get(identifier):
         "mse":      met.MeanSquaredError(),
         "msle":     met.MeanSquaredLogarithmicError(),
         "rmse":     met.RootMeanSquaredError(),
-        "MAPE":     losses_module.mean_absolute_percentage_error,
         "MALPE":    losses_module.mean_absolute_log_percentage_error,
-        "MSE":      losses_module.mean_squared_error,
         "MSLE":     losses_module.mean_squared_logarithmic_error,
         "MSLPE":    losses_module.mean_squared_log_percentage_error
     }

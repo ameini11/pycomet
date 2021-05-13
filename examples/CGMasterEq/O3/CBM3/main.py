@@ -47,38 +47,9 @@ def ode(ic, t, grads, params):
 
     return f
 
-# def ode(ic, t, grads, params):
 
-#     Y, dY_dt = [tf.math.multiply(grad,ic[:,-1]) for grad in grads]
-#     Y_O      = Y[:,-2:]
-
-#     # Getting rate coeff. matrices
-#     T_str = str(10000) # = ic[0,:]
-#     K_e, K_d, K_r = [ tf.transpose(params[T_str][name]) for name in params[T_str] ]
-
-#     # Computing Master Equation RHS
-#     excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
-#     disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
-#     recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
-#     rhs        = excit_term + disso_term + recom_term
-
-#     # Computing residual
-#     res = dY_dt - rhs
-
-#     return res
-
-
-@pro.utils.timing
+@pro.utils.main_decorator
 def main():
-
-    print('[PrODE]: Start!')
-
-    print("--------------------------------------------------------------------------------------------------")
-    print(" TensorFlow version: {}".format(tf.__version__))
-    print(" Eager execution:    {}".format(tf.executing_eagerly()))
-    print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
-    print(" Number of threads:  {}".format(NUM_THREADS))
-    print("--------------------------------------------------------------------------------------------------")
 
     ###########################################################################
     ### Data
@@ -125,9 +96,8 @@ def main():
     else:
         output_fn = lay.Lambda(tf.math.exp, name='output_fn')
         branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
-
-    # trunk_fn = pro.layers.Scaling(init_scale=inp.scale_fac, trans_fn=tf.math.log, name='trunk_fn')
     trunk_fn = pro.layers.Scaling(init_scale=inp.scale_fac, name='trunk_fn')
+
     net.apply_input_transform({"branch": branch_fn, "trunk" : trunk_fn})
     net.apply_output_transform(output_fn)
 
@@ -143,16 +113,15 @@ def main():
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
-                  decay=inp.decay, loss_weights=None, loading=inp.load_flg)
-    if model.killall: return
+                  decay=inp.decay, loss_weights=None, load_net=inp.load_flg)
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:
-        ES = callbacks.EarlyStopping(monitor='val_loss',
+        ES = callbacks.EarlyStopping(monitor=inp.monitor,
                                      min_delta=inp.min_delta,
                                      patience=inp.patience,
                                      restore_best_weights=True,
-                                     mode='auto', verbose=1)
+                                     verbose=1)
         cb_list = [ES]
 
         if inp.test_flg == 2:

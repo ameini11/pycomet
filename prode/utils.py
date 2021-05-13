@@ -1,6 +1,8 @@
-import inspect
+import os
 import sys
 import time
+import signal
+import inspect
 import datetime
 
 import numpy         as np
@@ -24,6 +26,35 @@ def timing(f):
         return result
 
     return wrapper
+
+
+def main_decorator(f):
+    """Decorator for the `main` function."""
+
+    @timing
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        num_threads = min(
+            tf.config.threading.get_inter_op_parallelism_threads(),
+            tf.config.threading.get_intra_op_parallelism_threads()
+            )
+        print('[PrODE]: START')
+        print("--------------------------------------------------------------------------------------------------")
+        print(" TensorFlow version: {}".format(tf.__version__))
+        print(" Eager execution:    {}".format(tf.executing_eagerly()))
+        print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
+        print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
+        print(" Number of threads:  {}".format(num_threads))
+        print("--------------------------------------------------------------------------------------------------")
+        result = f(*args, **kwargs)
+        print('\n[PrODE]: END')
+        return result
+
+    return wrapper
+
+
+def kill_process():
+    os.kill(os.getpid(), signal.SIGTERM)
 
 
 def apply(func, args=None, kwds=None):

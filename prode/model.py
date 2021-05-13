@@ -1,4 +1,5 @@
 import os
+import netron
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -10,9 +11,8 @@ from . import metrics   as metrics_module
 
 from .optimizers     import get_train_opt
 from .postprocessing import training_plots, testing_plots
-from .utils          import timing
+from .utils          import timing, kill_process
 
-import netron
 
 
 class Model(object):
@@ -54,13 +54,11 @@ class Model(object):
         self.save_path   = self.name+'_weights'
         if self.save_format == 'h5': self.save_path = self.save_path + '.h5'
 
-        self.killall = False
-
 
     # ======================================================================= #
     @timing
     def build(self):
-        print('\n[PrODE]: Building the "',self.net.name,'" net ...', sep='')
+        print('\n[PrODE]: Building "',self.net.name,'" network ...', sep='')
 
         if self.net.name.startswith('func'):
             self.net  = self.net.get_uncompiled_model()
@@ -83,8 +81,8 @@ class Model(object):
         
         asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
         if not asw.lower().startswith('y'):
-            self.killall = True
             print('[PrODE]:   All the processes will be stopped.\n')
+            kill_process()
 
 
     # ======================================================================= #
@@ -97,8 +95,8 @@ class Model(object):
         metrics=None,
         decay=None,
         loss_weights=None,
-        loading=0):
-        print('\n[PrODE]: Compiling the "',self.net.name,'" net ...', sep='')
+        load_net=0):
+        print('\n[PrODE]: Compiling "',self.net.name,'" network ...', sep='')
 
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
@@ -121,36 +119,36 @@ class Model(object):
         self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
                          metrics=self.metrics, loss_weights=loss_weights)
 
-        # Load weights/model
-        self.make_or_restore(loading)
+        # Load network weights
+        self.make_or_restore(load_net)
 
 
-    def make_or_restore(self, loading):
+    def make_or_restore(self, load_net):
         """Either restore the latest model, or create a fresh one if there is 
         no saved model/checkpoint available."""
-        if loading == 0:
-            print("[PrODE]:   Making new model")
+        if load_net == 0:
+            print("[PrODE]:   Making new network")
             return
-        elif loading in [1,2]:
-            if loading == 1:
+        elif load_net in [1,2]:
+            if load_net == 1:
                 path = self.save_path
-                print("[PrODE]:   Restoring model from file", path)
-            elif loading == 2:
+                print("[PrODE]:   Restoring network from file", path)
+            elif load_net == 2:
                 ckpts = [self.ckpt_dir + "/" + name for name in os.listdir(self.ckpt_dir)]
                 if ckpts:
                     path = max(ckpts, key=os.path.getctime)
-                    print("[PrODE]:   Restoring model from checkpoint", path)
+                    print("[PrODE]:   Restoring network from checkpoint", path)
                 else:
-                    print("[PrODE]:   No checkpoints available: making new model")
+                    print("[PrODE]:   No checkpoints available: making new network")
                     return
             self.net.load_weights(path)
         else:
             raise ValueError(
-                "\n[PrODE]: In `model.make_or_restore` you should pass as "
-                "`loading` argument one of these 3 values:\n"
-                "   >> 0: making new model;\n"
-                "   >> 1: restoring model from saved one (with same name);\n"
-                "   >> 2: restoring model from last checkpoint.")
+                "\n[PrODE]: In `model.compile` you should pass as "
+                "`load_net` argument one of these 3 values:\n"
+                "   >> 0: making new network;\n"
+                "   >> 1: restoring network from saved one (with same name);\n"
+                "   >> 2: restoring network from last checkpoint.")
 
 
     # ======================================================================= #

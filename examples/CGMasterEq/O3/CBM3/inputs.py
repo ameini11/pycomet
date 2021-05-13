@@ -88,7 +88,7 @@ class InputData(object):
     lr           = 1.e-4
 
     # Learning rate scheduler -------------------------------------------------
-    decay_epochs = 100
+    decay_epochs = 1000
     decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
     decay        = ["exponential", decay_steps, 0.98]
 
@@ -100,6 +100,7 @@ class InputData(object):
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
     patience     = 20000
+    monitor      = 'val_res_loss'
 
 
     ###########################################################################
