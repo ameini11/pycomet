@@ -25,47 +25,47 @@ sys.path.append(inp.pro_path)   # <<< Remove this line if you install prode as a
 import prode as pro
 
 
-# def ode(ic, t, grads, params):
-
-#     # Rearranging matrices
-#     ic       = tf.transpose(ic)
-#     Y, dY_dt = [tf.transpose(grad) for grad in grads]
-#     if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
-#     Y_O = Y[-2:-1,:]
-
-#     # Getting matrices
-#     T_str = str(10000) # = ic[0,:]
-#     K_e, K_d, K_r = [ params[T_str][name] for name in params[T_str] ]
-
-#     # Computing Residuals - Master Equation
-#     excit_term = tf.math.multiply(tf.matmul(K_e, Y), Y_O)
-#     disso_term = tf.math.multiply(tf.matmul(K_d, Y), Y_O)
-#     recom_term = tf.matmul(K_r, tf.math.pow(Y_O, 3))
-
-#     rhs = excit_term + disso_term + recom_term
-#     f   = tf.transpose(dY_dt - rhs)
-
-#     return f
-
 def ode(ic, t, grads, params):
 
-    Y, dY_dt = [tf.math.multiply(grad,ic[:,-1]) for grad in grads]
-    Y_O      = Y[:,-2:]
+    # Rearranging matrices
+    ic       = tf.transpose(ic)
+    Y, dY_dt = [tf.transpose(grad) for grad in grads]
+    if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
+    Y_O = Y[-2:-1,:]
 
-    # Getting rate coeff. matrices
+    # Getting matrices
     T_str = str(10000) # = ic[0,:]
-    K_e, K_d, K_r = [ tf.transpose(params[T_str][name]) for name in params[T_str] ]
+    K_e, K_d, K_r = [ params[T_str][name] for name in params[T_str] ]
 
-    # Computing Master Equation RHS
-    excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
-    disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
-    recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
-    rhs        = excit_term + disso_term + recom_term
+    # Computing Residuals - Master Equation
+    excit_term = tf.math.multiply(tf.matmul(K_e, Y), Y_O)
+    disso_term = tf.math.multiply(tf.matmul(K_d, Y), Y_O)
+    recom_term = tf.matmul(K_r, tf.math.pow(Y_O, 3))
 
-    # Computing residual
-    res = dY_dt - rhs
+    rhs = excit_term + disso_term + recom_term
+    f   = tf.transpose(dY_dt - rhs)
 
-    return res
+    return f
+
+# def ode(ic, t, grads, params):
+
+#     Y, dY_dt = [tf.math.multiply(grad,ic[:,-1]) for grad in grads]
+#     Y_O      = Y[:,-2:]
+
+#     # Getting rate coeff. matrices
+#     T_str = str(10000) # = ic[0,:]
+#     K_e, K_d, K_r = [ tf.transpose(params[T_str][name]) for name in params[T_str] ]
+
+#     # Computing Master Equation RHS
+#     excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
+#     disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
+#     recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
+#     rhs        = excit_term + disso_term + recom_term
+
+#     # Computing residual
+#     res = dY_dt - rhs
+
+#     return res
 
 
 @pro.utils.timing
@@ -106,7 +106,8 @@ def main():
     # Initialize Network ------------------------------------------------------
     if inp.regularization['name'] == 'fine_tuning':
         # Load weights from pretrained model
-        inp.regularization.update({'weights_SP': model.net.trainable_weights})
+        pass
+        # inp.regularization.update({'weights_SP': model.net.trainable_weights})
     net = pro.net.OpNN(
         inp.u_dim, inp.y_dim, inp.G_dim,
         inp.layer_size_branch,
@@ -125,9 +126,7 @@ def main():
         output_fn = lay.Lambda(tf.math.exp, name='output_fn')
         branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
 
-    trunk_fn = pro.layers.Scale(value=inp.scale_fac, trans_fn=tf.math.log, name='trunk_fn')
-    # trunk_fn = lay.Lambda(lambda x: x * inp.scale_fac, name='trunk_fn')
-
+    trunk_fn = pro.layers.Scaling(init_scale=inp.scale_fac, trans_fn=tf.math.log, name='trunk_fn')
     net.apply_input_transform({"branch": branch_fn, "trunk" : trunk_fn})
     net.apply_output_transform(output_fn)
 
@@ -143,11 +142,8 @@ def main():
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
-                  decay=inp.decay, loss_weights=None)
+                  decay=inp.decay, loss_weights=None, loading=inp.load_flg)
     if model.killall: return
-
-    # Make or restore Model Weights -------------------------------------------
-    model.make_or_restore(loading=inp.load_flg)
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:

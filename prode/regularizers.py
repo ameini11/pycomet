@@ -1,5 +1,5 @@
+import tensorflow as tf
 import tensorflow.keras.regularizers as reg
-from tensorflow.python.keras import backend
 
 
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
@@ -16,14 +16,14 @@ def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
     )
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='fine_tuning_reg')
+@tf.keras.utils.register_keras_serializable(package='prode', name='FineTuningRegularizer')
 class FineTuningRegularizer(reg.L1L2):
-	"""
-	See:
-		Xuhong Li, Yves Grandvalet, Franck Davoine
-		`A baseline regularization scheme for transfer learning with convolutional neural networks`
-		https://doi.org/10.1016/j.patcog.2019.107049
-	"""
+    """
+    See:
+        Xuhong Li, Yves Grandvalet, Franck Davoine
+        `A baseline regularization scheme for transfer learning with convolutional neural networks`
+        https://doi.org/10.1016/j.patcog.2019.107049
+    """
 
     # Initialization
     ###########################################################################
@@ -38,12 +38,12 @@ class FineTuningRegularizer(reg.L1L2):
         self.name = name
 
         # List of weights of pre-trained model: Starting Point in fine-tuning
-		self.weights_SP = weights_SP
+        self.weights_SP = weights_SP
         if weights_SP is not None:
-			self.weights_SP_names = [w.name for w in weights_SP]
-		else:
+            self.weights_SP_names = [w.name for w in weights_SP]
+        else:
             print("\n[PrODE]: Warning! In `FineTuningRegularizer` you are not "
-            	  "providing any Starting Point weights (`weights_SP`).")
+                  "providing any Starting Point weights (`weights_SP`).")
 
 
     # Configuration update
@@ -51,10 +51,10 @@ class FineTuningRegularizer(reg.L1L2):
     def get_config(self):
         config = super().get_config().copy()
         config.update({
-        	'name':				self.name,
-        	'weights_SP':		self.weights_SP,
-        	'weights_SP_names': self.weights_SP_names
-        	})
+            'name':             self.name,
+            'weights_SP':       self.weights_SP,
+            'weights_SP_names': self.weights_SP_names
+            })
         return config
 
     @classmethod
@@ -64,8 +64,8 @@ class FineTuningRegularizer(reg.L1L2):
 
     # Calling
     ###########################################################################
-	def __call__(self, x):
-		if self.weights_SP is not None and x.name is in self.weights_SP_names:
-			idx = self.weights_SP_names.index(x.name)
-			x = x - self.weights_SP[idx]
-		return super(FineTuningRegularizer, self).__call__(x)
+    def __call__(self, x):
+        if self.weights_SP is not None and x.name in self.weights_SP_names:
+            idx = self.weights_SP_names.index(x.name)
+            x = x - self.weights_SP[idx]
+        return super(FineTuningRegularizer, self).__call__(x)

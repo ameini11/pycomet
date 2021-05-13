@@ -1,6 +1,6 @@
 import tensorflow as tf
 import tensorflow.keras.activations as act
-from .. import config
+from . import config
 
 
 def layer_wise_locally_adaptive(activation, n=1):

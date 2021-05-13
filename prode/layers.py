@@ -2,14 +2,18 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow.keras.layers as lay
 
-from .. import config as conf
+from tensorflow.python.framework import dtypes, tensor_shape
+from tensorflow.python.keras import backend as K
+from tensorflow.python.keras.engine.input_spec import InputSpec
+
+from . import config as conf
 from . import activations
 from . import initializers
 from . import regularizers
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='ffblock')
-class FFBlock(tf.keras.layers.Layer):
+@tf.keras.utils.register_keras_serializable(package='prode', name='FFBlock')
+class FFBlock(lay.Layer):
     """Simple Feed-forward block."""
 
     # Initialization
@@ -46,7 +50,7 @@ class FFBlock(tf.keras.layers.Layer):
         # Hidden Layers
         self.lays = [ self.DenseBlock(i+1) for i in range(len(self.layer_size)-2) ]
         # Output Layer
-        self.lays.append( self.Dense(self.layer_size[-1], name='output:') )
+        self.lays.append( self.Dense(self.layer_size[-1], name='output') )
 
 
     # Configuration update
@@ -106,14 +110,14 @@ class FFBlock(tf.keras.layers.Layer):
             bias    = False
 
         l = [ self.Dense(self.layer_size[number], activation=act_fun, \
-                         use_bias=bias, name='hidden:'+str(number-1)) ]
+                         use_bias=bias, name='hidden_'+str(number-1)) ]
 
         if self.batch_norm is not None:
-            bn = lay.BatchNormalization(name='hidden_batchNorm:'+str(number-1))
+            bn = lay.BatchNormalization(name='hidden_batchNorm_'+str(number-1))
             l.append(bn)
 
         if self.dropout_rate > 0:
-            do = lay.Dropout(self.dropout_rate, name='hidden_dropout:'+str(number-1))
+            do = lay.Dropout(self.dropout_rate, name='hidden_dropout_'+str(number-1))
             l.append(do)
 
         return l
@@ -142,25 +146,58 @@ class FFBlock(tf.keras.layers.Layer):
 # --------------------------------------------------------------------------- #
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='scale')
-class Scale(tf.keras.layers.Layer):
+@tf.keras.utils.register_keras_serializable(package='prode', name='Scaling')
+class Scaling(lay.Layer):
 
     # Initialization
     ###########################################################################
     def __init__(
         self,
-        value=1.,
+        init_scale=1.,
+        init_offset=0.,
         trainable=True,
         trans_fn=None,
-        name='scale'):
-        super(Scale, self).__init__(name=name)
+        name='scaling'):
+        super(Scaling, self).__init__(name=name)
 
-        self.scale = tf.Variable(initial_value=value, trainable=trainable, \
-                                 name='scale_factor', dtype=conf.real(tf))
+        self.init_scale  = init_scale
+        self.init_offset = init_offset
+        self.trainable   = trainable
+
         if trans_fn is not None:
             self.trans_fn = trans_fn
         else:
             self.trans_fn = lambda x: x
+
+
+    # Building
+    ###########################################################################
+    def build(self, input_shape):
+        dtype = dtypes.as_dtype(self.dtype or K.floatx())
+        if not (dtype.is_floating or dtype.is_complex):
+            raise TypeError('Unable to build `Scale` layer with non-floating point '
+                            'dtype %s' % (dtype,))
+
+        input_shape = tensor_shape.TensorShape(input_shape)
+        last_dim = tensor_shape.dimension_value(input_shape[-1])
+        if last_dim is None:
+            raise ValueError('The last dimension of the inputs to `Dense` '
+                             'should be defined. Found `None`.')
+        self.input_spec = InputSpec(min_ndim=2, axes={-1: last_dim})
+
+        self.scale = self.add_weight(
+            name='scale',
+            dtype=self.dtype,
+            initializer=tf.keras.initializers.Constant(value=self.init_scale),
+            trainable=self.trainable)
+
+        self.offset = self.add_weight(
+            name='offset',
+            dtype=self.dtype,
+            initializer=tf.keras.initializers.Constant(value=self.init_offset),
+            trainable=self.trainable)
+
+        self.built = True
 
 
     # Configuration update
@@ -168,8 +205,10 @@ class Scale(tf.keras.layers.Layer):
     def get_config(self):
         config = super().get_config().copy()
         config.update({
-            'scale':    self.scale,
-            'trans_fn': self.trans_fn
+            'init_scale':  self.init_scale,
+            'init_offset': self.init_offset,
+            'trainable':   self.trainable,
+            'trans_fn':    self.trans_fn
         })
         return config
 
@@ -181,4 +220,4 @@ class Scale(tf.keras.layers.Layer):
     # Calling
     ###########################################################################
     def call(self, x):
-        return self.trans_fn(x * self.scale)
+        return self.trans_fn(x * self.scale + self.offset)

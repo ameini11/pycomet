@@ -2,9 +2,9 @@ import tensorflow as tf
 import tensorflow.keras.layers as lay
 
 from .. import layers
-from . import activations
-from . import initializers
-from . import regularizers
+from .. import activations
+from .. import initializers
+from .. import regularizers
 from . import steps
 
 from .net import Net

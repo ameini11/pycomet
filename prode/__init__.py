@@ -1,20 +1,26 @@
+from . import activations
 from . import callbacks
+from . import config
 from . import data
-# from . import gradients as grad
+from . import initializers
+from . import layers
 from . import net
-# from .initial_condition import IC
 from .model import Model
 from . import postprocessing
 # from .utils import apply
+from . import regularizers
 
 
 __all__ = [
+    "activations",
     "callbacks",
+    "config",
     "data",
-    # "grad",
+    "initializers",
+    "layers",
     "net",
-    # "IC",
     "Model",
     "postprocessing",
+    "regularizers",
     # "apply",
 ]

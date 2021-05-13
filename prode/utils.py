@@ -19,7 +19,7 @@ def timing(f):
         result = f(*args, **kwargs)
         te = time.time()
         delta = datetime.timedelta(seconds=(te - ts))
-        print("Function %r took %s.\n" % (f.__name__, delta))
+        print("[PrODE]: >> Function %r took %s" % (f.__name__, delta))
         sys.stdout.flush()
         return result
 

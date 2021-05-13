@@ -2,15 +2,15 @@ import tensorflow as tf
 import tensorflow.keras.layers as lay
 
 from .. import layers
-from . import activations
-from . import initializers
-from . import regularizers
+from .. import activations
+from .. import initializers
+from .. import regularizers
 from . import steps
 
 from .net import Net
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='opnn')
+@tf.keras.utils.register_keras_serializable(package='prode', name='OpNN')
 class OpNN(Net):
     """Deep Operator neural network."""
 
@@ -69,7 +69,7 @@ class OpNN(Net):
                                 dropout_rate=self.dropout_rate,
                                 batch_norm=self.batch_norm_branch,
                                 weight_norm=self.weight_norm,
-                                name='Branch:'+str(i)) for i in range(self.G_dim) ]
+                                name='Branch_'+str(i)) for i in range(self.G_dim) ]
 
         self.trunk      =   layers.FFBlock(
                                 self.layer_size_trunk,
@@ -79,7 +79,7 @@ class OpNN(Net):
                                 dropout_rate=self.dropout_rate,
                                 batch_norm=self.batch_norm_trunk,
                                 weight_norm=self.weight_norm,
-                                name='Trunk:0')
+                                name='Trunk_0')
 
         self.end_scale  =   lay.Dense(
                                 units=self.G_dim,
@@ -92,7 +92,7 @@ class OpNN(Net):
                                 activity_regularizer=None,
                                 kernel_constraint=None,
                                 bias_constraint=None,
-                                name='FinalScale:0') if self.use_end_scale else None
+                                name='FinalScale_0') if self.use_end_scale else None
 
 
     # Configuration update

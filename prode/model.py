@@ -45,9 +45,9 @@ class Model(object):
         self.ckpt_dir  = self.train_dir+"/ckpt"
         self.TB_dir    = self.train_dir+"/logs"
         self.post_dir  = path+"/postprocessing"
-
-        if not os.path.exists(self.train_dir): os.makedirs(self.train_dir)
-        if not os.path.exists(self.post_dir):  os.makedirs(self.post_dir)
+        for dir_i in [self.train_dir, self.ckpt_dir, self.post_dir]:
+            if not os.path.exists(dir_i):
+                os.makedirs(dir_i)
 
         # Define saving format
         self.save_format = save_format
@@ -96,7 +96,8 @@ class Model(object):
         loss="MSE",
         metrics=None,
         decay=None,
-        loss_weights=None):
+        loss_weights=None,
+        loading=0):
         print('\n[PrODE]: Compiling the "',self.net.name,'" net ...', sep='')
 
         # Initializing the optimizer
@@ -120,16 +121,17 @@ class Model(object):
         self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
                          metrics=self.metrics, loss_weights=loss_weights)
 
+        # Load weights/model
+        self.make_or_restore(loading)
 
-    # ======================================================================= #
-    @timing
-    def make_or_restore(self, loading=0):
+
+    def make_or_restore(self, loading):
         """Either restore the latest model, or create a fresh one if there is 
         no saved model/checkpoint available."""
         if loading == 0:
             print("[PrODE]:   Making new model")
             return
-        elif loading is in [1,2]:
+        elif loading in [1,2]:
             if loading == 1:
                 path = self.save_path
                 print("[PrODE]:   Restoring model from file", path)
@@ -250,6 +252,10 @@ class Model(object):
         training_plots.plot_loss(history, path)
         if self.metrics is not None:
             for met in self.metrics:
-                training_plots.plot_metric(history, path, met.name)
+                try:
+                    name = met.name
+                except AttributeError:
+                    name = met.__name__
+                training_plots.plot_metric(history, path, name)
         if self.loss_res is not None:
             training_plots.plot_residual(history, path)

@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow.keras.metrics as met
-from . import config
+
+from . import losses as losses_module
 
 
 def get(identifier):
@@ -11,11 +12,16 @@ def get(identifier):
         "mape":     met.MeanAbsolutePercentageError(),
         "mse":      met.MeanSquaredError(),
         "msle":     met.MeanSquaredLogarithmicError(),
-        "rmse":     met.RootMeanSquaredError()
+        "rmse":     met.RootMeanSquaredError(),
+        "MAPE":     losses_module.mean_absolute_percentage_error,
+        "MALPE":    losses_module.mean_absolute_log_percentage_error,
+        "MSE":      losses_module.mean_squared_error,
+        "MSLE":     losses_module.mean_squared_logarithmic_error,
+        "MSLPE":    losses_module.mean_squared_log_percentage_error
     }
 
     if isinstance(identifier, str):
-        return metric_identifier[identifier.lower()]
+        return metric_identifier[identifier]
     elif callable(identifier):
         return identifier
     else:

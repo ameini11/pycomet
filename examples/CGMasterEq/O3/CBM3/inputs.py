@@ -32,10 +32,10 @@ class InputData(object):
     u_dim = 4       # Branch input dimensionality
 
     # Input Space Extreme Values ----------------------------------------------
-    dim = 4                             # Input Space Dimensionality
+    inp_dim = 4                         # Input Space Dimensionality
     Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    300.e0]         # Initial TInt
+    T0  = [300.0e0,    300.e0]          # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
     XO2 = [0.95e0,     0.95e0]          # Initial O2 Mole Frac
 
@@ -56,8 +56,8 @@ class InputData(object):
     kernel_initializer = "GlorotNormal"
     regularization     = {'name': 'l1+l2', 'l1': 1.e-4, 'l2': 1.e-4}
     dropout_rate       = 0
-    batch_norm         = {"branch": None, "trunk": None}
-    # NB: Not use both `dropout_rate` and `batch_norm` together >> too regularization
+    batch_norm         = {"branch": None, "trunk": 'before'}
+    # NB: Not use both `dropout_rate` and `batch_norm` together >> too much regularization
 
     # Input Transformation Quantities -----------------------------------------
     scale_fac = 1.e7
@@ -67,7 +67,7 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 1            # Number of training cases
+    train_cases    = 5            # Number of training cases
     train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
@@ -81,7 +81,7 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 1000
+    epochs       = 100
     batch_size   = 128
 
     optimizer    = 'adam' 
