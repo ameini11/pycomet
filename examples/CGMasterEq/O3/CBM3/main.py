@@ -126,7 +126,8 @@ def main():
         output_fn = lay.Lambda(tf.math.exp, name='output_fn')
         branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
 
-    trunk_fn = pro.layers.Scaling(init_scale=inp.scale_fac, trans_fn=tf.math.log, name='trunk_fn')
+    # trunk_fn = pro.layers.Scaling(init_scale=inp.scale_fac, trans_fn=tf.math.log, name='trunk_fn')
+    trunk_fn = pro.layers.Scaling(init_scale=inp.scale_fac, name='trunk_fn')
     net.apply_input_transform({"branch": branch_fn, "trunk" : trunk_fn})
     net.apply_output_transform(output_fn)
 

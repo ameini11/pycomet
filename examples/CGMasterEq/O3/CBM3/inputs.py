@@ -15,8 +15,8 @@ class InputData(object):
     ###########################################################################
     load_flg  = 0       # Loading model     0: no, 1: saved model, 2: ckpt
     train_flg = 1       # Training          0: no, 1: Yes
-    test_flg  = 0       # Evaluating        0: no, 1: after training, 2: also during training
-    plot_flg  = 0       # Plotting          0: no, 1: after training, 2: also during training
+    test_flg  = 1       # Evaluating        0: no, 1: after training, 2: also during training
+    plot_flg  = 1       # Plotting          0: no, 1: after training, 2: also during training
     # video_flg = 0       # Video history     0: no, 1: yes
     save_flg  = 1       # Saving model      0: no, 1: yes
 
@@ -67,13 +67,13 @@ class InputData(object):
     ### Data
     ###########################################################################
     # Training ----------------------------------------------------------------
-    train_cases    = 5            # Number of training cases
+    train_cases    = 1            # Number of training cases
     train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 3              # Number of testing cases
+    test_cases     = 1              # Number of testing cases
     test_training  = True           # Test training case
     period         = 100            # Plotting frequency during training [epochs]
 
@@ -94,12 +94,12 @@ class InputData(object):
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    loss         = {'pts': 'zero', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics      = ['MALPE']
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
-    patience     = 1000
+    patience     = 20000
 
 
     ###########################################################################

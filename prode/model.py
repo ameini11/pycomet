@@ -208,16 +208,16 @@ class Model(object):
 
         if isinstance(test_case, (list,tuple)):
             if len(test_case) == 4:
-                title, x, y_true, data_valid = test_case
+                title, x, y_true, data_val = test_case
             elif len(test_case) == 3:
                 title, x, y_true = test_case
-                data_valid = None
+                data_val = None
             elif len(test_case) == 2:
                 x, y_true = test_case
-                title = data_valid = None
+                title = data_val = None
             else:
                 x = test_case
-                title = y_true = data_valid = None
+                title = y_true = data_val = None
 
         y_pred = self.net.predict(x)
 
@@ -226,7 +226,7 @@ class Model(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             testing_plots.plot_test(path, x, y_true, y_pred, var_names, title, \
-                test_case_num, labels=labels, scales=scales, data_valid=data_valid)
+                test_case_num, labels=labels, scales=scales, data_val=data_val)
         else:
             return y_pred
 
