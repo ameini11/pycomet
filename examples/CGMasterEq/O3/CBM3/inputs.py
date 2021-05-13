@@ -1,4 +1,8 @@
 import os
+import tensorflow.keras.layers as lay
+
+import prode as pro
+
 
 class InputData(object):
 
@@ -7,7 +11,6 @@ class InputData(object):
     ###########################################################################
     database_path = os.path.normpath(os.getcwd()+'/../database')
     utils_path = os.path.normpath(os.getcwd()+'/../utils')
-    pro_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/')   # <<< Remove this line if you install prode as a Pthon package
 
 
     ###########################################################################
@@ -26,11 +29,6 @@ class InputData(object):
     ###########################################################################
     name  = 'MEq_OpNN'
 
-    # Variables Dimensionality ------------------------------------------------
-    G_dim = 4       # Data dimensionality
-    y_dim = 1       # Trunk input dimensionality
-    u_dim = 4       # Branch input dimensionality
-
     # Input Space Extreme Values ----------------------------------------------
     inp_dim = 4                         # Input Space Dimensionality
     Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
@@ -44,23 +42,52 @@ class InputData(object):
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
     t0, t_end = 1.e-12, 1.e-3           # Time limits for testing
     mass_frac = True                    # Output data in mass fractions [Bool]
-    if mass_frac: u_dim += 1
 
 
     ###########################################################################
     ### NN Architecture
     ###########################################################################
-    layer_size_branch  = [u_dim, 16, 16, 8]
-    layer_size_trunk   = [y_dim, 16, 16, 8]
-    activation         = {"branch": 'elu', "trunk": 'sigmoid'}
-    kernel_initializer = "GlorotNormal"
-    regularization     = {'name': 'l1+l2', 'l1': 1.e-4, 'l2': 1.e-4}
-    dropout_rate       = 0
-    batch_norm         = {"branch": None, "trunk": 'before'}
-    # NB: Not use both `dropout_rate` and `batch_norm` together >> too much regularization
+    nn_name = 'OpNN'
 
-    # Input Transformation Quantities -----------------------------------------
-    scale_fac = 1.e7
+    # Variables Dimensionality ------------------------------------------------
+    dim = {
+            "u_dim": 4,     # Branch input dimensionality
+            "y_dim": 1,     # Trunk input dimensionality
+            "G_dim": 4      # Data dimensionality
+            }
+    if mass_frac: dim['u_dim'] += 1
+
+    # Structure ---------------------------------------------------------------
+    layer_size         = {
+                            "branch": [dim['u_dim'], 16, 16, 8],
+                            "trunk":  [dim['y_dim'], 16, 16, 8]
+                            }
+    activation         = {
+                            "branch": 'elu',
+                            "trunk":  'sigmoid'
+                            }
+    regularization     = {
+                            'name': 'l1+l2',
+                            'l1':   1.e-4,
+                            'l2':   1.e-4
+                            }
+    batch_norm         = {
+                            "branch": None,
+                            "trunk": 'before'
+                            }
+    dropout_rate       = 0
+    kernel_initializer = "GlorotNormal"
+    # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
+
+    # I/O Transformation ------------------------------------------------------
+    # output_fn = lay.Lambda(tf.math.exp, name='output_fn')
+    # branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
+
+    input_fn = {
+                "branch": lay.Lambda(lambda x: x, name='branch_fn'),
+                "trunk" : pro.layers.Scaling(init_scale=1.e7, name='trunk_fn')
+                }
+    output_fn = lay.Softmax(axis=-1, name='output_fn')
 
 
     ###########################################################################
@@ -75,7 +102,7 @@ class InputData(object):
     # Testing -----------------------------------------------------------------
     test_cases     = 1              # Number of testing cases
     test_training  = True           # Test training case
-    period         = 100            # Plotting frequency during training [epochs]
+    period         = 1000            # Plotting frequency during training [epochs]
 
 
     ###########################################################################
@@ -88,26 +115,26 @@ class InputData(object):
     lr           = 1.e-4
 
     # Learning rate scheduler -------------------------------------------------
-    decay_epochs = 1000
+    decay_epochs = 5000
     decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
     decay        = ["exponential", decay_steps, 0.98]
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'zero', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    loss         = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics      = ['MALPE']
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
     patience     = 20000
-    monitor      = 'val_res_loss'
+    monitor      = 'val_loss'
 
 
     ###########################################################################
     ### Plotting Quantities
     ###########################################################################
     # Variables Name ----------------------------------------------------------
-    var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(G_dim-1) ]
+    var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(dim['G_dim']-1) ]
     var_names.append(r'$O$')
 
     # Axis --------------------------------------------------------------------

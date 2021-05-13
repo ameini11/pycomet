@@ -14,6 +14,7 @@ class ODE(DataSet):
         ode_params=None,
         x_train=None,
         y_train=None,
+        sample_weight=None,
         x_valid=None,
         y_valid=None,
         x_test=None,

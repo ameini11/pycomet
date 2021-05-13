@@ -97,12 +97,12 @@ class Manifold(DataGenerator):
                 idx = self.get_indices(ic_i[1:], t, norm_J, self.train_pts)
                 t, y = t[idx,:], y[idx,:]
 
-            marker_style = dict(marker='o', lw=0.5, ls='none', \
-                                fillstyle='full', markersize=2)
-            plt.xscale('log')
-            plt.plot(t, y, **marker_style)
-            plt.grid()
-            plt.show()
+            # marker_style = dict(marker='o', lw=0.5, ls='none', \
+            #                     fillstyle='full', markersize=2)
+            # plt.xscale('log')
+            # plt.plot(t, y, **marker_style)
+            # plt.grid()
+            # plt.show()
 
             if i == 0:
                 trajectories = [([u, t], y)]
@@ -211,8 +211,10 @@ class Manifold(DataGenerator):
         plt.ylabel('Timescales')
 
         plt.loglog(t, t_scales, lw=1)
+        plt.legend([r'$dY_1$', r'$dY_2$', r'$dY_3$', r'$dY_O$'])
         plt.grid()
         fig.savefig(path+'/timescales.pdf')
+        plt.show()
         plt.close()
 
     def plot_norm_jac(self, norm_jac):

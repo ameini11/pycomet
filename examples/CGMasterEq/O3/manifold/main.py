@@ -21,26 +21,20 @@ from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from manifold import Manifold
 
+sys.path.append(inp.pro_path)   # <<< Remove this line if you install prode as a Pthon package
 import prode as pro
 
 
-@pro.utils.timing
+@pro.utils.main_decorator
 def main():
-
-    print('[PrODE]: Start!')
-
-    print("--------------------------------------------------------------------------------------------------")
-    print(" TensorFlow version: {}".format(tf.__version__))
-    print(" Eager execution:    {}".format(tf.executing_eagerly()))
-    print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
-    print(" Number of threads:  {}".format(NUM_THREADS))
-    print("--------------------------------------------------------------------------------------------------")
 
     ###########################################################################
     ### Data
     ###########################################################################
     manifold     = Manifold(inp)
-    trajectories = manifold.get_trajectories()
+    trajectories, t_scales, norm_jac = manifold.get_trajectories(eval_jac=True)
+    # manifold.plot_timescales(t_scales[0])
+    # return
 
     # Initialize Data ---------------------------------------------------------
     data = pro.data.ODE(

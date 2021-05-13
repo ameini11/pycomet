@@ -12,6 +12,7 @@ from functools       import wraps
 from multiprocessing import Pool
 
 
+
 def timing(f):
     """Decorator for measuring the execution time of methods."""
 
@@ -54,38 +55,29 @@ def main_decorator(f):
 
 
 def kill_process():
+    """Send terminating signal to job `pid`."""
     os.kill(os.getpid(), signal.SIGTERM)
 
 
-def apply(func, args=None, kwds=None):
-    """Clear Tensorflow GPU memory after model execution.
-
-    References:
-
-        - https://stackoverflow.com/questions/39758094/clearing-tensorflow-gpu-memory-after-model-execution
-    """
-    with Pool(1) as p:
-        if args is None and kwds is None:
-            r = p.apply(func)
-        elif kwds is None:
-            r = p.apply(func, args=args)
-        elif args is None:
-            r = p.apply(func, kwds=kwds)
-        else:
-            r = p.apply(func, args=args, kwds=kwds)
-    return r
+def get_class(module, name):
+    """Return a class object given its name and the module which belongs to."""
+    for name_i, obj_i in inspect.getmembers(module, inspect.isclass):
+        if name_i == name:
+            return obj_i
+    raise ValueError('[PrODE]: Class `{}` not found in module `{}`.'.format(name, module.__name__))
 
 
 def make_dict(keys, values):
     """Convert two lists or two variables into a dictionary."""
     if isinstance(keys, (list, tuple)):
         if len(keys) != len(values):
-            raise ValueError("keys and values have different length.")
+            raise ValueError("[PrODE]: Keys and values have different length.")
         return dict(zip(keys, values))
     return {keys: values}
 
 
 def list_to_str(nums, precision=2):
+    """Convert a list/tuple/array of numbers into a string."""
     if nums is None:
         return ""
     if not isinstance(nums, (list, tuple, np.ndarray)):
@@ -94,16 +86,30 @@ def list_to_str(nums, precision=2):
 
 
 def get_num_args(func):
-    """Get the number of arguments of a Python function.
-
-    References:
-
-        - https://stackoverflow.com/questions/847936/how-can-i-find-the-number-of-arguments-of-a-python-function
-    """
+    """Get the number of arguments of a Python function."""
     if sys.version_info[0] == 2:
         return len(inspect.getargspec(func).args)
     sig = inspect.signature(func)
     return len(sig.parameters)
+
+
+# def apply(func, args=None, kwds=None):
+#     """Clear Tensorflow GPU memory after model execution.
+
+#     References:
+
+#         - https://stackoverflow.com/questions/39758094/clearing-tensorflow-gpu-memory-after-model-execution
+#     """
+#     with Pool(1) as p:
+#         if args is None and kwds is None:
+#             r = p.apply(func)
+#         elif kwds is None:
+#             r = p.apply(func, args=args)
+#         elif args is None:
+#             r = p.apply(func, kwds=kwds)
+#         else:
+#             r = p.apply(func, args=args, kwds=kwds)
+#     return r
 
 
 # def save_animation(filename, xdata, ydata, y_reference=None, logy=False):
@@ -144,3 +150,4 @@ def get_num_args(func):
 #     )
 #     ani.save(filename, writer="imagemagick", fps=30)
 #     plt.close()
+

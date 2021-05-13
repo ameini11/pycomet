@@ -16,6 +16,7 @@ class DataSet(Data):
         self,
         x_train=None,
         y_train=None,
+        sample_weight=None,
         x_valid=None,
         y_valid=None,
         x_test=None,
@@ -28,7 +29,7 @@ class DataSet(Data):
         standardize=False
     ):
         if x_train is not None:
-            self.train_x, self.train_y = x_train, y_train
+            self.train_x, self.train_y, self.sample_weight = x_train, y_train, sample_weight
             self.valid_x, self.valid_y = x_valid, y_valid
             self.test_x,  self.test_y  = x_test,  y_test
         elif fname_train is not None:

@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='net')
+@tf.keras.utils.register_keras_serializable(package='prode', name='Net')
 class Net(tf.keras.Model):
     """Network base class."""
 

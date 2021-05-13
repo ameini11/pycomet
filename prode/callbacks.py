@@ -258,13 +258,13 @@ class Plotter(CB.Callback):
         if epoch % self.period == 0:
             for i, test_i in enumerate(self.test_cases):
                 if len(test_i) == 4:
-                    title, x, y_true, data_valid = test_i
+                    title, x, y_true, data_val = test_i
                 elif len(test_i) == 3:
                     title, x, y_true = test_i
-                    data_valid = None
+                    data_val = None
                 elif len(test_i) == 2:
                     x, y_true = test_i
-                    title = data_valid = None
+                    title = data_val = None
 
                 y_pred = self.model.predict(x)
 

@@ -51,8 +51,9 @@ class Model(object):
 
         # Define saving format
         self.save_format = save_format
-        self.save_path   = self.name+'_weights'
-        if self.save_format == 'h5': self.save_path = self.save_path + '.h5'
+        self.save_path   = name
+        if self.save_format == 'h5':
+            self.save_path = self.save_path + '.h5'
 
 
     # ======================================================================= #
@@ -186,7 +187,8 @@ class Model(object):
                         epochs=epochs,
                         callbacks=callbacks,
                         validation_split=validation_split,
-                        validation_data=validation_data)
+                        validation_data=validation_data,
+                        sample_weight=self.data.sample_weight)
 
         # Save `history.history` in a file
         hist_df = pd.DataFrame.from_dict(self.history.history)

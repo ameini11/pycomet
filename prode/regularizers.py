@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.regularizers as reg
 
 
+
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
     return (
         reg.L1(l1=l1)
@@ -18,12 +19,11 @@ def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
 
 @tf.keras.utils.register_keras_serializable(package='prode', name='FineTuningRegularizer')
 class FineTuningRegularizer(reg.L1L2):
-    """
+    """Transfer learning technique for fine-tuning.
     See:
         Xuhong Li, Yves Grandvalet, Franck Davoine
         `A baseline regularization scheme for transfer learning with convolutional neural networks`
-        https://doi.org/10.1016/j.patcog.2019.107049
-    """
+        https://doi.org/10.1016/j.patcog.2019.107049"""
 
     # Initialization
     ###########################################################################
@@ -38,12 +38,14 @@ class FineTuningRegularizer(reg.L1L2):
         self.name = name
 
         # List of weights of pre-trained model: Starting Point in fine-tuning
+                # inp.regularization.update({'weights_SP': model.net.trainable_weights})
+
         self.weights_SP = weights_SP
         if weights_SP is not None:
             self.weights_SP_names = [w.name for w in weights_SP]
         else:
-            print("\n[PrODE]: Warning! In `FineTuningRegularizer` you are not "
-                  "providing any Starting Point weights (`weights_SP`).")
+            print("\n[PrODE]: Warning! `FineTuningRegularizer` is not given "
+                  "any Starting Point weights `weights_SP`.")
 
 
     # Configuration update

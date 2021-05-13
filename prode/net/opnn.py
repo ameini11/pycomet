@@ -18,11 +18,8 @@ class OpNN(Net):
     ###########################################################################
     def __init__(
         self,
-        u_dim,
-        y_dim,
-        G_dim,
-        layer_size_branch,
-        layer_size_trunk,
+        dim,
+        layer_size,
         activation,
         kernel_initializer,
         regularization=None,
@@ -34,12 +31,18 @@ class OpNN(Net):
         super(OpNN, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
-        self.u_dim = u_dim
-        self.y_dim = y_dim
-        self.G_dim = G_dim
+        if len(dim) < 3 or not isinstance(dim, dict):
+            raise ValueError('[PrODE]: `dim` input for the Deep Operator net has to '
+                             'be a `dict` of length 3: {"u_dim":, "y_dim":, "G_dim":}.')
+        self.u_dim = dim["u_dim"]
+        self.y_dim = dim["y_dim"]
+        self.G_dim = dim["G_dim"]
 
-        self.layer_size_branch = layer_size_branch
-        self.layer_size_trunk  = layer_size_trunk
+        if isinstance(layer_size, dict):
+            self.layer_size_branch = layer_size["branch"]
+            self.layer_size_trunk  = layer_size["trunk"]
+        else:
+            self.layer_size_branch = self.layer_size_trunk = layer_size
 
         if isinstance(activation, dict):
             self.act_branch = activations.get(activation["branch"])

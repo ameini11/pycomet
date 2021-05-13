@@ -32,7 +32,7 @@ def mean_squared_log_percentage_error(y_true, y_pred):
 
 
 @tf.keras.utils.register_keras_serializable(package='prode', name='ZERO')
-def zero(*_):
+def zero(*args):
     return tf.constant(0., dtype=K.floatx())
 
 

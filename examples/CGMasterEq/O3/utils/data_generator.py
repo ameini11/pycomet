@@ -1,18 +1,18 @@
-from tqdm import tqdm
-import pandas as pd
-import numpy as np
-import sys
 import re
 import os
+import sys
+import numpy as np
+import pandas as pd
+import tensorflow as tf
 
+from tqdm import tqdm
 from sklearn.utils import shuffle
 from scipy.spatial import KDTree
+import matplotlib.pyplot as plt
 from pyDOE import lhs
 
 from const      import const
 from ode_solver import ODESolver
-
-import matplotlib.pyplot as plt
 
 
 class DataGenerator(object):
@@ -36,7 +36,7 @@ class DataGenerator(object):
         self.t0, self.t_end = inputs.t0, inputs.t_end               # Time limits for testing
 
         self.inp_dim        = inputs.inp_dim                        # Input Space Dimensionality
-        self.dim            = inputs.G_dim                          # Data dimensionality
+        self.dim            = inputs.dim['G_dim']                   # Data dimensionality
         self.mass_frac      = inputs.mass_frac                      # Data in mass fractions [Bool]
 
         # Input Space Variables -----------------------------------------------
@@ -174,7 +174,7 @@ class DataGenerator(object):
             t = t_i[idx,:]                  # NN Input: Time
             y = y_i[idx,:]                  # NN Target
             if self.mass_frac: u, y = self.dens2mass_frac(u, y)
-            return T, u, t, y
+            return [T, u, t, y]
         # ---------------------------------------------------------------------
 
         data = {}
@@ -194,6 +194,9 @@ class DataGenerator(object):
             # Get data from indices
             idx = self.get_indices(ic_i[1:], t_i, norm_J_i, pts)
             data_i = get_data(idx)
+            if data_id == 'train':
+                ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-2), [0])), 1).numpy()
+                data_i.append(ohe_i)
 
             # marker_style = dict(marker='o', lw=0.5, ls='none', \
             #                     fillstyle='full', markersize=2)

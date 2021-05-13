@@ -12,7 +12,7 @@ def plot_loss(history, path, scale='log'):
 
     fig = plt.figure()
 
-    plt.ylim(limits(data[['loss','val_loss']]))
+    # plt.ylim(limits(data[['loss','val_loss']]))
     plt.yscale(scale)
 
     plt.plot(data[['loss']],     lw=1, label='Training')
@@ -30,7 +30,7 @@ def plot_residual(history, path, scale='log'):
 
     fig = plt.figure()
 
-    plt.ylim(limits(data[['res_loss','val_res_loss']]))
+    # plt.ylim(limits(data[['res_loss','val_res_loss']]))
     plt.yscale(scale)
 
     plt.plot(data[['res_loss']],     lw=1, label='Training')
@@ -48,11 +48,11 @@ def plot_metric(history, path, metric, scale='log'):
 
     fig = plt.figure()
 
-    plt.ylim(limits(data[[metric,'val_'+metric]]))
+    # plt.ylim(limits(data[[metric,'val_'+metric]]))
     plt.yscale(scale)
 
-    plt.plot(history.history[metric],        lw=1, label='Training')
-    plt.plot(history.history['val_'+metric], lw=1, label='Validation')
+    plt.plot(data[[metric]],        lw=1, label='Training')
+    plt.plot(data[['val_'+metric]], lw=1, label='Validation')
     plt.xlabel('Epoch')
     plt.title(r'$\it{%s}$' % metric.replace("_", "\ ").title() + '  Metric History')
     plt.legend()

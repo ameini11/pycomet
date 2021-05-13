@@ -14,15 +14,15 @@ tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
 
 import sys
 import numpy as np
-import tensorflow.keras.layers as lay
 from tensorflow.keras import callbacks
+
+# Remove the following line if you install `prode` as a Python package
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/'))
+import prode as pro
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
-
-sys.path.append(inp.pro_path)   # <<< Remove this line if you install prode as a Pthon package
-import prode as pro
 
 
 def ode(ic, t, grads, params):
@@ -67,6 +67,7 @@ def main():
         ode_params=dataGen.ODE_mat,
         x_train=[data_train[1], data_train[2]],
         y_train=data_train[3],
+        # sample_weight=data_train[4],
         x_valid=[data_valid[1], data_valid[2]],
         y_valid=data_valid[3])
 
@@ -79,10 +80,9 @@ def main():
         # Load weights from pretrained model
         pass
         # inp.regularization.update({'weights_SP': model.net.trainable_weights})
-    net = pro.net.OpNN(
-        inp.u_dim, inp.y_dim, inp.G_dim,
-        inp.layer_size_branch,
-        inp.layer_size_trunk,
+    net = pro.utils.get_class(pro.net, inp.nn_name)(
+        inp.dim,
+        inp.layer_size,
         inp.activation,
         inp.kernel_initializer,
         regularization=inp.regularization,
@@ -90,16 +90,8 @@ def main():
         batch_norm=inp.batch_norm)
 
     # Apply I/O Transformation ------------------------------------------------
-    if inp.mass_frac:
-        output_fn = lay.Softmax(axis=-1,    name='output_fn')
-        branch_fn = lay.Lambda(lambda x: x, name='branch_fn')
-    else:
-        output_fn = lay.Lambda(tf.math.exp, name='output_fn')
-        branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
-    trunk_fn = pro.layers.Scaling(init_scale=inp.scale_fac, name='trunk_fn')
-
-    net.apply_input_transform({"branch": branch_fn, "trunk" : trunk_fn})
-    net.apply_output_transform(output_fn)
+    net.apply_input_transform(inp.input_fn)
+    net.apply_output_transform(inp.output_fn)
 
 
     ###########################################################################
@@ -124,7 +116,7 @@ def main():
                                      verbose=1)
         cb_list = [ES]
 
-        if inp.test_flg == 2:
+        if inp.plot_flg == 2:
             PL = pro.callbacks.Plotter(data_test, inp.var_names, inp.labels,
                                        inp.scales, inp.log_plot, 
                                        model.train_dir, inp.period)
@@ -140,7 +132,7 @@ def main():
     ### Postprocessing
     ###########################################################################
     # Training phase ----------------------------------------------------------
-    model.visualize_training()
+    model.visualize_training(model.train_dir+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
     if inp.test_cases > 0 and inp.test_flg > 0:
