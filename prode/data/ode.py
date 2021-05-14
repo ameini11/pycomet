@@ -12,9 +12,10 @@ class ODE(DataSet):
         ode_func=None,
         ode_order=0,
         ode_params=None,
+        x_train=None,
         *args,
         **kwargs):
-        super(ODE, self).__init__(*args, **kwargs)
+        super(ODE, self).__init__(x_train=x_train, *args, **kwargs)
 
         if isinstance(x_train, (list, tuple)):
             self.input_is_list = True

@@ -153,9 +153,9 @@ class DataGenerator(object):
 
         if self.test_cases > 0:
             idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
-            return ic[idx_train,:], ic[idx_test,:]
+            return [ic[idx_train,:], ic[idx_test,:]]
         else:
-            return ic
+            return [ic]
 
 
     ###########################################################################

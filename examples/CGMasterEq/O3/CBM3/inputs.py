@@ -96,7 +96,7 @@ class InputData(object):
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 0              # Number of testing cases
+    test_cases     = 1              # Number of testing cases
     test_training  = True           # Test training case
     period         = 1000            # Plotting frequency during training [epochs]
 
