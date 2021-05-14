@@ -27,25 +27,27 @@ from data_generator import DataGenerator
 
 def ode(ic, t, grads, params):
 
-    # Rearranging matrices
-    ic       = tf.transpose(ic)
-    Y, dY_dt = [tf.transpose(grad) for grad in grads]
-    if inp.mass_frac: Y, dY_dt = [tf.math.multiply(i,ic[-1,:]) for i in [Y, dY_dt]]
-    Y_O = Y[-2:-1,:]
+    # Extracting `mass` and `T_trans`
+    ic       = tf.split(ic, ic.shape[1], axis=1)
+    # mass, T  = ic[-2], ic[-1]
+    mass     = ic[-1]
+    T        = str(10000)
 
-    # Getting matrices
-    T_str = str(10000) # = ic[0,:]
-    K_e, K_d, K_r = [ params[T_str][name] for name in params[T_str] ]
+    # Getting Rate Coefficient matrices
+    K_e, K_d, K_r = [ tf.transpose(params[T][name]) for name in params[T] ]
+
+    # Rearranging variables
+    Y, dY_dt = [ grad * mass for grad in grads ]
+    Y_O      = tf.split(Y, Y.shape[1], axis=1)[-1]
 
     # Computing Residuals - Master Equation
-    excit_term = tf.math.multiply(tf.matmul(K_e, Y), Y_O)
-    disso_term = tf.math.multiply(tf.matmul(K_d, Y), Y_O)
-    recom_term = tf.matmul(K_r, tf.math.pow(Y_O, 3))
+    excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
+    disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
+    recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
 
     rhs = excit_term + disso_term + recom_term
-    f   = tf.transpose(dY_dt - rhs)
 
-    return f
+    return dY_dt - rhs
 
 
 @pro.utils.main_decorator
@@ -56,9 +58,10 @@ def main():
     ###########################################################################
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
-    data_train, data_valid = dataGen.training_data()
-    if inp.test_flg > 0:
-        data_test = dataGen.testing_data()
+    ic      = dataGen.initial_cond()
+    data_train, data_valid = dataGen.training_data(ic[0])
+    if inp.test_flg > 0 and inp.test_cases > 0:
+        data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
 
     # Initialize Data ---------------------------------------------------------
     data = pro.data.ODE(
@@ -118,14 +121,15 @@ def main():
 
         if inp.plot_flg == 2:
             PL = pro.callbacks.Plotter(data_test, inp.var_names, inp.labels,
-                                       inp.scales, inp.log_plot, 
+                                       inp.scales, inp.log_plot,
                                        model.train_dir, inp.period)
             cb_list.append(PL)
 
         model.fit(epochs=inp.epochs, batch_size=inp.batch_size, callbacks=cb_list)
 
     # Save Model ---------------------------------------------------------------
-    if inp.save_flg > 0: model.save()
+    if inp.save_flg > 0:
+        model.save()
 
 
     ###########################################################################

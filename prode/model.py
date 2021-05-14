@@ -200,7 +200,7 @@ class Model(object):
     def predict(
         self,
         test_case,
-        plotting=True,
+        plotting=False,
         test_case_num=0,
         var_names=None,
         labels=None,

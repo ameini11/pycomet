@@ -22,7 +22,10 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(self, inputs):
 
-        self.header         = '[PrODE - Data Gen]: '
+        self.header   = '[PrODE - Data Gen]: '
+        self.data_dir = "./data/"
+        if not os.path.exists(self.data_dir):
+            os.makedirs(self.data_dir)
 
         # Data Quantities -----------------------------------------------------
         self.train_cases    = inputs.train_cases                    # Number of training cases
@@ -59,9 +62,6 @@ class DataGenerator(object):
         mat_mask     = list(inputs.MEq_mat.values())
         self.ODE_sol = ODESolver(mat_name, mat_mask)
         self.ODE_mat = self.build_matrices()
-
-        # Generating initial conditions ---------------------------------------
-        self.ic_train, self.ic_test = self.initial_cond()
 
 
     ###########################################################################
@@ -152,15 +152,17 @@ class DataGenerator(object):
             ic[i, -1] = XO  * const.mO * nd
         ic = np.hstack((X[:,0:1], ic))
 
-        idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
-
-        return ic[idx_train,:], ic[idx_test,:]
+        if self.test_cases > 0:
+            idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
+            return ic[idx_train,:], ic[idx_test,:]
+        else:
+            return ic
 
 
     ###########################################################################
     ### Training/Validation Data
     ###########################################################################
-    def training_data(self):
+    def training_data(self, ic_train, eval_jac=True, eval_f=False):
 
         print('\n' + self.header + 'Generating training pts ...')
 
@@ -178,12 +180,16 @@ class DataGenerator(object):
         # ---------------------------------------------------------------------
 
         data = {}
-        for i, ic_i in enumerate(tqdm(self.ic_train, file=sys.stdout)):
+        for i, ic_i in enumerate(tqdm(ic_train, file=sys.stdout)):
 
             # Solving the ODE
             mat = self.ODE_mat[str(int(ic_i[0]))]
-            t_i, y_i, norm_J_i, eig_J_i = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=True)
-            assert (y_i > 0.).all()
+            sol = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac, eval_f=eval_f)
+            t_i, y_i = sol[0], sol[1]
+            if eval_jac:
+                norm_J_i, eig_J_i = sol[2], sol[3]
+            if eval_f:
+                f_rhs = sol[-1]
 
             # Define data type
             if (i % 2) == 0:
@@ -194,9 +200,11 @@ class DataGenerator(object):
             # Get data from indices
             idx = self.get_indices(ic_i[1:], t_i, norm_J_i, pts)
             data_i = get_data(idx)
-            if data_id == 'train':
-                ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-2), [0])), 1).numpy()
-                data_i.append(ohe_i)
+            if eval_f:
+                data_i.append(f_rhs)
+            # if data_id == 'train':
+            #     ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-2), [0])), 1).numpy()
+            #     data_i.append(ohe_i)
 
             # marker_style = dict(marker='o', lw=0.5, ls='none', \
             #                     fillstyle='full', markersize=2)
@@ -210,12 +218,15 @@ class DataGenerator(object):
             else:
                 data[data_id] = list(map(lambda x,y: np.vstack((x,y)), data[data_id], data_i))
 
-        # # Save data in a text file
-        # np.savetxt('train_data.out', np.hstack(tuple(data['train'])), delimiter=',')
-        # np.savetxt('valid_data.out', np.hstack(tuple(data['valid'])), delimiter=',')
-
+        # Shuffle data
         data_train = shuffle(*data['train'])
         data_valid = shuffle(*data['valid'])
+
+        # Save data in a `.csv` file
+        pd.DataFrame(np.hstack(tuple(data_train)) \
+            ).to_csv(self.data_dir+"train_data.csv", index=False, header=None)
+        pd.DataFrame(np.hstack(tuple(data_valid)) \
+            ).to_csv(self.data_dir+"valid_data.csv", index=False, header=None)
 
         return data_train, data_valid
 
@@ -223,23 +234,27 @@ class DataGenerator(object):
     ###########################################################################
     ### Testing Data
     ###########################################################################
-    def testing_data(self):
+    def testing_data(self, ic_test, ic_train=None, eval_jac=False, eval_f=False):
 
         print('\n' + self.header + 'Generating testing pts ...')
 
-        ic_test = self.ic_test
         if self.test_training:      # Test underfitting
             assert self.train_cases >= self.test_cases
             n       = self.test_cases
-            idx     = np.random.choice(self.ic_train.shape[0], size=n, replace=False)
-            ic_test = np.vstack((self.ic_test, self.ic_train[idx, :]))
+            idx     = np.random.choice(ic_train.shape[0], size=n, replace=False)
+            ic_test = np.vstack((ic_test, ic_train[idx, :]))
 
         for i, ic_i in enumerate(tqdm(ic_test, file=sys.stdout)):
 
             # Solving the ODE
             T_i = str(int(ic_i[0]))
-            t_i, y_i = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[T_i])
-            assert (y_i >= 0.).all()
+            sol = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[T_i], \
+                                     eval_jac=eval_jac, eval_f=eval_f)
+            t_i, y_i = sol[0], sol[1]
+            if eval_jac:
+                norm_J_i, eig_J_i = sol[2], sol[3]
+            if eval_f:
+                f_rhs = sol[-1]
 
             # Extract data values
             tree     = KDTree(np.c_[t_i.ravel()])
@@ -252,10 +267,15 @@ class DataGenerator(object):
             if self.test_training and i > n-1:
                 title = 'Trained case (T = '+T_i+' K)'
 
+            # Collect data values
+            data_i = [title, [u_i, t_i], y_i]
+            if eval_f:
+                data_i.append(f_rhs[ii[0]:ii[1],:])
+
             if i == 0:
-                data_test = [(title, [u_i, t_i], y_i)]
+                data_test = [tuple(data_i)]
             else:
-                data_test.append((title, [u_i, t_i], y_i))
+                data_test.append(tuple(data_i))
 
         return data_test
 

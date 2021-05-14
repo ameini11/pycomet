@@ -9,7 +9,7 @@ import numpy         as np
 import tensorflow    as tf
 
 from functools       import wraps
-from multiprocessing import Pool
+# from multiprocessing import Pool
 
 
 

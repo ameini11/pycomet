@@ -3,7 +3,7 @@
 # Python Library installation
 if [[ -d "./__pycache__" ]] || [[ -d "./training" ]]
 then
-    rm -rf training postprocessing __pycache__ *.h5
+    rm -rf training postprocessing __pycache__ *.h5 data
 fi
 
 

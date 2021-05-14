@@ -31,69 +31,69 @@ class ODESolver(object):
     ###########################################################################
     ### Solve ODE
     ###########################################################################
+    def f(self, t, y, arg):
+        '''
+        Input matrices:
+        - arg[0] = Excitation rates
+        - arg[1] = Dissociation rates
+        - arg[2] = Recombination rates
+        '''
+        exc_term = np.matmul(arg[0], y) * y[-1]
+        dis_term = np.matmul(arg[1], y) * y[-1]
+        rec_term = np.squeeze(arg[2]) * np.power(y[-1], 3)
+        return exc_term + dis_term + rec_term
+
+    def jac(self, t, y, arg):
+        '''Jacobian calculation: jac[i,j] = df[i] / dy[j].'''
+        d = np.shape(y)[0]
+        J = np.zeros((d,d), dtype=np.float64)
+
+        J[:,:-1] = (arg[0][:,:-1] + arg[1][:,:-1]) * y[-1]
+        J[:, -1] = np.matmul(arg[0][:,:-1], y[:-1]) + np.matmul(arg[1][:,:-1], y[:-1]) \
+                    + 3*np.squeeze(arg[2])*np.power(y[-1], 2)
+        return J
+
+    def eval_J(self, t, y, arg):
+        '''Eigenvalues of the Jacobian.'''
+        J = self.jac(t, y, arg)
+        # norm = np.hstack(([np.linalg.norm(i) for i in np.split(J, J.shape[1], axis=1)]))
+        norm = np.linalg.norm(J)
+        eigen, _ = np.linalg.eig(J)
+
+        return norm, eigen
+
+
     def solve(self, rho_0, params, eval_jac=False, eval_f=False):
         '''Solving the ODE.'''
-
-        # ---------------------------------------------------------------------
-        def f(t, y, arg):
-            '''
-            Input matrices:
-            - arg[0] = Excitation rates
-            - arg[1] = Dissociation rates
-            - arg[2] = Recombination rates
-            '''
-            exc_term = np.matmul(arg[0], y) * y[-1]
-            dis_term = np.matmul(arg[1], y) * y[-1]
-            rec_term = np.squeeze(arg[2]) * np.power(y[-1], 3)
-            return exc_term + dis_term + rec_term
-
-        def jac(t, y, arg):
-            '''Jacobian calculation: jac[i,j] = df[i] / dy[j].'''
-            d = np.shape(y)[0]
-            J = np.zeros((d,d), dtype=np.float64)
-
-            J[:,:-1] = (arg[0][:,:-1] + arg[1][:,:-1]) * y[-1]
-            J[:, -1] = np.matmul(arg[0][:,:-1], y[:-1]) + np.matmul(arg[1][:,:-1], y[:-1]) \
-                        + 3*np.squeeze(arg[2])*np.power(y[-1], 2)
-            return J
-
-        def eval_J(t, y, arg):
-            '''Eigenvalues of the Jacobian.'''
-            J = jac(t, y, arg)
-            # norm = np.hstack(([np.linalg.norm(i) for i in np.split(J, J.shape[1], axis=1)]))
-            norm = np.linalg.norm(J)
-            eigen, _ = np.linalg.eig(J)
-
-            return norm, eigen
-        # ---------------------------------------------------------------------
 
         if isinstance(params, dict):
             params = tuple([params[k] for k in params])
 
-        r = ode(f, jac).set_integrator('vode', method='bdf', with_jacobian=True, atol=1.e-20)
+        r = ode(self.f, self.jac).set_integrator('vode', method='bdf', with_jacobian=True, atol=1.e-20)
         r.set_initial_value(rho_0, self.t0).set_f_params(params).set_jac_params(params)
 
         # Appending Data
         t = np.array([[self.t0]])
         y = np.expand_dims(rho_0,0)
-        if eval_jac: norm_J, eig_J = eval_J(self.t0, rho_0, params)
-        if eval_f:   norm_f        = np.linalg.norm(f(self.t0, rho_0, params))
+        if eval_jac: norm_J, eig_J = self.eval_J(self.t0, rho_0, params)
+        if eval_f:   f_rhs         = self.f(self.t0, rho_0, params)
 
         dt = self.dt0
         while r.successful() and r.t <= self.t_end:
             r.integrate(r.t+dt)
             if eval_jac:
                 norm_J, eig_J = list(map(lambda x,y: np.vstack((x,y)), \
-                                [norm_J, eig_J], eval_J(r.t, r.y, params)))
+                                [norm_J, eig_J], self.eval_J(r.t, r.y, params)))
             if eval_f:
-                norm_f =  np.vstack((norm_f, np.linalg.norm(f(r.t, r.y, params))))
+                f_rhs = np.vstack((f_rhs, self.f(r.t, r.y, params)))
             t  = np.vstack((t, np.expand_dims(r.t,0)))
             y  = np.vstack((y, np.expand_dims(r.y,0)))
             dt = min(dt*self.dt_str, self.dt_max)
+        assert (y > 0.).all()
 
         res = [t, y]
         if eval_jac: res.extend([norm_J, eig_J])
-        if eval_f:   res.append(norm_f)
+        if eval_f:   res.append(f_rhs)
 
         return res
 

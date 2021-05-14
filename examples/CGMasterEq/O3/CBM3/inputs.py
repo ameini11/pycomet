@@ -67,9 +67,10 @@ class InputData(object):
                             "trunk":  'sigmoid'
                             }
     regularization     = {
-                            'name': 'l1+l2',
-                            'l1':   1.e-4,
-                            'l2':   1.e-4
+                            'name':       'l1+l2',
+                            'l1':         1.e-4,
+                            'l2':         1.e-4,
+                            'weights_SP': None      # Only for `FineTuningRegularizer`
                             }
     batch_norm         = {
                             "branch": None,
