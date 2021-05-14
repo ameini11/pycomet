@@ -12,32 +12,9 @@ class ODE(DataSet):
         ode_func=None,
         ode_order=0,
         ode_params=None,
-        x_train=None,
-        y_train=None,
-        sample_weight=None,
-        x_valid=None,
-        y_valid=None,
-        x_test=None,
-        y_test=None,
-        fname_train=None,
-        fname_valid=None,
-        fname_test=None,
-        col_x=None,
-        col_y=None,
-        standardize=False):
-        super(ODE, self).__init__(
-            x_train=x_train,
-            y_train=y_train,
-            x_valid=x_valid,
-            y_valid=y_valid,
-            x_test=x_test,
-            y_test=y_test,
-            fname_train=fname_train,
-            fname_valid=fname_valid,
-            fname_test=fname_test,
-            col_x=col_x,
-            col_y=col_y,
-            standardize=standardize)
+        *args,
+        **kwargs):
+        super(ODE, self).__init__(*args, **kwargs)
 
         if isinstance(x_train, (list, tuple)):
             self.input_is_list = True

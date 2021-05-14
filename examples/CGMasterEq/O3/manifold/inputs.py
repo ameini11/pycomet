@@ -1,4 +1,8 @@
 import os
+import tensorflow.keras.layers as lay
+
+import prode as pro
+
 
 class InputData(object):
 
@@ -24,16 +28,11 @@ class InputData(object):
     ###########################################################################
     name  = 'MEq_OpNN'
 
-    # Variables Dimensionality ------------------------------------------------
-    G_dim = 4       # Data dimensionality
-    y_dim = 1       # Trunk input dimensionality
-    u_dim = 4       # Branch input dimensionality
-
     # Input Space Extreme Values ----------------------------------------------
-    inp_dim = 4                             # Input Space Dimensionality
+    inp_dim = 4                         # Input Space Dimensionality
     Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    300.e0]         # Initial TInt
+    T0  = [300.0e0,    300.e0]          # Initial TInt
     P0  = [1.013250e3, 1.013250e3]      # Initial P
     XO2 = [0.95e0,     0.95e0]          # Initial O2 Mole Frac
 
@@ -41,23 +40,49 @@ class InputData(object):
     grouping  = 'CBM3' #'DPM10'
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
     t0, t_end = 1.e-12, 1.e-3           # Time limits for testing
-    mass_frac = True                    # Output data in mass fractions [Bool]
-    if mass_frac: u_dim += 1
 
 
     ###########################################################################
     ### NN Architecture
     ###########################################################################
-    layer_size_branch  = [u_dim, 16, 16, 8]
-    layer_size_trunk   = [y_dim, 16, 16, 8]
-    activation         = {"branch": 'elu', "trunk": 'sigmoid'}
-    kernel_initializer = "GlorotNormal"
-    regularization     = ["l1+l2", 1.e-4, 1.e-4]
-    dropout_rate       = 0
-    batch_norm         = None
+    nn_name = 'OpNN'
 
-    # Input Transformation Quantities -----------------------------------------
-    scale_fac = 1.e7
+    # Variables Dimensionality ------------------------------------------------
+    dim = {
+            "u_dim": 5,     # Branch input dimensionality
+            "y_dim": 1,     # Trunk input dimensionality
+            "G_dim": 4      # Data dimensionality
+            }
+
+    # Structure ---------------------------------------------------------------
+    layer_size         = {
+                            "branch": [dim['u_dim'], 16, 16, 8],
+                            "trunk":  [dim['y_dim'], 16, 16, 8]
+                            }
+    activation         = {
+                            "branch": 'elu',
+                            "trunk":  'sigmoid'
+                            }
+    regularization     = {
+                            'name':       'l1+l2',
+                            'l1':         1.e-4,
+                            'l2':         1.e-4,
+                            'weights_SP': None      # Only for `FineTuningRegularizer`
+                            }
+    batch_norm         = {
+                            "branch": None,
+                            "trunk": 'before'
+                            }
+    dropout_rate       = 0
+    kernel_initializer = "GlorotNormal"
+    # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
+
+    # I/O Transformation ------------------------------------------------------
+    input_fn = {
+                "branch": lay.Lambda(lambda x: x, name='branch_fn'),
+                "trunk" : pro.layers.Scaling(init_scale=1.e7, name='trunk_fn')
+                }
+    output_fn = lay.Softmax(axis=-1, name='output_fn')
 
 
     ###########################################################################
@@ -72,7 +97,7 @@ class InputData(object):
     # Testing -----------------------------------------------------------------
     test_cases     = 1              # Number of testing cases
     test_training  = True           # Test training case
-    period         = 100            # Plotting frequancy during training [epochs]
+    period         = 1000            # Plotting frequency during training [epochs]
 
 
     ###########################################################################
@@ -81,27 +106,33 @@ class InputData(object):
     epochs      = 1000
     batch_size  = 128
 
-    optimizer   = 'adam' 
-    lr          = 1.e-4
-    decay       = ["exponential", (epochs*train_cases/100), 0.98]
+    optimizer    = 'adam' 
+    lr           = 1.e-4
 
-    loss        = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
-    metrics     = ['mape']
+    # Learning rate scheduler -------------------------------------------------
+    decay_epochs = 5000
+    decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
+    decay        = ["exponential", decay_steps, 0.98]
+
+    # Losses ------------------------------------------------------------------
+    # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
+    loss         = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    metrics      = ['MALPE']
 
     # Early Stopping Callback -------------------------------------------------
-    min_delta   = 1.e-6
-    patience    = 1000
+    min_delta    = 1.e-6
+    patience     = 20000
+    monitor      = 'val_loss'
 
 
     ###########################################################################
     ### Plotting Quantities
     ###########################################################################
     # Variables Name ----------------------------------------------------------
-    var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(G_dim-1) ]
+    var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(dim['G_dim']-1) ]
     var_names.append(r'$O$')
 
     # Axis --------------------------------------------------------------------
-    labels   = [r'$t\quad[s]$', r'$\rho\quad[kg/m^3]$']     # x, y labels
-    if mass_frac: labels[1] = r'$Y$'
-    scales   = ['log', 'linear']                            # x, y scales
+    labels   = [r'$t\quad[s]$', r'$Y$']         # x, y labels
+    scales   = ['log', 'linear']                # x, y scales
     log_plot = True

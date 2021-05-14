@@ -16,8 +16,9 @@ import sys
 import numpy as np
 from tensorflow.keras import callbacks
 
-# Remove the following line if you install `prode` as a Python package
+# Remove the following line if you install `prode` as a Python package --------
 sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/'))
+# -----------------------------------------------------------------------------
 import prode as pro
 
 from inputs import InputData as inp

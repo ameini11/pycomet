@@ -19,6 +19,7 @@ class DataSet(Data):
         sample_weight=None,
         x_valid=None,
         y_valid=None,
+        sample_weight_val=None,
         x_test=None,
         y_test=None,
         fname_train=None,
@@ -30,14 +31,14 @@ class DataSet(Data):
     ):
         if x_train is not None:
             self.train_x, self.train_y, self.sample_weight = x_train, y_train, sample_weight
-            self.valid_x, self.valid_y = x_valid, y_valid
+            self.valid_x, self.valid_y, self.sample_weight_val = x_valid, y_valid, sample_weight_val
             self.test_x,  self.test_y  = x_test,  y_test
         elif fname_train is not None:
             self.train_x, self.train_y = self.load_filedata(fname_train, col_x, col_y)
             self.valid_x, self.valid_y = self.load_filedata(fname_valid, col_x, col_y)
             self.test_x,  self.test_y  = self.load_filedata(fname_test,  col_x, col_y)
         else:
-            raise ValueError("No training data.")
+            raise ValueError("[PrODE]: No training data passed into `data`.")
 
         self.scaler_x = None
         if standardize:

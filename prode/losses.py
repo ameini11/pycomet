@@ -4,7 +4,7 @@ import tensorflow.keras.losses as lss
 from tensorflow.python.keras import backend as K
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='MALPE')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')
 def mean_absolute_log_percentage_error(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     y_true = tf.math.log(y_true + 1.e-30)
@@ -13,7 +13,7 @@ def mean_absolute_log_percentage_error(y_true, y_pred):
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='MSLE')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MSLE')
 def mean_squared_logarithmic_error(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     y_true = tf.math.log(y_true + 1.e-30)
@@ -22,7 +22,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='MSLPE')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MSLPE')
 def mean_squared_log_percentage_error(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     y_true = tf.math.log(y_true + 1.e-30)
@@ -31,7 +31,7 @@ def mean_squared_log_percentage_error(y_true, y_pred):
     return tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='ZERO')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='ZERO')
 def zero(*args):
     return tf.constant(0., dtype=K.floatx())
 

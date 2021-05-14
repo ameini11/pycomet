@@ -17,7 +17,7 @@ def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
     )
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='FineTuningRegularizer')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='FineTuningRegularizer')
 class FineTuningRegularizer(reg.L1L2):
     """Transfer learning technique for fine-tuning.
     See:

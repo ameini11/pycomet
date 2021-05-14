@@ -40,7 +40,6 @@ class DataGenerator(object):
 
         self.inp_dim        = inputs.inp_dim                        # Input Space Dimensionality
         self.dim            = inputs.dim['G_dim']                   # Data dimensionality
-        self.mass_frac      = inputs.mass_frac                      # Data in mass fractions [Bool]
 
         # Input Space Variables -----------------------------------------------
         inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
@@ -175,7 +174,7 @@ class DataGenerator(object):
             u = np.tile(ic_i[1:], (m,1))    # NN Input: Initial Condition
             t = t_i[idx,:]                  # NN Input: Time
             y = y_i[idx,:]                  # NN Target
-            if self.mass_frac: u, y = self.dens2mass_frac(u, y)
+            u, y = self.dens2mass_frac(u, y)
             return [T, u, t, y]
         # ---------------------------------------------------------------------
 
@@ -261,7 +260,7 @@ class DataGenerator(object):
             d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
             t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
             u_i      = np.tile(ic_i[1:], (t_i.shape[0],1))
-            if self.mass_frac: u_i, y_i = self.dens2mass_frac(u_i, y_i)
+            u_i, y_i = self.dens2mass_frac(u_i, y_i)
 
             title = 'Tested case (T = '+T_i+' K)'
             if self.test_training and i > n-1:

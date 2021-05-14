@@ -17,8 +17,8 @@ class InputData(object):
     ### Execution Flags
     ###########################################################################
     load_flg  = 0       # Loading model     0: no, 1: saved model, 2: ckpt
-    train_flg = 1       # Training          0: no, 1: Yes
-    test_flg  = 1       # Evaluating        0: no, 1: after training, 2: also during training
+    train_flg = 1       # Training          0: no, 1: yes
+    test_flg  = 1       # Evaluating        0: no, 1: yes
     plot_flg  = 1       # Plotting          0: no, 1: after training, 2: also during training
     # video_flg = 0       # Video history     0: no, 1: yes
     save_flg  = 1       # Saving model      0: no, 1: yes
@@ -41,7 +41,6 @@ class InputData(object):
     grouping  = 'CBM3' #'DPM10'
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
     t0, t_end = 1.e-12, 1.e-3           # Time limits for testing
-    mass_frac = True                    # Output data in mass fractions [Bool]
 
 
     ###########################################################################
@@ -51,11 +50,10 @@ class InputData(object):
 
     # Variables Dimensionality ------------------------------------------------
     dim = {
-            "u_dim": 4,     # Branch input dimensionality
+            "u_dim": 5,     # Branch input dimensionality
             "y_dim": 1,     # Trunk input dimensionality
             "G_dim": 4      # Data dimensionality
             }
-    if mass_frac: dim['u_dim'] += 1
 
     # Structure ---------------------------------------------------------------
     layer_size         = {
@@ -81,9 +79,6 @@ class InputData(object):
     # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
 
     # I/O Transformation ------------------------------------------------------
-    # output_fn = lay.Lambda(tf.math.exp, name='output_fn')
-    # branch_fn = lay.Lambda(tf.math.log, name='branch_fn')
-
     input_fn = {
                 "branch": lay.Lambda(lambda x: x, name='branch_fn'),
                 "trunk" : pro.layers.Scaling(init_scale=1.e7, name='trunk_fn')
@@ -101,7 +96,7 @@ class InputData(object):
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 1              # Number of testing cases
+    test_cases     = 0              # Number of testing cases
     test_training  = True           # Test training case
     period         = 1000            # Plotting frequency during training [epochs]
 
@@ -139,7 +134,6 @@ class InputData(object):
     var_names.append(r'$O$')
 
     # Axis --------------------------------------------------------------------
-    labels   = [r'$t\quad[s]$', r'$\rho\quad[kg/m^3]$']     # x, y labels
-    if mass_frac: labels[1] = r'$Y$'
-    scales   = ['log', 'linear']                            # x, y scales
+    labels   = [r'$t\quad[s]$', r'$Y$']         # x, y labels
+    scales   = ['log', 'linear']                # x, y scales
     log_plot = True

@@ -11,7 +11,7 @@ from . import initializers
 from . import regularizers
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='FFBlock')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='FFBlock')
 class FFBlock(lay.Layer):
     """Simple Feed-forward block."""
 
@@ -145,7 +145,7 @@ class FFBlock(lay.Layer):
 # --------------------------------------------------------------------------- #
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='Scaling')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='Scaling')
 class Scaling(lay.Layer):
 
     # Initialization

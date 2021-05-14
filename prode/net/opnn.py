@@ -10,7 +10,7 @@ from . import steps
 from .net import Net
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='OpNN')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='OpNN')
 class OpNN(Net):
     """Deep Operator neural network."""
 

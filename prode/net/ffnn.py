@@ -10,7 +10,7 @@ from . import steps
 from .net import Net
 
 
-@tf.keras.utils.register_keras_serializable(package='prode', name='FFNN')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='FFNN')
 class FFNN(Net):
     """Feed-Forward neural network."""
 
