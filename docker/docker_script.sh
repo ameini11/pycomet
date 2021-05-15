@@ -30,8 +30,8 @@ ENTRYPOINT ["python3"]
 EOF
 
 # Copy all the needed files/folders inside the local run directory ------------
-cp -r $(pwd)/../database .
-cp -r $(pwd)/../utils .
+cp -r $(pwd)/../../database .
+cp -r $(pwd)/../../utils .
 
 # Build the new image ---------------------------------------------------------
 docker build \
