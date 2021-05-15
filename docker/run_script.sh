@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =========================================================================== #
-# Run your python script inside `tf-docker`
+# Run python script
 # =========================================================================== #
 # Instructions
 # >> run this script with docker root privileges
@@ -30,7 +30,7 @@ cat << EOF > Dockerfile
 
 FROM ${parent}:${tag}
 
-WORKDIR /run${run_num}
+WORKDIR /home/run${run_num}
 
 COPY ./ ./
 
@@ -39,10 +39,6 @@ CMD ["main.py"]
 ENTRYPOINT ["python3"]
 
 EOF
-
-# Copy all the needed files/folders inside the local run directory ------------
-cp -r $(pwd)/../../database .
-cp -r $(pwd)/../../utils .
 
 # Build the new image ---------------------------------------------------------
 docker build \
@@ -55,7 +51,7 @@ docker build \
 docker run \
 	--gpus all \
 	--name run${run_num} \
-	-v "$(pwd)":/run${run_num} \
+	-v "$(pwd)":/home/run${run_num} \
 	-it \
 	--rm \
 	${name}:${tag}

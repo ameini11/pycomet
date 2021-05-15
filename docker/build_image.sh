@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =========================================================================== #
-# Build `prode` image in docker
+# Build `prode` docker image
 # =========================================================================== #
 # Instructions
 # >> run this script with docker root privileges
