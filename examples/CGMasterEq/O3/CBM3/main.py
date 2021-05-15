@@ -102,7 +102,7 @@ def main():
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.name, visualize_graph=False)
+    model = pro.model.Model(data, net, inp.name, visualize_graph=True)
 
     # Build Model -------------------------------------------------------------
     model.build()
