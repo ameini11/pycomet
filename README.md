@@ -24,7 +24,7 @@ All the components of PrODE are loosely coupled, and thus PrODE is well-structur
 
 ## Installation
 
-To install PrODE simply type the follwing commands:
+To install PrODE simply type the following commands in your Unix shell:
 
 ```
 $ git clone https://github.com/ivanZanardi/prode.git
@@ -47,7 +47,7 @@ $ ./installation/install.sh
 
 ## Use with Docker
 
-If you have downloaded a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), you can build an image of PrODE by following the instructions in `docker/build_image.sh` and then typing the follwing command:
+If you have downloaded a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), you can build an image of PrODE by following the instructions given in `docker/build_image.sh` and then typing the follwing command:
 
 ```
 $ ./docker/build_image.sh
