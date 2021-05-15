@@ -46,8 +46,8 @@ $ ./installation/install.sh
   - [tqdm](https://tqdm.github.io/)
 
 Install also external Ubuntu packages:
-  - [Graphviz](https://graphviz.org/)
-  - [FFmpeg](https://www.ffmpeg.org/)
+- [Graphviz](https://graphviz.org/)
+- [FFmpeg](https://www.ffmpeg.org/)
 
 ```
 $ sudo apt-get install graphviz ffmpeg

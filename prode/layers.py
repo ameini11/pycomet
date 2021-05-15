@@ -102,6 +102,8 @@ class FFBlock(lay.Layer):
     ###########################################################################
     def DenseBlock(self, number):
 
+        lay_name = 'hidden' + str(number-1)
+
         act_fun = self.activation
         bias    = True
         if self.batch_norm == "before":
@@ -109,14 +111,14 @@ class FFBlock(lay.Layer):
             bias    = False
 
         l = [ self.Dense(self.layer_size[number], activation=act_fun, \
-                         use_bias=bias, name='hidden_'+str(number-1)) ]
+                         use_bias=bias, name=lay_name) ]
 
         if self.batch_norm is not None:
-            bn = lay.BatchNormalization(name='hidden_batchNorm_'+str(number-1))
+            bn = lay.BatchNormalization(name=lay_name+'_batchNorm')
             l.append(bn)
 
         if self.dropout_rate > 0:
-            do = lay.Dropout(self.dropout_rate, name='hidden_dropout_'+str(number-1))
+            do = lay.Dropout(self.dropout_rate, name=lay_name+'_dropout')
             l.append(do)
 
         return l
