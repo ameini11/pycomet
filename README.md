@@ -31,13 +31,6 @@ $ git clone https://github.com/ivanZanardi/prode.git
 $ cd prode
 $ ./installation/install.sh
 ```
-Install also external Ubuntu packages:
-- [Graphviz](https://graphviz.org/)
-- [FFmpeg](https://www.ffmpeg.org/)
-
-```
-$ sudo apt-get install graphviz ffmpeg
-```
 
 - Dependencies
 
@@ -52,10 +45,13 @@ $ sudo apt-get install graphviz ffmpeg
   - [TensorFlow Addons](https://www.tensorflow.org/addons/)>=0.12.1
   - [tqdm](https://tqdm.github.io/)
 
+- Install also external Ubuntu packages:
+  - [Graphviz](https://graphviz.org/)
+  - [FFmpeg](https://www.ffmpeg.org/)
 
-
-sudo apt-get install graphviz
-sudo apt-get install ffmpeg
+```
+$ sudo apt-get install graphviz ffmpeg
+```
 
 ## Use with Docker
 
