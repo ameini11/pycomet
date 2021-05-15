@@ -45,7 +45,7 @@ $ ./installation/install.sh
   - [TensorFlow Addons](https://www.tensorflow.org/addons/)>=0.12.1
   - [tqdm](https://tqdm.github.io/)
 
-- Install also external Ubuntu packages:
+Install also external Ubuntu packages:
   - [Graphviz](https://graphviz.org/)
   - [FFmpeg](https://www.ffmpeg.org/)
 
