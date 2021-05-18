@@ -34,10 +34,14 @@ class FFNN(Net):
         self.layer_size          = layer_size
         self.activation          = activations.get(activation)
         self.kernel_initializer  = initializers.get(kernel_initializer)
-        self.regularizer         = regularizers.get(**regularization)
         self.dropout_rate        = dropout_rate
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
+
+        if regularization is not None:
+            self.regularizer = regularizers.get(**regularization)
+        else:
+            self.regularizer = regularization
 
         ### Layers Initialization ---------------------------------------------
         self.block = layers.FFBlock(

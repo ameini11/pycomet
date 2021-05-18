@@ -1,4 +1,5 @@
 import os
+import h5py
 import netron
 import numpy as np
 import pandas as pd
@@ -8,10 +9,12 @@ import tensorflow.keras.callbacks as CB
 from . import callbacks as callbacks_module
 from . import losses    as losses_module
 from . import metrics   as metrics_module
+from . import net       as net_module
 
 from .optimizers     import get_train_opt
 from .postprocessing import training_plots, testing_plots
-from .utils          import timing, kill_process
+from .utils          import timing, kill_process, get_class
+
 
 
 
@@ -25,8 +28,7 @@ class Model(object):
         net,
         name,
         path='./',
-        save_format='h5',
-        visualize_graph=False):
+        save_format='h5'):
 
         self.data = data
         self.net  = net
@@ -38,27 +40,26 @@ class Model(object):
         self.loss_pts  = None
         self.loss_res  = None
 
-        self.visualize_graph = visualize_graph
-
         # Define paths
-        self.train_dir = path+"/training"
-        self.ckpt_dir  = self.train_dir+"/ckpt"
-        self.TB_dir    = self.train_dir+"/logs"
-        self.post_dir  = path+"/postprocessing"
-        for dir_i in [self.train_dir, self.ckpt_dir, self.post_dir]:
+        self.save_dir  = path+"/saving/"
+        self.post_dir  = path+"/postprocessing/"
+        self.train_dir = path+"/training/"
+        self.ckpt_dir  = self.train_dir+"ckpt/"
+        self.TB_dir    = self.train_dir+"logs/"
+        for dir_i in [self.save_dir, self.ckpt_dir, self.post_dir, self.train_dir]:
             if not os.path.exists(dir_i):
                 os.makedirs(dir_i)
 
         # Define saving format
         self.save_format = save_format
-        self.save_path   = name
+        self.save_path   = self.save_dir + name
         if self.save_format == 'h5':
             self.save_path = self.save_path + '.h5'
 
 
     # ======================================================================= #
     @timing
-    def build(self):
+    def build(self, verbose=1, load_net=0, visualize_graph=False):
         print('\n[PrODE]: Building "',self.net.name,'" network ...', sep='')
 
         if self.net.name.startswith('func'):
@@ -75,50 +76,16 @@ class Model(object):
 
         # Visualize net/graph
         net_graph.summary()
-        if self.visualize_graph:
-            net_graph.save(self.name+'_struct.h5', save_format='h5')
-            netron.start(self.name+'_struct.h5')
+        if visualize_graph:
+            net_graph.save(self.save_dir+self.name+'_struct.h5', save_format='h5')
+            netron.start(self.save_dir+self.name+'_struct.h5')
             tf.keras.utils.plot_model(net_graph, self.train_dir+"/"+self.name+".png")
         
-        asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
-        if not asw.lower().startswith('y'):
-            print('[PrODE]:   All the processes will be stopped.\n')
-            kill_process()
-
-
-    # ======================================================================= #
-    @timing
-    def compile(
-        self,
-        optimizer,
-        lr=None,
-        loss="MSE",
-        metrics=None,
-        decay=None,
-        loss_weights=None,
-        load_net=0):
-        print('\n[PrODE]: Compiling "',self.net.name,'" network ...', sep='')
-
-        # Initializing the optimizer
-        self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
-
-        # Initializing the loss functions
-        if isinstance(loss, dict):
-            self.loss_pts = losses_module.get(loss['pts'])
-            self.loss_res = losses_module.get(loss['res']) if loss['res'] is not None else None
-        else:
-            raise ValueError("[PrODE]:   Losses have to be defined as a 'dict()'.")
-
-        if self.loss_res is not None and self.data.ode_func is not None:
-            self.net.add_residual_loss(self.data.residual_loss(self.loss_res))
-
-        # Defining metrics
-        if metrics is not None:
-            self.metrics = [ metrics_module.get(m) for m in metrics ]
-
-        # Compiling
-        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
-                         metrics=self.metrics, loss_weights=loss_weights)
+        if verbose:
+            asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
+            if not asw.lower().startswith('y'):
+                print('[PrODE]:   All the processes will be stopped.\n')
+                kill_process()
 
         # Load network weights
         self.make_or_restore(load_net)
@@ -150,6 +117,40 @@ class Model(object):
                 "   >> 0: making new network;\n"
                 "   >> 1: restoring network from saved one (with same name);\n"
                 "   >> 2: restoring network from last checkpoint.")
+
+
+    # ======================================================================= #
+    @timing
+    def compile(
+        self,
+        optimizer,
+        lr=None,
+        loss="MSE",
+        metrics=None,
+        decay=None,
+        loss_weights=None):
+        print('\n[PrODE]: Compiling "',self.net.name,'" network ...', sep='')
+
+        # Initializing the optimizer
+        self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
+
+        # Initializing the loss functions
+        if isinstance(loss, dict):
+            self.loss_pts = losses_module.get(loss['pts'])
+            self.loss_res = losses_module.get(loss['res']) if loss['res'] is not None else None
+        else:
+            raise ValueError("[PrODE]:   Losses have to be defined as a 'dict()'.")
+
+        if self.loss_res is not None and self.data.ode_func is not None:
+            self.net.add_residual_loss(self.data.residual_loss(self.loss_res))
+
+        # Defining metrics
+        if metrics is not None:
+            self.metrics = [ metrics_module.get(m) for m in metrics ]
+
+        # Compiling
+        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
+                         metrics=self.metrics, loss_weights=loss_weights)
 
 
     # ======================================================================= #
@@ -234,8 +235,13 @@ class Model(object):
     # ======================================================================= #
     @timing
     def save(self):
-        print('\n[PrODE]: Saving model weights ...')
+        print('\n[PrODE]: Saving model ...')
         self.net.save_weights(self.save_path, overwrite=True, save_format=self.save_format)
+
+        dset = h5py.File(self.save_dir+self.name+'_weights.h5','w')
+        for w in self.net.trainable_weights:
+            dset.create_dataset(w.name, data=w.numpy())
+        dset.close()
 
 
     # ======================================================================= #

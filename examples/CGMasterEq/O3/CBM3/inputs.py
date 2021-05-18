@@ -81,7 +81,8 @@ class InputData(object):
     # I/O Transformation ------------------------------------------------------
     input_fn = {
                 "branch": lay.Lambda(lambda x: x, name='branch_fn'),
-                "trunk" : pro.layers.Scaling(init_scale=1.e7, name='trunk_fn')
+                "trunk" : pro.layers.Scaling(init_scale=1.e7, name='trunk_fn', \
+                                             trainable=False)
                 }
     output_fn = lay.Softmax(axis=-1, name='output_fn')
 
@@ -108,7 +109,7 @@ class InputData(object):
     batch_size   = 128
 
     optimizer    = 'adam' 
-    lr           = 1.e-4
+    lr           = 5.e-4
 
     # Learning rate scheduler -------------------------------------------------
     decay_epochs = 5000
@@ -117,7 +118,7 @@ class InputData(object):
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'MALPE', 'res': 'mse'} # [ 'MSE', 'MALPE', 'MSLE', 'MSLPE' ] 
+    loss         = {'pts': 'MALPE', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics      = ['MALPE']
 
     # Early Stopping Callback -------------------------------------------------

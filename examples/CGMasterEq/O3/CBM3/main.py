@@ -3,10 +3,12 @@
 
 NUM_THREADS = 16
 DTYPE       = 'float64'
+EPSILON     = 1.e-30
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 tf.keras.backend.set_floatx(DTYPE)
+tf.keras.backend.set_epsilon(EPSILON)
 tf.config.threading.set_inter_op_parallelism_threads(NUM_THREADS)
 tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
 
@@ -83,7 +85,6 @@ def main():
     if inp.regularization['name'] == 'fine_tuning':
         # Load weights from pretrained model
         pass
-        # inp.regularization.update({'weights_SP': model.net.trainable_weights})
     net = pro.utils.get_class(pro.net, inp.nn_name)(
         inp.dim,
         inp.layer_size,
@@ -102,14 +103,14 @@ def main():
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.name, visualize_graph=True)
+    model = pro.model.Model(data, net, inp.name)
 
     # Build Model -------------------------------------------------------------
-    model.build()
+    model.build(load_net=inp.load_flg, visualize_graph=False)
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
-                  decay=inp.decay, loss_weights=None, load_net=inp.load_flg)
+                  decay=inp.decay, loss_weights=None)
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:

@@ -1,3 +1,4 @@
+import h5py
 import tensorflow as tf
 import tensorflow.keras.regularizers as reg
 
@@ -37,15 +38,15 @@ class FineTuningRegularizer(reg.L1L2):
 
         self.name = name
 
-        # List of weights of pre-trained model: Starting Point in fine-tuning
-                # inp.regularization.update({'weights_SP': model.net.trainable_weights})
-
-        self.weights_SP = weights_SP
         if weights_SP is not None:
-            self.weights_SP_names = [w.name for w in weights_SP]
+            if not h5py.is_hdf5(weights_SP):
+                raise ValueError('[PrODE]: The `weights_SP` argument of '
+                                 '`FineTuningRegularizer` has to be an hdf5 file.')
+            self.weights_SP = h5py.File(weights_SP,'r')
         else:
             print("\n[PrODE]: Warning! `FineTuningRegularizer` is not given "
                   "any Starting Point weights `weights_SP`.")
+            self.weights_SP = None
 
 
     # Configuration update
@@ -67,7 +68,6 @@ class FineTuningRegularizer(reg.L1L2):
     # Calling
     ###########################################################################
     def __call__(self, x):
-        if self.weights_SP is not None and x.name in self.weights_SP_names:
-            idx = self.weights_SP_names.index(x.name)
-            x = x - self.weights_SP[idx]
+        if self.weights_SP is not None and x.name in self.weights_SP:
+            x = x - self.weights_SP.get(x.name).value
         return super(FineTuningRegularizer, self).__call__(x)

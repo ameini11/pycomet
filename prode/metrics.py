@@ -12,14 +12,14 @@ def get(identifier):
         "mape":     met.MeanAbsolutePercentageError(),
         "mse":      met.MeanSquaredError(),
         "msle":     met.MeanSquaredLogarithmicError(),
-        "rmse":     met.RootMeanSquaredError(),
-        "MALPE":    losses_module.mean_absolute_log_percentage_error,
-        "MSLE":     losses_module.mean_squared_logarithmic_error,
-        "MSLPE":    losses_module.mean_squared_log_percentage_error
+        "rmse":     met.RootMeanSquaredError()
     }
 
     if isinstance(identifier, str):
-        return metric_identifier[identifier]
+        try:
+            return metric_identifier[identifier]
+        except:
+            return losses_module.get(identifier)
     elif callable(identifier):
         return identifier
     else:

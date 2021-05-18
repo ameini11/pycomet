@@ -50,15 +50,19 @@ class OpNN(Net):
         else:
             self.act_branch = self.act_trunk = activations.get(activation)
 
-        self.kernel_initializer = initializers.get(kernel_initializer)
-        self.regularizer        = regularizers.get(**regularization)
-        self.dropout_rate       = dropout_rate
+        if regularization is not None:
+            self.regularizer = regularizers.get(**regularization)
+        else:
+            self.regularizer = regularization
 
         if isinstance(batch_norm, dict):
             self.batch_norm_branch = batch_norm["branch"]
             self.batch_norm_trunk  = batch_norm["trunk"]
         else:
             self.batch_norm_branch = self.batch_norm_trunk = batch_norm
+
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.dropout_rate = dropout_rate
 
         self.weight_norm   = weight_norm
         self.use_end_scale = use_end_scale
@@ -192,4 +196,3 @@ class OpNN(Net):
         x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
         x   = [x_u, x_y]
         return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)
-        

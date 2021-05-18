@@ -46,7 +46,7 @@ def main_decorator(f):
         print(" Eager execution:    {}".format(tf.executing_eagerly()))
         print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
         print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
-        print(" Number of threads:  {}".format(num_threads))
+        print(" Threads num set:    {}".format(num_threads))
         print("--------------------------------------------------------------------------------------------------")
         result = f(*args, **kwargs)
         print('\n[PrODE]: END')
