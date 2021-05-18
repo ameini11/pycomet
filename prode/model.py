@@ -1,6 +1,7 @@
 import os
 import h5py
 import netron
+import tables
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -10,10 +11,10 @@ from . import callbacks as callbacks_module
 from . import losses    as losses_module
 from . import metrics   as metrics_module
 from . import net       as net_module
+from . import utils
 
 from .optimizers     import get_train_opt
 from .postprocessing import training_plots, testing_plots
-from .utils          import timing, kill_process, get_class
 
 
 
@@ -58,7 +59,7 @@ class Model(object):
 
 
     # ======================================================================= #
-    @timing
+    @utils.timing
     def build(self, verbose=1, load_net=0, visualize_graph=False):
         print('\n[PrODE]: Building "',self.net.name,'" network ...', sep='')
 
@@ -76,16 +77,20 @@ class Model(object):
 
         # Visualize net/graph
         net_graph.summary()
-        if visualize_graph:
-            net_graph.save(self.save_dir+self.name+'_struct.h5', save_format='h5')
-            netron.start(self.save_dir+self.name+'_struct.h5')
-            tf.keras.utils.plot_model(net_graph, self.train_dir+"/"+self.name+".png")
-        
         if verbose:
-            asw = input('\n[PrODE]: Is the model structure correct? [y/n] ')
+            if visualize_graph:
+                file_name = self.save_dir+self.name+'_struct.h5'
+                net_graph.save(file_name, save_format='h5')
+                print('[PrODE]:   ', end=''); netron.start(file_name)
+                tf.keras.utils.plot_model(net_graph, self.train_dir+"/"+self.name+".png")
+        
+            asw = input('\n[PrODE]:   Is the model structure correct? [y/n] ')
             if not asw.lower().startswith('y'):
                 print('[PrODE]:   All the processes will be stopped.\n')
-                kill_process()
+                utils.kill_process()
+
+            if visualize_graph:
+                print('[PrODE]:   ', end=''); netron.stop()
 
         # Load network weights
         self.make_or_restore(load_net)
@@ -120,7 +125,7 @@ class Model(object):
 
 
     # ======================================================================= #
-    @timing
+    @utils.timing
     def compile(
         self,
         optimizer,
@@ -154,7 +159,7 @@ class Model(object):
 
 
     # ======================================================================= #
-    @timing
+    @utils.timing
     def fit(
         self,
         epochs=1,
@@ -233,19 +238,24 @@ class Model(object):
 
 
     # ======================================================================= #
-    @timing
+    @utils.timing
     def save(self):
         print('\n[PrODE]: Saving model ...')
+        utils.close_all_hdf5()
+
+        # Save weights
         self.net.save_weights(self.save_path, overwrite=True, save_format=self.save_format)
 
-        dset = h5py.File(self.save_dir+self.name+'_weights.h5','w')
+        # Save trainable weights (see `FineTuningRegularizer')
+        file_name = self.save_dir+self.name+'_weights.h5'
+        dset = h5py.File(file_name,'w')
         for w in self.net.trainable_weights:
             dset.create_dataset(w.name, data=w.numpy())
         dset.close()
 
 
     # ======================================================================= #
-    @timing
+    @utils.timing
     def visualize_training(self, history=None):
         print('\n[PrODE]: Postprocessing training quantities ...')
         if history is None:

@@ -82,9 +82,6 @@ def main():
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    if inp.regularization['name'] == 'fine_tuning':
-        # Load weights from pretrained model
-        pass
     net = pro.utils.get_class(pro.net, inp.nn_name)(
         inp.dim,
         inp.layer_size,

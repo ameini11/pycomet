@@ -1,7 +1,10 @@
 import h5py
+import hdfdict
+import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.regularizers as reg
 
+from pandas.io.json._normalize import nested_to_record
 
 
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
@@ -54,9 +57,8 @@ class FineTuningRegularizer(reg.L1L2):
     def get_config(self):
         config = super().get_config().copy()
         config.update({
-            'name':             self.name,
-            'weights_SP':       self.weights_SP,
-            'weights_SP_names': self.weights_SP_names
+            'name':       self.name,
+            'weights_SP': self.weights_SP
             })
         return config
 
@@ -69,5 +71,5 @@ class FineTuningRegularizer(reg.L1L2):
     ###########################################################################
     def __call__(self, x):
         if self.weights_SP is not None and x.name in self.weights_SP:
-            x = x - self.weights_SP.get(x.name).value
+            x = x - self.weights_SP[x.name][()]
         return super(FineTuningRegularizer, self).__call__(x)

@@ -1,5 +1,7 @@
 import os
+import gc
 import sys
+import h5py
 import time
 import signal
 import inspect
@@ -58,6 +60,16 @@ def main_decorator(f):
 def kill_process():
     """Send terminating signal to job `pid`."""
     os.kill(os.getpid(), signal.SIGTERM)
+
+
+def close_all_hdf5():
+    """Close all opened hdf5 files."""
+    for obj in gc.get_objects():        # Browse through all objects
+        if isinstance(obj, h5py.File):  # Just HDF5 files
+            try:
+                obj.close()
+            except:
+                pass
 
 
 def get_class(module, name):

@@ -65,10 +65,11 @@ class InputData(object):
                             "trunk":  'sigmoid'
                             }
     regularization     = {
-                            'name':       'l1+l2',
+                            # 'name':       'l1+l2',
+                            'name':       'fine_tuning',
                             'l1':         1.e-4,
                             'l2':         1.e-4,
-                            'weights_SP': None      # Only for `FineTuningRegularizer`
+                            'weights_SP': './saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
                             }
     batch_norm         = {
                             "branch": None,
