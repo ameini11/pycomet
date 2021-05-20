@@ -15,6 +15,7 @@ tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
 # *************************************************************************** #
 
 import sys
+import pandas as pd
 import numpy as np
 from tensorflow.keras import callbacks
 
@@ -65,17 +66,35 @@ def main():
     data_train, data_valid = dataGen.training_data(ic[0])
     if inp.test_flg > 0 and inp.test_cases > 0:
         data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
+    if not inp.from_saved_data:
+        data_train, data_valid = dataGen.training_data(ic[0])
+        x_train = [data_train[1], data_train[2]]
+        y_train = data_train[3]
+        x_valid = [data_valid[1], data_valid[2]]
+        y_valid = data_valid[3]
+        sample_weight = data_train[4]
+    else:
+        data_train = pd.read_csv(inp.data_train_file,sep=',',header=None).values
+        data_valid = pd.read_csv(inp.data_valid_file,sep=',',header=None).values
+        x_train = [data_train[:, 1:6], data_train[:, 6:7]]
+        y_train = data_train[:, 7:11]
+        x_valid = [data_valid[:, 1:6], data_valid[:, 6:7]]
+        y_valid = data_valid[:, 7:11]
+        sample_weight = data_train[:, 11:12]
+
+    if not inp.use_ohe:
+        sample_weight = None
 
     # Initialize Data ---------------------------------------------------------
     data = pro.data.ODE(
         ode_func=ode,
         ode_order=1,
         ode_params=dataGen.ODE_mat,
-        x_train=[data_train[1], data_train[2]],
-        y_train=data_train[3],
-        # sample_weight=data_train[4],
-        x_valid=[data_valid[1], data_valid[2]],
-        y_valid=data_valid[3])
+        x_train=x_train,
+        y_train=y_train,
+        sample_weight=sample_weight,
+        x_valid=x_valid,
+        y_valid=y_valid)
 
 
     ###########################################################################
@@ -103,7 +122,7 @@ def main():
     model = pro.model.Model(data, net, inp.name)
 
     # Build Model -------------------------------------------------------------
-    model.build(load_net=inp.load_flg, visualize_graph=False)
+    model.build(verbose=1, load_net=inp.load_flg, visualize_graph=False)
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,

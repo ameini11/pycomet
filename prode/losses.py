@@ -14,7 +14,7 @@ def mean_absolute_log_percentage_error(y_true, y_pred):
     y_pred = math_ops.log(K.maximum(y_pred, K.epsilon()))
     y_true = math_ops.log(K.maximum(y_true, K.epsilon()))
     err    = math_ops.abs((y_true - y_pred) / y_true)
-    return 100. * tf.reduce_sum(tf.reduce_mean(err, axis=0))
+    return 100. * tf.reduce_sum(tf.reduce_mean(err, axis=-1))
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MAPE')
 def mean_absolute_percentage_error(y_true, y_pred):

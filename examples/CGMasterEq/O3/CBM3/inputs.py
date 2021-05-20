@@ -76,8 +76,8 @@ class InputData(object):
                             "trunk": 'before'
                             }
     dropout_rate       = 0
-    kernel_initializer = "GlorotNormal"
     # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
+    kernel_initializer = "GlorotNormal"
 
     # I/O Transformation ------------------------------------------------------
     input_fn = {
@@ -91,6 +91,11 @@ class InputData(object):
     ###########################################################################
     ### Data
     ###########################################################################
+    from_saved_data = True
+    data_train_file = './data/train_data.csv'
+    data_valid_file = './data/valid_data.csv'
+    use_ohe         = False
+
     # Training ----------------------------------------------------------------
     train_cases    = 1            # Number of training cases
     train_pts      = 160            # Number of total training pts for each case
@@ -109,7 +114,7 @@ class InputData(object):
     epochs       = 100
     batch_size   = 128
 
-    optimizer    = 'adam' 
+    optimizer    = 'adam'
     lr           = 5.e-4
 
     # Learning rate scheduler -------------------------------------------------

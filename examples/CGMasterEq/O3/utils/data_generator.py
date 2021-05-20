@@ -201,9 +201,9 @@ class DataGenerator(object):
             data_i = get_data(idx)
             if eval_f:
                 data_i.append(f_rhs)
-            # if data_id == 'train':
-            #     ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-2), [0])), 1).numpy()
-            #     data_i.append(ohe_i)
+            if data_id == 'train':
+                ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-1))), 1).numpy()
+                data_i.append(ohe_i)
 
             # marker_style = dict(marker='o', lw=0.5, ls='none', \
             #                     fillstyle='full', markersize=2)
@@ -222,10 +222,10 @@ class DataGenerator(object):
         data_valid = shuffle(*data['valid'])
 
         # Save data in a `.csv` file
-        pd.DataFrame(np.hstack(tuple(data_train)) \
-            ).to_csv(self.data_dir+"train_data.csv", index=False, header=None)
-        pd.DataFrame(np.hstack(tuple(data_valid)) \
-            ).to_csv(self.data_dir+"valid_data.csv", index=False, header=None)
+        pd.DataFrame(np.hstack(tuple(data_train))).to_csv( \
+            self.data_dir+"train_data.csv", index=False, header=None)
+        pd.DataFrame(np.hstack(tuple(data_valid))).to_csv( \
+            self.data_dir+"valid_data.csv", index=False, header=None)
 
         return data_train, data_valid
 
