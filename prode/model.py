@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.callbacks as CB
+import tensorboard_plugin_profile
 
 from . import callbacks as callbacks_module
 from . import losses    as losses_module
@@ -15,8 +16,6 @@ from . import utils
 
 from .optimizers     import get_train_opt
 from .postprocessing import training_plots, testing_plots
-
-
 
 
 class Model(object):
@@ -143,8 +142,11 @@ class Model(object):
         if isinstance(loss, dict):
             self.loss_pts = losses_module.get(loss['pts'])
             self.loss_res = losses_module.get(loss['res']) if loss['res'] is not None else None
+        elif isinstance(loss, str):
+            self.loss_pts = losses_module.get(loss)
+            self.loss_res = None
         else:
-            raise ValueError("[PrODE]:   Losses have to be defined as a 'dict()'.")
+            raise ValueError("[PrODE]:   Losses have to be defined as a `dict` or a `str`.")
 
         if self.loss_res is not None and self.data.ode_func is not None:
             self.net.add_residual_loss(self.data.residual_loss(self.loss_res))
@@ -166,16 +168,17 @@ class Model(object):
         batch_size=None,
         callbacks=[],
         validation_split=0.2,
-        validation_data=None):
+        validation_data=None,
+        profile_batch=0):
         print('\n[PrODE]: Training the model ...')
 
         # Defining callbacks
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/weights_{epoch:06d}.h5", \
                 monitor='val_loss', save_best_only=True, save_weights_only=True)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
-                write_graph=True, write_images=True)
+                write_graph=True, write_images=True, profile_batch=profile_batch)
         LR = callbacks_module.LearningRateTracker(file=self.train_dir+'/lr.csv', \
-                log_dir=self.TB_dir, verbose=True)
+                log_dir=self.TB_dir, verbose=1)
         callbacks.extend([MC, TB, LR])
 
         # Defining train/valid pts

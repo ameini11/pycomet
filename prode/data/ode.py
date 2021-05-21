@@ -28,6 +28,30 @@ class ODE(DataSet):
         self.grad_fn    = gradients.get_grad_fn(ode_order)
 
 
+    # def residual_loss(self, loss):
+    #     '''Residual loss function definition.'''
+
+    #     def res_loss_fn(model, inputs, training=True):
+
+    #         if self.input_is_list:
+    #             ic, t = inputs[0], inputs[1]
+    #         else:
+    #             ic, t = tf.split(inputs, [inputs.shape[1]-1, 1], axis=1)
+
+    #         # Evaluate gradients
+    #         grads    = self.grad_fn(self.input_is_list, model, ic, t, training)
+    #         y_pred   = grads[0]     # Zero-order gradient
+
+    #         # Evaluate residual
+    #         res_pred = self.ode_func(ic, t, grads, self.ode_params)
+    #         res_true = tf.zeros_like(res_pred)
+    #         res_loss = loss(res_true, res_pred)
+
+    #         return y_pred, res_loss
+        
+    #     return res_loss_fn
+
+
     def residual_loss(self, loss):
         '''Residual loss function definition.'''
 
@@ -39,8 +63,10 @@ class ODE(DataSet):
                 ic, t = tf.split(inputs, [inputs.shape[1]-1, 1], axis=1)
 
             # Evaluate gradients
-            grads    = self.grad_fn(self.input_is_list, model, ic, t, training)
-            y_pred   = grads[0]     # Zero-order gradient
+            grads_init = tf.TensorArray(tf.float64, size=0, dynamic_size=True, \
+                            clear_after_read=False, tensor_array_name='grads')
+            grads      = self.grad_fn(grads_init, self.input_is_list, model, ic, t, training)
+            y_pred     = grads.read(0)     # Zero-order gradient
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads, self.ode_params)

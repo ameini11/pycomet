@@ -39,7 +39,7 @@ class InputData(object):
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
-    MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
+    MEq_mat   = {'excit': 1, 'diss': 0, 'recomb': 0}    # Processes Activator
     t0, t_end = 1.e-12, 1.e-3           # Time limits for testing
 
 
@@ -65,15 +65,15 @@ class InputData(object):
                             "trunk":  'sigmoid'
                             }
     regularization     = {
-                            # 'name':       'l1+l2',
-                            'name':       'fine_tuning',
+                            'name':       'l1+l2',
+                            # 'name':       'fine_tuning',
                             'l1':         1.e-4,
                             'l2':         1.e-4,
                             'weights_SP': './saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
                             }
     batch_norm         = {
                             "branch": None,
-                            "trunk": 'before'
+                            "trunk":  None
                             }
     dropout_rate       = 0
     # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
@@ -91,45 +91,45 @@ class InputData(object):
     ###########################################################################
     ### Data
     ###########################################################################
-    from_saved_data = True
+    from_saved_data = False
     data_train_file = './data/train_data.csv'
     data_valid_file = './data/valid_data.csv'
-    use_ohe         = False
+    use_ohe         = True
 
     # Training ----------------------------------------------------------------
     train_cases    = 1            # Number of training cases
-    train_pts      = 160            # Number of total training pts for each case
+    train_pts      = 320            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
     test_cases     = 1              # Number of testing cases
-    test_training  = True           # Test training case
+    test_training  = False           # Test training case
     period         = 1000            # Plotting frequency during training [epochs]
 
 
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 100
-    batch_size   = 128
+    epochs       = 100000
+    batch_size   = 256
 
     optimizer    = 'adam'
-    lr           = 5.e-4
+    lr           = 1.e-3
 
     # Learning rate scheduler -------------------------------------------------
-    decay_epochs = 5000
+    decay_epochs = 1000
     decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
-    decay        = ["exponential", decay_steps, 0.98]
+    decay        = ["exponential", decay_steps, 0.9]
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'MALPE', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ] 
+    loss         = {'pts': 'MALPE', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ] 
     metrics      = ['MALPE']
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
-    patience     = 20000
+    patience     = 50000
     monitor      = 'val_loss'
 
 

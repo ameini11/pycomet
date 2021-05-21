@@ -1,10 +1,7 @@
 import h5py
-import hdfdict
 import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.regularizers as reg
-
-from pandas.io.json._normalize import nested_to_record
 
 
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):

@@ -1,0 +1,155 @@
+# *************************************************************************** #
+# Tensorflow/Keras set up
+
+NUM_THREADS = 16
+DTYPE       = 'float64'
+EPSILON     = 1.e-30
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import tensorflow as tf
+tf.keras.backend.set_floatx(DTYPE)
+tf.keras.backend.set_epsilon(EPSILON)
+tf.config.threading.set_inter_op_parallelism_threads(NUM_THREADS)
+tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
+
+# *************************************************************************** #
+
+import sys
+import pandas as pd
+import numpy as np
+from tensorflow.keras import callbacks
+
+# Remove the following line if you install `prode` as a Python package --------
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/'))
+# -----------------------------------------------------------------------------
+import prode as pro
+
+from inputs import InputData as inp
+sys.path.append(inp.utils_path)
+from data_generator import DataGenerator
+
+
+def ode(ic, t, grads, params):
+
+    # Getting Rate Coefficient matrices
+    K = tf.transpose(params)
+
+    # Rearranging variables
+    # Y, dY_dt = [ grad for grad in grads ]
+    Y, dY_dt = grads.read(0), grads.read(1)
+
+    return dY_dt - tf.matmul(Y, K)
+
+
+@pro.utils.main_decorator
+def main():
+
+    ###########################################################################
+    ### Data
+    ###########################################################################
+    # Generate Data -----------------------------------------------------------
+    dataGen = DataGenerator(inp)
+    ic      = dataGen.initial_cond()
+    if inp.test_flg > 0 and inp.test_cases > 0:
+        data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
+    if not inp.from_saved_data:
+        data_train, data_valid = dataGen.training_data(ic[0])
+        x_train = [data_train[0], data_train[1]]
+        y_train = data_train[2]
+        x_valid = [data_valid[0], data_valid[1]]
+        y_valid = data_valid[2]
+        sample_weight = data_train[3]
+    else:
+        data_train = pd.read_csv(inp.data_train_file,sep=',',header=None).values
+        data_valid = pd.read_csv(inp.data_valid_file,sep=',',header=None).values
+        x_train = [data_train[:, 1:6], data_train[:, 6:7]]
+        y_train = data_train[:, 7:11]
+        x_valid = [data_valid[:, 1:6], data_valid[:, 6:7]]
+        y_valid = data_valid[:, 7:11]
+        sample_weight = data_train[:, 11:12]
+
+    if not inp.use_ohe:
+        sample_weight = None
+
+    # Initialize Data ---------------------------------------------------------
+    data = pro.data.ODE(
+        ode_func=ode,
+        ode_order=1,
+        ode_params=dataGen.ODE_mat,
+        x_train=x_train,
+        y_train=y_train,
+        sample_weight=sample_weight,
+        x_valid=x_valid,
+        y_valid=y_valid)
+
+
+    ###########################################################################
+    ### Network
+    ###########################################################################
+    # Initialize Network ------------------------------------------------------
+    net = pro.utils.get_class(pro.net, inp.nn_name)(
+        inp.dim,
+        inp.layer_size,
+        inp.activation,
+        inp.kernel_initializer,
+        regularization=inp.regularization,
+        dropout_rate=inp.dropout_rate,
+        batch_norm=inp.batch_norm)
+
+    # Apply I/O Transformation ------------------------------------------------
+    net.apply_input_transform(inp.input_fn)
+    net.apply_output_transform(inp.output_fn)
+
+
+    ###########################################################################
+    ### Model
+    ###########################################################################
+    # Initialize Model --------------------------------------------------------
+    model = pro.model.Model(data, net, inp.name)
+
+    # Build Model -------------------------------------------------------------
+    model.build(verbose=1, load_net=inp.load_flg, visualize_graph=False)
+
+    # Compile Model -----------------------------------------------------------
+    model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
+                  decay=inp.decay, loss_weights=None)
+
+    # Fit Model ---------------------------------------------------------------
+    if inp.train_flg > 0:
+        ES = callbacks.EarlyStopping(monitor=inp.monitor,
+                                     min_delta=inp.min_delta,
+                                     patience=inp.patience,
+                                     restore_best_weights=True,
+                                     verbose=1)
+        cb_list = [ES]
+
+        if inp.plot_flg == 2:
+            PL = pro.callbacks.Plotter(data_test, inp.var_names, inp.labels,
+                                       inp.scales, inp.log_plot,
+                                       model.train_dir, inp.period)
+            cb_list.append(PL)
+
+        model.fit(epochs=inp.epochs, batch_size=inp.batch_size, callbacks=cb_list)
+
+    # Save Model ---------------------------------------------------------------
+    if inp.save_flg > 0:
+        model.save()
+
+
+    ###########################################################################
+    ### Postprocessing
+    ###########################################################################
+    # Training phase ----------------------------------------------------------
+    model.visualize_training(model.train_dir+'/history.csv')
+
+    # Testing phase -----------------------------------------------------------
+    if inp.test_cases > 0 and inp.test_flg > 0:
+        plot_style = dict(plotting=inp.plot_flg, var_names=inp.var_names, labels=inp.labels)
+        for i, test_i in enumerate(data_test):
+            model.predict(test_i, test_case_num=i, scales=inp.scales, **plot_style)
+            if inp.log_plot:
+                model.predict(test_i, test_case_num=i, scales=['log', 'log'], **plot_style)
+            
+
+if __name__ == "__main__":
+    main()

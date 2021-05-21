@@ -41,7 +41,8 @@ def ode(ic, t, grads, params):
     K_e, K_d, K_r = [ tf.transpose(params[T][name]) for name in params[T] ]
 
     # Rearranging variables
-    Y, dY_dt = [ grad * mass for grad in grads ]
+    # Y, dY_dt = [ grad * mass for grad in grads ]
+    Y, dY_dt = grads.read(0) * mass, grads.read(1) * mass
     Y_O      = tf.split(Y, Y.shape[1], axis=1)[-1]
 
     # Computing Residuals - Master Equation
@@ -63,7 +64,6 @@ def main():
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
     ic      = dataGen.initial_cond()
-    data_train, data_valid = dataGen.training_data(ic[0])
     if inp.test_flg > 0 and inp.test_cases > 0:
         data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
     if not inp.from_saved_data:

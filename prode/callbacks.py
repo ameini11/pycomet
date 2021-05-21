@@ -111,7 +111,7 @@ class LRPiecewiseConstantDecay(CB.Callback):
 class LearningRateTracker(CB.Callback):
     """Learning rate tracker."""
 
-    def __init__(self, file=None, log_dir=None, verbose=True):
+    def __init__(self, file=None, log_dir=None, verbose=1):
         super(LearningRateTracker, self).__init__()
 
         self.log_dir = log_dir
