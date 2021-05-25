@@ -52,8 +52,8 @@ class InputData(object):
 
     # Structure ---------------------------------------------------------------
     layer_size         = {
-                            "branch": [dim['u_dim'], 16, 16, 16],
-                            "trunk":  [dim['y_dim'], 16, 16, 16]
+                            "branch": [dim['u_dim'], 16, 16, 8],
+                            "trunk":  [dim['y_dim'], 16, 16, 8]
                             }
     activation         = {
                             "branch": 'tanh',
@@ -87,7 +87,7 @@ class InputData(object):
 
     # Training ----------------------------------------------------------------
     train_cases    = 1            # Number of training cases
-    train_pts      = 320            # Number of total training pts for each case
+    train_pts      = 160            # Number of total training pts for each case
     valid          = 0.2            # % of Validation pts for each case
     train_pts_dist = 'uniform'      # Training pts distribution
 
@@ -101,20 +101,20 @@ class InputData(object):
     ### Training
     ###########################################################################
     epochs       = 100000
-    batch_size   = 64
+    batch_size   = 128
 
     optimizer    = 'adam'
     lr           = 5.e-3
 
     # Learning rate scheduler -------------------------------------------------
-    decay_epochs = 1000
+    decay_epochs = 2000
     decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
-    decay        = ["exponential", decay_steps, 0.97]
+    decay        = ["exponential", decay_steps, 0.98]
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'mse', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ] 
-    metrics      = ['mse']
+    loss         = {'pts': 'mse', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ] 
+    metrics      = ['MSE']
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
