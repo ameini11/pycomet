@@ -16,52 +16,39 @@ class DataSet(Data):
         self,
         x_train=None,
         y_train=None,
-        sample_weight=None,
         x_valid=None,
         y_valid=None,
-        sample_weight_val=None,
         x_test=None,
         y_test=None,
-        fname_train=None,
-        fname_valid=None,
-        fname_test=None,
+        file_train=None,
+        file_valid=None,
+        file_test=None,
         col_x=None,
-        col_y=None,
-        standardize=False
-    ):
+        col_y=None):
+        super(DataSet, self).__init__()
         if x_train is not None:
-            self.train_x, self.train_y, self.sample_weight = x_train, y_train, sample_weight
-            self.valid_x, self.valid_y, self.sample_weight_val = x_valid, y_valid, sample_weight_val
-            self.test_x,  self.test_y  = x_test,  y_test
+            self.train = x_train, y_train
+            self.valid = x_valid, y_valid
+            self.test  = x_test,  y_test
         elif fname_train is not None:
-            self.train_x, self.train_y = self.load_filedata(fname_train, col_x, col_y)
-            self.valid_x, self.valid_y = self.load_filedata(fname_valid, col_x, col_y)
-            self.test_x,  self.test_y  = self.load_filedata(fname_test,  col_x, col_y)
+            self.train = self.load_data(file_train, col_x, col_y)
+            self.valid = self.load_data(file_valid, col_x, col_y)
+            self.test  = self.load_data(file_test,  col_x, col_y)
         else:
-            raise ValueError("[PrODE]: No training data passed into `data`.")
+            raise ValueError("[PrODE]: No training data passed into `{}`.".format(self.__name__))
 
-        self.scaler_x = None
-        if standardize:
-            self._standardize()
-
-    def load_filedata(self, filename, col_x, col_y):
+    def load_data(self, filename, col_x, col_y):
         if filename is None:
             return None, None
+        if col_x is None or col_y is None:
+            raise ValueError('[PrODE]: In `{}` you have to provide `col_x` and '
+                '`col_y` to extract data from file.'.format(self.__name__))
+        data = pd.read_csv(filename, sep=',', header=None).values
+        y_data = data[:, col_y[0]:col_y[1]]
+        if any(isinstance(i, list) for i in col_x):
+            x_data = []
+            for i in range(len(col_x)):
+                x_data.append(data[:, col_x[i][0]:col_x[i][1]])
         else:
-            data = np.loadtxt(filename)
-            return data[:, col_x], data[:, col_y]
-
-    def transform_inputs(self, x):
-        if self.scaler_x is None:
-            return x
-        return list(map(lambda scaler, xi: scaler.transform(xi), self.scaler_x, x))
-
-    def _standardize(self):
-        def standardize_one(x, *args):
-            scaler = preprocessing.StandardScaler(with_mean=True, with_std=True)
-            x = scaler.fit_transform(x)
-            var = [ scaler.transform(arg) if arg is not None else None for arg in args ]
-            return scaler, x, var
-
-        self.scaler_x, self.train_x, self.valid_x, self.test_x = \
-                    standardize_one(self.train_x, self.valid_x, self.test_x)
+            x_data = data[:, col_x[0]:col_x[1]], data[:, col_y[0]:col_y[1]]
+        return x_data, y_data

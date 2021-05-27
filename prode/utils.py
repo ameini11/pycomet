@@ -106,6 +106,10 @@ def get_num_args(func):
     return len(sig.parameters)
 
 
+def get_var_name(var):
+    """Get the name of a variable as a string."""
+    return [ k for k, v in globals().items() if v is var][0]
+
 # def apply(func, args=None, kwds=None):
 #     """Clear Tensorflow GPU memory after model execution.
 

@@ -1,9 +1,10 @@
 import tensorflow as tf
 import tensorflow.keras.losses as lss
 
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import math_ops
-from tensorflow.python.keras import backend as K
+from tensorflow.python.ops          import math_ops, array_ops
+from tensorflow.python.keras        import backend as K
+from tensorflow.python.keras.utils  import losses_utils
+from tensorflow.python.framework    import ops
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')
@@ -70,3 +71,14 @@ def get(identifier):
         return identifier
     else:
         raise ValueError("Could not interpret loss function identifier:", identifier)
+
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='get_reg_losses')
+def get_reg_losses(model):
+    regularization_losses = model.losses
+    if regularization_losses:
+        regularization_losses = losses_utils.cast_losses_to_common_dtype(
+            regularization_losses)
+        return math_ops.add_n(regularization_losses)
+    else:
+        return array_ops.zeros(shape=())
