@@ -5,10 +5,15 @@ import tensorflow as tf
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='ODEDataSequence')
 class ODEDataSequence(tf.keras.utils.Sequence):
     def __init__(self, data, data_ids, batch_size=32, shuffle=True):
+        super(ODEDataSequence, self).__init__()
         '''Initialization'''
-        self.data_ids = {data_ids[i]: i+1 for i in range(len(data_ids))}
+        # Check data identities `data_ids`
+        if not isinstance(data_ids, dict):
+        	self.data_ids = {data_ids[i]: i+1 for i in range(len(data_ids))}
+        else:
+        	self.data_ids = data_ids
 
-        # Check `batch_size' variable
+        # Check `batch_size` variable
         if not isinstance(batch_size, (dict, int)):
             raise ValueError(
                 "\n[PrODE]: `batch_size` passed into `{}` has to be a `int` or `dict`.\n"
@@ -21,7 +26,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         else:
         	self.batch_size = batch_size
 
-        # Check `data' variable
+        # Check `data` variable
         self.data = dict()
         if not isinstance(data, dict):
             raise ValueError(
@@ -54,7 +59,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
     	except:
     		self.num_input = 1
 
-        # Number of samples and batches for each data family
+        # Number of samples and batches for each data id
 		self.n_samples = {k: self.data[k].cardinality() for k in self.data_ids}
 		self.batches   = {k: tf.math.ceil(self.n_samples[k]/self.batch_size[k]) \
 								for k in self.data_ids}
@@ -78,13 +83,13 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 		"""
 		for i, (k, idx) in enumerate(self.data_ids.items()):
 			batch = next(self.iterator[k])
-            _x, _y = batch[0], batch[1]
-            _enc   = tf.ones([self.batch_size[k], 1]) * idx
+            _x, _y   = batch[0], batch[1]
+            _encoder = tf.ones([self.batch_size[k], 1]) * idx
             if i == 0:
-                x, y, enc = _x, _y, _enc
+                x, y, encoder = _x, _y, _encoder
             else:
-                x, y, enc = self._concat((x, y, enc), (_x, _y, _enc))
-        return x, y, enc
+                x, y, encoder = self._concat((x, y, encoder), (_x, _y, _encoder))
+        return x, y, encoder
 
     def on_epoch_end(self):
 		"""Method called at the end of every epoch.
@@ -96,12 +101,10 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 			self.iterator[k] = iter(self.data[k].batch( \
 				self.batch_size[k]).repeat(repeat_k).take(self.__len__()))
 
-    def _concat(self, data_old, data_new):
-    	for i in range(len(data_old)):
-    		if isinstance(data_old[i], (list,tuple)):
-    			data_new[i] = list(map(lambda i,j: tf.concat((i,j), 0), data_new[i], data_old[i]))
+    def _concat(self, data, data_new):
+    	for i in range(len(data)):
+    		if isinstance(data[i], (list,tuple)):
+    			data_new[i] = list(map(lambda i,j: tf.concat((i,j), 0), data[i], data_new[i]))
     		else:
-    			data_new[i] = tf.concat((data_new[i], data_old[i]), 0)
+    			data_new[i] = tf.concat((data[i], data_new[i]), 0)
     	return data_new
-
-
