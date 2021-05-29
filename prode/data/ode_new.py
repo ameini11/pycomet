@@ -40,6 +40,7 @@ class ODE(Data):
             self.valid = ODEDataSequence(self.data_as_dict(valid_data), \
                 self.data_ids, batch_size=valid_batch_size)
         elif valid_split > 0.:
+            # TODO
             pass
         else:
             self.valid = None
@@ -52,7 +53,7 @@ class ODE(Data):
         else:
             self.test = None
 
-        self.input_is_list = True if isinstance(self.ics[0], (list, tuple)) else False
+        self.input_is_list = True if self.train.num_input > 1 else False
         self.ode_func      = ode_func
         self.ode_params    = ode_params
         self.grad_fn       = gradients.get_grad_fn(ode_order)

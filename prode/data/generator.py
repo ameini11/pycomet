@@ -49,6 +49,10 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 			            self.data[k] = tf.data.Dataset.zip(tuple(dset_x, dset_y))
 			        else:
 			            self.data[k] = data_i
+    	try:
+    		self.num_input = len(list(self.data.values())[0].element_spec[0])
+    	except:
+    		self.num_input = 1
 
         # Number of samples and batches for each data family
 		self.n_samples = {k: self.data[k].cardinality() for k in self.data_ids}
