@@ -5,7 +5,6 @@ from .. import layers
 from .. import activations
 from .. import initializers
 from .. import regularizers
-from . import steps
 
 from .net import Net
 
@@ -93,24 +92,6 @@ class FFNN(Net):
             y = self.output_fn(y)
 
         return y
-
-
-    # Steps
-    ###########################################################################
-    # Training Step
-    def train_step(self, data):
-        if self.res_loss_fn is not None:
-            return steps.train_step(self, data)
-        else:
-            return super(FNN, self).train_step(data)
-
-
-    # Testing Step
-    def test_step(self, data):
-        if self.res_loss_fn is not None:
-            return steps.test_step(self, data)
-        else:
-            return super(OpNN, self).test_step(data)
 
 
     # Graph

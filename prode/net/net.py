@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from . import steps
+
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='Net')
 class Net(tf.keras.Model):
@@ -7,9 +9,12 @@ class Net(tf.keras.Model):
 
     # Initialization
     ###########################################################################
-    def __init__(self, name='net'):
+    def __init__(
+        self,
+        ics_data=None,
+        pts_data=None,
+        name='net'):
         super(Net, self).__init__()
-        self.training     = True     # Boolean: cen be used for training specific layers parameters
 
         self.inp_trans    = None
         self.out_trans    = None
@@ -50,3 +55,21 @@ class Net(tf.keras.Model):
     def add_residual_loss(self, loss_fn):
         """Add the residual loss function to loss list."""
         self.res_loss_fn = loss_fn
+
+
+    # Steps
+    ###########################################################################
+    # Training Step
+    def train_step(self, data):
+        if self.res_loss_fn is not None:
+            return steps.train_step(self, data)
+        else:
+            return super(Net, self).train_step(data)
+
+
+    # Testing Step
+    def test_step(self, data):
+        if self.res_loss_fn is not None:
+            return steps.test_step(self, data)
+        else:
+            return super(Net, self).test_step(data)

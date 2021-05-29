@@ -17,7 +17,7 @@ setup(
     long_description_content_type="text/markdown",
     author="Ivan Zanardi",
     author_email="zanardi3@illinois.edu",
-    url="https://github.com/ivanZanardi/PrODE",
+    url="https://github.com/ivanZanardi/prode",
     license="Apache-2.0",
     install_requires=install_requires,
     classifiers=[
