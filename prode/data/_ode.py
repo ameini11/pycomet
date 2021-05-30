@@ -126,13 +126,12 @@ class ODE(Data):
 
             # Evaluate gradients
             grads    = self.grad_fn(self.input_is_list, model, ic, t, training)
-            y_pred   = grads[0]     # Zero-order gradient
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads, self.ode_params)
             res_true = tf.zeros_like(res_pred)
             res_loss = loss(res_true, res_pred)
 
-            return y_pred, res_loss
+            return res_pred, res_loss
         
         return res_loss_fn

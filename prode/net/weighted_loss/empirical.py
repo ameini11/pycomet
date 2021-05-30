@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from .adapter import LossWeightsAdapter
@@ -29,7 +28,7 @@ class EmpiricalAdapter(LossWeightsAdapter):
             weights=weights,
             freq=freq,
             name=name)
-        
+
         self.alpha = tf.clip_by_value(alpha, 0., 1.)
 
 
@@ -47,8 +46,7 @@ class EmpiricalAdapter(LossWeightsAdapter):
 
     # Calling
     ###########################################################################
-    def __call__(self, model, losses, tape=None):
-
+    def __call__(self, model, tape=None, losses=None, *args, **kwargs):
         if self.iter % self.freq == 0:
             if 'res' not in losses:
                 print("[PrODE]: Warning! `losses` passed into `__call__` method "
@@ -61,7 +59,7 @@ class EmpiricalAdapter(LossWeightsAdapter):
                 losses['res'], model.trainable_vars)))
 
             # Get the mean of the gradient magnitudes for each remaining loss term
-            for data_id, loss in losses:
+            for data_id, loss in losses.items():
                 if data_id == 'res':
                     continue
                 # Get the mean of the gradient magnitudes for each remaining loss term

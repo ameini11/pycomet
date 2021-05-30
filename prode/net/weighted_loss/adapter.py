@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 
@@ -46,5 +45,5 @@ class LossWeightsAdapter(object):
 
     # Calling
     ###########################################################################
-    def __call__(self, model, losses, tape=None):
+    def __call__(self, model, *args, **kwargs):
         pass

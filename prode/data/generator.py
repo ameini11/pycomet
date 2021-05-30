@@ -6,7 +6,7 @@ import tensorflow as tf
 class ODEDataSequence(tf.keras.utils.Sequence):
     def __init__(self, data, data_ids, batch_size=32, shuffle=True):
         super(ODEDataSequence, self).__init__()
-        '''Initialization'''
+
         # Check data identities `data_ids`
         if not isinstance(data_ids, dict):
         	self.data_ids = {data_ids[i]: i+1 for i in range(len(data_ids))}
@@ -35,7 +35,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
                 "   >> 'pts': additional anchor pts dataset;\n"
                 "   >> 'res': residual collocation pts dataset.".format(self.__name__))
         else:
-        	for k, data_i in data:
+        	for k, data_i in data.items():
 				if data_i is None:
 					# Delete the corresponding `key` entry
 					assert k in self.data_ids and k in self.batch_size
@@ -75,7 +75,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         return max(list(self.batches.values()))
 
     def __getitem__(self, *args, **kwargs):
-		"""Gets batch at position `index`.
+		"""Gets next batch.
 		Args:
 		    index: position of the batch in the Sequence.
 		Returns:
@@ -95,7 +95,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 		"""Method called at the end of every epoch.
 		"""
 		self.iterator = dict()
-		for k, dset in self.data:
+		for k, dset in self.data.items():
 			self.data[k] = dset.shuffle(self.n_samples[k])
 			repeat_k = tf.math.ceil(self.__len__()/self.batches[k])
 			self.iterator[k] = iter(self.data[k].batch( \
