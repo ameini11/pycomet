@@ -1,16 +1,20 @@
-import abc
+import tensorflow as tf
 
 
 class Data(object):
     """Data base class."""
 
     def __init__(self):
-        pass
+        self.train = None
+        self.valid = None
+        self.test  = None
+        
+        self.data_ids = None
 
-    @abc.abstractmethod
-    def get_batch_data(self, batch_size=None):
-        """Return a training dataset of the size `batch_size`."""
-
-    @abc.abstractmethod
-    def test(self):
-        """Return a test dataset."""
+    def get_dataset(self, x, y):
+        if x is not None:
+            dset_x = tf.data.Dataset.from_tensor_slices(tuple(x))
+            dset_y = tf.data.Dataset.from_tensor_slices(tuple(y))
+            return tf.data.Dataset.zip(tuple(x, y))
+        else:
+            None

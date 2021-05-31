@@ -45,7 +45,7 @@ class NTKAdapter(LossWeightsAdapter):
             for i in range(n):
                 for j in range(d):
                     grad = tape.gradient(pred[data_id][i][j], model.trainable_vars)
-                    grad = np.concatenate([np.abs(g).flatten() for g in grad])
+                    # grad = np.concatenate([np.abs(g).flatten() for g in grad])
                     _ntk[i*d+j] = np.dot(grad, grad)
             ntk[data_id] = _ntk
         return ntk

@@ -39,7 +39,7 @@ class DataSet(Data):
 
     def load_data(self, filename, col_x, col_y):
         if filename is None:
-            return None, None
+            return None
         if col_x is None or col_y is None:
             raise ValueError('[PrODE]: In `{}` you have to provide `col_x` and '
                 '`col_y` to extract data from file.'.format(self.__name__))
@@ -52,11 +52,3 @@ class DataSet(Data):
             x_data = data[:, col_x[0]:col_x[1]], data[:, col_y[0]:col_y[1]]
         y_data = data[:, col_y[0]:col_y[1]]
         return self.get_dataset(x_data, y_data)
-
-    def get_dataset(self, x, y):
-        if x is not None:
-            dset_x = tf.data.Dataset.from_tensor_slices(tuple(x))
-            dset_y = tf.data.Dataset.from_tensor_slices(tuple(y))
-            return tf.data.Dataset.zip(tuple(x, y))
-        else:
-            None

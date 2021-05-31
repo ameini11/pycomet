@@ -9,16 +9,14 @@ def get_pred_loss(x, y, encoder, model, data_id, training=True):
     ids  = model.data_ids if training else model.data_ids_val
     x_id = tf.boolean_mask(x, encoder == ids[data_id])
     y_id = tf.boolean_mask(y, encoder == ids[data_id])
-    if tf.size(x_id) == 0:
-        return None, None
+    
+    loss_fn = model.loss_fns[data_id]
+    if data_id == 'res':
+        return loss_fn(model, x_id, training=training)
     else:
-        loss_fn = model.loss_fn[data_id]
-        if data_id == 'res':
-            return loss_fn(model, x_id, training=training)
-        else:
-            y_pred = model(x_id, training=training)
-            loss   = loss_fn(y_id, y_pred)
-            return y_pred, loss
+        y_pred = model(x_id, training=training)
+        loss   = loss_fn(y_id, y_pred)
+        return y_pred, loss
 
 
 def train_step(model, data):
@@ -75,4 +73,3 @@ def test_step(model, data):
         return_metrics[data_id + '_loss'] = loss
 
     return return_metrics
-

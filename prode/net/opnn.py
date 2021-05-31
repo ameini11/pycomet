@@ -1,7 +1,6 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
-from .. import layers
 from .. import activations
 from .. import initializers
 from .. import regularizers
@@ -26,16 +25,20 @@ class OpNN(Net):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
+        block='FFBlock',
+        adaptive_weights='LossWeightsAdapter',
         name='opnn'):
-        super(OpNN, self).__init__(name=name)
-        
+        super(OpNN, self).__init__(
+            dim=dim,
+            block=block,
+            adaptive_weights=adaptive_weights,
+            name=name)
+
         ### Hyperparameters Initialization ------------------------------------
-        if len(dim) < 3 or not isinstance(dim, dict):
-            raise ValueError('[PrODE]: `dim` input for the Deep Operator net has to '
-                             'be a `dict` of length 3: {"u_dim":, "y_dim":, "G_dim":}.')
-        self.u_dim = dim["u_dim"]
-        self.y_dim = dim["y_dim"]
-        self.G_dim = dim["G_dim"]
+        if not isinstance(self.inp_dim, (list, tuple)):
+            raise ValueError(
+                "[PrODE]: `dim['inp']` passed into `{}` has to be a `list` or "
+                "a `tuple`of length 2: [u_dim, y_dim]".format(self.__name__))
 
         if isinstance(layer_size, dict):
             self.layer_size_branch = layer_size["branch"]
@@ -61,13 +64,12 @@ class OpNN(Net):
             self.batch_norm_branch = self.batch_norm_trunk = batch_norm
 
         self.kernel_initializer = initializers.get(kernel_initializer)
-        self.dropout_rate = dropout_rate
-
+        self.dropout_rate  = dropout_rate
         self.weight_norm   = weight_norm
         self.use_end_scale = use_end_scale
 
         ### Blocks Initialization ---------------------------------------------
-        self.branches   = [ layers.FFBlock(
+        self.branches   = [ self.block(
                                 self.layer_size_branch,
                                 self.act_branch,
                                 self.kernel_initializer,
@@ -75,9 +77,9 @@ class OpNN(Net):
                                 dropout_rate=self.dropout_rate,
                                 batch_norm=self.batch_norm_branch,
                                 weight_norm=self.weight_norm,
-                                name='Branch_'+str(i)) for i in range(self.G_dim) ]
+                                name='Branch_'+str(i)) for i in range(self.out_dim) ]
 
-        self.trunk      =   layers.FFBlock(
+        self.trunk      =   self.block(
                                 self.layer_size_trunk,
                                 self.act_trunk,
                                 self.kernel_initializer,
@@ -88,7 +90,7 @@ class OpNN(Net):
                                 name='Trunk_0')
 
         self.end_scale  =   lay.Dense(
-                                units=self.G_dim,
+                                units=self.out_dim,
                                 activation='linear',
                                 use_bias=True,
                                 kernel_initializer=self.kernel_initializer,
@@ -107,9 +109,6 @@ class OpNN(Net):
 
         config = super().get_config().copy()
         config.update({
-            'u_dim':              self.u_dim,
-            'y_dim':              self.y_dim,
-            'G_dim':              self.G_dim,
             'layer_size_branch':  self.layer_size_branch,
             'layer_size_trunk':   self.layer_size_trunk,
             'act_branch':         self.act_branch,
@@ -140,8 +139,9 @@ class OpNN(Net):
         if isinstance(x, (list, tuple)):
             x_u, x_y = x[0], x[1]
         else:
-            raise ValueError('[PrODE]: The inputs for the Deep Operator net '
-                             'have to be a list or tuple.')
+            raise ValueError(
+                "[PrODE]: The inputs of the `{}` net have to be a `list` "
+                "or a `tuple`: [u, y]".format(self.__name__))
 
         # Input transformation
         if self.inp_trans is not None:
@@ -153,13 +153,13 @@ class OpNN(Net):
                 x_y = self.inp_trans(x_y)
 
         # Branch/-es
-        G_u = [ self.branches[i](x_u) for i in range(self.G_dim) ]
+        G_u = [ self.branches[i](x_u) for i in range(self.out_dim) ]
 
         # Trunk
         G_y = self.trunk(x_y)
 
         # Output layer
-        G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.G_dim) ]
+        G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.out_dim) ]
         G_uy = lay.Concatenate()(G_uy)
         if self.use_end_scale:
             G_uy = self.end_scale(G_uy)
@@ -174,7 +174,7 @@ class OpNN(Net):
     # Graph
     ###########################################################################
     def build_graph(self):
-        x_u = tf.keras.Input(shape=(self.u_dim,), name="branch_input")
-        x_y = tf.keras.Input(shape=(self.y_dim,), name="trunk_input")
+        x_u = tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input")
+        x_y = tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input")
         x   = [x_u, x_y]
         return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)

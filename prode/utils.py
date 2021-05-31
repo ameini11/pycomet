@@ -14,27 +14,42 @@ from matplotlib     import animation
 from functools      import wraps
 # from multiprocessing import Pool
 
+from . import config
 
 
+# Printing functions
+###############################################################################
+def print_main(text, *args, **kwargs):
+    print(config.headers['main'] + text, *args, **kwargs)
+
+def print_submain(text, *args, **kwargs):
+    print(config.headers['submain'] + text, *args, **kwargs)
+
+def warning(text, *args, **kwargs):
+    print(config.headers['warning'] + text, *args, **kwargs)
+
+def raise_value_err(text):
+    message = ''.join([config.headers['val_err'], text])
+    raise ValueError(message)
+
+
+# Decorators
+###############################################################################
 def timing(f):
     """Decorator for measuring the execution time of methods."""
-
     @wraps(f)
     def wrapper(*args, **kwargs):
         ts = time.time()
         result = f(*args, **kwargs)
         te = time.time()
         delta = datetime.timedelta(seconds=(te - ts))
-        print("[PrODE]: >> Function %r took %s" % (f.__name__, delta))
+        print_submain(">> Function %r took %s" % (f.__name__, delta))
         sys.stdout.flush()
         return result
-
     return wrapper
-
 
 def main_decorator(f):
     """Decorator for the `main` function."""
-
     @timing
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -42,7 +57,7 @@ def main_decorator(f):
             tf.config.threading.get_inter_op_parallelism_threads(),
             tf.config.threading.get_intra_op_parallelism_threads()
             )
-        print('[PrODE]: START')
+        print_main('START')
         print("--------------------------------------------------------------------------------------------------")
         print(" TensorFlow version: {}".format(tf.__version__))
         print(" Eager execution:    {}".format(tf.executing_eagerly()))
@@ -51,16 +66,58 @@ def main_decorator(f):
         print(" Threads num set:    {}".format(num_threads))
         print("--------------------------------------------------------------------------------------------------")
         result = f(*args, **kwargs)
-        print('\n[PrODE]: END')
+        print_main('END')
         return result
-
     return wrapper
 
 
+# Handling data types
+###############################################################################
+def get_class(module, name):
+    """Return a class object given its name and the module which belongs to."""
+    for name_i, obj_i in inspect.getmembers(module, inspect.isclass):
+        if name_i == name:
+            return obj_i
+    raise ValueError('[PrODE]: Class `{}` not found in module `{}`.'.format(name, module.__name__))
+
+def make_dict(keys, values):
+    """Convert two lists or two variables into a dictionary."""
+    if isinstance(keys, (list, tuple)):
+        if len(keys) != len(values):
+            raise ValueError("[PrODE]: Keys and values have different length.")
+        return dict(zip(keys, values))
+    return {keys: values}
+
+def list_to_str(nums, precision=2):
+    """Convert a list/tuple/array of numbers into a string."""
+    if nums is None:
+        return ""
+    if not isinstance(nums, (list, tuple, np.ndarray)):
+        return "{:.{}e}".format(nums, precision)
+    return "[{:s}]".format(", ".join(["{:.{}e}".format(x, precision) for x in nums]))
+
+def get_var_name(var):
+    """Get the name of a variable as a string."""
+    return [ k for k, v in globals().items() if v is var][0]
+
+
+def get_num_args(func):
+    """Get the number of arguments of a Python function."""
+    if sys.version_info[0] == 2:
+        return len(inspect.getargspec(func).args)
+    sig = inspect.signature(func)
+    return len(sig.parameters)
+
+def get_var_name(var):
+    """Get the name of a variable as a string."""
+    return [ k for k, v in globals().items() if v is var][0]
+
+
+# Others
+###############################################################################
 def kill_process():
     """Send terminating signal to job `pid`."""
     os.kill(os.getpid(), signal.SIGTERM)
-
 
 def close_all_hdf5():
     """Close all opened hdf5 files."""
@@ -71,44 +128,6 @@ def close_all_hdf5():
             except:
                 pass
 
-
-def get_class(module, name):
-    """Return a class object given its name and the module which belongs to."""
-    for name_i, obj_i in inspect.getmembers(module, inspect.isclass):
-        if name_i == name:
-            return obj_i
-    raise ValueError('[PrODE]: Class `{}` not found in module `{}`.'.format(name, module.__name__))
-
-
-def make_dict(keys, values):
-    """Convert two lists or two variables into a dictionary."""
-    if isinstance(keys, (list, tuple)):
-        if len(keys) != len(values):
-            raise ValueError("[PrODE]: Keys and values have different length.")
-        return dict(zip(keys, values))
-    return {keys: values}
-
-
-def list_to_str(nums, precision=2):
-    """Convert a list/tuple/array of numbers into a string."""
-    if nums is None:
-        return ""
-    if not isinstance(nums, (list, tuple, np.ndarray)):
-        return "{:.{}e}".format(nums, precision)
-    return "[{:s}]".format(", ".join(["{:.{}e}".format(x, precision) for x in nums]))
-
-
-def get_num_args(func):
-    """Get the number of arguments of a Python function."""
-    if sys.version_info[0] == 2:
-        return len(inspect.getargspec(func).args)
-    sig = inspect.signature(func)
-    return len(sig.parameters)
-
-
-def get_var_name(var):
-    """Get the name of a variable as a string."""
-    return [ k for k, v in globals().items() if v is var][0]
 
 # def apply(func, args=None, kwds=None):
 #     """Clear Tensorflow GPU memory after model execution.

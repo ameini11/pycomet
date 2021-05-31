@@ -1,7 +1,5 @@
 import tensorflow as tf
-import tensorflow.keras.layers as lay
 
-from .. import layers
 from .. import activations
 from .. import initializers
 from .. import regularizers
@@ -25,11 +23,16 @@ class FFNN(Net):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
+        block='FFBlock',
+        adaptive_weights='LossWeightsAdapter',
         name='ffnn'):
-        super(FFNN, self).__init__(name=name)
+        super(FFNN, self).__init__(
+            dim=dim,
+            block=block,
+            adaptive_weights=adaptive_weights,
+            name=name)
         
         ### Hyperparameters Initialization ------------------------------------
-        self.dim                 = self.dim
         self.layer_size          = layer_size
         self.activation          = activations.get(activation)
         self.kernel_initializer  = initializers.get(kernel_initializer)
@@ -43,7 +46,7 @@ class FFNN(Net):
             self.regularizer = regularization
 
         ### Layers Initialization ---------------------------------------------
-        self.block = layers.FFBlock(
+        self.hidden_blk = self.block(
                         self.layer_size,
                         self.activation,
                         self.kernel_initializer,
@@ -66,7 +69,7 @@ class FFNN(Net):
             'dropout_rate':       self.dropout_rate,
             'batch_norm':         self.batch_norm,
             'weight_norm':        self.weight_norm,
-            'block':              self.block,
+            'hidden_blk':         self.hidden_blk,
         })
         return config
 
@@ -84,8 +87,8 @@ class FFNN(Net):
         if self.inp_trans is not None:
             y = self.input_fn(y)
 
-        # Block Layer
-        y = self.block(y)
+        # Block Hidden Layer
+        y = self.hidden_blk(y)
 
         # Output Transform
         if self.out_trans is not None:
@@ -97,5 +100,5 @@ class FFNN(Net):
     # Graph
     ###########################################################################
     def build_graph(self):
-        x= tf.keras.Input(shape=(self.dim,))
+        x= tf.keras.Input(shape=(self.inp_dim,))
         return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)

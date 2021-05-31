@@ -8,33 +8,32 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         super(ODEDataSequence, self).__init__()
 
         # Check data identities `data_ids`
-        if not isinstance(data_ids, dict):
-        	self.data_ids = {data_ids[i]: i+1 for i in range(len(data_ids))}
+        if isinstance(data_ids, dict):
+            self.data_ids = data_ids
         else:
-        	self.data_ids = data_ids
+        	self.data_ids = {data_ids[i]: i+1 for i in range(len(data_ids))}
 
         # Check `batch_size` variable
         if not isinstance(batch_size, (dict, int)):
             raise ValueError(
-                "\n[PrODE]: `batch_size` passed into `{}` has to be a `int` or `dict`.\n"
-                "   If `dict`:\n"
-                "   >> 'ics': initial condition batch size;\n"
-                "   >> 'pts': additional anchor pts batch size;\n"
-                "   >> 'res': residual collocation pts batch size.".format(self.__name__))
+                "[PrODE]: `batch_size` passed into `{}` has to be a `int` or `dict`.\n"
+                " >> batch_size = {'ics': initial condition pts batch size,\n"
+                "                  'pts': additional anchor pts batch size,\n"
+                "                  'res': collocation pts batch size (residual)}".format(self.__name__))
         if isinstance(batch_size, int):
-        	self.batch_size = {data_fam: batch_size for data_fam in self.data_ids}
+        	self.batch_size = {data_id: batch_size for data_id in self.data_ids}
         else:
         	self.batch_size = batch_size
 
         # Check `data` variable
-        self.data = dict()
         if not isinstance(data, dict):
             raise ValueError(
-                "\n[PrODE]: `data` passed into `{}` has to be a `dict`:\n"
-                "   >> 'ics': initial condition pts dataset;\n"
-                "   >> 'pts': additional anchor pts dataset;\n"
-                "   >> 'res': residual collocation pts dataset.".format(self.__name__))
+                "[PrODE]: `data` passed into `{}` has to be a `int` or `dict`.\n"
+                " >> data = {'ics': initial condition pts dataset,\n"
+                "            'pts': additional anchor pts dataset,\n"
+                "            'res': collocation pts dataset (residual)}".format(self.__name__))
         else:
+            self.data = dict()
         	for k, data_i in data.items():
 				if data_i is None:
 					# Delete the corresponding `key` entry

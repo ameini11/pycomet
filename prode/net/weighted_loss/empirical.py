@@ -47,6 +47,7 @@ class EmpiricalAdapter(LossWeightsAdapter):
     # Calling
     ###########################################################################
     def __call__(self, model, tape=None, losses=None, *args, **kwargs):
+        
         if self.iter % self.freq == 0:
             if 'res' not in losses:
                 print("[PrODE]: Warning! `losses` passed into `__call__` method "
