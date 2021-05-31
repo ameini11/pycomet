@@ -52,7 +52,6 @@ def zero(*args):
 def get(identifier):
     if isinstance(identifier, (list, tuple)):
         return list(map(get, identifier))
-
     loss_identifier = {
         "mae":   lss.MeanAbsoluteError(),
         "mape":  lss.MeanAbsolutePercentageError(),
@@ -64,16 +63,14 @@ def get(identifier):
         "MSLE":  mean_squared_logarithmic_error,
         "ZERO":  zero,
     }
-
     if isinstance(identifier, str):
         return loss_identifier[identifier]
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError("Could not interpret loss function identifier:", identifier)
+        utils.raise_value_err("Could not interpret loss function identifier:", identifier)
 
 
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='get_reg_losses')
 def get_reg_losses(model):
     regularization_losses = model.losses
     if regularization_losses:

@@ -22,10 +22,10 @@ class Net(tf.keras.Model):
         super(Net, self).__init__()
 
         if not isinstance(dim, dict):
-            raise ValueError(
-                "[PrODE]: `dim` passed into `{}` has to be a `dict` of length 2:\n"
-                " >> dim = {'inp': `int` (or list of `int`),\n"
-                "           'out': `int` (or list of `int`)}.".format(self.__name__))
+            utils.raise_value_err(
+                "`dim` passed into `{}` has to be a `dict` of length 2:\n"
+                " dim = {'inp': `int` (or list of `int`),\n"
+                "        'out': `int` (or list of `int`)}.".format(self.__name__))
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
 
@@ -91,18 +91,18 @@ class Net(tf.keras.Model):
                 if len(loss_fns) == len(data_ids):
                     self.loss_fns = {data_ids[i]: loss_fns[i] for i in range(len(loss_fns))}
                 else:
-                    raise ValueError(
-                        "[PrODE]: `loss_fns` and `data_ids` passed into `{}.add_losses` "
+                    utils.raise_value_err(
+                        "`loss_fns` and `data_ids` passed into `{}.add_losses` "
                         "method have to be of the same length.".format(self.__name__))
             elif isinstance(data_ids, dict):
                 self.loss_fns = {data_id: loss_fns[i] for i, data_id in enumerate(data_ids)}
             else:
-                raise ValueError(
-                    "[PrODE]: `data_ids` passed into `{}.add_losses` method has "
+                utils.raise_value_err(
+                    "`data_ids` passed into `{}.add_losses` method has "
                     "to be a `dict` or a `list`/`tuple`.".format(self.__name__))
         else:
-            raise ValueError(
-                "[PrODE]: `loss_fns` passed into `{}.add_losses` method has "
+            utils.raise_value_err(
+                "`loss_fns` passed into `{}.add_losses` method has "
                 "to be a `dict` or a `list`/`tuple`.".format(self.__name__))
 
 

@@ -72,8 +72,8 @@ class LRPerformanceDecay(CB.ReduceLROnPlateau):
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer._decayed_lr(tf.float64), new_lr)
                         if self.verbose > 0:
-                            print('\nEpoch %05d: ReduceLROnPlateau reducing learning '
-                            'rate to %s.' % (epoch + 1, new_lr))
+                            utils.print_main("Epoch %05d: ReduceLROnPlateau reducing learning "
+                            "rate to %s." % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
 
@@ -86,16 +86,15 @@ class LRPiecewiseConstantDecay(CB.Callback):
         super(LRPiecewiseConstantDecay, self).__init__()
 
         if len(boundaries) != len(values) - 1:
-            raise ValueError(
-            "The length of boundaries should be 1 less than the length of values")
-
+            utils.raise_value_err("In `{}` callback, the length of `boundaries` "
+                "should be 1 less than the length of `values`.".format(self.__name__))
         self.boundaries = np.array(boundaries)
         self.values     = np.array(values)
         self.idx        = 0
 
     def on_epoch_end(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, "lr"):
-            raise ValueError('Optimizer must have a "lr" attribute.')
+            utils.raise_value_err("Optimizer must have a `lr` attribute.")
         greater = self.boundaries < epoch
         if True in greater:
             idx = np.where(greater)[0][-1]
@@ -103,8 +102,8 @@ class LRPiecewiseConstantDecay(CB.Callback):
             new_lr = self.values[self.idx]
             K.set_value(self.model.optimizer.lr, new_lr)
             if self.verbose > 0:
-                print('\nEpoch %05d: LRPiecewiseConstantDecay reducing learning '
-                'rate to %s.' % (epoch + 1, new_lr))
+                utils.print_main("Epoch %05d: LRPiecewiseConstantDecay reducing learning "
+                    "rate to %s." % (epoch + 1, new_lr))
 
 
 @keras_export('keras.callbacks.LearningRateTracker')
@@ -160,8 +159,8 @@ class Timer(CB.Callback):
     def on_epoch_end(self, epoch, logs=None):
         if (time.time() - self.t_start) > self.threshold:
             self.model.stop_training = True
-            print("\nStop training as time used up.\n\
-                   Time used: {:.1f} mins, epoch trained: {}".format(
+            utils.print_main("Stop training as time used up."
+                "Time used: {:.1f} mins, epoch trained: {}".format(
                     (time.time() - self.t_start) / 60, epoch))
 
 
@@ -202,8 +201,8 @@ class VariableValue(CB.Callback):
         if self.file is not sys.stdout:
             self.file.write("0",*self.values, sep=',',end='\n')
             self.file.flush()
-        print("\nVariables values at epoch %05d:\n" % 0)
-        for i, name in enumerate(self.var_list): print("  -", name, '=', self.values[i])
+        utils.print_main("Variables values at epoch %05d:\n" % 0)
+        for i, name in enumerate(self.var_list): print("  -", name, "=", self.values[i])
 
     def on_train_end(self, logs=None):
         if self.file is not sys.stdout:
@@ -217,8 +216,8 @@ class VariableValue(CB.Callback):
             if self.file is not sys.stdout:
                 self.file.write(epoch,*self.values, sep=',',end='\n')
                 self.file.flush()
-            print("\nVariables values at epoch %05d:\n" % epoch)
-            for i, name in enumerate(self.var_list): print("  -", name, '=', self.values[i])
+            utils.print_main("Variables values at epoch %05d:\n" % epoch)
+            for i, name in enumerate(self.var_list): print("  -", name, "=", self.values[i])
 
     def get_value(self):
         """Return the variable values."""

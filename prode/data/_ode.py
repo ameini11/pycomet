@@ -65,8 +65,8 @@ class ODE(Data):
 
         self.input_is_list = True if self.train.num_input > 1 else False
         if time_idx not in [0,-1]:
-            raise ValueError(
-                "[PrODE]: `time_idx` passed into `{}` has to be 0 or -1."
+            utils.raise_value_err(
+                "`time_idx` passed into `{}` has to be 0 or -1."
                 "It's the position (if list) or column (if array) of time "
                 "input vector.".format(self.__name__))
         self.time_idx      = time_idx
@@ -81,10 +81,10 @@ class ODE(Data):
     def check_data_source(self, data):
         name = utils.get_var_name(data)
         if data is None:
-            raise ValueError("[PrODE]: No `{}` passed into `{}`.".format(name, self.__name__))
+            utils.raise_value_err("No `{}` passed into `{}`.".format(name, self.__name__))
         elif not isinstance(data, dict):
-            raise ValueError(
-                "[PrODE]: `{}` passed into `{}` has to be a dict:\n"
+            utils.raise_value_err(
+                "`{}` passed into `{}` has to be a dict:\n"
                 " >> {} = {'data_source': 'array' or 'file',\n"
                 "          'ics': initial condition pts (arrays or file path),\n"
                 "          'pts': additional anchor pts (arrays or file path),\n"
@@ -106,13 +106,12 @@ class ODE(Data):
             elif data_id == 'res':
                 return data[data_id], np.empty([data[data_id].shape[0], self.out_dim])
             else:
-                raise ValueError('[PrODE]: `{}[{}]` passed into `{}` has to '
-                    'be a list or a tuple of arrays: [x, y]'.format( \
-                        name, data_id, self.__name__))
+                utils.raise_value_err("`{}[{}]` passed into `{}` has to be a list "
+                    "or a tuple of arrays: [x, y]".format(name, data_id, self.__name__))
         elif data['data_source'] is 'file':
             # Data from `.csv` file
             if col_x is None or col_y is None:
-                raise ValueError("[PrODE]: In `{}` you have to provide both "
+                utils.raise_value_err("In `{}` you have to provide both "
                     "`col_x` and `col_y` to extract data from file.\nThey should "
                     "be the doublet 'start'-'end+1' columns (or a list of those) "
                     "of x and y data.".format(self.__name__))
@@ -128,7 +127,7 @@ class ODE(Data):
                 y_data = np.empty(data[data_id].shape)
             return x_data, y_data
         else:
-            raise ValueError("[PrODE]: `{}['data_source']` passed into `{}` "
+            utils.raise_value_err("`{}['data_source']` passed into `{}` "
                 "has to be equal to 'array' or 'file'.".format(name, self.__name__))
 
 

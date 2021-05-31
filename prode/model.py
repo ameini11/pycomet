@@ -60,7 +60,7 @@ class Model(object):
     # ======================================================================= #
     @utils.timing
     def build(self, verbose=1, load_net=0, visualize_graph=False):
-        print('\n[PrODE]: Building "',self.net.name,'" network ...', sep='')
+        utils.print_main("Building '",self.net.name,"' network ...", sep="")
 
         if self.net.name.startswith('func'):
             self.net  = self.net.get_uncompiled_model()
@@ -80,16 +80,16 @@ class Model(object):
             if visualize_graph:
                 file_name = self.save_dir+self.name+'_struct.h5'
                 net_graph.save(file_name, save_format='h5')
-                print('[PrODE]:   ', end=''); netron.start(file_name)
+                utils.print_submain("", end=""); netron.start(file_name)
                 tf.keras.utils.plot_model(net_graph, self.train_dir+"/"+self.name+".png")
         
-            asw = input('\n[PrODE]:   Is the model structure correct? [y/n] ')
+            asw = utils.input_submain("Is the model structure correct? [y/n] ")
             if not asw.lower().startswith('y'):
-                print('[PrODE]:   All the processes will be stopped.\n')
+                utils.print_submain("All the processes will be stopped.\n")
                 utils.kill_process()
 
             if visualize_graph:
-                print('[PrODE]:   ', end=''); netron.stop()
+                utils.print_submain("", end=""); netron.stop()
 
         # Load network weights
         self.make_or_restore(load_net)
@@ -99,25 +99,25 @@ class Model(object):
         """Either restore the latest model, or create a fresh one if there is 
         no saved model/checkpoint available."""
         if load_net == 0:
-            print("[PrODE]:   Making new network")
+            utils.print_submain("Making new network")
             return
         elif load_net in [1,2]:
             if load_net == 1:
                 path = self.save_path
-                print("[PrODE]:   Restoring network from file", path)
+                utils.print_submain("Restoring network from file", path)
             elif load_net == 2:
                 ckpts = [self.ckpt_dir + "/" + name for name in os.listdir(self.ckpt_dir)]
                 if ckpts:
                     path = max(ckpts, key=os.path.getctime)
-                    print("[PrODE]:   Restoring network from checkpoint", path)
+                    utils.print_submain("Restoring network from checkpoint", path)
                 else:
-                    print("[PrODE]:   No checkpoints available: making new network")
+                    utils.print_submain("No checkpoints available: making new network")
                     return
             self.net.load_weights(path)
         else:
-            raise ValueError(
-                "\n[PrODE]: In `model.compile` you should pass as "
-                "`load_net` argument one of these 3 values:\n"
+            utils.raise_value_err(
+                "In `model.compile` you should pass as `load_net` argument "
+                "one of these 3 values:\n"
                 "   >> 0: making new network;\n"
                 "   >> 1: restoring network from saved one (with same name);\n"
                 "   >> 2: restoring network from last checkpoint.")
@@ -133,7 +133,7 @@ class Model(object):
         metrics=None,
         decay=None,
         loss_weights=None):
-        print('\n[PrODE]: Compiling "',self.net.name,'" network ...', sep='')
+        utils.print_main("Compiling '",self.net.name,"' network ...", sep="")
 
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
@@ -146,7 +146,7 @@ class Model(object):
             self.loss_pts = losses_module.get(loss)
             self.loss_res = None
         else:
-            raise ValueError("[PrODE]:   Losses have to be defined as a `dict` or a `str`.")
+            utils.raise_value_err("Losses have to be defined as a `dict` or a `str`.")
 
         if self.loss_res is not None and self.data.ode_func is not None:
             self.net.add_residual_loss(self.data.residual_loss(self.loss_res))
@@ -170,7 +170,7 @@ class Model(object):
         validation_split=0.2,
         validation_data=None,
         profile_batch=0):
-        print('\n[PrODE]: Training the model ...')
+        utils.print_main("Training the model ...")
 
         # Defining callbacks
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/weights_{epoch:06d}.h5", \
@@ -182,11 +182,11 @@ class Model(object):
         callbacks.extend([MC, TB, LR])
 
         # Defining train/valid pts
-        print('[PrODE]:   Number of Training pts:     %8d' % self.data.train_y.shape[0])
+        utils.print_submain("Number of Training pts:     %8d" % self.data.train_y.shape[0])
         if self.data.valid_x is not None:
             validation_data  = (self.data.valid_x, self.data.valid_y)
             validation_split = None
-            print('[PrODE]:   Number of Validation pts:   %8d\n' % self.data.valid_y.shape[0])
+            utils.print_submain("Number of Validation pts:   %8d\n" % self.data.valid_y.shape[0])
 
         # Fit the model
         self.history = self.net.fit(
@@ -243,7 +243,7 @@ class Model(object):
     # ======================================================================= #
     @utils.timing
     def save(self):
-        print('\n[PrODE]: Saving model ...')
+        utils.print_main("Saving model ...")
         utils.close_all_hdf5()
 
         # Save weights
@@ -260,7 +260,7 @@ class Model(object):
     # ======================================================================= #
     @utils.timing
     def visualize_training(self, history=None):
-        print('\n[PrODE]: Postprocessing training quantities ...')
+        utils.print_main("Postprocessing training quantities ...")
         if history is None:
             history = self.history
 

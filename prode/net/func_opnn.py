@@ -32,7 +32,7 @@ class FuncOpNN(FuncNet):
         self.name  = name
 
         if len(dim) < 3 or not isinstance(dim, dict):
-            raise ValueError('[PrODE]: `dim` input for the Deep Operator net has to '
+            utils.raise_value_err('[PrODE]: `dim` input for the Deep Operator net has to '
                              'be a `dict` of length 3: {"u_dim":, "y_dim":, "G_dim":}.')
         self.u_dim = dim["u_dim"]
         self.y_dim = dim["y_dim"]

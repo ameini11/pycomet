@@ -50,9 +50,8 @@ class EmpiricalAdapter(LossWeightsAdapter):
         
         if self.iter % self.freq == 0:
             if 'res' not in losses:
-                print("[PrODE]: Warning! `losses` passed into `__call__` method "
-                    "of `{}` hasn't any residual loss to be evaluated.".format( \
-                        self.__name__))
+                utils.warning("`losses` passed into `__call__` method of `{}` hasn't "
+						"any residual loss to be evaluated.".format(self.__name__))
                 return
 
             # Get the maximum gradient value from residual loss

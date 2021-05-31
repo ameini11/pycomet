@@ -25,6 +25,12 @@ def print_main(text, *args, **kwargs):
 def print_submain(text, *args, **kwargs):
     print(config.headers['submain'] + text, *args, **kwargs)
 
+def input_main(text, *args, **kwargs):
+    return input(config.headers['main'] + text, *args, **kwargs)
+
+def input_submain(text, *args, **kwargs):
+    return input(config.headers['submain'] + text, *args, **kwargs)
+
 def warning(text, *args, **kwargs):
     print(config.headers['warning'] + text, *args, **kwargs)
 
@@ -78,13 +84,13 @@ def get_class(module, name):
     for name_i, obj_i in inspect.getmembers(module, inspect.isclass):
         if name_i == name:
             return obj_i
-    raise ValueError('[PrODE]: Class `{}` not found in module `{}`.'.format(name, module.__name__))
+    raise_value_err("Class `{}` not found in module `{}`.".format(name, module.__name__))
 
 def make_dict(keys, values):
     """Convert two lists or two variables into a dictionary."""
     if isinstance(keys, (list, tuple)):
         if len(keys) != len(values):
-            raise ValueError("[PrODE]: Keys and values have different length.")
+            raise_value_err("Keys and values have different length.")
         return dict(zip(keys, values))
     return {keys: values}
 

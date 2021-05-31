@@ -47,6 +47,7 @@ def train_step(model, data):
 
     # Collect metrics to return
     return_metrics = {}
+    return_metrics['tot_loss'] = total_loss
     return_metrics['reg_loss'] = reg_loss
     for data_id, loss in losses.items():
         return_metrics[data_id + '_loss'] = loss
@@ -68,6 +69,7 @@ def test_step(model, data):
 
     # Collect metrics to return
     return_metrics = {}
+    return_metrics['tot_loss'] = total_loss
     return_metrics['reg_loss'] = reg_loss
     for data_id, loss in losses.items():
         return_metrics[data_id + '_loss'] = loss

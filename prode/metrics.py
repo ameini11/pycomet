@@ -23,4 +23,4 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError("Could not interpret metric function identifier:", identifier)
+        utils.raise_value_err("Could not interpret metric function identifier:", identifier)

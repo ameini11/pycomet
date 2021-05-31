@@ -36,8 +36,8 @@ class OpNN(Net):
 
         ### Hyperparameters Initialization ------------------------------------
         if not isinstance(self.inp_dim, (list, tuple)):
-            raise ValueError(
-                "[PrODE]: `dim['inp']` passed into `{}` has to be a `list` or "
+            utils.raise_value_err(
+                "`dim['inp']` passed into `{}` has to be a `list` or "
                 "a `tuple`of length 2: [u_dim, y_dim]".format(self.__name__))
 
         if isinstance(layer_size, dict):
@@ -139,8 +139,8 @@ class OpNN(Net):
         if isinstance(x, (list, tuple)):
             x_u, x_y = x[0], x[1]
         else:
-            raise ValueError(
-                "[PrODE]: The inputs of the `{}` net have to be a `list` "
+            utils.raise_value_err(
+                "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.__name__))
 
         # Input transformation

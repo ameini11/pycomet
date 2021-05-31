@@ -40,12 +40,12 @@ class FineTuningRegularizer(reg.L1L2):
 
         if weights_SP is not None:
             if not h5py.is_hdf5(weights_SP):
-                raise ValueError('[PrODE]: The `weights_SP` argument of '
-                                 '`FineTuningRegularizer` has to be an hdf5 file.')
+                utils.raise_value_err("The `weights_SP` argument of "
+                    "`FineTuningRegularizer` has to be an hdf5 file.")
             self.weights_SP = h5py.File(weights_SP,'r')
         else:
-            print("\n[PrODE]: Warning! `FineTuningRegularizer` is not given "
-                  "any Starting Point weights `weights_SP`.")
+            utils.warning("`FineTuningRegularizer` is not given "
+					"any Starting Point weights `weights_SP`.")
             self.weights_SP = None
 
 

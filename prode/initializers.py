@@ -43,17 +43,21 @@ class VarianceScalingStacked(object):
         dtype=tf.float64,
     ):
         if scale <= 0.0:
-            raise ValueError("`scale` must be positive float.")
-        if mode not in {"fan_in", "fan_out", "fan_avg"}:
-            raise ValueError("Invalid `mode` argument:", mode)
+            utils.raise_value_err("`{}[{}]` passed into `{}` must be positive "
+                "float.".format(self.__name__))
+        if mode not in ["fan_in", "fan_out", "fan_avg"]:
+            utils.raise_value_err("Invalid `mode` argument passed into `{}`. It must "
+                "be one of 'fan_in', 'fan_out', 'fan_avg'.".format(self.__name__))
         distribution = distribution.lower()
-        if distribution not in {
+        if distribution not in [
             "normal",
             "uniform",
             "truncated_normal",
             "untruncated_normal",
-            }:
-            raise ValueError("Invalid `distribution` argument:", distribution)
+            ]:
+            utils.raise_value_err("Invalid `distribution` argument passed into `{}`. "
+                "It must be one of 'normal', 'uniform', 'truncated_normal', "
+                "or 'untruncated_normal'.".format(self.__name__))
         self.scale = scale
         self.mode  = mode
         self.distribution = distribution
@@ -110,7 +114,7 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError(
+        utils.raise_value_err(
             "Could not interpret initializer identifier: " + str(identifier)
         )
 
@@ -156,5 +160,5 @@ def _assert_float_dtype(dtype):
         ValueError: if `dtype` is not a floating point type.
     """
     if not dtype.is_floating:
-        raise ValueError("Expected floating point type, got %s." % dtype)
+        utils.raise_value_err("Expected floating point type, got %s." % dtype)
     return dtype

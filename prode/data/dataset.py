@@ -35,14 +35,14 @@ class DataSet(Data):
             self.valid = self.load_data(file_valid, col_x, col_y)
             self.test  = self.load_data(file_test,  col_x, col_y)
         else:
-            raise ValueError("[PrODE]: No training data passed into `{}`.".format(self.__name__))
+            utils.raise_value_err("No training data passed into `{}`.".format(self.__name__))
 
     def load_data(self, filename, col_x, col_y):
         if filename is None:
             return None
         if col_x is None or col_y is None:
-            raise ValueError('[PrODE]: In `{}` you have to provide `col_x` and '
-                '`col_y` to extract data from file.'.format(self.__name__))
+            utils.raise_value_err("In `{}` you have to provide `col_x` and "
+                "`col_y` to extract data from file.".format(self.__name__))
         data = pd.read_csv(filename, sep=',', header=None).values
         if any(isinstance(i, list) for i in col_x):
             x_data = []

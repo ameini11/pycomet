@@ -35,12 +35,8 @@ class FFBlock(lay.Layer):
         self.regularizer         = regularization
         self.dropout_rate        = dropout_rate
         if batch_norm not in [None, "before", "after"]:
-            raise ValueError(
-                "\n[PrODE]: batch_norm == {}. Available choices: "
-                "{{None|'before'|'after'}}.".format(
-                    batch_norm
-                )
-            )
+            utils.raise_value_err("Invalid `batch_norm` argument passed into `{}`. "
+                "Available choices: {{None|'before'|'after'}}.".format(self.__name__))
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 
@@ -183,9 +179,9 @@ class ResPIBlock(FFBlock):
         ### Hyperparameters Initialization ------------------------------------
         for i in range(1, len(self.layer_size)-2):
             if self.layer_size[i] != self.layer_size[i+1]:
-            raise ValueError(
-                "\n[PrODE]: The number of neurons of each hidden layer has to "
-                "be the same in `{}`. Check `layer_size` variable.".format(self.__name__))
+            utils.raise_value_err(
+                "The number of neurons of each hidden layer must be the same in "
+                "`{}`. Check `layer_size` variable.".format(self.__name__))
 
         ### Layers Initialization ---------------------------------------------
         self.U = self.DenseBlock(number=1, name='U')
@@ -268,8 +264,8 @@ class Scaling(lay.Layer):
         input_shape = tensor_shape.TensorShape(input_shape)
         last_dim = tensor_shape.dimension_value(input_shape[-1])
         if last_dim is None:
-            raise ValueError('The last dimension of the inputs to `Dense` '
-                             'should be defined. Found `None`.')
+            utils.raise_value_err("The last dimension of the inputs to `Dense` "
+                "should be defined. Found `None`.")
         self.input_spec = InputSpec(min_ndim=2, axes={-1: last_dim})
 
         self.scale = self.add_weight(

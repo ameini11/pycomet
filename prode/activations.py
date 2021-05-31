@@ -52,5 +52,5 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError(
-            "Could not interpret activation function identifier: ", identifier)
+        utils.raise_value_err("Could not interpret activation function "
+            "identifier: ", identifier)

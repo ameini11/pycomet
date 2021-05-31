@@ -15,11 +15,11 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 
         # Check `batch_size` variable
         if not isinstance(batch_size, (dict, int)):
-            raise ValueError(
-                "[PrODE]: `batch_size` passed into `{}` has to be a `int` or `dict`.\n"
-                " >> batch_size = {'ics': initial condition pts batch size,\n"
-                "                  'pts': additional anchor pts batch size,\n"
-                "                  'res': collocation pts batch size (residual)}".format(self.__name__))
+            utils.raise_value_err(
+                "`batch_size` passed into `{}` has to be a `int` or `dict`.\n"
+                " batch_size = {'ics': initial condition pts batch size,\n"
+                "               'pts': additional anchor pts batch size,\n"
+                "               'res': collocation pts batch size (residual)}".format(self.__name__))
         if isinstance(batch_size, int):
         	self.batch_size = {data_id: batch_size for data_id in self.data_ids}
         else:
@@ -27,11 +27,11 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 
         # Check `data` variable
         if not isinstance(data, dict):
-            raise ValueError(
-                "[PrODE]: `data` passed into `{}` has to be a `int` or `dict`.\n"
-                " >> data = {'ics': initial condition pts dataset,\n"
-                "            'pts': additional anchor pts dataset,\n"
-                "            'res': collocation pts dataset (residual)}".format(self.__name__))
+            utils.raise_value_err(
+                "`data` passed into `{}` has to be a `int` or `dict`.\n"
+                " data = {'ics': initial condition pts dataset,\n"
+                "         'pts': additional anchor pts dataset,\n"
+                "         'res': collocation pts dataset (residual)}".format(self.__name__))
         else:
             self.data = dict()
         	for k, data_i in data.items():
@@ -43,9 +43,9 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 				else:
 			        if not isinstance(data_i, (tf.data.Dataset,list,tuple)):
 						# Check data type: `tf.data.Dataset([x,y])` or `[x,y]` or `(x,y)`
-			            raise ValueError(
-			                "\n[PrODE]: Values passed into `data` dictionary in `{}` "
-			                "have to be a `tf.data.Dataset` or a `list` or a `tuple`.".format(self.__name__))
+			            utils.raise_value_err(
+			                "Values passed into `data` dictionary in `{}` have "
+                            "to be a `tf.data.Dataset` or a `list` or a `tuple`.".format(self.__name__))
 			        elif not isinstance(data_i, tf.data.Dataset):
 			        	# Transform `list`/`tuple` into `tf.data.Dataset`
 			            dset_x = tf.data.Dataset.from_tensor_slices(tuple(data_i[0]))
