@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from .data import Data
+from .. import utils
 
 
 class DataSet(Data):

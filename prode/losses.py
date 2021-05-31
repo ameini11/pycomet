@@ -6,6 +6,8 @@ from tensorflow.python.keras        import backend as K
 from tensorflow.python.keras.utils  import losses_utils
 from tensorflow.python.framework    import ops
 
+from . import utils
+
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')
 def mean_absolute_log_percentage_error(y_true, y_pred):

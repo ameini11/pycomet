@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.activations as act
 
 from tensorflow.python.keras import backend as K
+from . import utils
 
 
 def layer_wise_locally_adaptive(activation, n=1):

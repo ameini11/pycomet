@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow.keras.metrics as met
 
 from . import losses as losses_module
+from . import utils
 
 
 def get(identifier):

@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from .... import utils
+
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='LossWeightsAdapter')
 class LossWeightsAdapter(object):

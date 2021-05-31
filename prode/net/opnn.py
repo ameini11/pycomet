@@ -6,6 +6,7 @@ from .. import initializers
 from .. import regularizers
 
 from .net import Net
+from .. import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='OpNN')

@@ -3,6 +3,8 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.regularizers as reg
 
+from . import utils
+
 
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
     return (

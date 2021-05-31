@@ -2,6 +2,8 @@ import tensorflow as tf
 import tensorflow.keras.initializers as init
 import scipy
 
+from . import utils
+
 
 class VarianceScalingStacked(object):
     """Initializer capable of adapting its scale to the shape of weights tensors.

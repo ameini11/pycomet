@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from .adapter import LossWeightsAdapter
+from .... import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='NTKAdapter')
