@@ -12,6 +12,7 @@ from . import callbacks as callbacks_module
 from . import losses    as losses_module
 from . import metrics   as metrics_module
 from . import net       as net_module
+from . import data      as data_module
 from . import utils
 
 from .optimizers     import get_train_opt
@@ -129,35 +130,52 @@ class Model(object):
         self,
         optimizer,
         lr=None,
-        loss="MSE",
+        losses="MSE",
         metrics=None,
-        decay=None,
-        loss_weights=None):
+        decay=None):
         utils.print_main("Compiling '",self.net.name,"' network ...", sep="")
 
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
-        # Initializing the loss functions
-        if isinstance(loss, dict):
-            self.loss_pts = losses_module.get(loss['pts'])
-            self.loss_res = losses_module.get(loss['res']) if loss['res'] is not None else None
-        elif isinstance(loss, str):
-            self.loss_pts = losses_module.get(loss)
-            self.loss_res = None
+        # Initializing loss functions
+        self.loss = None
+        if isinstance(losses, (dict,list,tuple)):
+            loss_fns = self.get_losses(losses)
+            if self.data.__name__ != 'ODE':
+                utils.raise_value_err("Multiple losses can be used only with `ODE` data.")
+            else:
+                self.net.add_losses(loss_fns, data_ids=self.data.data_ids)
+        elif isinstance(losses, str):
+            loss = losses_module.get(losses)
+            if self.data.__name__ == 'ODE':
+                loss_fns = {data_id: loss for data_id in self.data.data_ids }
+                self.net.add_losses(loss_fns, data_ids=self.data.data_ids)
+            else:
+                self.loss = loss
         else:
             utils.raise_value_err("Losses have to be defined as a `dict` or a `str`.")
 
-        if self.loss_res is not None and self.data.ode_func is not None:
-            self.net.add_residual_loss(self.data.residual_loss(self.loss_res))
-
         # Defining metrics
         if metrics is not None:
-            self.metrics = [ metrics_module.get(m) for m in metrics ]
+            if self.data.__name__ == 'ODE':
+                self.metrics = None
+                utils.warning("With `ODE` data, metrics evaluation is not available.")
+            else:
+                self.metrics = [ metrics_module.get(m) for m in metrics ]
 
         # Compiling
-        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
-                         metrics=self.metrics, loss_weights=loss_weights)
+        self.net.compile(optimizer=self.optimizer, losses=self.loss, metrics=self.metrics)
+
+
+    def get_losses(self, loss_names):
+        if isinstance(loss_names, (dict)):
+            loss_fns = {}
+            for loss_id, loss_name in loss_names:
+                loss_fns[loss_id] = losses_module.get(loss_name)
+        else:
+            loss_fns = [ losses_module.get(loss_name) for loss_name in loss_names ]
+        return loss_fns
 
 
     # ======================================================================= #
@@ -182,22 +200,19 @@ class Model(object):
         callbacks.extend([MC, TB, LR])
 
         # Defining train/valid pts
-        utils.print_submain("Number of Training pts:     %8d" % self.data.train_y.shape[0])
-        if self.data.valid_x is not None:
-            validation_data  = (self.data.valid_x, self.data.valid_y)
+        num_train_pts = self.data.get_num_pts(data_type='training', verbose=1)
+        num_valid_pts = self.data.get_num_pts(data_type='validation', verbose=1)
+        if num_valid_pts:
             validation_split = None
-            utils.print_submain("Number of Validation pts:   %8d\n" % self.data.valid_y.shape[0])
 
         # Fit the model
         self.history = self.net.fit(
-                        x=self.data.train_x,
-                        y=self.data.train_y, 
-                        batch_size=batch_size,
-                        epochs=epochs,
-                        callbacks=callbacks,
-                        validation_split=validation_split,
-                        validation_data=validation_data,
-                        sample_weight=self.data.sample_weight)
+            self.data.train,
+            batch_size=batch_size,
+            epochs=epochs,
+            callbacks=callbacks,
+            validation_split=validation_split,
+            validation_data=self.data.valid)
 
         # Save `history.history` in a file
         hist_df = pd.DataFrame.from_dict(self.history.history)

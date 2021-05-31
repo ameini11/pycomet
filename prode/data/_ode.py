@@ -4,7 +4,7 @@ from sklearn.cross_validation import train_test_split
 
 from .dataset import DataSet
 from .generator import ODEDataSequence
-from . import gradients
+from . import _gradients
 from .. import utils
 
 
@@ -51,15 +51,19 @@ class ODE(Data):
         else:
             train_dset = self.data_as_dict(train_data)
             valid_dset = None
+
         self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
+        self.num_train = self.train
         if valid_dset:
             self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
+            self.num_valid
 
         # Testing data
         if test_data:
             self.check_data_source(test_data)
             self.test = ODEDataSequence(self.data_as_dict(test_data), \
                 self.data_ids)
+            self.num_test = 
         else:
             self.test = None
 
@@ -104,7 +108,8 @@ class ODE(Data):
             if isinstance(data[data_id], (list,tuple)):
                 return data[data_id]
             elif data_id == 'res':
-                return data[data_id], np.empty([data[data_id].shape[0], self.out_dim])
+                shape = data[data_id].shape[0], self.out_dim
+                return data[data_id], np.empty(shape)
             else:
                 utils.raise_value_err("`{}[{}]` passed into `{}` has to be a list "
                     "or a tuple of arrays: [x, y]".format(name, data_id, self.__name__))
@@ -129,6 +134,26 @@ class ODE(Data):
         else:
             utils.raise_value_err("`{}['data_source']` passed into `{}` "
                 "has to be equal to 'array' or 'file'.".format(name, self.__name__))
+
+    def get_num_pts(self, data_type='training', verbose=1):
+        if data_type == 'training':
+            dset = self.train
+        elif data_type == 'validation':
+            dset = self.valid
+        else:
+            utils.raise_value_err("`data_type` passed into `{}.get_num_pts` method "
+                "must be equal to 'training' or 'validation'.".format(self.__name__))
+        if dset:
+            num_pts = {data_id: dset.data[data_id].cardinality() for data_id in dset.data}
+            if verbose:
+                utils.print_submain("Number of", data_type, "pts:")
+                for k, v in num_pts.items():
+                    utils.print_submain("  - `%s` pts:     %8d" % (k, v))
+            return num_pts
+        else:
+            if verbose:
+                utils.print_submain("No", data_type, "pts available.")
+            return None
 
 
     # Splitting Training/Validation Data

@@ -1,10 +1,11 @@
 import tensorflow as tf
 
 from .  import weighted_loss
-from .  import steps
+from .  import _steps
+# from .  import steps
 from .. import utils
 from .. import layers
-
+from .. import losses as losses_module
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='Net')

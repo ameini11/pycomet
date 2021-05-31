@@ -35,8 +35,7 @@ def ode(ic, t, grads, params):
     K = tf.transpose(params)
 
     # Rearranging variables
-    # Y, dY_dt = [ grad for grad in grads ]
-    Y, dY_dt = grads.read(0), grads.read(1)
+    Y, dY_dt = grads
 
     return dY_dt - tf.matmul(Y, K)
 

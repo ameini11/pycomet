@@ -69,6 +69,8 @@ def get(identifier):
         return loss_identifier[identifier]
     elif callable(identifier):
         return identifier
+    elif identifier == None:
+        return None
     else:
         utils.raise_value_err("Could not interpret loss function identifier:", identifier)
 

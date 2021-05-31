@@ -10,7 +10,8 @@ from . import data
 from . import initializers
 from . import layers
 from . import net
-from .model import Model
+# from .model import Model
+from ._model import Model
 from . import postprocessing
 from . import regularizers
 

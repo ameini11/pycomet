@@ -53,3 +53,21 @@ class DataSet(Data):
             x_data = data[:, col_x[0]:col_x[1]], data[:, col_y[0]:col_y[1]]
         y_data = data[:, col_y[0]:col_y[1]]
         return self.get_dataset(x_data, y_data)
+
+    def get_num_pts(self, data_type='training', verbose=1):
+        if data_type == 'training':
+            dset = self.train
+        elif data_type == 'validation':
+            dset = self.valid
+        else:
+            utils.raise_value_err("`data_type` passed into `{}.get_num_pts` method "
+                "must be equal to 'training' or 'validation'.".format(self.__name__))
+        if dset:
+            num_pts = dset.cardinality()
+            if verbose:
+                utils.print_submain("Number of", data_type, "pts:     %8d" % num_pts)
+            return num_pts
+        else:
+            if verbose:
+                utils.print_submain("No", data_type, "pts available.")
+            return None
