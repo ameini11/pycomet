@@ -27,9 +27,9 @@ class DataGenerator(object):
             os.makedirs(self.data_dir)
 
         # Data Quantities -----------------------------------------------------
-        self.train_cases    = inputs.train_cases                    # Number of training cases
-        self.valid_pts      = round(inputs.valid*inputs.train_pts)  # Number of validation v for each case
-        self.train_pts      = inputs.train_pts - self.valid_pts     # Number of total training pts for each case
+        self.valid_pts = {k: round(inputs.valid*inputs.train_pts[k]) for k in inputs.train_pts }
+        self.train_pts = {k: inputs.train_pts[k] - self.valid_pts[k]  for k in inputs.train_pts }
+        self.train_pts = inputs.num_pts - self.val_num_pts     # Number of total training pts for each case
         self.train_pts_dist = inputs.train_pts_dist                 # Training pts distribution
 
         self.test_cases     = inputs.test_cases                     # Number of testing cases
@@ -67,8 +67,8 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating initial conditions ...')
 
-        dim = self.dim["u_dim"]
-        n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
+        dim = self.dim["inp"][0]
+        n = self.train_pts["ics"]*2 + self.test_cases    # '*2' for validation cases
         unit_vec = np.array([[1.] * dim])
 
         # Contructing Design Matrix -------------------------------------------
@@ -100,33 +100,18 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating training pts ...')
 
-        # ---------------------------------------------------------------------
-        def get_data(idx):
-            '''Extract data from arrays.'''
-
-            m = np.shape(idx)[0]
-            u = np.tile(ic_i, (m,1))    # NN Input: Initial Condition
-            t = t_i[idx,:]                  # NN Input: Time
-            y = y_i[idx,:]                  # NN Target
-            return [u, t, y]
-        # ---------------------------------------------------------------------
-
-        data = {}
+        data_train, data_valid = {}, {}
         for i, ic_i in enumerate(tqdm(ic_train, file=sys.stdout)):
 
             # Solving the ODE
-            sol = self.ODE_sol.solve(ic_i, self.ODE_mat, eval_jac=eval_jac, eval_f=eval_f)
+            sol = self.ODE_sol.solve(ic_i, self.ODE_mat)
             t_i, y_i = sol[0], sol[1]
-            if eval_jac:
-                norm_J_i, eig_J_i = sol[2], sol[3]
-            if eval_f:
-                f_rhs = sol[-1]
 
             # Define data type
             if (i % 2) == 0:
-                data_id, pts = 'train', self.train_pts
+                data_id, pts = 'train', self.num_pts
             else:
-                data_id, pts = 'valid', self.valid_pts
+                data_id, pts = 'valid', self.val_num_pts
 
             # Get data from indices
             tree = KDTree(np.c_[t_i.ravel()])
@@ -134,16 +119,6 @@ class DataGenerator(object):
             data_i = get_data(idx)
             if eval_f:
                 data_i.append(f_rhs)
-            if data_id == 'train':
-                ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-1))), 1).numpy()
-                data_i.append(ohe_i)
-
-            # marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                     fillstyle='full', markersize=2)
-            # plt.xscale('log')
-            # plt.plot(data_i[2], data_i[3], **marker_style)
-            # plt.grid()
-            # plt.show()
 
             if i == 0 or i == 1:
                 data[data_id] = data_i
@@ -162,6 +137,24 @@ class DataGenerator(object):
 
         return data_train, data_valid
 
+    @staticmethod
+    def get_data(idx, ic, t, y):
+        '''Extract data from arrays.'''
+        m = np.shape(idx)[0]
+        u = np.tile(ic_i, (m,1))
+        return [u, t[idx,:] , y[idx,:]]
+
+    def get_train_valid(self, idx, ic, t, y):
+        tree = KDTree(np.c_[t.ravel()])
+        idx  = self.sampling(0, t.shape[0]-1, t, tree, pts)
+        data = get_data(idx, ic, t, y)
+
+        if i == 0 or i == 1:
+            data[data_id] = data_i
+        else:
+            data[data_id] = list(map(lambda x,y: np.vstack((x,y)), data[data_id], data_i))
+
+
 
     ###########################################################################
     ### Testing Data
@@ -171,7 +164,7 @@ class DataGenerator(object):
         print('\n' + self.header + 'Generating testing pts ...')
 
         if self.test_training:      # Test underfitting
-            assert self.train_cases >= self.test_cases
+            assert self.num_ics >= self.test_cases
             n       = self.test_cases
             idx     = np.random.choice(ic_train.shape[0], size=n, replace=False)
             ic_test = np.vstack((ic_test, ic_train[idx, :]))
@@ -216,7 +209,6 @@ class DataGenerator(object):
 
     def sampling(self, idx_min, idx_max, t, tree, pts):
         '''Get data by sampling t vector.'''
-
         t_min, t_max = t[idx_min], t[idx_max]
         if self.train_pts_dist == 'random':
             d, ii  = tree.query([[t_min],[t_max]], k=1)

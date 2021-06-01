@@ -31,12 +31,10 @@ from data_generator import DataGenerator
 
 def ode(ic, t, grads, params):
 
+    Y, dY_dt = grads
+
     # Getting Rate Coefficient matrices
     K = tf.transpose(params)
-
-    # Rearranging variables
-    # Y, dY_dt = [ grad for grad in grads ]
-    Y, dY_dt = grads.read(0), grads.read(1)
 
     return dY_dt - tf.matmul(Y, K)
 
@@ -52,36 +50,26 @@ def main():
     ic      = dataGen.initial_cond()
     if inp.test_flg > 0 and inp.test_cases > 0:
         data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
-    if not inp.from_saved_data:
-        data_train, data_valid = dataGen.training_data(ic[0])
-        x_train = [data_train[0], data_train[1]]
-        y_train = data_train[2]
-        x_valid = [data_valid[0], data_valid[1]]
-        y_valid = data_valid[2]
-        sample_weight = data_train[3]
+    if not inp.from_file:
+        train_data, valid_data = dataGen.training_data(ic[0])
+        col_x, col_y = None, None
     else:
-        data_train = pd.read_csv(inp.data_train_file,sep=',',header=None).values
-        data_valid = pd.read_csv(inp.data_valid_file,sep=',',header=None).values
-        x_train = [data_train[:, 1:6], data_train[:, 6:7]]
-        y_train = data_train[:, 7:11]
-        x_valid = [data_valid[:, 1:6], data_valid[:, 6:7]]
-        y_valid = data_valid[:, 7:11]
-        sample_weight = data_train[:, 11:12]
-
-    if not inp.use_ohe:
-        sample_weight = None
+        train_data = inp.data_train_file
+        valid_data = inp.data_valid_file
+        col_x, col_y = inp.col_x, inp.col_y
 
     # Initialize Data ---------------------------------------------------------
     data = pro.data.ODE(
         ode_func=ode,
         ode_order=1,
         ode_params=dataGen.ODE_mat,
-        x_train=x_train,
-        y_train=y_train,
-        sample_weight=sample_weight,
-        x_valid=x_valid,
-        y_valid=y_valid)
-
+        out_dim=inp.dim["out"],
+        train_data=train_data,
+        valid_data=train_data,
+        col_x=col_x,
+        col_y=col_y,
+        batch_size=inp.batch_size,
+        val_batch_size=inp.val_batch_size)
 
     ###########################################################################
     ### Network
@@ -94,7 +82,9 @@ def main():
         inp.kernel_initializer,
         regularization=inp.regularization,
         dropout_rate=inp.dropout_rate,
-        batch_norm=inp.batch_norm)
+        batch_norm=inp.batch_norm,
+        block=inp.block,
+        adaptive_weights=inp.adaptive_weights)
 
     # Apply I/O Transformation ------------------------------------------------
     net.apply_input_transform(inp.input_fn)
@@ -111,7 +101,7 @@ def main():
     model.build(verbose=1, load_net=inp.load_flg, visualize_graph=False)
 
     # Compile Model -----------------------------------------------------------
-    model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, metrics=inp.metrics,
+    model.compile(inp.optimizer, lr=inp.lr, loss=inp.losses, metrics=inp.metrics,
                   decay=inp.decay, loss_weights=None)
 
     # Fit Model ---------------------------------------------------------------
@@ -129,7 +119,7 @@ def main():
                                        model.train_dir, inp.period)
             cb_list.append(PL)
 
-        model.fit(epochs=inp.epochs, batch_size=inp.batch_size, callbacks=cb_list)
+        model.fit(epochs=inp.epochs, batch_size=None, callbacks=cb_list)
 
     # Save Model ---------------------------------------------------------------
     if inp.save_flg > 0:

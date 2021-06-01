@@ -45,15 +45,14 @@ class InputData(object):
 
     # Variables Dimensionality ------------------------------------------------
     dim = {
-            "u_dim": 2,     # Branch input dimensionality
-            "y_dim": 1,     # Trunk input dimensionality
-            "G_dim": 2      # Data dimensionality
+            "inp": [2, 1]     # Branch-Trunk input dimensionality
+            "out": 2          # Output dimensionality
             }
 
     # Structure ---------------------------------------------------------------
     layer_size         = {
-                            "branch": [dim['u_dim'], 16, 16, 8],
-                            "trunk":  [dim['y_dim'], 16, 16, 8]
+                            "branch": [dim['inp'][0], 16, 16, 8],
+                            "trunk":  [dim['inp'][1], 16, 16, 8]
                             }
     activation         = {
                             "branch": 'tanh',
@@ -71,6 +70,7 @@ class InputData(object):
     dropout_rate       = 0
     # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
     kernel_initializer = "GlorotNormal"
+    block = 'FFBlock'
 
     # I/O Transformation ------------------------------------------------------
     input_fn  = None
@@ -80,15 +80,26 @@ class InputData(object):
     ###########################################################################
     ### Data
     ###########################################################################
-    from_saved_data = False
-    data_train_file = './data/train_data.csv'
-    data_valid_file = './data/valid_data.csv'
-    use_ohe         = True
+    from_file       = False
+    data_train_file = {
+                        'ics': './data/train/ics.csv',
+                        'pts': './data/train/pts.csv',
+                        'res': './data/train/res.csv'
+                    }
+    data_valid_file = {
+                        'ics': './data/valid/ics.csv',
+                        'pts': './data/valid/pts.csv',
+                        'res': './data/valid/res.csv'
+                    }
+    col_x = [[0,2],[2,3]]
+    col_y = [3,5]
 
     # Training ----------------------------------------------------------------
-    train_cases    = 1            # Number of training cases
-    train_pts      = 160            # Number of total training pts for each case
-    valid          = 0.2            # % of Validation pts for each case
+    train_pts = {'ics': 1, 'pts': 160, 'res': 160}
+    # num_ics = 1     # Number of training scenarios
+    # num_pts = 160   # Number of total anchor pts for each scenario
+    # num_res = 160   # Number of total collocaion pts for each scenario
+    valid   = 0.2   # % of Validation pts
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
@@ -101,25 +112,28 @@ class InputData(object):
     ### Training
     ###########################################################################
     epochs       = 100000
-    batch_size   = 128
+    # batch_size   = 128
+    batch_size   = {'ics': 1, 'pts': 128, 'res': 128}
+    val_batch_size   = {'ics': 1, 'pts': 128, 'res': 128}
 
     optimizer    = 'adam'
     lr           = 5.e-3
 
     # Learning rate scheduler -------------------------------------------------
     decay_epochs = 2000
-    decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
+    decay_steps  = 1000 #round(train_pts*num_ics*(1.-valid))/batch_size*decay_epochs
     decay        = ["exponential", decay_steps, 0.98]
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'mse', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ] 
+    losses       = {'ics': 'MSE', 'pts': 'MSE', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
+    adaptive_weights = 'LossWeightsAdapter'
     metrics      = ['MSE']
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
     patience     = 100000
-    monitor      = 'val_res_loss'
+    monitor      = 'val_tot_loss'
 
 
     ###########################################################################

@@ -27,7 +27,7 @@ class ODE(Data):
         col_x=None,
         col_y=None,
         batch_size=32,
-        valid_batch_size=32):
+        valid_batch_size=None):
         super(ODE, self).__init__()
 
         self.out_dim = out_dim
@@ -55,6 +55,8 @@ class ODE(Data):
         self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
         self.num_train = self.train
         if valid_dset:
+            if valid_batch_size is None:
+                valid_batch_size = batch_size
             self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
             self.num_valid
 
