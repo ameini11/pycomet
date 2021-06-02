@@ -90,14 +90,23 @@ class ODEDataSequence(tf.keras.utils.Sequence):
             A batch
         """
         for i, (k, idx) in enumerate(self.data_ids.items()):
-            batch = next(self.iterator[k])
+            try:
+                batch = next(self.iterator[k])
+            except:
+                self.on_epoch_end()
+                batch = next(self.iterator[k])
             _x, _y   = batch[0], batch[1]
-            _encoder = tf.ones([self.batch_size[k], 1], dtype=tf.int64) * idx
+            _encoder = tf.ones([self.batch_size[k],1], dtype=tf.int64) * idx
             if i == 0:
                 x, y, encoder = _x, _y, _encoder
             else:
                 x, y, encoder = self._concat([x, y, encoder], [_x, _y, _encoder])
         return x, y, encoder
+
+    def __iter__(self):
+        """Create a generator that iterate over the Sequence."""
+        for item in (self[i] for i in range(len(self))):
+            yield item
 
     def on_epoch_end(self):
         """Method called at the end of every epoch.

@@ -5,17 +5,26 @@ from tensorflow.python.keras.engine import data_adapter
 from prode import losses as losses_utils
 
 
+def masking(x, encoder, data_id):
+    print('yes')
+    if isinstance(x, (list,tuple)):
+        return [ tf.boolean_mask(x_i, encoder == data_id) for x_i in x ]
+    else:
+        return tf.boolean_mask(x, encoder == data_id)
+
+
 def get_pred_loss(x, y, encoder, model, data_id, training=True):
     ids  = model.data_ids if training else model.data_ids_val
-    x_id = tf.boolean_mask(x, encoder == ids[data_id])
-    y_id = tf.boolean_mask(y, encoder == ids[data_id])
-    
+    if not None in y.shape:
+        x = masking(x, encoder, ids[data_id])
+        y = masking(y, encoder, ids[data_id])
+
     loss_fn = model.loss_fns[data_id]
     if data_id == 'res':
-        return loss_fn(model, x_id, training=training)
+        return loss_fn(model, x, training=training)
     else:
-        y_pred = model(x_id, training=training)
-        loss   = loss_fn(y_id, y_pred)
+        y_pred = model(x, training=training)
+        loss   = loss_fn(y, y_pred)
         return y_pred, loss
 
 
@@ -61,11 +70,16 @@ def test_step(model, data):
     data = data_adapter.expand_1d(data)
     x, y, encoder = data_adapter.unpack_x_y_sample_weight(data)
     
-    losses = dict()
+    pred, losses = {}, {}
     for data_id in model.data_ids_val:
-        losses[data_id] = get_loss(x, y, encoder, model, data_id, training=False)
+        pred[data_id], losses[data_id] = get_pred_loss(x, y, encoder, model, data_id, training=False)
     # Regularization Losses
     reg_loss = losses_utils.get_reg_losses(model)
+
+    # Calculate total loss
+    total_loss = reg_loss
+    for data_id, loss in losses.items():
+        total_loss = total_loss + loss
 
     # Collect metrics to return
     return_metrics = {}

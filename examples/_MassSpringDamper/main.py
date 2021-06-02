@@ -108,7 +108,6 @@ def main():
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, \
         metrics=inp.metrics, decay=inp.decay)
-    input('-----------------------------------------')
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:
@@ -125,7 +124,7 @@ def main():
                                        model.train_dir, inp.period)
             cb_list.append(PL)
 
-        model.fit(epochs=inp.epochs, batch_size=None, callbacks=cb_list)
+        model.fit(epochs=inp.epochs, callbacks=cb_list)
 
     # Save Model ---------------------------------------------------------------
     if inp.save_flg > 0:

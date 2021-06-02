@@ -24,8 +24,11 @@ class DataSet(Data):
         file_train=None,
         file_valid=None,
         file_test=None,
+        valid_split=0.2,
         col_x=None,
-        col_y=None):
+        col_y=None,
+        batch_size=32,
+        valid_batch_size=None):
         super(DataSet, self).__init__()
         if x_train is not None:
             self.train = self.get_dataset(x_train, y_train)
@@ -37,6 +40,11 @@ class DataSet(Data):
             self.test  = self.load_data(file_test,  col_x, col_y)
         else:
             utils.raise_value_err("No training data passed into `{}`.".format(self.__name__))
+
+        self.batch_size = batch_size
+        self.valid_batch_size = valid_batch_size
+        if self.valid is None:
+            self.validation_split = valid_split
 
     def load_data(self, filename, col_x, col_y):
         if filename is None:

@@ -15,6 +15,10 @@ class Data(object):
         self.test  = None
         
         self.data_ids = None
+        
+        self.batch_size = None
+        self.valid_batch_size = None
+        self.validation_split = None
 
     def get_dataset(self, x, y):
         if x is not None:

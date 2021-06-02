@@ -131,8 +131,8 @@ class InputData(object):
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
     loss         = {'ics': 'MSE', 'pts': 'MSE', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
-    adaptive_weights = 'LossWeightsAdapter'
     metrics      = ['MSE']
+    adaptive_weights = {'name': 'ConstantAdapter'}
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6

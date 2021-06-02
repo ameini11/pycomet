@@ -141,19 +141,25 @@ class Model(object):
         self.loss = None
         if isinstance(loss, (dict,list,tuple)):
             loss_fns = self.get_losses(loss)
-            if self.data.name != 'ODE':
-                utils.raise_value_err("Multiple losses can be used only with `ODE` data.")
+            if self.data.name == 'ODE':
+                self.net.add_losses(loss_fns, self.data)
             else:
-                self.net.add_losses(loss_fns, data_ids=self.data.data_ids)
+                utils.raise_value_err("Multiple losses can be used only with `ODE` data.")
         elif isinstance(loss, str):
             loss = losses_module.get(loss)
             if self.data.name == 'ODE':
-                loss_fns = {data_id: loss for data_id in self.data.data_ids }
-                self.net.add_losses(loss_fns, data_ids=self.data.data_ids)
+                loss_fns = {data_id: loss for data_id in self.data.data_ids}
+                self.net.add_losses(loss_fns, self.data)
             else:
                 self.loss = loss
         else:
             utils.raise_value_err("Losses have to be defined as a `dict` or a `str`.")
+
+        # Update data ids
+        self.net.add_data_ids(self.data)
+
+        # Add adaptive weights
+        self.net.add_adaptive_weights()
 
         # Defining metrics
         if metrics is not None:
@@ -182,10 +188,7 @@ class Model(object):
     def fit(
         self,
         epochs=1,
-        batch_size=None,
         callbacks=[],
-        validation_split=0.2,
-        validation_data=None,
         profile_batch=0):
         utils.print_main("Training the model ...")
 
@@ -201,17 +204,16 @@ class Model(object):
         # Defining train/valid pts
         num_train_pts = self.data.get_num_pts(data_type='training', verbose=1)
         num_valid_pts = self.data.get_num_pts(data_type='validation', verbose=1)
-        if num_valid_pts:
-            validation_split = None
 
         # Fit the model
         self.history = self.net.fit(
             self.data.train,
-            batch_size=batch_size,
+            batch_size=self.data.batch_size,
             epochs=epochs,
             callbacks=callbacks,
-            validation_split=validation_split,
-            validation_data=self.data.valid)
+            validation_split=self.data.validation_split,
+            validation_data=self.data.valid,
+            validation_batch_size=self.data.valid_batch_size)
 
         # Save `history.history` in a file
         hist_df = pd.DataFrame.from_dict(self.history.history)

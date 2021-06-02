@@ -6,7 +6,7 @@ from varname import nameof
 
 from prode.data.data      import Data
 from prode.data.generator import ODEDataSequence
-from prode.data           import _gradients as gradients
+from prode.data           import gradients
 from prode                import utils
 
 
@@ -58,10 +58,12 @@ class ODE(Data):
             valid_dset = None
 
         self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
+        self.data_ids = self.train.data_ids
         if valid_dset:
             if valid_batch_size is None:
                 valid_batch_size = batch_size
             self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
+            self.data_ids_val = self.valid.data_ids
 
         # Testing data
         if test_data:
@@ -148,7 +150,7 @@ class ODE(Data):
             if verbose:
                 utils.print_submain("Number of", data_type, "pts:")
                 for k, v in num_pts.items():
-                    utils.print_submain("  - `%s` pts:     %8d" % (k, v))
+                    utils.print_submain("  - '%s': %8d" % (k, v))
             return num_pts
         else:
             if verbose:
