@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from .... import utils
+from prode import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='LossWeightsAdapter')

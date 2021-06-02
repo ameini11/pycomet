@@ -6,7 +6,7 @@ from tensorflow.python.framework import dtypes, tensor_shape
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.engine.input_spec import InputSpec
 
-from . import utils
+from prode import utils
 
 
 # =========================================================================== #
@@ -181,9 +181,9 @@ class ResPIBlock(FFBlock):
         ### Hyperparameters Initialization ------------------------------------
         for i in range(1, len(self.layer_size)-2):
             if self.layer_size[i] != self.layer_size[i+1]:
-            utils.raise_value_err(
-                "The number of neurons of each hidden layer must be the same in "
-                "`{}`. Check `layer_size` variable.".format(self.__name__))
+                utils.raise_value_err(
+                    "The number of neurons of each hidden layer must be the same in "
+                    "`{}`. Check `layer_size` variable.".format(self.__name__))
 
         ### Layers Initialization ---------------------------------------------
         self.U = self.DenseBlock(number=1, name='U')

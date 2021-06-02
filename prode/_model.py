@@ -8,15 +8,15 @@ import tensorflow as tf
 import tensorflow.keras.callbacks as CB
 import tensorboard_plugin_profile
 
-from . import callbacks as callbacks_module
-from . import losses    as losses_module
-from . import metrics   as metrics_module
-from . import net       as net_module
-from . import data      as data_module
-from . import utils
+from prode import callbacks as callbacks_module
+from prode import losses    as losses_module
+from prode import metrics   as metrics_module
+from prode import net       as net_module
+from prode import data      as data_module
+from prode import utils
 
-from .optimizers     import get_train_opt
-from .postprocessing import training_plots, testing_plots
+from prode.optimizers     import get_train_opt
+from prode.postprocessing import training_plots, testing_plots
 
 
 class Model(object):
@@ -68,10 +68,9 @@ class Model(object):
             net_graph = self.net
         else:
             if not self.net.built:
-                if isinstance(self.data.train_x, (list,tuple)):
-                    inputs_shape = [inp.shape for inp in self.data.train_x]
-                else:
-                    inputs_shape = self.data.train_x.shape
+                for sample in self.data.train:
+                    inputs_shape = [inp.shape for inp in sample[0]]
+                    break
                 self.net.build(inputs_shape)
             net_graph = self.net.build_graph()
 
@@ -130,7 +129,7 @@ class Model(object):
         self,
         optimizer,
         lr=None,
-        losses="MSE",
+        loss="MSE",
         metrics=None,
         decay=None):
         utils.print_main("Compiling '",self.net.name,"' network ...", sep="")
@@ -140,15 +139,15 @@ class Model(object):
 
         # Initializing loss functions
         self.loss = None
-        if isinstance(losses, (dict,list,tuple)):
-            loss_fns = self.get_losses(losses)
-            if self.data.__name__ != 'ODE':
+        if isinstance(loss, (dict,list,tuple)):
+            loss_fns = self.get_losses(loss)
+            if self.data.name != 'ODE':
                 utils.raise_value_err("Multiple losses can be used only with `ODE` data.")
             else:
                 self.net.add_losses(loss_fns, data_ids=self.data.data_ids)
-        elif isinstance(losses, str):
-            loss = losses_module.get(losses)
-            if self.data.__name__ == 'ODE':
+        elif isinstance(loss, str):
+            loss = losses_module.get(loss)
+            if self.data.name == 'ODE':
                 loss_fns = {data_id: loss for data_id in self.data.data_ids }
                 self.net.add_losses(loss_fns, data_ids=self.data.data_ids)
             else:
@@ -158,20 +157,20 @@ class Model(object):
 
         # Defining metrics
         if metrics is not None:
-            if self.data.__name__ == 'ODE':
+            if self.data.name == 'ODE':
                 self.metrics = None
                 utils.warning("With `ODE` data, metrics evaluation is not available.")
             else:
                 self.metrics = [ metrics_module.get(m) for m in metrics ]
 
         # Compiling
-        self.net.compile(optimizer=self.optimizer, losses=self.loss, metrics=self.metrics)
+        self.net.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
 
 
     def get_losses(self, loss_names):
         if isinstance(loss_names, (dict)):
             loss_fns = {}
-            for loss_id, loss_name in loss_names:
+            for loss_id, loss_name in loss_names.items():
                 loss_fns[loss_id] = losses_module.get(loss_name)
         else:
             loss_fns = [ losses_module.get(loss_name) for loss_name in loss_names ]

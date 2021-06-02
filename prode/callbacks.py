@@ -1,18 +1,16 @@
 import os
 import sys
 import time
-
 import numpy as np
 from datetime import datetime
-# from .utils import save_animation
 
 import tensorflow                   as tf
 import tensorflow.keras.backend     as K
 import tensorflow.keras.callbacks   as CB
 from tensorflow.python.util.tf_export import keras_export
 
-from .postprocessing import testing_plots
-from . import utils
+from prode.postprocessing import testing_plots
+from prode import utils
 
 
 ###############################################################################

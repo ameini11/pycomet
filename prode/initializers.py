@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.initializers as init
 import scipy
 
-from . import utils
+from prode import utils
 
 
 class VarianceScalingStacked(object):

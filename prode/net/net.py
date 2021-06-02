@@ -1,11 +1,10 @@
 import tensorflow as tf
 
-from .  import weighted_loss
-from .  import _steps
-# from .  import steps
-from .. import utils
-from .. import layers
-from .. import losses as losses_module
+from prode.net import weighted_loss
+from prode.net import _steps
+from prode     import utils
+from prode     import layers
+from prode     import losses as losses_module
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='Net')
@@ -24,9 +23,9 @@ class Net(tf.keras.Model):
 
         if not isinstance(dim, dict):
             utils.raise_value_err(
-                "`dim` passed into `{}` has to be a `dict` of length 2:\n"
-                " dim = {'inp': `int` (or list of `int`),\n"
-                "        'out': `int` (or list of `int`)}.".format(self.__name__))
+                "`dim` passed into `{}` network has to be a `dict` of length 2:\n"
+                "  - 'inp': `int` (or list of `int`);\n"
+                "  - 'out': `int` (or list of `int`).".format(self.name))
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
 
@@ -87,24 +86,24 @@ class Net(tf.keras.Model):
         """Add a `list`/`dict` of loss functions for composite loss."""
         if isinstance(loss_fns, dict):
             self.loss_fns = loss_fns
-        if isinstance(loss_fns, (list,tuple)):
+        elif isinstance(loss_fns, (list,tuple)):
             if isinstance(data_ids, (list,tuple)):
                 if len(loss_fns) == len(data_ids):
                     self.loss_fns = {data_ids[i]: loss_fns[i] for i in range(len(loss_fns))}
                 else:
                     utils.raise_value_err(
                         "`loss_fns` and `data_ids` passed into `{}.add_losses` "
-                        "method have to be of the same length.".format(self.__name__))
+                        "method have to be of the same length.".format(self.name))
             elif isinstance(data_ids, dict):
                 self.loss_fns = {data_id: loss_fns[i] for i, data_id in enumerate(data_ids)}
             else:
                 utils.raise_value_err(
                     "`data_ids` passed into `{}.add_losses` method has "
-                    "to be a `dict` or a `list`/`tuple`.".format(self.__name__))
+                    "to be a `dict` or a `list`/`tuple`.".format(self.name))
         else:
             utils.raise_value_err(
                 "`loss_fns` passed into `{}.add_losses` method has "
-                "to be a `dict` or a `list`/`tuple`.".format(self.__name__))
+                "to be a `dict` or a `list`/`tuple`.".format(self.name))
 
 
     # Steps

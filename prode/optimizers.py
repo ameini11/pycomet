@@ -1,5 +1,6 @@
 from tensorflow.keras import optimizers as opt
-from . import utils
+
+from prode import utils
 
 
 def get_train_opt(optimizer, lr=None, decay=None):

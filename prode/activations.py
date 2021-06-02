@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.activations as act
 
 from tensorflow.python.keras import backend as K
-from . import utils
+from prode import utils
 
 
 def layer_wise_locally_adaptive(activation, n=1):
@@ -31,24 +31,24 @@ def get(identifier):
             n = float(identifier[0].split("-")[1])
             return layer_wise_locally_adaptive(get(identifier[1]), n=n)
         return {
-            "abs": 		tf.math.abs,
+            "abs":      tf.math.abs,
             "cos":      tf.math.cos,
-            "elu": 		act.elu,
+            "elu":      act.elu,
             "exp":      act.exponential,
             "gelu":     act.gelu,
             "hard_sig": act.hard_sigmoid,
-            "linear": 	act.linear,
-            "log": 		tf.math.log,
-            "relu": 	act.relu,
-            "selu": 	act.selu,
-            "sigmoid": 	act.sigmoid,
-            "sin": 		tf.math.sin,
+            "linear":   act.linear,
+            "log":      tf.math.log,
+            "relu":     act.relu,
+            "selu":     act.selu,
+            "sigmoid":  act.sigmoid,
+            "sin":      tf.math.sin,
             "softmax":  act.softmax,
             "softplus": act.softplus,
             "softsign": act.softsign,
-            "square": 	tf.math.square,
-            "swish": 	act.swish,
-            "tanh": 	act.tanh,
+            "square":   tf.math.square,
+            "swish":    act.swish,
+            "tanh":     act.tanh,
         }[identifier]
     elif callable(identifier):
         return identifier

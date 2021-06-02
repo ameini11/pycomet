@@ -1,28 +1,30 @@
 # *************************************************************************** #
-# Tensorflow/Keras set up
+# # Tensorflow/Keras set up
 
-NUM_THREADS = 16
-DTYPE       = 'float64'
-EPSILON     = 1.e-30
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
-tf.keras.backend.set_floatx(DTYPE)
-tf.keras.backend.set_epsilon(EPSILON)
-tf.config.threading.set_inter_op_parallelism_threads(NUM_THREADS)
-tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
+# NUM_THREADS = 16
+# DTYPE       = 'float64'
+# EPSILON     = 1.e-30
+# import os
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+# import tensorflow as tf
+# tf.keras.backend.set_floatx(DTYPE)
+# tf.keras.backend.set_epsilon(EPSILON)
+# tf.config.threading.set_inter_op_parallelism_threads(NUM_THREADS)
+# tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
 
 # *************************************************************************** #
 
+import os
 import sys
-import pandas as pd
-import numpy as np
-from tensorflow.keras import callbacks
-
 # Remove the following line if you install `prode` as a Python package --------
 sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/'))
 # -----------------------------------------------------------------------------
 import prode as pro
+
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import callbacks
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
@@ -52,24 +54,27 @@ def main():
         data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
     if not inp.from_file:
         train_data, valid_data = dataGen.training_data(ic[0])
+        train_data['data_source'] = valid_data['data_source'] = 'array'
         col_x, col_y = None, None
     else:
         train_data = inp.data_train_file
         valid_data = inp.data_valid_file
+        train_data['data_source'] = valid_data['data_source'] = 'file'
         col_x, col_y = inp.col_x, inp.col_y
 
     # Initialize Data ---------------------------------------------------------
-    data = pro.data.ODE(
+    data = pro.utils.get_class(pro.data, inp.data_name)(
         ode_func=ode,
         ode_order=1,
         ode_params=dataGen.ODE_mat,
         out_dim=inp.dim["out"],
         train_data=train_data,
-        valid_data=train_data,
+        valid_data=valid_data,
         col_x=col_x,
         col_y=col_y,
         batch_size=inp.batch_size,
-        val_batch_size=inp.val_batch_size)
+        valid_batch_size=inp.valid_batch_size)
+
 
     ###########################################################################
     ### Network
@@ -95,14 +100,15 @@ def main():
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.name)
+    model = pro._model.Model(data, net, inp.name)
 
     # Build Model -------------------------------------------------------------
-    model.build(verbose=1, load_net=inp.load_flg, visualize_graph=False)
+    model.build(verbose=0, load_net=inp.load_flg, visualize_graph=False)
 
     # Compile Model -----------------------------------------------------------
-    model.compile(inp.optimizer, lr=inp.lr, loss=inp.losses, metrics=inp.metrics,
-                  decay=inp.decay, loss_weights=None)
+    model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, \
+        metrics=inp.metrics, decay=inp.decay)
+    input('-----------------------------------------')
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:

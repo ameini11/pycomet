@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from .data import Data
-from .. import utils
+from prode.data.data import Data
+from prode           import utils
 
 
 class DataSet(Data):

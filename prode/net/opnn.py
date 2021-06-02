@@ -1,12 +1,11 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
-from .. import activations
-from .. import initializers
-from .. import regularizers
-
-from .net import Net
-from .. import utils
+from prode     import activations
+from prode     import initializers
+from prode     import regularizers
+from prode     import utils
+from prode.net import Net
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='OpNN')
@@ -39,7 +38,7 @@ class OpNN(Net):
         if not isinstance(self.inp_dim, (list, tuple)):
             utils.raise_value_err(
                 "`dim['inp']` passed into `{}` has to be a `list` or "
-                "a `tuple`of length 2: [u_dim, y_dim]".format(self.__name__))
+                "a `tuple`of length 2: [u_dim, y_dim]".format(self.name))
 
         if isinstance(layer_size, dict):
             self.layer_size_branch = layer_size["branch"]
@@ -142,7 +141,7 @@ class OpNN(Net):
         else:
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
-                "or a `tuple`: [u, y]".format(self.__name__))
+                "or a `tuple`: [u, y]".format(self.name))
 
         # Input transformation
         if self.inp_trans is not None:

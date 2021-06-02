@@ -30,8 +30,8 @@ class InputData(object):
     name  = 'MSD_OpNN'
 
     # Input Space Extreme Values ----------------------------------------------
-    pos = [4.0, 4.0]
-    vel = [0.0, 0.0]
+    pos = [0.0, 4.0]
+    vel = [0.0, 4.0]
 
     # Other properties --------------------------------------------------------
     params = np.array([1.0, 0.5, 3.0], dtype=np.float64)
@@ -45,7 +45,7 @@ class InputData(object):
 
     # Variables Dimensionality ------------------------------------------------
     dim = {
-            "inp": [2, 1]     # Branch-Trunk input dimensionality
+            "inp": [2, 1],     # Branch-Trunk input dimensionality
             "out": 2          # Output dimensionality
             }
 
@@ -80,6 +80,9 @@ class InputData(object):
     ###########################################################################
     ### Data
     ###########################################################################
+    data_name = 'ODE'
+
+    # Data source -------------------------------------------------------------
     from_file       = False
     data_train_file = {
                         'ics': './data/train/ics.csv',
@@ -95,10 +98,11 @@ class InputData(object):
     col_y = [3,5]
 
     # Training ----------------------------------------------------------------
-    train_pts = {'ics': 1, 'pts': 160, 'res': 160}
-    # num_ics = 1     # Number of training scenarios
-    # num_pts = 160   # Number of total anchor pts for each scenario
-    # num_res = 160   # Number of total collocaion pts for each scenario
+    train_pts = {
+                'ics': 10,   # Number of training scenarios
+                'pts': 10, # Number of total anchor pts for each scenario
+                'res': 160  # Number of total collocaion pts for each scenario
+            }
     valid   = 0.2   # % of Validation pts
     train_pts_dist = 'uniform'      # Training pts distribution
 
@@ -113,8 +117,8 @@ class InputData(object):
     ###########################################################################
     epochs       = 100000
     # batch_size   = 128
-    batch_size   = {'ics': 1, 'pts': 128, 'res': 128}
-    val_batch_size   = {'ics': 1, 'pts': 128, 'res': 128}
+    batch_size   = {'ics': 2, 'pts': 16, 'res': 256}
+    valid_batch_size = {'ics': 5, 'pts': 16, 'res': 256}
 
     optimizer    = 'adam'
     lr           = 5.e-3
@@ -126,7 +130,7 @@ class InputData(object):
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    losses       = {'ics': 'MSE', 'pts': 'MSE', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
+    loss         = {'ics': 'MSE', 'pts': 'MSE', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
     adaptive_weights = 'LossWeightsAdapter'
     metrics      = ['MSE']
 

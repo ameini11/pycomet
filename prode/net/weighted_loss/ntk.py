@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from .adapter import LossWeightsAdapter
-from .... import utils
+from prode.net.weighted_loss.adapter import LossWeightsAdapter
+from prode                           import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='NTKAdapter')

@@ -6,7 +6,7 @@ from tensorflow.python.keras        import backend as K
 from tensorflow.python.keras.utils  import losses_utils
 from tensorflow.python.framework    import ops
 
-from . import utils
+from prode import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')

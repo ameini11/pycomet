@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from .adapter import LossWeightsAdapter
-from .... import utils
+from prode.net.weighted_loss.adapter import LossWeightsAdapter
+from prode                           import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='EmpiricalAdapter')
@@ -52,7 +52,7 @@ class EmpiricalAdapter(LossWeightsAdapter):
         if self.iter % self.freq == 0:
             if 'res' not in losses:
                 utils.warning("`losses` passed into `__call__` method of `{}` hasn't "
-						"any residual loss to be evaluated.".format(self.__name__))
+                        "any residual loss to be evaluated.".format(self.__name__))
                 return
 
             # Get the maximum gradient value from residual loss

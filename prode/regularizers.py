@@ -3,7 +3,7 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.regularizers as reg
 
-from . import utils
+from prode import utils
 
 
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
@@ -47,7 +47,7 @@ class FineTuningRegularizer(reg.L1L2):
             self.weights_SP = h5py.File(weights_SP,'r')
         else:
             utils.warning("`FineTuningRegularizer` is not given "
-					"any Starting Point weights `weights_SP`.")
+                    "any Starting Point weights `weights_SP`.")
             self.weights_SP = None
 
 

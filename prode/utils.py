@@ -12,30 +12,29 @@ import tensorflow   as tf
 
 from matplotlib     import animation
 from functools      import wraps
-# from multiprocessing import Pool
 
-from . import config
+from prode.config import headers
 
 
 # Printing functions
 ###############################################################################
 def print_main(text, *args, **kwargs):
-    print(config.headers['main'] + text, *args, **kwargs)
+    print(headers['main'] + text, *args, **kwargs)
 
 def print_submain(text, *args, **kwargs):
-    print(config.headers['submain'] + text, *args, **kwargs)
+    print(headers['submain'] + text, *args, **kwargs)
 
 def input_main(text, *args, **kwargs):
-    return input(config.headers['main'] + text, *args, **kwargs)
+    return input(headers['main'] + text, *args, **kwargs)
 
 def input_submain(text, *args, **kwargs):
-    return input(config.headers['submain'] + text, *args, **kwargs)
+    return input(headers['submain'] + text, *args, **kwargs)
 
 def warning(text, *args, **kwargs):
-    print(config.headers['warning'] + text, *args, **kwargs)
+    print(headers['warning'] + text, *args, **kwargs)
 
 def raise_value_err(text):
-    message = ''.join([config.headers['val_err'], text])
+    message = ''.join([headers['val_err'], text])
     raise ValueError(message)
 
 
@@ -86,6 +85,10 @@ def get_class(module, name):
             return obj_i
     raise_value_err("Class `{}` not found in module `{}`.".format(name, module.__name__))
 
+def get_class_name(cls):
+    """Return the class name."""
+    return cls.__class__.__name__
+
 def make_dict(keys, values):
     """Convert two lists or two variables into a dictionary."""
     if isinstance(keys, (list, tuple)):
@@ -102,21 +105,12 @@ def list_to_str(nums, precision=2):
         return "{:.{}e}".format(nums, precision)
     return "[{:s}]".format(", ".join(["{:.{}e}".format(x, precision) for x in nums]))
 
-def get_var_name(var):
-    """Get the name of a variable as a string."""
-    return [ k for k, v in globals().items() if v is var][0]
-
-
 def get_num_args(func):
     """Get the number of arguments of a Python function."""
     if sys.version_info[0] == 2:
         return len(inspect.getargspec(func).args)
     sig = inspect.signature(func)
     return len(sig.parameters)
-
-def get_var_name(var):
-    """Get the name of a variable as a string."""
-    return [ k for k, v in globals().items() if v is var][0]
 
 
 # Others

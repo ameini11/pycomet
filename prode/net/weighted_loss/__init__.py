@@ -1,6 +1,6 @@
-from .adapter 	import LossWeightsAdapter
-from .empirical import EmpiricalAdapter
-from .ntk 		import NTKAdapter
+from prode.net.weighted_loss.adapter   import LossWeightsAdapter
+from prode.net.weighted_loss.empirical import EmpiricalAdapter
+from prode.net.weighted_loss.ntk       import NTKAdapter
 
 
 __all__ = [

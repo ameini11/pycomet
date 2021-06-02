@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.python.eager import backprop
 from tensorflow.python.keras.engine import data_adapter
 
-from .. import losses as losses_utils
+from prode import losses as losses_utils
 
 
 def get_pred_loss(x, y, encoder, model, data_id, training=True):
