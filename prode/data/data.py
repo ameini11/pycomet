@@ -6,9 +6,12 @@ from prode import utils
 class Data(object):
     """Data base class."""
 
-    def __init__(self):
+    def __init__(self, dim):
 
         self.name  = utils.get_class_name(self)
+
+        self.dim     = dim
+        self.out_dim = dim["out"]
 
         self.train = None
         self.valid = None

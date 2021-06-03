@@ -118,7 +118,7 @@ class InputData(object):
     epochs       = 100000
     # batch_size   = 128
     batch_size   = {'ics': 2, 'pts': 16, 'res': 256}
-    valid_batch_size = {'ics': 5, 'pts': 16, 'res': 256}
+    valid_batch_size = {'ics': 2, 'pts': 4, 'res': 64}
 
     optimizer    = 'adam'
     lr           = 5.e-3

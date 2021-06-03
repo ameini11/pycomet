@@ -208,12 +208,12 @@ class Model(object):
         # Fit the model
         self.history = self.net.fit(
             self.data.train,
-            batch_size=self.data.batch_size,
+            batch_size=None,#self.data.batch_size,
             epochs=epochs,
             callbacks=callbacks,
-            validation_split=self.data.validation_split,
-            validation_data=self.data.valid,
-            validation_batch_size=self.data.valid_batch_size)
+            validation_split=None, #self.data.validation_split,
+            validation_data=None, #self.data.valid,
+            validation_batch_size=None) #self.data.valid_batch_size)
 
         # Save `history.history` in a file
         hist_df = pd.DataFrame.from_dict(self.history.history)

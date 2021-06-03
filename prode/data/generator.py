@@ -8,7 +8,7 @@ from prode import utils
 @keras_export('keras.utils.ODEDataSequence')
 class ODEDataSequence(tf.keras.utils.Sequence):
 
-    def __init__(self, data, data_ids, batch_size=32, shuffle=True):
+    def __init__(self, dim, data, data_ids, batch_size=32, shuffle=True):
         super(ODEDataSequence, self).__init__()
 
         self.name = utils.get_class_name(self)
@@ -69,7 +69,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
             self.num_input = 1
 
         # Number of batches for each data id
-        self.batches   = {k: tf.cast(tf.math.ceil(self.n_samples[k]/self.batch_size[k]), \
+        self.batches = {k: tf.cast(tf.math.ceil(self.n_samples[k]/self.batch_size[k]), \
             tf.int64) for k in self.data_ids}
 
         self.shuffle = shuffle
@@ -82,41 +82,42 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         """
         return max(list(self.batches.values()))
 
-    def __getitem__(self, *args, **kwargs):
-        """Gets next batch.
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
         Args:
             index: position of the batch in the Sequence.
         Returns:
             A batch
         """
-        for i, (k, idx) in enumerate(self.data_ids.items()):
-            try:
-                batch = next(self.iterator[k])
-            except:
-                self.on_epoch_end()
-                batch = next(self.iterator[k])
-            _x, _y   = batch[0], batch[1]
-            _encoder = tf.ones([self.batch_size[k],1], dtype=tf.int64) * idx
-            if i == 0:
-                x, y, encoder = _x, _y, _encoder
-            else:
-                x, y, encoder = self._concat([x, y, encoder], [_x, _y, _encoder])
-        return x, y, encoder
-
-    def __iter__(self):
-        """Create a generator that iterate over the Sequence."""
-        for item in (self[i] for i in range(len(self))):
-            yield item
+        return self.sequence[index]
 
     def on_epoch_end(self):
         """Method called at the end of every epoch.
         """
-        self.iterator = dict()
+        iterator = dict()
         for k, dset in self.data.items():
             self.data[k] = dset.shuffle(self.n_samples[k])
             repeat_k = tf.cast(tf.math.ceil(self.__len__()/self.batches[k]), tf.int64)
-            self.iterator[k] = iter(self.data[k].batch( \
+            iterator[k] = iter(self.data[k].batch( \
                 self.batch_size[k]).repeat(repeat_k).take(self.__len__()))
+        self.sequence = self.iterator_to_list(iterator)
+
+    def iterator_to_list(self, iterator):
+        lst = []
+        _has_value = True
+        while _has_value:
+            for i, (k, idx) in enumerate(self.data_ids.items()):
+                batch = iterator[k].get_next_as_optional()
+                _has_value = batch.has_value()
+                if _has_value:
+                    _x, _y   = batch.get_value()
+                    _encoder = tf.ones([self.batch_size[k],1], dtype=tf.int64) * idx
+                    if i == 0:
+                        x, y, encoder = _x, _y, _encoder
+                    else:
+                        x, y, encoder = self._concat([x, y, encoder], [_x, _y, _encoder])
+            lst.append((x, y, encoder))
+        return lst
 
     def _concat(self, data, data_new):
         for i in range(len(data)):

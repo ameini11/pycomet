@@ -15,6 +15,7 @@ class DataSet(Data):
 
     def __init__(
         self,
+        dim,
         x_train=None,
         y_train=None,
         x_valid=None,
@@ -29,7 +30,7 @@ class DataSet(Data):
         col_y=None,
         batch_size=32,
         valid_batch_size=None):
-        super(DataSet, self).__init__()
+        super(DataSet, self).__init__(dim=dim)
         if x_train is not None:
             self.train = self.get_dataset(x_train, y_train)
             self.valid = self.get_dataset(x_valid, y_valid)

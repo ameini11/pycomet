@@ -64,10 +64,10 @@ def main():
 
     # Initialize Data ---------------------------------------------------------
     data = pro.utils.get_class(pro.data, inp.data_name)(
+        inp.dim,
         ode_func=ode,
         ode_order=1,
         ode_params=dataGen.ODE_mat,
-        out_dim=inp.dim["out"],
         train_data=train_data,
         valid_data=valid_data,
         col_x=col_x,

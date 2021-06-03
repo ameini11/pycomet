@@ -4,15 +4,14 @@ from tensorflow.python.keras.engine import data_adapter
 
 from prode import losses as losses_utils
 
-
+@tf.function
 def masking(x, encoder, data_id):
-    print('yes')
     if isinstance(x, (list,tuple)):
         return [ tf.boolean_mask(x_i, encoder == data_id) for x_i in x ]
     else:
         return tf.boolean_mask(x, encoder == data_id)
 
-
+@tf.function
 def get_pred_loss(x, y, encoder, model, data_id, training=True):
     ids  = model.data_ids if training else model.data_ids_val
     if not None in y.shape:

@@ -5,7 +5,8 @@ from sklearn.model_selection import train_test_split
 from varname import nameof
 
 from prode.data.data      import Data
-from prode.data.generator import ODEDataSequence
+# from prode.data.generator import ODEDataSequence
+from prode.data._generator2 import ODEDataSequence
 from prode.data           import gradients
 from prode                import utils
 
@@ -17,10 +18,10 @@ class ODE(Data):
     ###########################################################################
     def __init__(
         self,
+        dim,
         ode_func=None,
         ode_order=0,
         ode_params=None,
-        out_dim=1,
         time_idx=-1,
         train_data=None,
         valid_data=None,
@@ -30,7 +31,7 @@ class ODE(Data):
         col_y=None,
         batch_size=32,
         valid_batch_size=None):
-        super(ODE, self).__init__()
+        super(ODE, self).__init__(dim=dim)
 
         # Defining data ids
         self.data_ids = [
@@ -38,8 +39,6 @@ class ODE(Data):
             'pts',  # Anchor pts
             'res'   # Collocation pts (residual)
             ]
-
-        self.out_dim = out_dim
         
         self.col_x = col_x
         self.col_y = col_y
@@ -57,21 +56,21 @@ class ODE(Data):
             train_dset = self.data_as_dict(train_data)
             valid_dset = None
 
-        self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
+        self.train = ODEDataSequence(self.dim, train_dset, self.data_ids, batch_size=batch_size)
         self.data_ids = self.train.data_ids
         if valid_dset:
             if valid_batch_size is None:
                 valid_batch_size = batch_size
-            self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
+            self.valid = ODEDataSequence(self.dim, valid_dset, self.data_ids, batch_size=valid_batch_size)
             self.data_ids_val = self.valid.data_ids
 
         # Testing data
         if test_data:
             self.check_data_source(test_data, nameof(test_data))
-            self.test = ODEDataSequence(self.data_as_dict(test_data, nameof(test_data)), \
+            self.test = ODEDataSequence(self.dim, self.data_as_dict(test_data, nameof(test_data)), \
                 self.data_ids)
 
-        self.input_is_list = True if self.train.num_input > 1 else False
+        self.input_is_list = True if isinstance(self.dim['inp'],(list,tuple)) else False
         if time_idx not in [0,-1]:
             utils.raise_value_err(
                 "`time_idx` passed into `{}` has to be 0 or -1."
