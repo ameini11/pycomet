@@ -5,8 +5,8 @@ from sklearn.model_selection import train_test_split
 from varname import nameof
 
 from prode.data.data      import Data
-# from prode.data.generator import ODEDataSequence
-from prode.data._generator2 import ODEDataSequence
+from prode.data.generator import ODEDataSequence
+# from prode.data._generator2 import ODEDataSequence
 from prode.data           import gradients
 from prode                import utils
 

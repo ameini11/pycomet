@@ -64,8 +64,6 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 
         self.shuffle = shuffle
         self.on_epoch_end()
-        self.__getitem__(0)
-        input('--------------------')
 
     def get_num_sample(self, x):
         if isinstance(x, (list,tuple)):
@@ -82,6 +80,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 
     # Handling batches during each epoch
     ###########################################################################
+    @tf.function
     def __getitem__(self, index):
         """Gets batch at position `index`.
         Args:
@@ -93,9 +92,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 
     def get_next_batch(self, index):
         for i, (k, idx) in enumerate(self.data_ids.items()):
-            _x, _y = [ i for i in self.batches[k] ]
-            print(_x)
-            print(_y)
+            _x, _y = self.batches[k][index]
             _encoder = np.ones((self.batch_size[k],1), dtype=np.int64) * idx
             if i == 0:
                 x, y, encoder = _x, _y, _encoder
@@ -113,6 +110,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 
     # Handling data at the end of each epoch
     ###########################################################################
+    @tf.function
     def on_epoch_end(self):
         """Method called at the end of every epoch.
         """
@@ -135,30 +133,26 @@ class ODEDataSequence(tf.keras.utils.Sequence):
                 dset_shuffled.append(dset_i)
         return dset_shuffled
 
-    # def batch_data(self, dset, dset_id, repeat):
-    #     steps = self.steps[dset_id]
-    #     dset_batched = []
-    #     for dset_i in dset:
-    #         if isinstance(dset_i, (list,tuple)):
-    #             _dset_i = []
-    #             dset_split = [np.array_split(i, steps)*repeat for i in dset_i]
-    #             for dset_zip in zip(*dset_split):
-    #                 _dset_i.append(dset_zip)
-    #         else:
-    #             _dset_i = np.array_split(dset_i, steps)*repeat
-    #         dset_batched.append(_dset_i)
-    #     return dset_batched
-
     def batch_data(self, dset, dset_id, repeat):
-        indeces = [ self.batch_size[dset_id]*(i+1) for i in range(self.steps[dset_id]-1) ]
+        steps = self.steps[dset_id]
         dset_batched = []
         for dset_i in dset:
             if isinstance(dset_i, (list,tuple)):
-                _dset_i = []
-                dset_split = [np.split(i, indeces)*repeat for i in dset_i]
-                for dset_zip in zip(*dset_split):
-                    _dset_i.append(dset_zip)
+                dset_split = [np.array_split(i, steps)*repeat for i in dset_i]
+                _dset_i = [ dset_split_zip for dset_split_zip in zip(*dset_split) ]
             else:
-                _dset_i = np.split(dset_i, indeces)*repeat
+                _dset_i = np.array_split(dset_i, steps)*repeat
             dset_batched.append(_dset_i)
-        return dset_batched
+        return [ dset_batched_zip for dset_batched_zip in zip(*dset_batched) ]
+
+    # def batch_data(self, dset, dset_id, repeat):
+    #     indeces = [ self.batch_size[dset_id]*(i+1) for i in range(self.steps[dset_id]-1) ]
+    #     dset_batched = []
+    #     for dset_i in dset:
+    #         if isinstance(dset_i, (list,tuple)):
+    #             dset_split = [np.split(i, indeces)*repeat for i in dset_i]
+    #             _dset_i = [ dset_split_zip for dset_split_zip in zip(*dset_split) ]
+    #         else:
+    #             _dset_i = np.split(dset_i, indeces)*repeat
+    #         dset_batched.append(_dset_i)
+    #     return [ dset_batched_zip for dset_batched_zip in zip(*dset_batched) ]
