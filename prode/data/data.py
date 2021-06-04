@@ -10,8 +10,7 @@ class Data(object):
 
         self.name  = utils.get_class_name(self)
 
-        self.dim     = dim
-        self.out_dim = dim["out"]
+        self.dim   = dim
 
         self.train = None
         self.valid = None

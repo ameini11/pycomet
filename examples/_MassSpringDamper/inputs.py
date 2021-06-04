@@ -121,7 +121,7 @@ class InputData(object):
     valid_batch_size = {'ics': 2, 'pts': 4, 'res': 64}
 
     optimizer    = 'adam'
-    lr           = 5.e-4
+    lr           = 1.e-5
 
     # Learning rate scheduler -------------------------------------------------
     decay_epochs = 2000

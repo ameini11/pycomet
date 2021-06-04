@@ -103,7 +103,7 @@ def main():
     model = pro._model.Model(data, net, inp.name)
 
     # Build Model -------------------------------------------------------------
-    model.build(verbose=0, load_net=inp.load_flg, visualize_graph=False)
+    model.build(inp.dim['inp'], verbose=0, load_net=inp.load_flg, visualize_graph=False)
 
     # Compile Model -----------------------------------------------------------
     model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, \

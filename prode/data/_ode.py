@@ -5,8 +5,9 @@ from sklearn.model_selection import train_test_split
 from varname import nameof
 
 from prode.data.data      import Data
-from prode.data.generator import ODEDataSequence
-# from prode.data._generator2 import ODEDataSequence
+# from prode.data.generator import ODEDataSequence
+from prode.data._generator2 import ODEDataSequence
+# from prode.data._generator import ODEDataSequence
 from prode.data           import gradients
 from prode                import utils
 
@@ -56,18 +57,18 @@ class ODE(Data):
             train_dset = self.data_as_dict(train_data)
             valid_dset = None
 
-        self.train = ODEDataSequence(self.dim, train_dset, self.data_ids, batch_size=batch_size)
+        self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
         self.data_ids = self.train.data_ids
         if valid_dset:
             if valid_batch_size is None:
                 valid_batch_size = batch_size
-            self.valid = ODEDataSequence(self.dim, valid_dset, self.data_ids, batch_size=valid_batch_size)
+            self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
             self.data_ids_val = self.valid.data_ids
 
         # Testing data
         if test_data:
             self.check_data_source(test_data, nameof(test_data))
-            self.test = ODEDataSequence(self.dim, self.data_as_dict(test_data, nameof(test_data)), \
+            self.test = ODEDataSequence(self.data_as_dict(test_data, nameof(test_data)), \
                 self.data_ids)
 
         self.input_is_list = True if isinstance(self.dim['inp'],(list,tuple)) else False
@@ -109,7 +110,7 @@ class ODE(Data):
             if isinstance(data[data_id], (list,tuple)):
                 return data[data_id]
             elif data_id == 'res':
-                shape = data[data_id].shape[0], self.out_dim
+                shape = data[data_id].shape[0], self.dim['out']
                 return data[data_id], np.empty(shape)
             else:
                 utils.raise_value_err("`{}[{}]` passed into `{}` has to be a list "

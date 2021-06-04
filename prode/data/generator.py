@@ -8,7 +8,7 @@ from prode import utils
 @keras_export('keras.utils.ODEDataSequence')
 class ODEDataSequence(tf.keras.utils.Sequence):
 
-    def __init__(self, dim, data, data_ids, batch_size=32, shuffle=True):
+    def __init__(self, data, data_ids, batch_size=32, shuffle=True):
         super(ODEDataSequence, self).__init__()
 
         self.name = utils.get_class_name(self)

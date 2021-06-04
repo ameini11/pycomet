@@ -60,7 +60,7 @@ class Model(object):
 
     # ======================================================================= #
     @utils.timing
-    def build(self, verbose=1, load_net=0, visualize_graph=False):
+    def build(self, input_dim, verbose=1, load_net=0, visualize_graph=False):
         utils.print_main("Building '",self.net.name,"' network ...", sep="")
 
         if self.net.name.startswith('func'):
@@ -68,9 +68,13 @@ class Model(object):
             net_graph = self.net
         else:
             if not self.net.built:
-                for sample in self.data.train:
-                    inputs_shape = [inp.shape for inp in sample[0]]
-                    break
+                # for sample in self.data.train:
+                #     inputs_shape = [inp.shape for inp in sample[0]]
+                #     break
+                if isinstance(input_dim, (list,tuple)):
+                    inputs_shape = [ tuple([1,dim_i]) for dim_i in input_dim]
+                else:
+                    inputs_shape = tuple([1,input_dim])
                 self.net.build(inputs_shape)
             net_graph = self.net.build_graph()
 

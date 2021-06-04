@@ -9,11 +9,11 @@ from prode import utils
 @keras_export('keras.utils.ODEDataSequence')
 class ODEDataSequence(tf.keras.utils.Sequence):
 
-    def __init__(self, dim, data, data_ids, batch_size=32, shuffle=True):
+    def __init__(self, data, data_ids, batch_size=32, shuffle=True):
         super(ODEDataSequence, self).__init__()
 
         self.name = utils.get_class_name(self)
-        self.dim = dim
+        self.shuffle = shuffle
 
         # Check data identities `data_ids`
         if isinstance(data_ids, dict):
@@ -68,10 +68,21 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         # Number of batches for each data id
         self.batches = {k: tf.cast(tf.math.ceil(self.n_samples[k]/self.batch_size[k]), \
             tf.int64) for k in self.data_ids}
+
+        # Maximum number of steps
         self.steps = max(list(self.batches.values()))
 
-        self.shuffle = shuffle
         self.on_epoch_end()
+
+    def get_data(self, x, y):
+        dset_x = self.get_dataset(x)
+        dset_y = self.get_dataset(y)
+        return tf.data.Dataset.zip((dset_x, dset_y)), dset_x.cardinality()
+
+    def get_dataset(self, x):
+        if isinstance(x, list):
+            x = tuple(x)
+        return tf.data.Dataset.from_tensor_slices(x)
 
     def __len__(self):
         """Number of batches in the Sequence.
@@ -80,6 +91,19 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         """
         return self.steps
 
+
+
+
+    @tf.function
+    def __iter__(self):
+        """Create a generator that iterate over the Sequence."""
+        # for item in (self[i] for i in range(len(self))):
+        #     yield item
+        return None
+
+    # Handling batches during each epoch
+    ###########################################################################
+    @tf.function
     def __getitem__(self, index):
         """Gets batch at position `index`.
         Args:
@@ -87,7 +111,37 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         Returns:
             A batch
         """
-        return self.sequence[index]
+        data = []
+        for batch in zip(*self.sequence[index]):
+            if any(isinstance(i, (list,tuple)) for i in batch):
+                data.append([ tf.concat(batch_i, 0) for batch_i in zip(*batch) ])
+            else:
+                data.append(tf.concat(batch, 0))
+
+        # print(data)
+        # input('--------------------')
+        # for batch_zip in zip(*self.sequence[index]):
+        #     print(batch_zip)
+        # x, y    = [ self.concat_data(batch_zip) for batch_zip in zip(*self.sequence[index]) ]
+        # x, y    = [ self.concat_data(batch_zip) for batch_zip in zip(*self.sequence.read(index)) ]
+        encoder = self.get_encoder()
+        return *data, encoder
+
+    # @tf.function
+    # def concat_data(self, data):
+    #     if any(isinstance(i, (list,tuple)) for i in data):
+    #         print('yessssssssssssssssss')
+    #         return [ tf.concat(data_zip, 0) for data_zip in zip(*data) ]
+    #     else:
+    #         return tf.concat(data, 0)
+
+    @tf.function
+    def get_encoder(self):
+        encoder = []
+        for k, idx in self.data_ids.items():
+            mat_idx = tf.ones_like([self.batch_size[k],1], dtype=tf.int64) * idx
+            encoder.append(mat_idx)
+        return tf.concat(encoder, 0)
 
     # @tf.function
     # def on_epoch_end(self):
@@ -131,66 +185,104 @@ class ODEDataSequence(tf.keras.utils.Sequence):
     #         lst.append((x, y, encoder))
     #     return lst
 
+
+    # Handling data at the end of each epoch
+    ###########################################################################
     @tf.function
     def on_epoch_end(self):
         """Method called at the end of every epoch.
         """
-        iterator = dict()
+        dset_list = dict()
         for k, dset in self.data.items():
             self.data[k] = dset.shuffle(self.n_samples[k])
-            repeat_k = tf.cast(tf.math.ceil(self.steps/self.batches[k]), tf.int64)
-            iterator[k] = iter(self.data[k].batch( \
-                self.batch_size[k]).repeat(repeat_k).take(self.__len__()))
-        self.sequence = self.iterator_to_list(iterator)
+            repeat       = tf.cast(tf.math.ceil(self.steps/self.batches[k]), tf.int64)
+            dset_batched = self.data[k].batch(self.batch_size[k]).repeat(\
+                repeat).take(self.steps)
+            # Dataset to list
+            dset_list[k] = []
+            for batch in dset_batched:
+                dset_list[k].append(batch)
 
-    def iterator_to_list(self, iterator):
-        lst = []
-        # _has_value = True
-        # while _has_value:
-        # x, y, encoder = self.init_x_y_encoder()
-        # print(x)
-        # print(y.shape)
-        # print(encoder.shape)
-        for _ in range(self.steps):
-            for i, (k, idx) in enumerate(self.data_ids.items()):
-                # batch = iterator[k].get_next_as_optional()
-                # _has_value = batch.has_value()
-                # if not _has_value:
-                #     continue
-                # _x, _y   = batch.get_value()
-                _x, _y = iterator[k].get_next()
-                # print(_x)
-                # print(_y.shape[0])
-                _encoder = tf.ones([self.batch_size[k],1], dtype=tf.int64) * idx
-                # _encoder = tf.ones_like(_y[:,0:1], dtype=tf.int64) * idx
-                # print(_encoder)
-                # print(_x)
-                # print(_y.shape)
-                # print(_encoder.shape)
-                if i == 0:
-                    x, y, encoder = _x, _y, _encoder
-                else:
-                    x, y, encoder = self._concat([x, y, encoder], [_x, _y, _encoder])
-            print(x)
-            print(y.shape)
-            print(encoder.shape)
-            lst.append((x, y, encoder))
-        return lst
+        # seq = tf.TensorArray(tf.float64, size=0, dynamic_size=True, clear_after_read=False)
+        # for i, batch in enumerate(zip(*list(dset_list.values()))):
+        #     print(batch)
+        #     print('\n')
+        #     for i in batch:
+        #         print(i)
+        #         print('\n')
+        #     seq.write(i, batch)
+        # return seq
 
-    def init_x_y_encoder(self):
-        x = self.init_xy(self.dim['inp'])
-        y = self.init_xy(self.dim['out'])
-        encoder = tf.compat.v1.placeholder(tf.int64, (None, 1))
-        return x, y, encoder
+        # self.sequence = self.list_to_sequence(dset_list)
+        self.sequence = [ batch for batch in zip(*list(dset_list.values())) ]
 
-    def init_xy(self, dim_xy):
-        if isinstance(dim_xy,(list,tuple)):
-            xy = []
-            for dim_i in dim_xy:
-                xy.append(tf.compat.v1.placeholder(K.floatx(), (None, dim_i)))
-        else:
-            xy = tf.compat.v1.placeholder(K.floatx(), (None, dim_xy))
-        return xy
+    # @tf.function
+    # def dataset_to_list(self, dataset):
+    #     dset_list = tf.TensorArray(tf.float64, size=0, dynamic_size=True, clear_after_read=False)
+    #     for i, batch in enumerate(dataset):
+    #         dset_list.write(i, batch)
+    #     # dset_list = []
+    #     # for batch in dataset:
+    #     #     dset_list.append(batch)
+    #     return dset_list
+
+    # @tf.function
+    # def list_to_sequence(self, dset_list):
+    #     seq = tf.TensorArray(tf.float64, size=0, dynamic_size=True, clear_after_read=False)
+    #     for i, batch in enumerate(zip(*list(dset_list.values()))):
+    #         print(batch)
+    #         print('\n')
+    #         seq.write(i, batch)
+    #     return seq
+
+    # def iterator_to_list(self, iterator):
+    #     lst = []
+    #     # _has_value = True
+    #     # while _has_value:
+    #     # x, y, encoder = self.init_x_y_encoder()
+    #     # print(x)
+    #     # print(y.shape)
+    #     # print(encoder.shape)
+    #     for _ in range(self.steps):
+    #         for i, (k, idx) in enumerate(self.data_ids.items()):
+    #             # batch = iterator[k].get_next_as_optional()
+    #             # _has_value = batch.has_value()
+    #             # if not _has_value:
+    #             #     continue
+    #             # _x, _y   = batch.get_value()
+    #             _x, _y = iterator[k].get_next()
+    #             # print(_x)
+    #             # print(_y.shape[0])
+    #             _encoder = tf.ones([self.batch_size[k],1], dtype=tf.int64) * idx
+    #             # _encoder = tf.ones_like(_y[:,0:1], dtype=tf.int64) * idx
+    #             # print(_encoder)
+    #             # print(_x)
+    #             # print(_y.shape)
+    #             # print(_encoder.shape)
+    #             if i == 0:
+    #                 x, y, encoder = _x, _y, _encoder
+    #             else:
+    #                 x, y, encoder = self._concat([x, y, encoder], [_x, _y, _encoder])
+    #         print(x)
+    #         print(y.shape)
+    #         print(encoder.shape)
+    #         lst.append((x, y, encoder))
+    #     return lst
+
+    # def init_x_y_encoder(self):
+    #     x = self.init_xy(self.dim['inp'])
+    #     y = self.init_xy(self.dim['out'])
+    #     encoder = tf.compat.v1.placeholder(tf.int64, (None, 1))
+    #     return x, y, encoder
+
+    # def init_xy(self, dim_xy):
+    #     if isinstance(dim_xy,(list,tuple)):
+    #         xy = []
+    #         for dim_i in dim_xy:
+    #             xy.append(tf.compat.v1.placeholder(K.floatx(), (None, dim_i)))
+    #     else:
+    #         xy = tf.compat.v1.placeholder(K.floatx(), (None, dim_xy))
+    #     return xy
 
     # def init_x_y_encoder(self):
     #     x = self.init_xy(self.dim['inp'])
@@ -207,20 +299,10 @@ class ODEDataSequence(tf.keras.utils.Sequence):
     #         xy = tf.zeros_like(np.zeros((dim_xy,)))[None,:]
     #     return xy
 
-    def _concat(self, data, data_new):
-        for i in range(len(data)):
-            if isinstance(data[i], (list,tuple)):
-                data_new[i] = list(map(lambda i,j: tf.concat((i,j), 0), data[i], data_new[i]))
-            else:
-                data_new[i] = tf.concat((data[i], data_new[i]), 0)
-        return data_new
-
-    def get_data(self, x, y):
-        dset_x = self.get_dataset(x)
-        dset_y = self.get_dataset(y)
-        return tf.data.Dataset.zip((dset_x, dset_y)), dset_x.cardinality()
-
-    def get_dataset(self, x):
-        if isinstance(x, list):
-            x = tuple(x)
-        return tf.data.Dataset.from_tensor_slices(x)
+    # def _concat(self, data, data_new):
+    #     for i in range(len(data)):
+    #         if isinstance(data[i], (list,tuple)):
+    #             data_new[i] = list(map(lambda i,j: tf.concat((i,j), 0), data[i], data_new[i]))
+    #         else:
+    #             data_new[i] = tf.concat((data[i], data_new[i]), 0)
+    #     return data_new
