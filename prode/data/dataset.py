@@ -13,6 +13,8 @@ class DataSet(Data):
         col_y: List of integers.
     """
 
+    # Initialization
+    ###########################################################################
     def __init__(
         self,
         dim,
@@ -25,7 +27,7 @@ class DataSet(Data):
         file_train=None,
         file_valid=None,
         file_test=None,
-        valid_split=0.2,
+        valid_split=None,
         col_x=None,
         col_y=None,
         batch_size=32,
@@ -44,9 +46,11 @@ class DataSet(Data):
 
         self.batch_size = batch_size
         self.valid_batch_size = valid_batch_size
-        if self.valid is None:
-            self.validation_split = valid_split
+        self.validation_split = valid_split
 
+
+    # Handling Data
+    ###########################################################################
     def load_data(self, filename, col_x, col_y):
         if filename is None:
             return None
@@ -63,6 +67,9 @@ class DataSet(Data):
         y_data = data[:, col_y[0]:col_y[1]]
         return self.get_dataset(x_data, y_data)
 
+
+    # Util functions
+    ###########################################################################
     def get_num_pts(self, data_type='training', verbose=1):
         if data_type == 'training':
             dset = self.train

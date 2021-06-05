@@ -132,7 +132,6 @@ class DataGenerator(object):
         return data['train'], data['valid']
 
     def extract_data_scenario(self, idx, ic, t, y):
-        '''Extract data from arrays.'''
         m = np.shape(idx)[0]
         u = np.tile(ic, (m,1))
         return [[u, t[idx,:]], y[idx,:]]
@@ -166,7 +165,7 @@ class DataGenerator(object):
     ###########################################################################
     ### Testing Data
     ###########################################################################
-    def testing_data(self, ic_test, ic_train=None, eval_jac=False, eval_f=False):
+    def testing_data(self, ic_test, ic_train=None):
 
         print('\n' + self.header + 'Generating testing pts ...')
 
@@ -179,13 +178,8 @@ class DataGenerator(object):
         for i, ic_i in enumerate(tqdm(ic_test, file=sys.stdout)):
 
             # Solving the ODE
-            sol = self.ODE_sol.solve(ic_i, self.ODE_mat, \
-                eval_jac=eval_jac, eval_f=eval_f)
+            sol = self.ODE_sol.solve(ic_i, self.ODE_mat)
             t_i, y_i = sol[0], sol[1]
-            if eval_jac:
-                norm_J_i, eig_J_i = sol[2], sol[3]
-            if eval_f:
-                f_rhs = sol[-1]
 
             # Extract data values
             tree     = KDTree(np.c_[t_i.ravel()])
@@ -199,8 +193,6 @@ class DataGenerator(object):
 
             # Collect data values
             data_i = [title, [u_i, t_i], y_i]
-            if eval_f:
-                data_i.append(f_rhs[ii[0]:ii[1],:])
 
             if i == 0:
                 data_test = [tuple(data_i)]

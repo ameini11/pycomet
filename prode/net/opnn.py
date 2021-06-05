@@ -26,7 +26,7 @@ class OpNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        adaptive_weights='LossWeightsAdapter',
+        adaptive_weights='ConstantAdapter',
         name='opnn'):
         super(OpNN, self).__init__(
             dim=dim,

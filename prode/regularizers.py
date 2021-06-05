@@ -3,6 +3,9 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.regularizers as reg
 
+from tensorflow.python.ops          import math_ops
+from tensorflow.python.keras.utils  import losses_utils
+
 from prode import utils
 
 

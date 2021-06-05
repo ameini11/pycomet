@@ -1,7 +1,6 @@
 import os
 import h5py
 import netron
-import tables
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -11,8 +10,6 @@ import tensorboard_plugin_profile
 from prode import callbacks as callbacks_module
 from prode import losses    as losses_module
 from prode import metrics   as metrics_module
-from prode import net       as net_module
-from prode import data      as data_module
 from prode import utils
 
 from prode.optimizers     import get_train_opt
@@ -68,9 +65,6 @@ class Model(object):
             net_graph = self.net
         else:
             if not self.net.built:
-                # for sample in self.data.train:
-                #     inputs_shape = [inp.shape for inp in sample[0]]
-                #     break
                 if isinstance(input_dim, (list,tuple)):
                     inputs_shape = [ tuple([1,dim_i]) for dim_i in input_dim]
                 else:
@@ -212,12 +206,12 @@ class Model(object):
         # Fit the model
         self.history = self.net.fit(
             self.data.train,
-            batch_size=None,#self.data.batch_size,
+            batch_size=self.data.batch_size,
             epochs=epochs,
             callbacks=callbacks,
-            validation_split=None, #self.data.validation_split,
-            validation_data=None, #self.data.valid,
-            validation_batch_size=None) #self.data.valid_batch_size)
+            validation_split=self.data.validation_split,
+            validation_data=self.data.valid,
+            validation_batch_size=self.data.valid_batch_size)
 
         # Save `history.history` in a file
         hist_df = pd.DataFrame.from_dict(self.history.history)

@@ -17,7 +17,7 @@ class Net(tf.keras.Model):
         self,
         dim,
         block='FFBlock',
-        adaptive_weights='LossWeightsAdapter',
+        adaptive_weights='ConstantAdapter',
         name='net'):
         super(Net, self).__init__()
 
@@ -25,7 +25,8 @@ class Net(tf.keras.Model):
             utils.raise_value_err(
                 "`dim` passed into `{}` network has to be a `dict` of length 2:\n"
                 "  - 'inp': `int` (or list of `int`);\n"
-                "  - 'out': `int` (or list of `int`).".format(self.name))
+                "  - 'out': `int` (or list of `int`).\n"
+                "It represents the dimensions of the feature space.".format(self.name))
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
 
@@ -87,15 +88,13 @@ class Net(tf.keras.Model):
         if isinstance(loss_fns, dict):
             self.loss_fns = loss_fns
         elif isinstance(loss_fns, (list,tuple)):
-            if isinstance(data_cls.data_ids, (list,tuple)):
+            if isinstance(data_cls.data_ids, (list,tuple,dict)):
                 if len(loss_fns) == len(data_cls.data_ids):
-                    self.loss_fns = {data_cls.data_ids[i]: loss_fns[i] for i in range(len(loss_fns))}
+                    self.loss_fns = {data_id: loss_fns[i] for i, data_id in enumerate(data_cls.data_ids)}
                 else:
                     utils.raise_value_err(
                         "`loss_fns` and `data.data_ids` passed into `{}.add_losses` "
                         "method have to be of the same length.".format(self.name))
-            elif isinstance(data_cls.data_ids, dict):
-                self.loss_fns = {data_id: loss_fns[i] for i, data_id in enumerate(data_cls.data_ids)}
             else:
                 utils.raise_value_err(
                     "`data.data_ids` passed into `{}.add_losses` method has "
@@ -104,7 +103,6 @@ class Net(tf.keras.Model):
             utils.raise_value_err(
                 "`loss_fns` passed into `{}.add_losses` method has "
                 "to be a `dict` or a `list`/`tuple`.".format(self.name))
-
         if 'res' in self.loss_fns:
             self.loss_fns['res'] = data_cls.residual_loss(self.loss_fns['res'])
 

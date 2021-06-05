@@ -94,12 +94,12 @@ class ODEDataSequence(tf.keras.utils.Sequence):
 
 
 
-    @tf.function
-    def __iter__(self):
-        """Create a generator that iterate over the Sequence."""
-        # for item in (self[i] for i in range(len(self))):
-        #     yield item
-        return None
+    # @tf.function
+    # def __iter__(self):
+    #     """Create a generator that iterate over the Sequence."""
+    #     # for item in (self[i] for i in range(len(self))):
+    #     #     yield item
+    #     return None
 
     # Handling batches during each epoch
     ###########################################################################
@@ -117,6 +117,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
                 data.append([ tf.concat(batch_i, 0) for batch_i in zip(*batch) ])
             else:
                 data.append(tf.concat(batch, 0))
+        print(data)
 
         # print(data)
         # input('--------------------')

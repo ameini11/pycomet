@@ -30,12 +30,12 @@ class InputData(object):
     name  = 'MSD_OpNN'
 
     # Input Space Extreme Values ----------------------------------------------
-    pos = [0.0, 4.0]
-    vel = [0.0, 4.0]
+    pos = [-5.0, 5.0]
+    vel = [-5.0, 5.0]
 
     # Other properties --------------------------------------------------------
     params = np.array([1.0, 0.5, 3.0], dtype=np.float64)
-    t0, t_end = 0., 10.           # Time limits
+    t0, t_end = 0., 10.         # Time limits
 
 
     ###########################################################################
@@ -51,15 +51,15 @@ class InputData(object):
 
     # Structure ---------------------------------------------------------------
     layer_size         = {
-                            "branch": [dim['inp'][0], 16, 16, 8],
-                            "trunk":  [dim['inp'][1], 16, 16, 8]
+                            "branch": [dim['inp'][0], 32, 32, 16],
+                            "trunk":  [dim['inp'][1], 32, 32, 16]
                             }
     activation         = {
-                            "branch": 'tanh',
+                            "branch": 'elu',
                             "trunk":  'tanh'
                             }
     regularization     = {
-                            'name':       'l1+l2',
+                            'name':       None,#'l1+l2',
                             'l1':         1.e-4,
                             'l2':         1.e-4
                             }
@@ -70,7 +70,7 @@ class InputData(object):
     dropout_rate       = 0
     # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
     kernel_initializer = "GlorotNormal"
-    block = 'FFBlock'
+    block = 'FFBlock' #'ResPIBlock'
 
     # I/O Transformation ------------------------------------------------------
     input_fn  = None
@@ -99,7 +99,7 @@ class InputData(object):
 
     # Training ----------------------------------------------------------------
     train_pts = {
-                'ics': 10,   # Number of training scenarios
+                'ics': 40,   # Number of training scenarios
                 'pts': 10, # Number of total anchor pts for each scenario
                 'res': 160  # Number of total collocaion pts for each scenario
             }
@@ -117,21 +117,21 @@ class InputData(object):
     ###########################################################################
     epochs       = 100000
     # batch_size   = 128
-    batch_size   = {'ics': 2, 'pts': 16, 'res': 256}
-    valid_batch_size = {'ics': 2, 'pts': 4, 'res': 64}
+    batch_size   = {'ics': 16, 'pts': 32, 'res': 128}
+    valid_batch_size = {'ics': 16, 'pts': 8, 'res': 32}
 
     optimizer    = 'adam'
-    lr           = 1.e-5
+    lr           = 1.e-4
 
     # Learning rate scheduler -------------------------------------------------
     decay_epochs = 2000
-    decay_steps  = 1000 #round(train_pts*num_ics*(1.-valid))/batch_size*decay_epochs
+    decay_steps  = 10000 #round(train_pts*num_ics*(1.-valid))/batch_size*decay_epochs
     decay        = ["exponential", decay_steps, 0.98]
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'ics': 'MSE', 'pts': 'MSE', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
-    metrics      = ['MSE']
+    loss         = {'ics': 'mse', 'pts': 'mse', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
+    metrics      = ['mse']
     adaptive_weights = {'name': 'ConstantAdapter'}
 
     # Early Stopping Callback -------------------------------------------------

@@ -5,9 +5,7 @@ from sklearn.model_selection import train_test_split
 from varname import nameof
 
 from prode.data.data      import Data
-# from prode.data.generator import ODEDataSequence
-from prode.data._generator2 import ODEDataSequence
-# from prode.data._generator import ODEDataSequence
+from prode.data.generator import ODEDataSequence
 from prode.data           import gradients
 from prode                import utils
 
@@ -27,7 +25,7 @@ class ODE(Data):
         train_data=None,
         valid_data=None,
         test_data=None,
-        valid_split=0.,
+        valid_split=None,
         col_x=None,
         col_y=None,
         batch_size=32,
@@ -45,13 +43,13 @@ class ODE(Data):
         self.col_y = col_y
 
         # Training/Validation data
-        self.valid_split = valid_split
         self.check_data_source(train_data, nameof(train_data))
         if valid_data:
             self.check_data_source(valid_data, nameof(valid_data))
             train_dset = self.data_as_dict(train_data, nameof(train_data))
             valid_dset = self.data_as_dict(valid_data, nameof(valid_data))
-        elif valid_split > 0.:
+        elif valid_split:
+            self.validation_split = valid_split
             train_dset, valid_dset = get_train_valid(self.data_as_dict(train_data))
         else:
             train_dset = self.data_as_dict(train_data)
@@ -110,7 +108,7 @@ class ODE(Data):
             if isinstance(data[data_id], (list,tuple)):
                 return data[data_id]
             elif data_id == 'res':
-                shape = data[data_id].shape[0], self.dim['out']
+                shape = [ data[data_id].shape[0], self.dim['out'] ]
                 return data[data_id], np.empty(shape)
             else:
                 utils.raise_value_err("`{}[{}]` passed into `{}` has to be a list "
@@ -137,26 +135,6 @@ class ODE(Data):
             utils.raise_value_err("`{}['data_source']` passed into `{}` "
                 "has to be equal to 'array' or 'file'.".format(var_name, self.name))
 
-    def get_num_pts(self, data_type='training', verbose=1):
-        if data_type == 'training':
-            dset = self.train
-        elif data_type == 'validation':
-            dset = self.valid
-        else:
-            utils.raise_value_err("`data_type` passed into `{}.get_num_pts` method "
-                "must be equal to 'training' or 'validation'.".format(self.name))
-        if dset:
-            num_pts = {data_id: dset.n_samples[data_id] for data_id in dset.data}
-            if verbose:
-                utils.print_submain("Number of", data_type, "pts:")
-                for k, v in num_pts.items():
-                    utils.print_submain("  - '%s': %8d" % (k, v))
-            return num_pts
-        else:
-            if verbose:
-                utils.print_submain("No", data_type, "pts available.")
-            return None
-
 
     # Splitting Training/Validation Data
     ###########################################################################
@@ -172,7 +150,7 @@ class ODE(Data):
     def split_data(self, x, y):
         x_len = len(x) if isinstance(x, (list,tuple)) else 1
         data  = (*x, y) if x_len > 1 else (x, y)
-        split = train_test_split(*data, test_size=self.valid_split)
+        split = train_test_split(*data, test_size=self.validation_split)
         x, x_val = [], []
         for i in range(len(data)):
             if i < x_len:
@@ -209,3 +187,26 @@ class ODE(Data):
             return res_pred, res_loss
         
         return res_loss_fn
+
+
+    # Util functions
+    ###########################################################################
+    def get_num_pts(self, data_type='training', verbose=1):
+        if data_type == 'training':
+            dset = self.train
+        elif data_type == 'validation':
+            dset = self.valid
+        else:
+            utils.raise_value_err("`data_type` passed into `{}.get_num_pts` method "
+                "must be equal to 'training' or 'validation'.".format(self.name))
+        if dset:
+            num_pts = {data_id: dset.n_samples[data_id] for data_id in dset.data}
+            if verbose:
+                utils.print_submain("Number of", data_type, "pts:")
+                for k, v in num_pts.items():
+                    utils.print_submain("  - '%s': %8d" % (k, v))
+            return num_pts
+        else:
+            if verbose:
+                utils.print_submain("No", data_type, "pts available.")
+            return None

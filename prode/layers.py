@@ -44,7 +44,7 @@ class FFBlock(lay.Layer):
 
         ### Layers Initialization ---------------------------------------------
         # Hidden Layers
-        self.lays = [ self.DenseBlock(number=i+1) for i in range(len(self.layer_size)-2) ]
+        self.lays = [ self.DenseBlock(i+1) for i in range(len(self.layer_size)-2) ]
         # Output Layer
         self.lays.append( self.Dense(self.layer_size[-1], name='output') )
 
@@ -98,11 +98,9 @@ class FFBlock(lay.Layer):
 
     # Sub-layers Definition
     ###########################################################################
-    def DenseBlock(self, number=None, name='hidden'):
+    def DenseBlock(self, number, name='hidden'):
 
-        lay_name = name
-        if number:
-            lay_name = lay_name + str(number-1)
+        lay_name = name + str(number-1)
 
         act_fun = self.activation
         bias    = True
@@ -186,8 +184,8 @@ class ResPIBlock(FFBlock):
                     "`{}`. Check `layer_size` variable.".format(self.__name__))
 
         ### Layers Initialization ---------------------------------------------
-        self.U = self.DenseBlock(number=1, name='U')
-        self.V = self.DenseBlock(number=1, name='V')
+        self.U = self.DenseBlock(1, name='U')
+        self.V = self.DenseBlock(1, name='V')
 
 
     # Configuration update
@@ -214,8 +212,8 @@ class ResPIBlock(FFBlock):
         y = x
 
         # Transformer layers
-        u = self.U(x)
-        v = self.V(x)
+        u = self.call_block(y, self.U)
+        v = self.call_block(y, self.V)
 
         # Hidden layers
         y = self.call_block(y, self.lays[0])

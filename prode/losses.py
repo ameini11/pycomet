@@ -9,7 +9,7 @@ from tensorflow.python.framework    import ops
 from prode import utils
 
 
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='malpe')
 def mean_absolute_log_percentage_error(y_true, y_pred):
     # Warning: see MeanSquaredError above.
     y_pred = ops.convert_to_tensor_v2_with_dispatch(y_pred)
@@ -59,7 +59,7 @@ def get(identifier):
         "mape":  lss.MeanAbsolutePercentageError(),
         "mse":   lss.MeanSquaredError(),
         "msle":  lss.MeanSquaredLogarithmicError(),
-        "MALPE": mean_absolute_log_percentage_error,
+        "malpe": mean_absolute_log_percentage_error,
         "MAPE":  mean_absolute_percentage_error,
         "MSE":   mean_squared_error,
         "MSLE":  mean_squared_logarithmic_error,
@@ -73,13 +73,3 @@ def get(identifier):
         return None
     else:
         utils.raise_value_err("Could not interpret loss function identifier:", identifier)
-
-
-def get_reg_losses(model):
-    regularization_losses = model.losses
-    if regularization_losses:
-        regularization_losses = losses_utils.cast_losses_to_common_dtype(
-            regularization_losses)
-        return math_ops.add_n(regularization_losses)
-    else:
-        return array_ops.zeros(shape=())

@@ -6,6 +6,9 @@ from prode import utils
 class Data(object):
     """Data base class."""
 
+
+    # Initialization
+    ###########################################################################
     def __init__(self, dim):
 
         self.name  = utils.get_class_name(self)
@@ -22,6 +25,15 @@ class Data(object):
         self.valid_batch_size = None
         self.validation_split = None
 
+
+    # Util functions
+    ###########################################################################
+    def get_cardinality(self, x):
+        if isinstance(x, (list,tuple)):
+            return self.get_cardinality(x[0])
+        else:
+            return x.shape[0]
+            
     def get_dataset(self, x, y):
         if x is not None:
             dset_x = tf.data.Dataset.from_tensor_slices(tuple(x))
