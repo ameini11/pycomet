@@ -89,7 +89,8 @@ def main():
         dropout_rate=inp.dropout_rate,
         batch_norm=inp.batch_norm,
         block=inp.block,
-        adaptive_weights=inp.adaptive_weights)
+        # adaptive_weights=inp.adaptive_weights
+        )
 
     # Apply I/O Transformation ------------------------------------------------
     net.apply_input_transform(inp.input_fn)
@@ -100,7 +101,7 @@ def main():
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro._model.Model(data, net, inp.name)
+    model = pro.__model.Model(data, net, inp.name)
 
     # Build Model -------------------------------------------------------------
     model.build(inp.dim['inp'], verbose=0, load_net=inp.load_flg, visualize_graph=False)
@@ -124,7 +125,7 @@ def main():
                                        model.train_dir, inp.period)
             cb_list.append(PL)
 
-        model.fit(epochs=inp.epochs, callbacks=cb_list)
+        model.fit(epochs=inp.epochs, callbacks=cb_list, weighted_loss_callback=inp.adaptive_weights)
 
     # Save Model ---------------------------------------------------------------
     if inp.save_flg > 0:

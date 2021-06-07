@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.keras import backend as K
 
 from prode import utils
 
@@ -19,7 +20,7 @@ class LossWeightsAdapter(object):
         if weights is None:
             self.weights = dict()
             for k in data_ids:
-                self.weights[k] = 1.
+                self.weights[k] = tf.cast(1., K.floatx())
         self.data_ids = data_ids
 
         self.freq = freq

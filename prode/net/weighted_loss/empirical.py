@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.keras import backend as K
 
 from prode.net.weighted_loss.adapter import LossWeightsAdapter
 from prode                           import utils
@@ -30,7 +31,7 @@ class EmpiricalAdapter(LossWeightsAdapter):
             freq=freq,
             name=name)
 
-        self.alpha = tf.clip_by_value(alpha, 0., 1.)
+        self.alpha = tf.cast(tf.clip_by_value(alpha, 0., 1.), K.floatx())
 
 
     # Configuration update
@@ -56,19 +57,30 @@ class EmpiricalAdapter(LossWeightsAdapter):
                 return
 
             # Get the maximum gradient value from residual loss
-            grad_res_max = tf.reduce_max(tf.math.abs(tape.gradient( \
-                losses['res'], model.trainable_vars)))
+            grads_res = tape.gradient(losses['res'], model.trainable_variables)
+            grads_res_max = self.max_grads(grads_res)
 
             # Get the mean of the gradient magnitudes for each remaining loss term
             for data_id, loss in losses.items():
                 if data_id == 'res':
                     continue
                 # Get the mean of the gradient magnitudes for each remaining loss term
-                grad_mean = tf.reduce_mean(tf.math.abs(tape.gradient(\
-                    loss, model.trainable_vars)))
+                grads = tape.gradient(loss, model.trainable_variables)
+                grads_mean = self.mean_grads(grads)
 
                 # Update the loss weights
-                self.weights[data_id] = self.alpha * grad_res_max / grads_mean + \
+                self.weights[data_id] = self.alpha * grads_res_max / grads_mean + \
                     (1. - self.alpha) * self.weights[data_id]
 
         self.iter += 1
+
+
+    # Util functions
+    ###########################################################################
+    def mean_grads(self, grads):
+        mean = [ tf.reduce_mean(tf.math.abs(grad)) for grad in grads ]
+        return tf.reduce_mean(mean)
+
+    def max_grads(self, grads):
+        m = [ tf.reduce_max(tf.math.abs(grad)) for grad in grads ]
+        return tf.reduce_max(m)

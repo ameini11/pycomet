@@ -59,9 +59,9 @@ class InputData(object):
                             "trunk":  'tanh'
                             }
     regularization     = {
-                            'name':       None,#'l1+l2',
-                            'l1':         1.e-4,
-                            'l2':         1.e-4
+                            'name':       'l1+l2',
+                            'l1':         1.e-5,
+                            'l2':         1.e-5
                             }
     batch_norm         = {
                             "branch": None,
@@ -107,8 +107,8 @@ class InputData(object):
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 1              # Number of testing cases
-    test_training  = False           # Test training case
+    test_cases     = 3              # Number of testing cases
+    test_training  = True           # Test training case
     period         = 1000            # Plotting frequency during training [epochs]
 
 
@@ -116,7 +116,6 @@ class InputData(object):
     ### Training
     ###########################################################################
     epochs       = 100000
-    # batch_size   = 128
     batch_size   = {'ics': 16, 'pts': 32, 'res': 128}
     valid_batch_size = {'ics': 16, 'pts': 8, 'res': 32}
 
@@ -132,7 +131,12 @@ class InputData(object):
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
     loss         = {'ics': 'mse', 'pts': 'mse', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
     metrics      = ['mse']
-    adaptive_weights = {'name': 'ConstantAdapter'}
+    adaptive_weights = 'EmpiricalWeightsAdapter' # 'ConstantWeightsAdapter'
+    # adaptive_weights = {
+    #     'name':  'EmpiricalAdapter',
+    #     'alpha': 0.9
+    #     }
+
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6

@@ -170,7 +170,7 @@ class DataGenerator(object):
         print('\n' + self.header + 'Generating testing pts ...')
 
         if self.test_training:      # Test underfitting
-            assert self.num_ics >= self.test_cases
+            assert self.scenarios >= self.test_cases
             n       = self.test_cases
             idx     = np.random.choice(ic_train.shape[0], size=n, replace=False)
             ic_test = np.vstack((ic_test, ic_train[idx, :]))

@@ -117,15 +117,19 @@ class LearningRateTracker(CB.Callback):
             self.log_lr = tf.summary.create_file_writer(log_dir + '/scalars/lr')
 
         self.file = None if file is None else open(file, "w", buffering=1)
-        if self.file is not None: self.file.write("lr\n")
+        if self.file is not None:
+            self.file.write("lr\n")
 
         self.verbose = verbose
 
     def on_epoch_begin(self, epoch, logs=None):
+        logs = logs or {}
         lr = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
+        if 'learning_rate' not in logs:
+            logs['learning_rate'] = lr
         if self.log_dir is not None:
             with self.log_lr.as_default():
-                tf.summary.scalar(name='epoch_lr', data=lr, step=epoch)
+                tf.summary.scalar(name='epoch_learning_rate', data=lr, step=epoch)
         if self.file is not None:
             self.file.write('%.6e\n' % lr)
             self.file.flush()

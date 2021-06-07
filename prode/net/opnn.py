@@ -1,11 +1,11 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
-from prode     import activations
-from prode     import initializers
-from prode     import regularizers
-from prode     import utils
-from prode.net import Net
+from prode           import activations
+from prode           import initializers
+from prode           import regularizers
+from prode           import utils
+from prode.net.__net import Net
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='OpNN')
@@ -26,12 +26,14 @@ class OpNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        adaptive_weights='ConstantAdapter',
+        # adaptive_weights='ConstantAdapter',
+        loss_weights=None,
         name='opnn'):
         super(OpNN, self).__init__(
             dim=dim,
             block=block,
-            adaptive_weights=adaptive_weights,
+            # adaptive_weights=adaptive_weights,
+            loss_weights=loss_weights,
             name=name)
 
         ### Hyperparameters Initialization ------------------------------------

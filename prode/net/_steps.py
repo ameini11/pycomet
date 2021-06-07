@@ -23,7 +23,7 @@ def train_step(model, data):
         model.adaptive_weights(model, tape=tape_weights, losses=losses, pred=pred)
 
         # Calculate total loss
-        total_loss = get_tot_loss(reg_loss, losses)
+        total_loss = get_tot_loss(reg_loss, losses, model=model)
 
     # Update parameters
     model.optimizer.minimize(total_loss, model.trainable_variables, tape=tape)
@@ -44,7 +44,7 @@ def test_step(model, data):
     reg_loss = get_reg_loss(model)
 
     # Calculate total loss
-    total_loss = get_tot_loss(reg_loss, losses)
+    total_loss = get_tot_loss(reg_loss, losses, training=False)
 
     # Collect metrics to return
     return get_metrics(total_loss, reg_loss, losses)
@@ -66,18 +66,22 @@ def get_reg_loss(model):
         reg_loss = losses_utils.cast_losses_to_common_dtype(model.losses)
         return math_ops.add_n(reg_loss)
 
-def get_tot_loss(reg_loss, losses):
+
+def get_tot_loss(reg_loss, losses, model=None, training=True):
     total_loss = 0.
-    if reg_loss:
+    if reg_loss is not None:
         total_loss = total_loss + reg_loss
     for data_id, loss in losses.items():
-        total_loss = total_loss + loss
+        if training:
+            total_loss = total_loss + model.adaptive_weights.weights[data_id]*loss
+        else:
+            total_loss = total_loss + loss
     return total_loss
 
 def get_metrics(total_loss, reg_loss, losses):
     metrics = {}
     metrics['tot_loss'] = total_loss
-    if reg_loss:
+    if reg_loss is not None:
         metrics['reg_loss'] = reg_loss
     for data_id, loss in losses.items():
         metrics[data_id + '_loss'] = loss

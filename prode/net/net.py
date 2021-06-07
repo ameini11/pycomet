@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.keras import backend as K
 
 from prode.net import weighted_loss
 from prode.net import _steps as steps
@@ -18,6 +19,7 @@ class Net(tf.keras.Model):
         dim,
         block='FFBlock',
         adaptive_weights='ConstantAdapter',
+        loss_weights=None,
         name='net'):
         super(Net, self).__init__()
 
@@ -33,6 +35,7 @@ class Net(tf.keras.Model):
         self.block = utils.get_class(layers, block)
 
         self.adaptive_weights = adaptive_weights
+        self.loss_weights = loss_weights
 
         self.inp_trans = None
         self.out_trans = None
@@ -52,6 +55,7 @@ class Net(tf.keras.Model):
             'out_dim':          self.out_dim,
             'block':            self.block,
             'adaptive_weights': self.adaptive_weights,
+            'loss_weights':     self.loss_weights,
             'inp_trans':        self.inp_trans,
             'out_trans':        self.out_trans,
             'loss_fns':         self.loss_fns,
@@ -113,6 +117,7 @@ class Net(tf.keras.Model):
     def add_adaptive_weights(self):
         if isinstance(self.adaptive_weights, dict):
             self.adaptive_weights['data_ids'] = self.data_ids
+            self.adaptive_weights['model'] = self
             name = self.adaptive_weights.pop('name')
             _adapt = utils.get_class(weighted_loss, name)(**self.adaptive_weights)
         elif isinstance(self.adaptive_weights, str):
@@ -122,6 +127,10 @@ class Net(tf.keras.Model):
                 "`adaptive_weights` passed into `{}` must "
                 "be a `dict` or a `str` (name of the adapter).".format(self.name))
         self.adaptive_weights = _adapt
+        if self.loss_weights is None:
+            self.loss_weights = dict()
+            for k in self.data_ids:
+                self.loss_weights[k] = tf.cast(1., K.floatx())
 
 
     # Steps

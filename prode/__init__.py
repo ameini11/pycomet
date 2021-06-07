@@ -28,7 +28,7 @@ from prode import data
 from prode import initializers
 from prode import layers
 from prode import net
-from prode._model import Model
+from prode.__model import Model
 from prode import postprocessing
 from prode import regularizers
 
