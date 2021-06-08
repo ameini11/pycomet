@@ -131,7 +131,7 @@ class InputData(object):
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
     loss         = {'ics': 'mse', 'pts': 'mse', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
     metrics      = ['mse']
-    adaptive_weights = 'EmpiricalWeightsAdapter' # 'ConstantWeightsAdapter'
+    adaptive_weights = 'NTKWeightsAdapter' # 'EmpiricalWeightsAdapter' # 'ConstantWeightsAdapter'
     # adaptive_weights = {
     #     'name':  'EmpiricalAdapter',
     #     'alpha': 0.9
