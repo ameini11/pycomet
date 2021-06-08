@@ -7,13 +7,13 @@ import signal
 import inspect
 import datetime
 
-import numpy        as np
-import tensorflow   as tf
+import numpy as np
+import tensorflow as tf
+import multiprocessing as mp
 
-from matplotlib     import animation
-from functools      import wraps
-
-from prode.config import headers
+from matplotlib import animation
+from functools import wraps
+from prode.config import headers, mp_setup
 
 
 # Printing functions
@@ -128,6 +128,20 @@ def close_all_hdf5():
             except:
                 pass
 
+# def parallelize_loop(f, iterable, *args):
+#     if get_num_args(f) > 1:
+#         new_iterable = []
+#         for i in iterable:
+#             elem = [i]
+#             elem.extend(args)
+#             new_iterable.append(elem)
+#         iterable = new_iterable
+#         print(iterable[0])
+#     pool = mp.Pool(min(mp.cpu_count(), mp_setup['NUM_CPU']))
+#     results = pool.map(f, iterable)
+#     return result
+
+ 
 
 # def apply(func, args=None, kwds=None):
 #     """Clear Tensorflow GPU memory after model execution.

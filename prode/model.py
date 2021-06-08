@@ -1,21 +1,19 @@
 import os
 import h5py
 import netron
-import tables
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.callbacks as CB
 import tensorboard_plugin_profile
 
-from . import callbacks as callbacks_module
-from . import losses    as losses_module
-from . import metrics   as metrics_module
-from . import net       as net_module
-from . import utils
-
-from .optimizers     import get_train_opt
-from .postprocessing import training_plots, testing_plots
+from prode.utilities.training_utils import callbacks as callbacks_module
+from prode.utilities.training_utils import losses as losses_module
+from prode.utilities.training_utils import metrics as metrics_module
+from prode.utilities.training_utils import weighted_loss
+from prode.utilities.training_utils.optimizers import get_train_opt
+from prode.postprocessing import training_plots, testing_plots
+from prode.utilities import utils
 
 
 class Model(object):
@@ -59,7 +57,7 @@ class Model(object):
 
     # ======================================================================= #
     @utils.timing
-    def build(self, verbose=1, load_net=0, visualize_graph=False):
+    def build(self, input_dim, verbose=1, load_net=0, visualize_graph=False):
         utils.print_main("Building '",self.net.name,"' network ...", sep="")
 
         if self.net.name.startswith('func'):
@@ -67,10 +65,10 @@ class Model(object):
             net_graph = self.net
         else:
             if not self.net.built:
-                if isinstance(self.data.train_x, (list,tuple)):
-                    inputs_shape = [inp.shape for inp in self.data.train_x]
+                if isinstance(input_dim, (list,tuple)):
+                    inputs_shape = [ tuple([1,dim_i]) for dim_i in input_dim]
                 else:
-                    inputs_shape = self.data.train_x.shape
+                    inputs_shape = tuple([1,input_dim])
                 self.net.build(inputs_shape)
             net_graph = self.net.build_graph()
 
@@ -138,26 +136,47 @@ class Model(object):
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
-        # Initializing the loss functions
-        if isinstance(loss, dict):
-            self.loss_pts = losses_module.get(loss['pts'])
-            self.loss_res = losses_module.get(loss['res']) if loss['res'] is not None else None
+        # Update data ids
+        self.net.add_data_ids(self.data)
+
+        # Initializing loss functions/weights
+        self.loss = None
+        if isinstance(loss, (dict,list,tuple)):
+            loss_fns = self.get_losses(loss)
+            if self.data.name == 'ODE':
+                self.net.add_loss_properties(loss_fns, loss_weights, self.data)
+            else:
+                utils.raise_value_err("Multiple losses can be used only with `ODE` data.")
         elif isinstance(loss, str):
-            self.loss_pts = losses_module.get(loss)
-            self.loss_res = None
+            loss = losses_module.get(loss)
+            if self.data.name == 'ODE':
+                loss_fns = {data_id: loss for data_id in self.data.data_ids}
+                self.net.add_loss_properties(loss_fns, loss_weights, self.data)
+            else:
+                self.loss = loss
         else:
             utils.raise_value_err("Losses have to be defined as a `dict` or a `str`.")
 
-        if self.loss_res is not None and self.data.ode_func is not None:
-            self.net.add_residual_loss(self.data.residual_loss(self.loss_res))
-
         # Defining metrics
         if metrics is not None:
-            self.metrics = [ metrics_module.get(m) for m in metrics ]
+            if self.data.name == 'ODE':
+                self.metrics = None
+                utils.warning("With `ODE` data, metrics evaluation is not available.")
+            else:
+                self.metrics = [ metrics_module.get(m) for m in metrics ]
 
         # Compiling
-        self.net.compile(optimizer=self.optimizer, loss=self.loss_pts, \
-                         metrics=self.metrics, loss_weights=loss_weights)
+        self.net.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
+
+
+    def get_losses(self, loss_names):
+        if isinstance(loss_names, (dict)):
+            loss_fns = {}
+            for loss_id, loss_name in loss_names.items():
+                loss_fns[loss_id] = losses_module.get(loss_name)
+        else:
+            loss_fns = [ losses_module.get(loss_name) for loss_name in loss_names ]
+        return loss_fns
 
 
     # ======================================================================= #
@@ -165,14 +184,13 @@ class Model(object):
     def fit(
         self,
         epochs=1,
-        batch_size=None,
         callbacks=[],
-        validation_split=0.2,
-        validation_data=None,
+        weighted_loss_callback=None,
         profile_batch=0):
         utils.print_main("Training the model ...")
 
         # Defining callbacks
+        utils.print_submain("Initilizing callbacks")
         MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/weights_{epoch:06d}.h5", \
                 monitor='val_loss', save_best_only=True, save_weights_only=True)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
@@ -181,28 +199,47 @@ class Model(object):
                 log_dir=self.TB_dir, verbose=1)
         callbacks.extend([MC, TB, LR])
 
+        if weighted_loss_callback is not None:
+            WL = self.add_weighted_loss_callback(weighted_loss_callback)
+            callbacks.append(WL)
+
         # Defining train/valid pts
-        utils.print_submain("Number of Training pts:     %8d" % self.data.train_y.shape[0])
-        if self.data.valid_x is not None:
-            validation_data  = (self.data.valid_x, self.data.valid_y)
-            validation_split = None
-            utils.print_submain("Number of Validation pts:   %8d\n" % self.data.valid_y.shape[0])
+        utils.print_submain("")
+        num_train_pts = self.data.get_num_pts(data_type='training', verbose=1)
+        num_valid_pts = self.data.get_num_pts(data_type='validation', verbose=1)
+        utils.print_submain("")
 
         # Fit the model
         self.history = self.net.fit(
-                        x=self.data.train_x,
-                        y=self.data.train_y, 
-                        batch_size=batch_size,
-                        epochs=epochs,
-                        callbacks=callbacks,
-                        validation_split=validation_split,
-                        validation_data=validation_data,
-                        sample_weight=self.data.sample_weight)
+            self.data.train,
+            batch_size=self.data.batch_size,
+            epochs=epochs,
+            callbacks=callbacks,
+            validation_split=self.data.validation_split,
+            validation_data=self.data.valid,
+            validation_batch_size=self.data.valid_batch_size)
 
         # Save `history.history` in a file
         hist_df = pd.DataFrame.from_dict(self.history.history)
         with open(self.train_dir+'/history.csv', mode='w') as f:
             hist_df.to_csv(path_or_buf=f, index=False)
+
+
+    def add_weighted_loss_callback(self, weighted_loss_callback):
+        kwargs = {}
+        kwargs['model'] = self.net
+        kwargs['data_generator'] = self.data.train
+        kwargs['log_dir'] = self.TB_dir
+        if isinstance(weighted_loss_callback, dict):
+            name = weighted_loss_callback.pop('name')
+            kwargs.update(weighted_loss_callback)
+        elif isinstance(weighted_loss_callback, str):
+            name = weighted_loss_callback
+        else:
+            utils.raise_value_err(
+                "`weighted_loss_callback` passed into `Model.fit` must "
+                "be a `dict` or a `str` (name of the loss adapter callback).")
+        return utils.get_class(weighted_loss, name)(**kwargs)
 
 
     # ======================================================================= #

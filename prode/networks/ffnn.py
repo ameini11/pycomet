@@ -1,9 +1,9 @@
 import tensorflow as tf
 
-from prode     import activations
-from prode     import initializers
-from prode     import regularizers
-from prode.net import Net
+from prode.utilities.model_utils import activations
+from prode.utilities.model_utils import initializers
+from prode.utilities.model_utils import regularizers
+from prode.networks.net import Net
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='FFNN')

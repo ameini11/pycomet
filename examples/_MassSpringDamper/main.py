@@ -20,11 +20,14 @@ import sys
 sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/'))
 # -----------------------------------------------------------------------------
 import prode as pro
+from prode.utilities import utils as pro_utils
+from prode.utilities.training_utils import callbacks as pro_callbacks
 
 import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import callbacks
+import multiprocessing as mp
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
@@ -41,7 +44,7 @@ def ode(ic, t, grads, params):
     return dY_dt - tf.matmul(Y, K)
 
 
-@pro.utils.main_decorator
+@pro_utils.main_decorator
 def main():
 
     ###########################################################################
@@ -63,7 +66,7 @@ def main():
         col_x, col_y = inp.col_x, inp.col_y
 
     # Initialize Data ---------------------------------------------------------
-    data = pro.utils.get_class(pro.data, inp.data_name)(
+    data = pro_utils.get_class(pro.data, inp.data_name)(
         inp.dim,
         ode_func=ode,
         ode_order=1,
@@ -80,7 +83,7 @@ def main():
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    net = pro.utils.get_class(pro.net, inp.nn_name)(
+    net = pro_utils.get_class(pro.networks, inp.nn_name)(
         inp.dim,
         inp.layer_size,
         inp.activation,
@@ -101,7 +104,7 @@ def main():
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.__model.Model(data, net, inp.name)
+    model = pro.model.Model(data, net, inp.name)
 
     # Build Model -------------------------------------------------------------
     model.build(inp.dim['inp'], verbose=0, load_net=inp.load_flg, visualize_graph=False)
@@ -120,7 +123,7 @@ def main():
         cb_list = [ES]
 
         if inp.plot_flg == 2:
-            PL = pro.callbacks.Plotter(data_test, inp.var_names, inp.labels,
+            PL = pro_callbacks.Plotter(data_test, inp.var_names, inp.labels,
                                        inp.scales, inp.log_plot,
                                        model.train_dir, inp.period)
             cb_list.append(PL)

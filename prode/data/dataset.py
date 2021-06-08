@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from prode.data.data import Data
-from prode           import utils
+from prode.utilities import utils
 
 
 class DataSet(Data):

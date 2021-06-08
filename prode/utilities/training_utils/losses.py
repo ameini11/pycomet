@@ -1,12 +1,11 @@
 import tensorflow as tf
 import tensorflow.keras.losses as lss
 
-from tensorflow.python.ops          import math_ops, array_ops
-from tensorflow.python.keras        import backend as K
-from tensorflow.python.keras.utils  import losses_utils
-from tensorflow.python.framework    import ops
-
-from prode import utils
+from tensorflow.python.ops import math_ops, array_ops
+from tensorflow.python.keras import backend as K
+from tensorflow.python.keras.utils import losses_utils
+from tensorflow.python.framework import ops
+from prode.utilities import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='malpe')

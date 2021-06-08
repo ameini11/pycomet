@@ -5,8 +5,7 @@ import tensorflow.keras.layers as lay
 from tensorflow.python.framework import dtypes, tensor_shape
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.engine.input_spec import InputSpec
-
-from prode import utils
+from prode.utilities import utils
 
 
 # =========================================================================== #

@@ -21,27 +21,16 @@ __url__     = "https://github.com/ivanZanardi/prode"
 __license__ = "Apache-2.0"
 __version__ = "0.0.1"
 
-from prode import activations
-from prode import callbacks
 from prode import config
 from prode import data
-from prode import initializers
-from prode import layers
-from prode import net
-from prode.__model import Model
+from prode import networks
+from prode.model import Model
 from prode import postprocessing
-from prode import regularizers
-
 
 __all__ = [
-    "activations",
-    "callbacks",
     "config",
     "data",
-    "initializers",
-    "layers",
-    "net",
+    "networks",
     "Model",
-    "postprocessing",
-    "regularizers"
+    "postprocessing"
 ]

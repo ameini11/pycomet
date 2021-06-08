@@ -3,10 +3,9 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.regularizers as reg
 
-from tensorflow.python.ops          import math_ops
-from tensorflow.python.keras.utils  import losses_utils
-
-from prode import utils
+from tensorflow.python.ops import math_ops
+from tensorflow.python.keras.utils import losses_utils
+from prode.utilities import utils
 
 
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):

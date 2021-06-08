@@ -1,9 +1,8 @@
 import tensorflow as tf
 
-from prode.net import __steps as steps
-from prode     import utils
-from prode     import layers
-from prode     import losses as losses_module
+from prode.utilities.model_utils import layers
+from prode.utilities import utils
+from prode.networks import steps
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='Net')

@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from tensorflow.python.util.tf_export import keras_export
-from prode import utils
+from prode.utilities import utils
 
 
 @keras_export('keras.utils.ODEDataSequence')

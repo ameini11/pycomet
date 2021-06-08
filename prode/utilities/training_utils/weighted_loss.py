@@ -1,15 +1,14 @@
 import time
+import sys
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras.backend as K
+import tensorflow.keras.callbacks as CB
 
-import tensorflow                   as tf
-import tensorflow.keras.backend     as K
-import tensorflow.keras.callbacks   as CB
-
-from tensorflow.python.eager          import backprop
+from tqdm import tqdm
+from tensorflow.python.eager import backprop
 from tensorflow.python.util.tf_export import keras_export
-
-from prode import utils
-
+from prode.utilities import utils
 
 
 @keras_export('keras.callbacks.ConstantWeightsAdapter')
@@ -57,7 +56,6 @@ class ConstantWeightsAdapter(CB.Callback):
         self.print_weights(epoch, logs)
 
 
-
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
 class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     """Adaptive loss weights technique for PINNs based on an empirical learning
@@ -76,6 +74,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         freq=1,
         alpha=0.8,
         log_dir=None,
+        max_samples=20000,
         name='empirical_weights_adapter',
         **kwargs):
         super(EmpiricalWeightsAdapter, self).__init__(
@@ -88,7 +87,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.alpha = tf.cast(tf.clip_by_value(alpha, 0., 1.), K.floatx())
         self.loss_gradients = {}
         self.dataset = {}
-        self.max_samples = 20000
+        self.max_samples = max_samples
 
     def on_train_begin(self, logs={}):
         if 'res' not in self.model.data_ids:
@@ -107,7 +106,6 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.sample_dataset()
         self.eval_loss_gradients()
         self.update_loss_weights()
-
 
     # Sampling data
     ###########################################################################
@@ -135,7 +133,6 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
                 dset_shuffled.append(tf.convert_to_tensor(xy[indeces], \
                     dtype=K.floatx()))
         return dset_shuffled
-
 
     # Handling loss gradients
     ###########################################################################
@@ -194,7 +191,6 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         return tf.reduce_mean(mean)
 
 
-
 @keras_export('keras.callbacks.NTKWeightsAdapter')
 class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
@@ -209,8 +205,9 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         self,
         model,
         data_generator=None,
-        freq=1,
+        freq=1000,
         log_dir=None,
+        max_samples=10000,
         name='ntk_weights_adapter',
         **kwargs):
         super(NTKWeightsAdapter, self).__init__(
@@ -218,6 +215,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
             data_generator=data_generator,
             freq=freq,
             log_dir=log_dir,
+            max_samples=max_samples,
             name=name)
 
     def on_train_begin(self, logs={}):
@@ -225,14 +223,14 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
 
     def on_epoch_end(self, epoch, logs={}):
         logs = logs or {}
-        self.update()
+        if (epoch+1) % self.freq == 0:
+            self.update()
         self.print_weights(epoch, logs)
 
     def update(self):
         self.sample_dataset()
         ntk = self.get_ntk()
         self.update_loss_weights(ntk)
-
 
     # Handling loss gradients
     ###########################################################################
@@ -248,18 +246,18 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         return self.eval_diag_ntk(pred, tape)
 
     def eval_diag_ntk(self, pred, tape):
+        utils.print_submain("From `NTKWeightsAdapter` callback:")
         ntk = {}
         for data_id, pred_i in pred.items():
+            utils.print_submain("  - Evaluating Neural Tangent Kernel matrix "
+                "for `{}` data points.".format(data_id))
             ntk[data_id] = []
-            for elem in pred_i:
-                print(elem)
+            for elem in tqdm(pred_i, file=sys.stdout):
                 grad = tape.gradient(elem, self.model.trainable_variables)
                 # Flatten all gradient matrices into one unique 1D vector
                 grad_vec = np.concatenate([ np.abs(g.numpy()).flatten() for g in grad ])
                 ntk[data_id].append(np.dot(grad_vec,grad_vec))
-                break
         return ntk
-
 
     # Handling loss weights
     ###########################################################################
@@ -267,8 +265,3 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         normalization_grad = np.sum([ np.sum(ntk_i) for ntk_i in ntk.values()])
         for data_id in self.model.data_ids:
             self.model.loss_weights[data_id] = normalization_grad / np.sum(ntk[data_id])
-    # def update_loss_weights(self, ntk):
-    #     normalization_grad = tf.math.reduce_sum([ tf.math.reduce_sum(ntk_i) \
-    #         for ntk_i in ntk.values()])
-    #     for data_id in self.data_ids:
-    #         self.model.loss_weights[data_id] = normalization_grad / tf.math.reduce_sum(ntk[data_id])

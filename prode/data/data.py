@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from prode import utils
+from prode.utilities import utils
 
 
 class Data(object):

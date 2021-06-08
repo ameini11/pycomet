@@ -2,15 +2,14 @@ import os
 import sys
 import time
 import numpy as np
+import tensorflow as tf
+import tensorflow.keras.backend as K
+import tensorflow.keras.callbacks as CB
+
 from datetime import datetime
-
-import tensorflow                   as tf
-import tensorflow.keras.backend     as K
-import tensorflow.keras.callbacks   as CB
 from tensorflow.python.util.tf_export import keras_export
-
 from prode.postprocessing import testing_plots
-from prode import utils
+from prode.utilities import utils
 
 
 ###############################################################################
