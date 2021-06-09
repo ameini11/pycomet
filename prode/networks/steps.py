@@ -18,13 +18,17 @@ def train_step(model, data):
         # Regularization loss
         reg_loss = get_reg_loss(model)
         # Calculate total loss
-        total_loss = get_tot_loss(reg_loss, losses, model)
+        tot_loss_weighted = get_tot_loss(model, losses, reg_loss=reg_loss)
 
     # Update parameters
-    model.optimizer.minimize(total_loss, model.trainable_variables, tape=tape)
+    model.optimizer.minimize(tot_loss_weighted, model.trainable_variables, tape=tape)
+
+    # Calculate unweighted total loss
+    total_loss = get_tot_loss(model, losses, training=False)
 
     # Collect metrics to return
-    return get_metrics(total_loss, reg_loss, losses)
+    metric = {'tot_loss_weighted': tot_loss_weighted}
+    return {**metric, **get_metrics(total_loss, losses, reg_loss=reg_loss)}
 
 
 def test_step(model, data):
@@ -35,14 +39,12 @@ def test_step(model, data):
     pred, losses = {}, {}
     for i, data_id in enumerate(model.data_ids_val):
         pred[data_id], losses[data_id] = get_pred_loss(x[i], y[i], model, data_id, training=False)
-    # Regularization loss
-    reg_loss = get_reg_loss(model)
 
     # Calculate total loss
-    total_loss = get_tot_loss(reg_loss, losses, model, training=False)
+    total_loss = get_tot_loss(model, losses, training=False)
 
     # Collect metrics to return
-    return get_metrics(total_loss, reg_loss, losses)
+    return get_metrics(total_loss, losses)
 
 
 # Util functions
@@ -61,9 +63,9 @@ def get_reg_loss(model):
         reg_loss = losses_utils.cast_losses_to_common_dtype(model.losses)
         return math_ops.add_n(reg_loss)
 
-def get_tot_loss(reg_loss, losses, model, training=True):
+def get_tot_loss(model, losses, reg_loss=None, training=True):
     total_loss = 0.
-    if reg_loss is not None:
+    if training and reg_loss is not None:
         total_loss = total_loss + reg_loss
     for data_id, loss in losses.items():
         if training and model.loss_weights is not None:
@@ -72,11 +74,11 @@ def get_tot_loss(reg_loss, losses, model, training=True):
             total_loss = total_loss + loss
     return total_loss
 
-def get_metrics(total_loss, reg_loss, losses):
+def get_metrics(total_loss, losses, reg_loss=None):
     metrics = {}
-    metrics['tot_loss'] = total_loss
     if reg_loss is not None:
         metrics['reg_loss'] = reg_loss
     for data_id, loss in losses.items():
         metrics[data_id + '_loss'] = loss
+    metrics['tot_loss'] = total_loss
     return metrics

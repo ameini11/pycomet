@@ -33,11 +33,11 @@ class ODE(Data):
         super(ODE, self).__init__(dim=dim)
 
         # Defining data ids
-        self.data_ids = [
+        self.data_ids = tuple([
             'ics',  # Initial condition pts
             'pts',  # Anchor pts
             'res'   # Collocation pts (residual)
-            ]
+            ])
         
         self.col_x = col_x
         self.col_y = col_y
@@ -56,12 +56,10 @@ class ODE(Data):
             valid_dset = None
 
         self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
-        self.data_ids = self.train.data_ids
         if valid_dset:
             if valid_batch_size is None:
                 valid_batch_size = batch_size
             self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
-            self.data_ids_val = self.valid.data_ids
 
         # Testing data
         if test_data:
@@ -69,6 +67,12 @@ class ODE(Data):
             self.test = ODEDataSequence(self.data_as_dict(test_data, nameof(test_data)), \
                 self.data_ids)
 
+        # Update data ids
+        self.data_ids = self.train.data_ids
+        if self.valid:
+            self.data_ids_val = self.valid.data_ids
+
+        # ODE properties
         self.input_is_list = True if isinstance(self.dim['inp'],(list,tuple)) else False
         if time_idx not in [0,-1]:
             utils.raise_value_err(

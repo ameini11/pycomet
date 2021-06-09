@@ -296,22 +296,32 @@ class Model(object):
 
     # ======================================================================= #
     @utils.timing
-    def visualize_training(self, history=None):
+    def visualize_training(self, history=None, limit_y=False):
         utils.print_main("Postprocessing training quantities ...")
-        if history is None:
-            history = self.history
+        history = self.get_history(history)
 
         path = self.post_dir+'/training_plots'
         if not os.path.exists(path): os.makedirs(path)
 
         training_plots.plot_lr(self.train_dir+'/lr.csv', path)
-        training_plots.plot_loss(history, path)
+        if 'loss' in history.columns:
+            training_plots.plot_loss(history, path, limit_y=limit_y)
+        elif 'tot_loss' in history.columns:
+            training_plots.plot_composite_loss(history, path, limit_y=limit_y)
+            if any([ c.endswith('weight') for c in history.columns ]):
+                training_plots.plot_loss_weights(history, path)
         if self.metrics is not None:
             for met in self.metrics:
                 try:
                     name = met.name
                 except AttributeError:
                     name = met.__name__
-                training_plots.plot_metric(history, path, name)
-        if self.loss_res is not None:
-            training_plots.plot_residual(history, path)
+                training_plots.plot_metric(history, path, name, limit_y=limit_y)
+
+    def get_history(self, history):
+        if history is None:
+            history = self.history
+        if isinstance(history, str):
+            return pd.read_csv(history)
+        else:
+            return pd.DataFrame.from_dict(history.history)

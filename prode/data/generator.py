@@ -14,10 +14,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         self.name = utils.get_class_name(self)
 
         # Check data identities `data_ids`
-        if isinstance(data_ids, dict):
-            self.data_ids = data_ids
-        else:
-            self.data_ids = {data_ids[i]: i+1 for i in range(len(data_ids))}
+        self.data_ids = list(data_ids)
 
         # Check `batch_size` variable
         if not isinstance(batch_size, (dict, int)):
@@ -40,22 +37,24 @@ class ODEDataSequence(tf.keras.utils.Sequence):
                 "  - 'res': collocation pts dataset (residual).".format(self.name))
         else:
             self.data, self.n_samples = {}, {}
-            for k, data_i in data.items():
-                if data_i is None:
+            for k in list(data_ids):
+                if k not in data or data[k] is None:
                     # Delete the corresponding `key` entry
-                    assert k in self.data_ids and k in self.batch_size
-                    self.data_ids.pop(k)
-                    self.batch_size.pop(k)
+                    self.data_ids.remove(k)
+                    if k in self.batch_size:
+                        self.batch_size.pop(k)
                 else:
-                    if not isinstance(data_i, (list,tuple)) and len(data_i) > 2:
-                        # Check data type: `tf.data.Dataset([x,y])` or `[x,y]` or `(x,y)`
+                    if not isinstance(data[k], (list,tuple)) and len(data[k]) > 2:
+                        # Check data type: `[x,y]` or `(x,y)`
                         utils.raise_value_err(
                             "Values passed into `data` dictionary in `{}` must "
                             "be a `list`/`tuple` of `np.ndarray` of length 2: "
                             "(inputs, outputs).".format(self.name))
                     else:
-                        self.data[k]      = data_i
-                        self.n_samples[k] = self.get_cardinality(data_i)
+                        self.data[k]      = data[k]
+                        self.n_samples[k] = self.get_cardinality(data[k])
+                        if k not in self.batch_size:
+                            self.batch_size[k] = 32
 
         # Number of batches for each data id
         self.steps = {k: int(np.ceil(self.n_samples[k]/self.batch_size[k])) for k in self.data_ids}

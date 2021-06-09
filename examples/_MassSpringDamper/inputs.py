@@ -100,7 +100,7 @@ class InputData(object):
     # Training ----------------------------------------------------------------
     train_pts = {
                 'ics': 40,   # Number of training scenarios
-                'pts': 10, # Number of total anchor pts for each scenario
+                'pts': 0, # Number of total anchor pts for each scenario
                 'res': 160  # Number of total collocaion pts for each scenario
             }
     valid   = 0.2   # % of Validation pts
@@ -115,7 +115,7 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 100
+    epochs       = 10000
     batch_size   = {'ics': 16, 'pts': 32, 'res': 128}
     valid_batch_size = {'ics': 16, 'pts': 8, 'res': 32}
 
@@ -131,11 +131,12 @@ class InputData(object):
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
     loss         = {'ics': 'mse', 'pts': 'mse', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
     metrics      = ['mse']
-    adaptive_weights = 'EmpiricalWeightsAdapter' #'NTKWeightsAdapter' 'EmpiricalWeightsAdapter' 'ConstantWeightsAdapter'
-    # adaptive_weights = {
-    #     'name':  'EmpiricalAdapter',
-    #     'alpha': 0.9
-    #     }
+    # adaptive_weights = 'EmpiricalWeightsAdapter' #'NTKWeightsAdapter' 'EmpiricalWeightsAdapter' 'ConstantWeightsAdapter'
+    adaptive_weights = {
+        'name':  'EmpiricalWeightsAdapter',
+        'alpha': 0.9,
+        'freq': 10
+        }
 
 
     # Early Stopping Callback -------------------------------------------------

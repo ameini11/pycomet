@@ -42,18 +42,20 @@ class ConstantWeightsAdapter(CB.Callback):
             self.logs = { k: tf.summary.create_file_writer(self.log_dir + \
                 '/scalars/loss_weights/' + k) for k in self.model.loss_weights }
 
+    def on_train_begin(self, logs={}):
+        self.print_weights(0, logs)
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.print_weights(epoch, logs)
+
     def print_weights(self, epoch, logs):
-        log_weights = {'weight_'+k+'_loss': v for k,v in self.model.loss_weights.items()}
+        log_weights = {k+'_loss_weight': v for k,v in self.model.loss_weights.items()}
         logs.update(log_weights)
         if self.log_dir is not None:
             for k, log in self.logs.items():
                 with log.as_default():
-                    tf.summary.scalar(name='epoch_weight_'+k+'_loss', \
+                    tf.summary.scalar(name='epoch_'+k+'_loss_weight', \
                         data=self.model.loss_weights[k], step=epoch)
-
-    def on_epoch_end(self, epoch, logs=None):
-        logs = logs or {}
-        self.print_weights(epoch, logs)
 
 
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
@@ -95,9 +97,9 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
                 "`EmpiricalWeightsAdapter` can't be applied.".format(self.model.name))
         else:
             self.update()
+        self.print_weights(0, logs)
 
     def on_epoch_end(self, epoch, logs={}):
-        logs = logs or {}
         if 'res' in self.model.data_ids and (epoch+1) % self.freq == 0:
             self.update()
         self.print_weights(epoch, logs)
@@ -163,8 +165,9 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         for data_id, loss in self.model.loss_weights.items():
             if data_id == 'res':
                 continue
-            self.model.loss_weights[data_id] = self.alpha * new_weights[data_id] + \
+            weight = self.alpha * new_weights[data_id] + \
                 (1. - self.alpha) * self.model.loss_weights[data_id]
+            self.model.loss_weights[data_id] = weight.numpy()
 
     def eval_loss_weights(self):
         # Get the maximum gradient value from residual loss
@@ -220,9 +223,9 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
 
     def on_train_begin(self, logs={}):
         self.update()
+        self.print_weights(epoch, logs)
 
     def on_epoch_end(self, epoch, logs={}):
-        logs = logs or {}
         if (epoch+1) % self.freq == 0:
             self.update()
         self.print_weights(epoch, logs)

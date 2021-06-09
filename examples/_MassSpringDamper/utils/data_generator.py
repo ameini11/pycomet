@@ -122,6 +122,8 @@ class DataGenerator(object):
         # Save data in a `.csv` file
         for data_type in data:
             for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
                 path = self.data_dir+data_type+"/"
                 if not os.path.exists(path):
                     os.makedirs(path)
@@ -139,12 +141,15 @@ class DataGenerator(object):
     def get_data(self, ic, t, y, pts):
         tree = KDTree(np.c_[t.ravel()])
         data = {}
-        for k, v in pts.items():
-            if k == 'ics':
-                idx = [0]
+        for k, n in pts.items():
+            if n == 0 or n is None:
+                data[k] = None
             else:
-                idx = self.sampling(0, t.shape[0]-1, t, tree, v)
-            data[k] = self.extract_data_scenario(idx, ic, t, y)
+                if k == 'ics':
+                    idx = [0]
+                else:
+                    idx = self.sampling(0, t.shape[0]-1, t, tree, n)
+                data[k] = self.extract_data_scenario(idx, ic, t, y)
         return data
 
     def stack_data(self, data, data_new, data_type):
@@ -152,6 +157,8 @@ class DataGenerator(object):
             data[data_type] = data_new
         else:
             for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
                 for i, xy in enumerate(data[data_type][data_id]):
                     xy_new = data_new[data_id][i]
                     if isinstance(xy, (list,tuple)):

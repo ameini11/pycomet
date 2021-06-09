@@ -6,53 +6,73 @@ from matplotlib import pyplot as plt
 ###########################################################################
 ### Plotting Training Quantities
 ###########################################################################
-def plot_loss(history, path, scale='log'):
+def plot_loss(history, path, scale='log', limit_y=False, 
+              title='Loss', var=['loss','val_loss'], fig_name='loss'):
     """Loss History plotting."""
-    data = get_data(history)
-
     fig = plt.figure()
 
-    plt.ylim(limits(data[['loss','val_loss']]))
+    if limit_y:
+        plt.ylim(limits(history[var]))
     plt.yscale(scale)
 
-    plt.plot(data[['loss']],     lw=1, label='Training')
-    plt.plot(data[['val_loss']], lw=1, label='Validation')
+    plt.plot(history[var[0]], lw=1, label='Training')
+    plt.plot(history[var[1]], lw=1, label='Validation')
     plt.xlabel('Epoch')
     plt.legend()
     plt.grid()
-    plt.title('Loss History')
-    fig.savefig(path+'/loss.pdf')
+    plt.title(title+' History')
+    fig.savefig(path+'/'+fig_name+'.pdf')
     plt.close()
 
-def plot_residual(history, path, scale='log'):
+def plot_composite_loss(history, path, scale='log', limit_y=False):
     """Residual History plotting."""
-    data = get_data(history)
+    title = {
+        'ics': 'ICs Loss',
+        'pts': 'Operator Loss',
+        'res': 'Residual Loss',
+        'tot': 'Total Loss'
+        }
 
+    for c in history.columns:
+        if c.endswith('loss') and not c.startswith('val'):
+            loss_id = c.split("_")[0]
+            if loss_id == 'reg':
+                continue
+            plot_loss(history, path, scale=scale, limit_y=limit_y,
+                title=title[loss_id], var=[c,'val_'+c], fig_name=c)
+
+def plot_loss_weights(history, path, scale='log'):
+    """Loss Weights History plotting."""
     fig = plt.figure()
-
-    plt.ylim(limits(data[['res_loss','val_res_loss']]))
     plt.yscale(scale)
 
-    plt.plot(data[['res_loss']],     lw=1, label='Training')
-    plt.plot(data[['val_res_loss']], lw=1, label='Validation')
+    label = {
+        'ics': 'ICs',
+        'pts': 'Operator',
+        'res': 'Residual',
+        }
+    for c in history.columns:
+        if c.endswith('weight'):
+            loss_id = c.split("_")[0]
+            plt.plot(history[c], lw=1, label=label[loss_id])
+
     plt.xlabel('Epoch')
     plt.legend()
     plt.grid()
-    plt.title('Residual History')
-    fig.savefig(path+'/residual.pdf')
+    plt.title('Loss Weights')
+    fig.savefig(path+'/loss_weights.pdf')
     plt.close()
 
-def plot_metric(history, path, metric, scale='log'):
+def plot_metric(history, path, metric, scale='log', limit_y=False):
     """Metric History plotting."""
-    data = get_data(history)
-
     fig = plt.figure()
 
-    plt.ylim(limits(data[[metric,'val_'+metric]]))
+    if limit_y:
+        plt.ylim(limits(history[[metric,'val_'+metric]]))
     plt.yscale(scale)
 
-    plt.plot(data[[metric]],        lw=1, label='Training')
-    plt.plot(data[['val_'+metric]], lw=1, label='Validation')
+    plt.plot(history[[metric]],        lw=1, label='Training')
+    plt.plot(history[['val_'+metric]], lw=1, label='Validation')
     plt.xlabel('Epoch')
     plt.title(r'$\it{%s}$' % metric.replace("_", "\ ").title() + '  Metric History')
     plt.legend()
@@ -62,10 +82,9 @@ def plot_metric(history, path, metric, scale='log'):
 
 def plot_lr(history, path):
     """Learning Rate plotting."""
-    data = get_data(history)
-
+    df = pd.read_csv(history)
     fig = plt.figure()
-    plt.plot(data[['lr']], 'r', lw=1)
+    plt.plot(df[['lr']], 'r', lw=1)
     plt.ticklabel_format(axis="y", style="sci", scilimits=(0,0))
     plt.xlabel('Epoch')
     plt.title('Learning Rate History')
@@ -87,9 +106,3 @@ def limits(y):
         return y_min*0.9, y[index]
     else:
         return y_min*0.9, y_max*1.1
-
-def get_data(history):
-    if isinstance(history, str):
-        return pd.read_csv(history)
-    else:
-        return pd.DataFrame.from_dict(history.history)
