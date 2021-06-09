@@ -1,19 +1,3 @@
-# *************************************************************************** #
-# # Tensorflow/Keras set up
-
-# NUM_THREADS = 16
-# DTYPE       = 'float64'
-# EPSILON     = 1.e-30
-# import os
-# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# import tensorflow as tf
-# tf.keras.backend.set_floatx(DTYPE)
-# tf.keras.backend.set_epsilon(EPSILON)
-# tf.config.threading.set_inter_op_parallelism_threads(NUM_THREADS)
-# tf.config.threading.set_intra_op_parallelism_threads(NUM_THREADS)
-
-# *************************************************************************** #
-
 import os
 import sys
 # Remove the following line if you install `prode` as a Python package --------
@@ -27,7 +11,6 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import callbacks
-import multiprocessing as mp
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
@@ -36,12 +19,27 @@ from data_generator import DataGenerator
 
 def ode(ic, t, grads, params):
 
-    Y, dY_dt = grads
+    # Extracting `mass` and `T_trans`
+    ic   = tf.split(ic, num_or_size_splits=inp.dim["inp"][0], axis=1)
+    # mass, T  = ic[-2], ic[-1]
+    mass = ic[-1]
+    T    = str(10000)
 
     # Getting Rate Coefficient matrices
-    K = tf.transpose(params)
+    K_e, K_d, K_r = [ tf.transpose(params[T][name]) for name in params[T] ]
 
-    return dY_dt - tf.matmul(Y, K)
+    # Rearranging variables
+    Y, dY_dt = [ grad * mass for grad in grads ]
+    Y_O      = tf.split(Y, Y.shape[1], axis=1)[-1]
+
+    # Computing Residuals - Master Equation
+    excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
+    disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
+    recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
+
+    rhs = excit_term + disso_term + recom_term
+
+    return dY_dt - rhs
 
 
 @pro_utils.main_decorator
@@ -91,8 +89,7 @@ def main():
         regularization=inp.regularization,
         dropout_rate=inp.dropout_rate,
         batch_norm=inp.batch_norm,
-        block=inp.block,
-        # adaptive_weights=inp.adaptive_weights
+        block=inp.block
         )
 
     # Apply I/O Transformation ------------------------------------------------
@@ -128,7 +125,8 @@ def main():
                                        model.train_dir, inp.period)
             cb_list.append(PL)
 
-        model.fit(epochs=inp.epochs, callbacks=cb_list, weighted_loss_callback=inp.adaptive_weights)
+        model.fit(epochs=inp.epochs, callbacks=cb_list, \
+            weighted_loss_callback=inp.weighted_loss_cb)
 
     # Save Model ---------------------------------------------------------------
     if inp.save_flg > 0:
@@ -139,7 +137,7 @@ def main():
     ### Postprocessing
     ###########################################################################
     # Training phase ----------------------------------------------------------
-    model.visualize_training(model.train_dir+'/history.csv')
+    model.visualize_training(model.train_dir+'/history.csv', limit_y=inp.limit_y)
 
     # Testing phase -----------------------------------------------------------
     if inp.test_cases > 0 and inp.test_flg > 0:

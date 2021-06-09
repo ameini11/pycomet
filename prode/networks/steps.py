@@ -23,11 +23,15 @@ def train_step(model, data):
     # Update parameters
     model.optimizer.minimize(tot_loss_weighted, model.trainable_variables, tape=tape)
 
-    # Calculate unweighted total loss
-    total_loss = get_tot_loss(model, losses, training=False)
-
     # Collect metrics to return
-    metric = {'tot_loss_weighted': tot_loss_weighted}
+    if model.loss_weights is None:
+        total_loss = tot_loss_weighted
+        metric = {}
+    else:
+        # Calculate unweighted total loss
+        total_loss = get_tot_loss(model, losses, training=False)
+        metric = {'tot_loss_weighted': tot_loss_weighted}
+
     return {**metric, **get_metrics(total_loss, losses, reg_loss=reg_loss)}
 
 
@@ -76,9 +80,9 @@ def get_tot_loss(model, losses, reg_loss=None, training=True):
 
 def get_metrics(total_loss, losses, reg_loss=None):
     metrics = {}
-    if reg_loss is not None:
-        metrics['reg_loss'] = reg_loss
+    metrics['tot_loss'] = total_loss
     for data_id, loss in losses.items():
         metrics[data_id + '_loss'] = loss
-    metrics['tot_loss'] = total_loss
+    if reg_loss is not None:
+        metrics['reg_loss'] = reg_loss
     return metrics

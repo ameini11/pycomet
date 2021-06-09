@@ -7,7 +7,8 @@ from matplotlib import pyplot as plt
 ### Plotting Training Quantities
 ###########################################################################
 def plot_loss(history, path, scale='log', limit_y=False, 
-              title='Loss', var=['loss','val_loss'], fig_name='loss'):
+              title='Loss', var=['loss','val_loss'], fig_name='loss',
+              labels=['Training', 'Validation']):
     """Loss History plotting."""
     fig = plt.figure()
 
@@ -15,8 +16,8 @@ def plot_loss(history, path, scale='log', limit_y=False,
         plt.ylim(limits(history[var]))
     plt.yscale(scale)
 
-    plt.plot(history[var[0]], lw=1, label='Training')
-    plt.plot(history[var[1]], lw=1, label='Validation')
+    for i, var_i in enumerate(var):
+        plt.plot(history[var_i], lw=1, label=labels[i])
     plt.xlabel('Epoch')
     plt.legend()
     plt.grid()
@@ -24,29 +25,38 @@ def plot_loss(history, path, scale='log', limit_y=False,
     fig.savefig(path+'/'+fig_name+'.pdf')
     plt.close()
 
+
 def plot_composite_loss(history, path, scale='log', limit_y=False):
     """Residual History plotting."""
-    title = {
+    identifier = {
         'ics': 'ICs Loss',
         'pts': 'Operator Loss',
         'res': 'Residual Loss',
+        'reg': 'Regularization Loss',
         'tot': 'Total Loss'
         }
 
+    composite_loss = {'var': [], 'labels': []}
     for c in history.columns:
         if c.endswith('loss') and not c.startswith('val'):
             loss_id = c.split("_")[0]
+            if loss_id != 'tot':
+                composite_loss['var'].append(c)
+                composite_loss['labels'].append(identifier[loss_id])
             if loss_id == 'reg':
                 continue
             plot_loss(history, path, scale=scale, limit_y=limit_y,
-                title=title[loss_id], var=[c,'val_'+c], fig_name=c)
+                title=identifier[loss_id], var=[c,'val_'+c], fig_name=c)
+    plot_loss(history, path, scale=scale, limit_y=limit_y,
+        **composite_loss, title='Losses', fig_name='losses')
+
 
 def plot_loss_weights(history, path, scale='log'):
     """Loss Weights History plotting."""
     fig = plt.figure()
     plt.yscale(scale)
 
-    label = {
+    labels = {
         'ics': 'ICs',
         'pts': 'Operator',
         'res': 'Residual',
@@ -54,7 +64,7 @@ def plot_loss_weights(history, path, scale='log'):
     for c in history.columns:
         if c.endswith('weight'):
             loss_id = c.split("_")[0]
-            plt.plot(history[c], lw=1, label=label[loss_id])
+            plt.plot(history[c], lw=1, label=labels[loss_id])
 
     plt.xlabel('Epoch')
     plt.legend()
@@ -62,6 +72,7 @@ def plot_loss_weights(history, path, scale='log'):
     plt.title('Loss Weights')
     fig.savefig(path+'/loss_weights.pdf')
     plt.close()
+
 
 def plot_metric(history, path, metric, scale='log', limit_y=False):
     """Metric History plotting."""
@@ -79,6 +90,7 @@ def plot_metric(history, path, metric, scale='log', limit_y=False):
     plt.grid()
     fig.savefig(path+'/metric_'+metric+'.pdf')
     plt.close()
+
 
 def plot_lr(history, path):
     """Learning Rate plotting."""

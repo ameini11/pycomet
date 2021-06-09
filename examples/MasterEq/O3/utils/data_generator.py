@@ -28,18 +28,24 @@ class DataGenerator(object):
             os.makedirs(self.data_dir)
 
         # Data Quantities -----------------------------------------------------
-        self.train_cases    = inputs.train_cases                    # Number of training cases
-        self.valid_pts      = round(inputs.valid*inputs.train_pts)  # Number of validation v for each case
-        self.train_pts      = inputs.train_pts - self.valid_pts     # Number of total training pts for each case
-        self.train_pts_dist = inputs.train_pts_dist                 # Training pts distribution
-        self.train_split    = [0.8, 0.12, 0.08]                     # Training pts splitting
+        self.scenarios = inputs.train_pts['ics']
+        self.valid_pts = {k: round(inputs.valid*inputs.train_pts[k]) if k != 'ics' \
+                                else self.scenarios for k in inputs.train_pts }
+        self.train_pts = {k: inputs.train_pts[k] - self.valid_pts[k] if k != 'ics' \
+                                else self.scenarios for k in inputs.train_pts }
+        for k in inputs.train_pts:
+            if self.valid_pts[k] == 0 and self.train_pts[k] != 0:
+                self.valid_pts[k] = 1
 
-        self.test_cases     = inputs.test_cases                     # Number of testing cases
-        self.test_training  = inputs.test_training                  # Test training case [Bool]
-        self.t0, self.t_end = inputs.t0, inputs.t_end               # Time limits for testing
+        self.train_pts_dist = inputs.train_pts_dist         # Training pts distribution
+        self.train_split    = [0.8, 0.12, 0.08]             # Training pts splitting
 
-        self.inp_dim        = inputs.inp_dim                        # Input Space Dimensionality
-        self.dim            = inputs.dim['G_dim']                   # Data dimensionality
+        self.test_cases     = inputs.test_cases             # Number of testing cases
+        self.test_training  = inputs.test_training          # Test training case [Bool]
+        self.t0, self.t_end = inputs.t0, inputs.t_end       # Time limits for testing
+
+        self.inp_dim        = inputs.inp_dim                # Input Space Dimensionality
+        self.dim            = inputs.dim                    # Data dimensionality
 
         # Input Space Variables -----------------------------------------------
         inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
@@ -122,7 +128,7 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating initial conditions ...')
 
-        n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
+        n = self.scenarios*2 + self.test_cases    # '*2' for validation cases
         unit_vec = np.array([[1.]*self.inp_dim])
 
         # Contructing Design Matrix -------------------------------------------
@@ -139,13 +145,11 @@ class DataGenerator(object):
         X       = X[np.linalg.norm(proj, axis=1).argsort()]
 
         # Generating Initial Conditions ---------------------------------------
-        ic = np.zeros((n,self.dim), dtype=np.float64)
+        ic = np.zeros((n,self.num_bins+1), dtype=np.float64)
         for i in tqdm(range(n)):
-
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
-            XO  = 1. - XO2
-            nd  = P0 / (const.UKb * T0)
-
+            XO        = 1. - XO2
+            nd        = P0 / (const.UKb * T0)
             Q_bins    = self.compute_partition_func(T0)
             ic[i,:-1] = XO2 * Q_bins / sum(Q_bins) * 2.0 * const.mO * nd
             ic[i, -1] = XO  * const.mO * nd
@@ -165,19 +169,6 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating training pts ...')
 
-        # ---------------------------------------------------------------------
-        def get_data(idx):
-            '''Extract data from arrays.'''
-
-            m = np.shape(idx)[0]
-            T = np.tile(ic_i[0 ], (m,1))    # NN Input: Translational Temperature
-            u = np.tile(ic_i[1:], (m,1))    # NN Input: Initial Condition
-            t = t_i[idx,:]                  # NN Input: Time
-            y = y_i[idx,:]                  # NN Target
-            u, y = self.dens2mass_frac(u, y)
-            return [T, u, t, y]
-        # ---------------------------------------------------------------------
-
         data = {}
         for i, ic_i in enumerate(tqdm(ic_train, file=sys.stdout)):
 
@@ -192,42 +183,74 @@ class DataGenerator(object):
 
             # Define data type
             if (i % 2) == 0:
-                data_id, pts = 'train', self.train_pts
+                data_type, pts = 'train', self.train_pts
             else:
-                data_id, pts = 'valid', self.valid_pts
+                data_type, pts = 'valid', self.valid_pts
 
-            # Get data from indices
-            idx = self.get_indices(ic_i[1:], t_i, norm_J_i, pts)
-            data_i = get_data(idx)
-            if eval_f:
-                data_i.append(f_rhs)
-            if data_id == 'train':
-                ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-1))), 1).numpy()
-                data_i.append(ohe_i)
-
-            # marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                     fillstyle='full', markersize=2)
-            # plt.xscale('log')
-            # plt.plot(data_i[2], data_i[3], **marker_style)
-            # plt.grid()
-            # plt.show()
-
-            if i == 0 or i == 1:
-                data[data_id] = data_i
-            else:
-                data[data_id] = list(map(lambda x,y: np.vstack((x,y)), data[data_id], data_i))
-
-        # Shuffle data
-        data_train = shuffle(*data['train'])
-        data_valid = shuffle(*data['valid'])
+            # Sample data
+            n_pts  = sum([ n for k,n in pts.items() if k != 'ics' ])
+            idx    = self.get_indices(t_i, norm_J_i, n_pts)
+            data_i = self.get_data(ic_i, t_i, y_i, pts, idx)
+            data   = self.stack_data(data, data_i, data_type)
 
         # Save data in a `.csv` file
-        pd.DataFrame(np.hstack(tuple(data_train))).to_csv( \
-            self.data_dir+"train_data.csv", index=False, header=None)
-        pd.DataFrame(np.hstack(tuple(data_valid))).to_csv( \
-            self.data_dir+"valid_data.csv", index=False, header=None)
+        for data_type in data:
+            for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
+                path = self.data_dir+data_type+"/"
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                unpack = *data[data_type][data_id][0], data[data_type][data_id][1]
+                pd.DataFrame(np.hstack(unpack)).to_csv(path+data_id+".csv", \
+                    index=False, header=None)
 
-        return data_train, data_valid
+        return data['train'], data['valid']
+
+    def extract_data_scenario(self, idx, ic, t, y):
+        m = np.shape(idx)[0]
+        T = np.tile(ic[0 ], (m,1))
+        u = np.tile(ic[1:], (m,1))
+        t, y = t[idx,:], y[idx,:]
+        u, y = self.dens2mass_frac(u, y)
+        # return [[T, u, t], y]
+        return [[u, t], y]
+
+    def get_data(self, ic, t, y, pts, idx):
+        data = {}
+        for k, n in pts.items():
+            if n == 0 or n is None:
+                data[k] = None
+            else:
+                if k == 'ics':
+                    idx_k = [0]
+                else:
+                    if k == 'pts':
+                        if n == 1:
+                            idx_k = [idx[-1]]
+                            idx = np.delete(idx, -1)
+                        else:
+                            idx, idx_k = self.stratified_sampling(idx, n)
+                    else:
+                        idx_k = idx
+                data[k] = self.extract_data_scenario(idx_k, ic, t, y)
+        return data
+
+    def stack_data(self, data, data_new, data_type):
+        if data_type not in data:
+            data[data_type] = data_new
+        else:
+            for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
+                for i, xy in enumerate(data[data_type][data_id]):
+                    xy_new = data_new[data_id][i]
+                    if isinstance(xy, (list,tuple)):
+                        xy = list(map(lambda x,y: np.vstack((x,y)), xy, xy_new))
+                    else:
+                        xy = np.vstack((xy,xy_new))
+                    data[data_type][data_id][i] = xy
+        return data
 
 
     ###########################################################################
@@ -238,7 +261,7 @@ class DataGenerator(object):
         print('\n' + self.header + 'Generating testing pts ...')
 
         if self.test_training:      # Test underfitting
-            assert self.train_cases >= self.test_cases
+            assert self.scenarios >= self.test_cases
             n       = self.test_cases
             idx     = np.random.choice(ic_train.shape[0], size=n, replace=False)
             ic_test = np.vstack((ic_test, ic_train[idx, :]))
@@ -282,13 +305,11 @@ class DataGenerator(object):
     ###########################################################################
     ### Util Functions
     ###########################################################################
-
     # -------------------------------------------------------------------------
     # Chemical Kinetics
     # -------------------------------------------------------------------------
     def compute_partition_func(self, T):
         '''Compute bins partition function.'''
-
         q = self.g * np.exp( - self.EeV * const.Ue / (T * const.UKb) )
         Q_bins = np.zeros(self.num_bins)
         for i_lev in range(self.num_lev):
@@ -297,7 +318,6 @@ class DataGenerator(object):
 
     def read_levels(self):
         '''Retrieve all the ro-vib levels.'''
-
         data = pd.read_csv(self.levels_file, header=None, skiprows=15, delim_whitespace=True)
         data = data.apply(pd.to_numeric, errors='coerce')
         vqn  = np.array(data[0])                    # Vibrational Q.N.
@@ -310,7 +330,6 @@ class DataGenerator(object):
 
     def read_groups(self):
         '''Retrieve mapping of each rot-vib level to the respective bin.'''
-
         data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
         data = data.apply(pd.to_numeric, errors='coerce')
         idx  = np.array(data[0])                                                                           
@@ -320,7 +339,6 @@ class DataGenerator(object):
 
     def dens2mass_frac(self, u, y):
         '''Transform variables from partial densities to mass fractions.'''
-
         mass = np.sum(u, axis=1, keepdims=True)
         u = np.hstack((np.divide(u, mass), mass))
         y = np.divide(y, mass)
@@ -329,7 +347,7 @@ class DataGenerator(object):
     # -------------------------------------------------------------------------
     # Sampling methods
     # -------------------------------------------------------------------------
-    def get_indices(self, ic, t, QoI, pts):
+    def get_indices(self, t, QoI, pts):
         '''Get meaningful values by selecting indices.'''
 
         tree  = KDTree(np.c_[t.ravel()])
@@ -340,15 +358,14 @@ class DataGenerator(object):
         pts_dist = list(map(lambda i: round(self.train_split[i]*pts), range(2)))
         pts_dist.append(pts - sum(pts_dist))
 
-        # >>> Sampling inside the strongest nonequilibrium region
+        # Sampling inside the strongest nonequilibrium region
         idx_0 = self.sampling(idx_min, idx_max, t, tree, pts_dist[0])
 
-        # >>> Sampling the initial dynamics
-        idx_1 = self.sampling(5, idx_min-2, t, tree, pts_dist[1]-1)
-        idx_1 = np.insert(idx_1, 0, 0)    # Add initial condition
+        # Sampling the initial dynamics
+        idx_1 = self.sampling(5, idx_min-2, t, tree, pts_dist[1])
 
-        # >>> Sampling the equilibrium
-        idx_2 = self.sampling(idx_max+2, -3000, t, tree, pts_dist[2])
+        # Sampling the equilibrium
+        idx_2 = self.sampling(idx_max+2, idx_max+500, t, tree, pts_dist[2])
 
         # Merging indices
         idx = np.sort(np.concatenate([idx_0,idx_1,idx_2]))

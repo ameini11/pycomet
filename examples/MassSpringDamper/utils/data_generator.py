@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import itertools
 
 from tqdm import tqdm
 from sklearn.utils import shuffle
@@ -27,10 +28,11 @@ class DataGenerator(object):
             os.makedirs(self.data_dir)
 
         # Data Quantities -----------------------------------------------------
-        self.train_cases    = inputs.train_cases                    # Number of training cases
-        self.valid_pts      = round(inputs.valid*inputs.train_pts)  # Number of validation v for each case
-        self.train_pts      = inputs.train_pts - self.valid_pts     # Number of total training pts for each case
-        self.train_pts_dist = inputs.train_pts_dist                 # Training pts distribution
+        self.scenarios = inputs.train_pts['ics']
+        self.valid_pts = {k: round(inputs.valid*inputs.train_pts[k]) for k in inputs.train_pts }
+        self.train_pts = {k: inputs.train_pts[k] - self.valid_pts[k]  for k in inputs.train_pts }
+        self.valid_pts['ics'] = self.train_pts['ics'] = self.scenarios
+        self.train_pts_dist   = inputs.train_pts_dist                 # Training pts distribution
 
         self.test_cases     = inputs.test_cases                     # Number of testing cases
         self.test_training  = inputs.test_training                  # Test training case [Bool]
@@ -67,8 +69,8 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating initial conditions ...')
 
-        dim = self.dim["u_dim"]
-        n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
+        dim = self.dim["inp"][0]
+        n = self.scenarios * 2 + self.test_cases    # '*2' for validation cases
         unit_vec = np.array([[1.] * dim])
 
         # Contructing Design Matrix -------------------------------------------
@@ -96,82 +98,86 @@ class DataGenerator(object):
     ###########################################################################
     ### Training/Validation Data
     ###########################################################################
-    def training_data(self, ic_train, eval_jac=False, eval_f=False):
+    def training_data(self, ic_train):
 
         print('\n' + self.header + 'Generating training pts ...')
-
-        # ---------------------------------------------------------------------
-        def get_data(idx):
-            '''Extract data from arrays.'''
-
-            m = np.shape(idx)[0]
-            u = np.tile(ic_i, (m,1))    # NN Input: Initial Condition
-            t = t_i[idx,:]                  # NN Input: Time
-            y = y_i[idx,:]                  # NN Target
-            return [u, t, y]
-        # ---------------------------------------------------------------------
 
         data = {}
         for i, ic_i in enumerate(tqdm(ic_train, file=sys.stdout)):
 
             # Solving the ODE
-            sol = self.ODE_sol.solve(ic_i, self.ODE_mat, eval_jac=eval_jac, eval_f=eval_f)
+            sol = self.ODE_sol.solve(ic_i, self.ODE_mat)
             t_i, y_i = sol[0], sol[1]
-            if eval_jac:
-                norm_J_i, eig_J_i = sol[2], sol[3]
-            if eval_f:
-                f_rhs = sol[-1]
 
             # Define data type
             if (i % 2) == 0:
-                data_id, pts = 'train', self.train_pts
+                data_type, pts = 'train', self.train_pts
             else:
-                data_id, pts = 'valid', self.valid_pts
+                data_type, pts = 'valid', self.valid_pts
 
-            # Get data from indices
-            tree = KDTree(np.c_[t_i.ravel()])
-            idx = self.sampling(0, t_i.shape[0]-1, t_i, tree, pts)
-            data_i = get_data(idx)
-            if eval_f:
-                data_i.append(f_rhs)
-            if data_id == 'train':
-                ohe_i  = tf.one_hot(np.hstack(([0], [-1]*(pts-1))), 1).numpy()
-                data_i.append(ohe_i)
-
-            # marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                     fillstyle='full', markersize=2)
-            # plt.xscale('log')
-            # plt.plot(data_i[2], data_i[3], **marker_style)
-            # plt.grid()
-            # plt.show()
-
-            if i == 0 or i == 1:
-                data[data_id] = data_i
-            else:
-                data[data_id] = list(map(lambda x,y: np.vstack((x,y)), data[data_id], data_i))
-
-        # Shuffle data
-        data_train = shuffle(*data['train'])
-        data_valid = shuffle(*data['valid'])
+            # Sample data
+            data_i = self.get_data(ic_i, t_i, y_i, pts)
+            data   = self.stack_data(data, data_i, data_type)
 
         # Save data in a `.csv` file
-        pd.DataFrame(np.hstack(tuple(data_train))).to_csv( \
-            self.data_dir+"train_data.csv", index=False, header=None)
-        pd.DataFrame(np.hstack(tuple(data_valid))).to_csv( \
-            self.data_dir+"valid_data.csv", index=False, header=None)
+        for data_type in data:
+            for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
+                path = self.data_dir+data_type+"/"
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                unpack = *data[data_type][data_id][0], data[data_type][data_id][1]
+                pd.DataFrame(np.hstack(unpack)).to_csv(path+data_id+".csv", \
+                    index=False, header=None)
 
-        return data_train, data_valid
+        return data['train'], data['valid']
+
+    def extract_data_scenario(self, idx, ic, t, y):
+        m = np.shape(idx)[0]
+        u = np.tile(ic, (m,1))
+        return [[u, t[idx,:]], y[idx,:]]
+
+    def get_data(self, ic, t, y, pts):
+        tree = KDTree(np.c_[t.ravel()])
+        data = {}
+        for k, n in pts.items():
+            if n == 0 or n is None:
+                data[k] = None
+            else:
+                if k == 'ics':
+                    idx = [0]
+                else:
+                    idx = self.sampling(0, t.shape[0]-1, t, tree, n)
+                data[k] = self.extract_data_scenario(idx, ic, t, y)
+        return data
+
+    def stack_data(self, data, data_new, data_type):
+        if data_type not in data:
+            data[data_type] = data_new
+        else:
+            for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
+                for i, xy in enumerate(data[data_type][data_id]):
+                    xy_new = data_new[data_id][i]
+                    if isinstance(xy, (list,tuple)):
+                        xy = list(map(lambda x,y: np.vstack((x,y)), xy, xy_new))
+                    else:
+                        xy = np.vstack((xy,xy_new))
+                    data[data_type][data_id][i] = xy
+        return data
 
 
     ###########################################################################
     ### Testing Data
     ###########################################################################
-    def testing_data(self, ic_test, ic_train=None, eval_jac=False, eval_f=False):
+    def testing_data(self, ic_test, ic_train=None):
 
         print('\n' + self.header + 'Generating testing pts ...')
 
         if self.test_training:      # Test underfitting
-            assert self.train_cases >= self.test_cases
+            assert self.scenarios >= self.test_cases
             n       = self.test_cases
             idx     = np.random.choice(ic_train.shape[0], size=n, replace=False)
             ic_test = np.vstack((ic_test, ic_train[idx, :]))
@@ -179,13 +185,8 @@ class DataGenerator(object):
         for i, ic_i in enumerate(tqdm(ic_test, file=sys.stdout)):
 
             # Solving the ODE
-            sol = self.ODE_sol.solve(ic_i, self.ODE_mat, \
-                eval_jac=eval_jac, eval_f=eval_f)
+            sol = self.ODE_sol.solve(ic_i, self.ODE_mat)
             t_i, y_i = sol[0], sol[1]
-            if eval_jac:
-                norm_J_i, eig_J_i = sol[2], sol[3]
-            if eval_f:
-                f_rhs = sol[-1]
 
             # Extract data values
             tree     = KDTree(np.c_[t_i.ravel()])
@@ -199,8 +200,6 @@ class DataGenerator(object):
 
             # Collect data values
             data_i = [title, [u_i, t_i], y_i]
-            if eval_f:
-                data_i.append(f_rhs[ii[0]:ii[1],:])
 
             if i == 0:
                 data_test = [tuple(data_i)]
@@ -213,10 +212,8 @@ class DataGenerator(object):
     ###########################################################################
     ### Util Functions
     ###########################################################################
-
     def sampling(self, idx_min, idx_max, t, tree, pts):
         '''Get data by sampling t vector.'''
-
         t_min, t_max = t[idx_min], t[idx_max]
         if self.train_pts_dist == 'random':
             d, ii  = tree.query([[t_min],[t_max]], k=1)

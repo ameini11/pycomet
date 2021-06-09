@@ -1,8 +1,8 @@
 import os
-import numpy as np
-import tensorflow.keras.layers as lay
-
 import prode as pro
+
+from tensorflow.keras import layers
+from prode.utilities.model_utils import layers as pro_layers
 
 
 class InputData(object):
@@ -10,7 +10,8 @@ class InputData(object):
     ###########################################################################
     ### Paths
     ###########################################################################
-    utils_path = os.path.normpath(os.getcwd()+'/utils')
+    database_path = os.path.normpath(os.getcwd()+'/../database')
+    utils_path = os.path.normpath(os.getcwd()+'/../utils')
 
 
     ###########################################################################
@@ -27,15 +28,20 @@ class InputData(object):
     ###########################################################################
     ### ODE Properties
     ###########################################################################
-    name  = 'MSD_OpNN'
+    name  = 'MEq_OpNN'
 
     # Input Space Extreme Values ----------------------------------------------
-    pos = [-5.0, 5.0]
-    vel = [-5.0, 5.0]
+    inp_dim = 4                         # Input Space Dimensionality
+    Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
+    # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
+    T0  = [300.0e0,    300.0e0]       # Initial TInt
+    P0  = [1.013250e3, 1.013250e3]      # Initial P
+    XO2 = [0.95e0,     0.95e0]          # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
-    params = np.array([1.0, 0.5, 3.0], dtype=np.float64)
-    t0, t_end = 0., 10.         # Time limits
+    grouping  = 'CBM3' #'DPM10'
+    MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
+    t0, t_end = 1.e-12, 1.e-3           # Time limits for testing
 
 
     ###########################################################################
@@ -45,23 +51,25 @@ class InputData(object):
 
     # Variables Dimensionality ------------------------------------------------
     dim = {
-            "inp": [2, 1],     # Branch-Trunk input dimensionality
-            "out": 2          # Output dimensionality
+            "inp": [5, 1],      # Branch-Trunk input dimensionality
+            "out": 4            # Output dimensionality
             }
 
     # Structure ---------------------------------------------------------------
     layer_size         = {
-                            "branch": [dim['inp'][0], 32, 32, 16],
-                            "trunk":  [dim['inp'][1], 32, 32, 16]
+                            "branch": [dim['inp'][0], 16, 16, 8],
+                            "trunk":  [dim['inp'][1], 16, 16, 8]
                             }
     activation         = {
                             "branch": 'elu',
-                            "trunk":  'tanh'
+                            "trunk":  'sigmoid'
                             }
     regularization     = {
                             'name':       'l1+l2',
-                            'l1':         1.e-5,
-                            'l2':         1.e-5
+                            # 'name':       'fine_tuning',
+                            'l1':         1.e-4,
+                            'l2':         1.e-4,
+                            'weights_SP': './saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
                             }
     batch_norm         = {
                             "branch": None,
@@ -73,8 +81,12 @@ class InputData(object):
     block = 'FFBlock' #'ResPIBlock'
 
     # I/O Transformation ------------------------------------------------------
-    input_fn  = None
-    output_fn = None
+    input_fn = {
+                "branch": layers.Lambda(lambda x: x, name='branch_fn'),
+                "trunk" : pro_layers.Scaling(init_scale=1.e7, name='trunk_fn', \
+                                             trainable=False)
+                }
+    output_fn = layers.Softmax(axis=-1, name='output_fn')
 
 
     ###########################################################################
@@ -94,54 +106,59 @@ class InputData(object):
                         'pts': './data/valid/pts.csv',
                         'res': './data/valid/res.csv'
                     }
-    col_x = [[0,2],[2,3]]
-    col_y = [3,5]
+    # col_x = [[1,6],[6,7]]
+    # col_y = [7,11]
+    col_x = [[0,5],[5,6]]
+    col_y = [6,10]
 
     # Training ----------------------------------------------------------------
     train_pts = {
-                'ics': 40,   # Number of training scenarios
-                'pts': 0, # Number of total anchor pts for each scenario
-                'res': 160  # Number of total collocaion pts for each scenario
+                'ics': 1,     # Number of training scenarios
+                'pts': 0,       # Number of total anchor pts for each scenario
+                'res': 160      # Number of total collocaion pts for each scenario
             }
-    valid   = 0.2   # % of Validation pts
-    train_pts_dist = 'uniform'      # Training pts distribution
+    valid = 0.2                 # % of Validation pts
+    train_pts_dist = 'uniform'  # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 3              # Number of testing cases
-    test_training  = True           # Test training case
+    test_cases     = 1              # Number of testing cases
+    test_training  = False           # Test training case
     period         = 1000            # Plotting frequency during training [epochs]
 
 
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 10000
-    batch_size   = {'ics': 16, 'pts': 32, 'res': 128}
-    valid_batch_size = {'ics': 16, 'pts': 8, 'res': 32}
+    epochs       = 30000
+    batch_size   = {'ics': 1, 'pts': 1, 'res': 128}
+    valid_batch_size = {'ics': 1, 'pts': 1, 'res': 32}
 
     optimizer    = 'adam'
-    lr           = 1.e-4
+    lr           = 1.e-3
 
     # Learning rate scheduler -------------------------------------------------
-    decay_epochs = 2000
-    decay_steps  = 10000 #round(train_pts*num_ics*(1.-valid))/batch_size*decay_epochs
-    decay        = ["exponential", decay_steps, 0.98]
+    # decay_epochs = 1000
+    decay_steps  = 1000 # round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
+    decay        = ["exponential", decay_steps, 0.9]
 
     # Losses ------------------------------------------------------------------
-    # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'ics': 'mse', 'pts': 'mse', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
-    metrics      = ['mse']
-    # adaptive_weights = 'EmpiricalWeightsAdapter' #'NTKWeightsAdapter' 'EmpiricalWeightsAdapter' 'ConstantWeightsAdapter'
-    adaptive_weights = {
-        'name':  'EmpiricalWeightsAdapter',
-        'alpha': 0.9,
-        'freq': 10
+    loss = {
+        'ics': {'identifier': 'malpe', 'axis': -1}, # `axis` = reduction axis
+        'pts': {'identifier': 'malpe', 'axis': -1},
+        'res': {'identifier': 'mse',   'axis': -1}
         }
-
+    metrics = None
+    
+    weighted_loss_cb = None
+    # weighted_loss_cb = {
+    #     'name':  'EmpiricalWeightsAdapter',
+    #     'alpha': 0.9,
+    #     'freq': 100
+    #     }
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
-    patience     = 100000
+    patience     = 20000
     monitor      = 'val_tot_loss'
 
 
@@ -149,9 +166,11 @@ class InputData(object):
     ### Plotting Quantities
     ###########################################################################
     # Variables Name ----------------------------------------------------------
-    var_names = [ 'Position', 'Velocity' ]
+    var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(dim['out']-1) ]
+    var_names.append(r'$O$')
 
     # Axis --------------------------------------------------------------------
-    labels   = [r'$t\quad[s]$', r'$x$']         # x, y labels
-    scales   = ['linear', 'linear']                # x, y scales
-    log_plot = False
+    labels   = [r'$t\quad[s]$', r'$Y$']         # x, y labels
+    scales   = ['log', 'linear']                # x, y scales
+    log_plot = True
+    limit_y  = False

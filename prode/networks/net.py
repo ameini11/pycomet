@@ -108,10 +108,6 @@ class Net(tf.keras.Model):
 
     # Add loss properties
     ###########################################################################
-    def add_loss_properties(self, loss_fns, loss_weights, data_cls):
-        self.add_loss_fun(loss_fns, data_cls)
-        self.add_loss_weights(loss_weights)
-
     def add_loss_fun(self, loss_fns, data_cls):
         """Add a `list`/`dict` of loss functions for composite loss."""
         self.loss_fns = self.get_loss_properties(loss_fns, 'loss_fns')

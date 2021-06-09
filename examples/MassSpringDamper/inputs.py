@@ -30,12 +30,12 @@ class InputData(object):
     name  = 'MSD_OpNN'
 
     # Input Space Extreme Values ----------------------------------------------
-    pos = [4.0, 4.0]
-    vel = [0.0, 0.0]
+    pos = [-5.0, 5.0]
+    vel = [-5.0, 5.0]
 
     # Other properties --------------------------------------------------------
     params = np.array([1.0, 0.5, 3.0], dtype=np.float64)
-    t0, t_end = 0., 10.           # Time limits
+    t0, t_end = 0., 10.         # Time limits
 
 
     ###########################################################################
@@ -45,24 +45,23 @@ class InputData(object):
 
     # Variables Dimensionality ------------------------------------------------
     dim = {
-            "u_dim": 2,     # Branch input dimensionality
-            "y_dim": 1,     # Trunk input dimensionality
-            "G_dim": 2      # Data dimensionality
+            "inp": [2, 1],     # Branch-Trunk input dimensionality
+            "out": 2          # Output dimensionality
             }
 
     # Structure ---------------------------------------------------------------
     layer_size         = {
-                            "branch": [dim['u_dim'], 16, 16, 8],
-                            "trunk":  [dim['y_dim'], 16, 16, 8]
+                            "branch": [dim['inp'][0], 32, 32, 16],
+                            "trunk":  [dim['inp'][1], 32, 32, 16]
                             }
     activation         = {
-                            "branch": 'tanh',
+                            "branch": 'elu',
                             "trunk":  'tanh'
                             }
     regularization     = {
                             'name':       'l1+l2',
-                            'l1':         1.e-4,
-                            'l2':         1.e-4
+                            'l1':         1.e-5,
+                            'l2':         1.e-5
                             }
     batch_norm         = {
                             "branch": None,
@@ -71,6 +70,7 @@ class InputData(object):
     dropout_rate       = 0
     # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
     kernel_initializer = "GlorotNormal"
+    block = 'FFBlock' #'ResPIBlock'
 
     # I/O Transformation ------------------------------------------------------
     input_fn  = None
@@ -80,46 +80,67 @@ class InputData(object):
     ###########################################################################
     ### Data
     ###########################################################################
-    from_saved_data = False
-    data_train_file = './data/train_data.csv'
-    data_valid_file = './data/valid_data.csv'
-    use_ohe         = True
+    data_name = 'ODE'
+
+    # Data source -------------------------------------------------------------
+    from_file       = False
+    data_train_file = {
+                        'ics': './data/train/ics.csv',
+                        'pts': './data/train/pts.csv',
+                        'res': './data/train/res.csv'
+                    }
+    data_valid_file = {
+                        'ics': './data/valid/ics.csv',
+                        'pts': './data/valid/pts.csv',
+                        'res': './data/valid/res.csv'
+                    }
+    col_x = [[0,2],[2,3]]
+    col_y = [3,5]
 
     # Training ----------------------------------------------------------------
-    train_cases    = 1            # Number of training cases
-    train_pts      = 160            # Number of total training pts for each case
-    valid          = 0.2            # % of Validation pts for each case
+    train_pts = {
+                'ics': 40,   # Number of training scenarios
+                'pts': 0, # Number of total anchor pts for each scenario
+                'res': 160  # Number of total collocaion pts for each scenario
+            }
+    valid   = 0.2   # % of Validation pts
     train_pts_dist = 'uniform'      # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 1              # Number of testing cases
-    test_training  = False           # Test training case
+    test_cases     = 3              # Number of testing cases
+    test_training  = True           # Test training case
     period         = 1000            # Plotting frequency during training [epochs]
 
 
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 100000
-    batch_size   = 128
+    epochs       = 10
+    batch_size   = {'ics': 16, 'pts': 32, 'res': 128}
+    valid_batch_size = {'ics': 16, 'pts': 8, 'res': 32}
 
     optimizer    = 'adam'
-    lr           = 5.e-3
+    lr           = 1.e-4
 
     # Learning rate scheduler -------------------------------------------------
     decay_epochs = 2000
-    decay_steps  = round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
+    decay_steps  = 10000 #round(train_pts*num_ics*(1.-valid))/batch_size*decay_epochs
     decay        = ["exponential", decay_steps, 0.98]
 
     # Losses ------------------------------------------------------------------
     # Uppercase names are custom losses, while lowercase ones are tf.keras.losses
-    loss         = {'pts': 'mse', 'res': 'MSE'} # [ 'MALPE', 'MSLE', 'MSLPE' ] 
-    metrics      = ['MSE']
+    loss         = {'ics': 'mse', 'pts': 'mse', 'res': 'mse'} # [ 'MALPE', 'MSLE', 'MSLPE' ]
+    metrics      = ['mse']
+    weighted_loss_cb = {
+        'name':  'EmpiricalWeightsAdapter',  # 'ConstantWeightsAdapter' 'NTKWeightsAdapter' 'EmpiricalWeightsAdapter'
+        'alpha': 0.9,
+        'freq': 10
+        }
 
     # Early Stopping Callback -------------------------------------------------
     min_delta    = 1.e-6
-    patience     = 100000
-    monitor      = 'val_res_loss'
+    patience     = 20000
+    monitor      = 'val_tot_loss'
 
 
     ###########################################################################
@@ -132,3 +153,4 @@ class InputData(object):
     labels   = [r'$t\quad[s]$', r'$x$']         # x, y labels
     scales   = ['linear', 'linear']                # x, y scales
     log_plot = False
+    limit_y  = False

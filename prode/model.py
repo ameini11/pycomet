@@ -35,8 +35,8 @@ class Model(object):
         self.optimizer = None
         self.metrics   = None
 
-        self.loss_pts  = None
-        self.loss_res  = None
+        self.loss = None
+        self.loss_weights = None
 
         # Define paths
         self.save_dir  = path+"/saving/"
@@ -139,19 +139,21 @@ class Model(object):
         # Update data ids
         self.net.add_data_ids(self.data)
 
-        # Initializing loss functions/weights
-        self.loss = None
+        # Initializing loss loss_weights
+        self.loss_weights = loss_weights
+
+        # Initializing loss functions
         if isinstance(loss, (dict,list,tuple)):
             loss_fns = self.get_losses(loss)
             if self.data.name == 'ODE':
-                self.net.add_loss_properties(loss_fns, loss_weights, self.data)
+                self.net.add_loss_fun(loss_fns, self.data)
             else:
-                utils.raise_value_err("Multiple losses can be used only with `ODE` data.")
+                utils.raise_value_err("Multiple losses can be used only with `data.ode` data.")
         elif isinstance(loss, str):
             loss = losses_module.get(loss)
             if self.data.name == 'ODE':
                 loss_fns = {data_id: loss for data_id in self.data.data_ids}
-                self.net.add_loss_properties(loss_fns, loss_weights, self.data)
+                self.net.add_loss_fun(loss_fns, self.data)
             else:
                 self.loss = loss
         else:
@@ -161,7 +163,7 @@ class Model(object):
         if metrics is not None:
             if self.data.name == 'ODE':
                 self.metrics = None
-                utils.warning("With `ODE` data, metrics evaluation is not available.")
+                utils.warning("With `data.ode` data, metrics evaluation is not available.")
             else:
                 self.metrics = [ metrics_module.get(m) for m in metrics ]
 
@@ -169,13 +171,16 @@ class Model(object):
         self.net.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
 
 
-    def get_losses(self, loss_names):
-        if isinstance(loss_names, (dict)):
+    def get_losses(self, losses):
+        if isinstance(losses, dict):
             loss_fns = {}
-            for loss_id, loss_name in loss_names.items():
-                loss_fns[loss_id] = losses_module.get(loss_name)
+            for loss_id, loss in losses.items():
+                if isinstance(loss, dict):
+                    loss_fns[loss_id] = losses_module.get(**loss)
+                else:
+                    loss_fns[loss_id] = losses_module.get(loss)
         else:
-            loss_fns = [ losses_module.get(loss_name) for loss_name in loss_names ]
+            loss_fns = [ losses_module.get(loss) for loss in losses ]
         return loss_fns
 
 
@@ -186,7 +191,8 @@ class Model(object):
         epochs=1,
         callbacks=[],
         weighted_loss_callback=None,
-        profile_batch=0):
+        profile_batch=0,
+        verbose=1):
         utils.print_main("Training the model ...")
 
         # Defining callbacks
@@ -196,17 +202,19 @@ class Model(object):
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
                 write_graph=True, write_images=True, profile_batch=profile_batch)
         LR = callbacks_module.LearningRateTracker(file=self.train_dir+'/lr.csv', \
-                log_dir=self.TB_dir, verbose=1)
+                log_dir=self.TB_dir, verbose=verbose)
         callbacks.extend([MC, TB, LR])
 
+        # Defining weighted loss callback
         if weighted_loss_callback is not None:
+            self.net.add_loss_weights(self.loss_weights)
             WL = self.add_weighted_loss_callback(weighted_loss_callback)
             callbacks.append(WL)
 
         # Defining train/valid pts
         utils.print_submain("")
-        num_train_pts = self.data.get_num_pts(data_type='training', verbose=1)
-        num_valid_pts = self.data.get_num_pts(data_type='validation', verbose=1)
+        num_train_pts = self.data.get_num_pts(data_type='training', verbose=verbose)
+        num_valid_pts = self.data.get_num_pts(data_type='validation', verbose=verbose)
         utils.print_submain("")
 
         # Fit the model
@@ -252,19 +260,7 @@ class Model(object):
         labels=None,
         scales=None):
 
-        if isinstance(test_case, (list,tuple)):
-            if len(test_case) == 4:
-                title, x, y_true, data_val = test_case
-            elif len(test_case) == 3:
-                title, x, y_true = test_case
-                data_val = None
-            elif len(test_case) == 2:
-                x, y_true = test_case
-                title = data_val = None
-            else:
-                x = test_case
-                title = y_true = data_val = None
-
+        title, x, y_true = self.unpack_test_data(test_case)
         y_pred = self.net.predict(x)
 
         if plotting:
@@ -272,9 +268,20 @@ class Model(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             testing_plots.plot_test(path, x, y_true, y_pred, var_names, title, \
-                test_case_num, labels=labels, scales=scales, data_val=data_val)
+                test_case_num, labels=labels, scales=scales)
         else:
             return y_pred
+
+    def unpack_test_data(self, test_case):
+        if len(test_case) == 3:
+            title, x, y_true = test_case
+        elif len(test_case) == 2:
+            x, y_true = test_case
+            title = None
+        else:
+            x = test_case
+            title = y_true = None
+        return title, x, y_true
 
 
     # ======================================================================= #
@@ -286,7 +293,7 @@ class Model(object):
         # Save weights
         self.net.save_weights(self.save_path, overwrite=True, save_format=self.save_format)
 
-        # Save trainable weights (see `FineTuningRegularizer')
+        # Save trainable weights (for `regularizers.FineTuningRegularizer')
         file_name = self.save_dir+self.name+'_weights.h5'
         dset = h5py.File(file_name,'w')
         for w in self.net.trainable_weights:
@@ -296,7 +303,7 @@ class Model(object):
 
     # ======================================================================= #
     @utils.timing
-    def visualize_training(self, history=None, limit_y=False):
+    def visualize_training(self, history=None, scale='log', limit_y=False):
         utils.print_main("Postprocessing training quantities ...")
         history = self.get_history(history)
 
@@ -305,9 +312,9 @@ class Model(object):
 
         training_plots.plot_lr(self.train_dir+'/lr.csv', path)
         if 'loss' in history.columns:
-            training_plots.plot_loss(history, path, limit_y=limit_y)
+            training_plots.plot_loss(history, path, scale=scale, limit_y=limit_y)
         elif 'tot_loss' in history.columns:
-            training_plots.plot_composite_loss(history, path, limit_y=limit_y)
+            training_plots.plot_composite_loss(history, path, scale=scale, limit_y=limit_y)
             if any([ c.endswith('weight') for c in history.columns ]):
                 training_plots.plot_loss_weights(history, path)
         if self.metrics is not None:
@@ -316,7 +323,7 @@ class Model(object):
                     name = met.name
                 except AttributeError:
                     name = met.__name__
-                training_plots.plot_metric(history, path, name, limit_y=limit_y)
+                training_plots.plot_metric(history, path, name, scale=scale, limit_y=limit_y)
 
     def get_history(self, history):
         if history is None:
