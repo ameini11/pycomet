@@ -10,13 +10,13 @@ headers = {
 
 # TensorFlow setup
 tf_setup = {
-    'EPSILON':              1.e-30,
+    'EPSILON':              1.e-15,
     'DTYPE':                'float64',
-    'NUM_THREADS':          16,
+    'NUM_THREADS':          8,
     'TF_CPP_MIN_LOG_LEVEL': '3'
 }
 
 # Multiprocessing setup
 mp_setup = {
-    'NUM_CPU':  16
+    'NUM_CPU':  8
 }
