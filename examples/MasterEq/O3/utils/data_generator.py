@@ -38,7 +38,7 @@ class DataGenerator(object):
                 self.valid_pts[k] = 1
 
         self.train_pts_dist = inputs.train_pts_dist         # Training pts distribution
-        self.train_split    = [0.8, 0.12, 0.08]             # Training pts splitting
+        self.train_split    = [0.80, 0.12, 0.08]            # Training pts splitting
 
         self.test_cases     = inputs.test_cases             # Number of testing cases
         self.test_training  = inputs.test_training          # Test training case [Bool]
@@ -175,11 +175,13 @@ class DataGenerator(object):
             # Solving the ODE
             mat = self.ODE_mat[str(int(ic_i[0]))]
             sol = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac, eval_f=eval_f)
-            t_i, y_i = sol[0], sol[1]
+            t_i, y_i = np.delete(sol[0], 0, 0), np.delete(sol[1], 0, 0)
+            t_i[0,:] = 0.
+            ic_i[1:5] = y_i[0,:]
             if eval_jac:
-                norm_J_i, eig_J_i = sol[2], sol[3]
+                norm_J_i, eig_J_i = np.delete(sol[2], 0, 0), np.delete(sol[3], 0, 0)
             if eval_f:
-                f_rhs = sol[-1]
+                f_rhs = np.delete(sol[-1], 0, 0)
 
             # Define data type
             if (i % 2) == 0:
@@ -214,6 +216,15 @@ class DataGenerator(object):
         t, y = t[idx,:], y[idx,:]
         u, y = self.dens2mass_frac(u, y)
         # return [[T, u, t], y]
+
+        # marker_style = dict(marker='o', lw=0.5, ls='none', \
+        #                     fillstyle='full', markersize=2)
+        # plt.xscale('log')
+        # plt.yscale('log')
+        # plt.plot(t, y, **marker_style)
+        # plt.grid()
+        # plt.show()
+
         return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
@@ -352,8 +363,8 @@ class DataGenerator(object):
 
         tree  = KDTree(np.c_[t.ravel()])
         QoI_del = np.amax(np.abs((QoI[:-1,:] - QoI[1:,:]) / QoI[1:,:]), axis=1, keepdims=True)
-        idx_min = np.where(QoI_del > 2.e-5)[0][ 0]  # Dynamics start-point
-        idx_max = np.where(QoI_del > 1.e-8)[0][-1]  # Dynamics end-point
+        idx_min = np.where(QoI_del > 7.e-5)[0][ 0]  # Dynamics start-point
+        idx_max = np.where(QoI_del > 1.e-13)[0][-1]  # Dynamics end-point
 
         pts_dist = list(map(lambda i: round(self.train_split[i]*pts), range(2)))
         pts_dist.append(pts - sum(pts_dist))
@@ -362,7 +373,8 @@ class DataGenerator(object):
         idx_0 = self.sampling(idx_min, idx_max, t, tree, pts_dist[0])
 
         # Sampling the initial dynamics
-        idx_1 = self.sampling(5, idx_min-2, t, tree, pts_dist[1])
+        _, ii = tree.query(t[idx_min]*1.e-2, k=1)
+        idx_1 = self.sampling(ii, idx_min-2, t, tree, pts_dist[1])
 
         # Sampling the equilibrium
         idx_2 = self.sampling(idx_max+2, idx_max+500, t, tree, pts_dist[2])
@@ -379,14 +391,14 @@ class DataGenerator(object):
 
         t_min, t_max= t[idx_min], t[idx_max]
         if self.train_pts_dist == 'random':
-            d, ii  = tree.query([[t_min],[t_max]], k=1)
+            _, ii  = tree.query([[t_min],[t_max]], k=1)
             idx    = np.sort(np.random.choice(ii[1]-ii[0], pts, replace=False)) + ii[0]
         else:
             t_vec  = np.linspace(np.log10(t_min), np.log10(t_max), pts, dtype=np.float64)
             h      = (t_vec[1,0]-t_vec[0,0])*0.9
             delta  = np.vstack(([[0.]], (np.random.rand(pts-2,1)-0.5)*h, [[0.]]))
             t_unif = np.power(10, t_vec + delta)
-            d, idx = tree.query(t_unif, k=1)
+            _, idx = tree.query(t_unif, k=1)
         return idx
 
     def stratified_sampling(self, x, strata):
