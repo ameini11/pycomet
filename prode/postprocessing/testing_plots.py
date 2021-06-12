@@ -32,7 +32,8 @@ def plot_test(
     if y_label is not None: plt.ylabel(y_label)
     if y_scale == 'log':
         plt.yscale(y_scale)
-        plt.ylim([np.amin(y_true[-1,:])*5.e-1, np.amax(y_true[-1,:])*5.e+0])
+        # plt.ylim([np.amin(y_true[-1,:])*5.e-1, np.amax(y_true[-1,:])*5.e+0])
+        plt.ylim([np.amin(y_true)*5.e-1, np.amax(y_true)*5.e+0])
     else:
         delta = np.amax(y_true)*0.1
         plt.ylim([np.amin(y_true)-delta, np.amax(y_true)+delta])
@@ -41,6 +42,7 @@ def plot_test(
     lin = ['-', '--']
     col = ['k', 'r', 'g', 'b', 'tab:purple', 'tab:brown', 'tab:pink', \
            'tab:blue', 'tab:red', 'tab:green', 'tab:orange']
+    marker_style = dict(marker='^', fillstyle='none', markersize=5, markevery=y_true.shape[0]//20)
 
     # Solution
     for d in range(y_true.shape[1]):
@@ -49,7 +51,7 @@ def plot_test(
         plt.plot(x, y_true[:, d], c=col[d], ls=lin[0], lw=1, label=name)
 
         name = 'Pred ' + var_name[d]
-        plt.plot(x, y_pred[:, d], c=col[d], ls=lin[1], lw=1, label=name)
+        plt.plot(x, y_pred[:, d], c=col[d], ls=lin[1], lw=1, label=name, **marker_style)
 
     # Validation Points
     if data_val is not None:
