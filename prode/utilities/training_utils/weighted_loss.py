@@ -95,7 +95,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     def on_train_begin(self, logs={}):
         if 'res' not in self.model.data_ids:
             utils.warning("Network `{}` hasn't any residual loss to be evaluated: "
-                "`EmpiricalWeightsAdapter` can't be applied.".format(self.model.name))
+                "`{}` can't be applied.".format(self.model.name, self.__name__))
         else:
             self.update()
         self.print_weights(0, logs)
@@ -216,7 +216,7 @@ class EmpiricalMeanWeightsAdapter(EmpiricalWeightsAdapter):
         max_samples=20000,
         name='empirical_mean_weights_adapter',
         **kwargs):
-        super(EmpiricalWeightsAdapter, self).__init__(
+        super(EmpiricalMeanWeightsAdapter, self).__init__(
             model=model,
             data_generator=data_generator,
             freq=freq,
