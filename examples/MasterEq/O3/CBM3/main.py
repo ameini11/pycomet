@@ -1,7 +1,7 @@
 import os
 import sys
 # Remove the following line if you install `prode` as a Python package --------
-sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/PrODE/prode/'))
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
 # -----------------------------------------------------------------------------
 import prode as pro
 from prode.utilities import utils as pro_utils

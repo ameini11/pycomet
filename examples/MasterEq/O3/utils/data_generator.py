@@ -3,7 +3,9 @@ import os
 import sys
 import numpy as np
 import pandas as pd
+import joblib as jl
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from sklearn.utils import shuffle
@@ -13,6 +15,7 @@ from pyDOE import lhs
 
 from const      import const
 from ode_solver import ODESolver
+
 
 
 class DataGenerator(object):
@@ -38,7 +41,8 @@ class DataGenerator(object):
                 self.valid_pts[k] = 1
 
         self.train_pts_dist = inputs.train_pts_dist         # Training pts distribution
-        self.train_split    = [0.80, 0.12, 0.08]            # Training pts splitting
+        self.train_split    = [0.75, 0.17, 0.08]            # Training pts splitting
+        # self.train_split    = [0.92, 0.08]            # Training pts splitting
 
         self.test_cases     = inputs.test_cases             # Number of testing cases
         self.test_training  = inputs.test_training          # Test training case [Bool]
@@ -169,31 +173,22 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating training pts ...')
 
+        data_list = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_scenario)( \
+            i,ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_train)))
+
         data = {}
-        for i, ic_i in enumerate(tqdm(ic_train, file=sys.stdout)):
-
-            # Solving the ODE
-            mat = self.ODE_mat[str(int(ic_i[0]))]
-            sol = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac, eval_f=eval_f)
-            t_i, y_i = np.delete(sol[0], 0, 0), np.delete(sol[1], 0, 0)
-            t_i[0,:] = 0.
-            ic_i[1:5] = y_i[0,:]
-            if eval_jac:
-                norm_J_i, eig_J_i = np.delete(sol[2], 0, 0), np.delete(sol[3], 0, 0)
-            if eval_f:
-                f_rhs = np.delete(sol[-1], 0, 0)
-
+        for i, data_i in enumerate(data_list):
             # Define data type
-            if (i % 2) == 0:
-                data_type, pts = 'train', self.train_pts
-            else:
-                data_type, pts = 'valid', self.valid_pts
-
-            # Sample data
-            n_pts  = sum([ n for k,n in pts.items() if k != 'ics' ])
-            idx    = self.get_indices(t_i, norm_J_i, n_pts)
-            data_i = self.get_data(ic_i, t_i, y_i, pts, idx)
-            data   = self.stack_data(data, data_i, data_type)
+            data_type = 'train' if (i % 2) == 0 else 'valid'
+            # if (i % 2) == 0:
+            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
+            #                         fillstyle='full', markersize=2)
+            #     plt.xscale('log')
+            #     plt.yscale('log')
+            #     plt.plot(data_i['res'][0][1], data_i['res'][1], **marker_style)
+            #     plt.grid()
+            #     plt.show()
+            data = self.stack_data(data, data_i, data_type)
 
         # Save data in a `.csv` file
         for data_type in data:
@@ -209,6 +204,26 @@ class DataGenerator(object):
 
         return data['train'], data['valid']
 
+    def single_scenario(self, i, ic_i, eval_jac, eval_f):
+        # Solving the ODE
+        mat = self.ODE_mat[str(int(ic_i[0]))]
+        sol = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac, eval_f=eval_f)
+        t_i, y_i = np.delete(sol[0], 0, 0), np.delete(sol[1], 0, 0)
+        t_i[0,:] = 0.
+        ic_i[1:5] = y_i[0,:]
+        if eval_jac:
+            norm_J_i, eig_J_i = np.delete(sol[2], 0, 0), np.delete(sol[3], 0, 0)
+        if eval_f:
+            f_rhs = np.delete(sol[-1], 0, 0)
+        # Define data type
+        pts = self.train_pts if (i % 2) == 0 else self.valid_pts
+        # Sample data
+        n_pts  = sum([ n for k,n in pts.items() if k != 'ics' ])
+        idx    = self.get_indices(t_i, norm_J_i, n_pts)
+        data_i = self.get_data(ic_i, t_i, y_i, pts, idx)
+
+        return data_i
+
     def extract_data_scenario(self, idx, ic, t, y):
         m = np.shape(idx)[0]
         T = np.tile(ic[0 ], (m,1))
@@ -216,15 +231,6 @@ class DataGenerator(object):
         t, y = t[idx,:], y[idx,:]
         u, y = self.dens2mass_frac(u, y)
         # return [[T, u, t], y]
-
-        # marker_style = dict(marker='o', lw=0.5, ls='none', \
-        #                     fillstyle='full', markersize=2)
-        # plt.xscale('log')
-        # plt.yscale('log')
-        # plt.plot(t, y, **marker_style)
-        # plt.grid()
-        # plt.show()
-
         return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
@@ -358,12 +364,35 @@ class DataGenerator(object):
     # -------------------------------------------------------------------------
     # Sampling methods
     # -------------------------------------------------------------------------
+    # def get_indices(self, t, QoI, pts):
+    #     '''Get meaningful values by selecting indices.'''
+
+    #     tree  = KDTree(np.c_[t.ravel()])
+    #     QoI_del = np.amax(np.abs((QoI[:-1,:] - QoI[1:,:]) / QoI[1:,:]), axis=1, keepdims=True)
+    #     idx_max = np.where(QoI_del > 1.e-13)[0][-1]  # Dynamics end-point
+
+    #     pts_0 = round(self.train_split[0]*pts)
+    #     pts_1 = pts - pts_0
+
+    #     # Sampling inside the strongest nonequilibrium region
+    #     idx_0 = self.sampling(1, idx_max, t, tree, pts_0)
+
+    #     # Sampling the equilibrium
+    #     idx_1 = self.sampling(idx_max+2, idx_max+500, t, tree, pts_1)
+
+    #     # Merging indices
+    #     idx = np.sort(np.concatenate([idx_0,idx_1]))
+    #     _, counts = np.unique(idx, return_counts=True)
+    #     assert pts == np.sum(counts)
+
+    #     return idx
+
     def get_indices(self, t, QoI, pts):
         '''Get meaningful values by selecting indices.'''
 
         tree  = KDTree(np.c_[t.ravel()])
         QoI_del = np.amax(np.abs((QoI[:-1,:] - QoI[1:,:]) / QoI[1:,:]), axis=1, keepdims=True)
-        idx_min = np.where(QoI_del > 7.e-5)[0][ 0]  # Dynamics start-point
+        idx_min = np.where(QoI_del > 1.e-5)[0][ 0]  # Dynamics start-point
         idx_max = np.where(QoI_del > 1.e-13)[0][-1]  # Dynamics end-point
 
         pts_dist = list(map(lambda i: round(self.train_split[i]*pts), range(2)))
@@ -373,8 +402,8 @@ class DataGenerator(object):
         idx_0 = self.sampling(idx_min, idx_max, t, tree, pts_dist[0])
 
         # Sampling the initial dynamics
-        _, ii = tree.query(t[idx_min]*1.e-2, k=1)
-        idx_1 = self.sampling(ii, idx_min-2, t, tree, pts_dist[1])
+        # _, ii = tree.query(t[idx_min]*1.e-2, k=1)
+        idx_1 = self.sampling(5, idx_min-2, t, tree, pts_dist[1])
 
         # Sampling the equilibrium
         idx_2 = self.sampling(idx_max+2, idx_max+500, t, tree, pts_dist[2])
