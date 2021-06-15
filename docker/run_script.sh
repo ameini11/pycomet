@@ -36,7 +36,7 @@ COPY ./ ./
 
 CMD ["main.py"]
 
-ENTRYPOINT ["python3"]
+ENTRYPOINT ["python3.8"]
 
 EOF
 

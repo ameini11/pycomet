@@ -29,7 +29,10 @@ WORKDIR /app/prode
 
 COPY ./ ./
 
-RUN python3 setup.py bdist_wheel && pip3 install dist/*.whl
+RUN apt-get install -y python3.8 && python3.8 -m pip install --upgrade pip
+RUN python3.8 -m pip install --ignore-installed six
+RUN python3.8 -m pip install --upgrade wheel
+RUN python3.8 setup.py bdist_wheel && pip3 install dist/*.whl
 
 EOF
 
