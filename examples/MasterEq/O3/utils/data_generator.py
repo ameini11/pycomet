@@ -173,8 +173,8 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating training pts ...')
 
-        data_list = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_scenario)( \
-            i,ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_train)))
+        data_list = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_train_scenario)( \
+            i, ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_train)))
 
         data = {}
         for i, data_i in enumerate(data_list):
@@ -204,7 +204,7 @@ class DataGenerator(object):
 
         return data['train'], data['valid']
 
-    def single_scenario(self, i, ic_i, eval_jac, eval_f):
+    def single_train_scenario(self, i, ic_i, eval_jac, eval_f):
         # Solving the ODE
         mat = self.ODE_mat[str(int(ic_i[0]))]
         sol = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac, eval_f=eval_f)
@@ -279,44 +279,43 @@ class DataGenerator(object):
 
         if self.test_training:      # Test underfitting
             assert self.scenarios >= self.test_cases
-            n       = self.test_cases
-            idx     = np.random.choice(ic_train.shape[0], size=n, replace=False)
+            idx     = np.random.choice(ic_train.shape[0], size=self.test_cases, replace=False)
             ic_test = np.vstack((ic_test, ic_train[idx, :]))
 
-        for i, ic_i in enumerate(tqdm(ic_test, file=sys.stdout)):
-
-            # Solving the ODE
-            T_i = str(int(ic_i[0]))
-            sol = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[T_i], \
-                                     eval_jac=eval_jac, eval_f=eval_f)
-            t_i, y_i = sol[0], sol[1]
-            if eval_jac:
-                norm_J_i, eig_J_i = sol[2], sol[3]
-            if eval_f:
-                f_rhs = sol[-1]
-
-            # Extract data values
-            tree     = KDTree(np.c_[t_i.ravel()])
-            d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
-            t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
-            u_i      = np.tile(ic_i[1:], (t_i.shape[0],1))
-            u_i, y_i = self.dens2mass_frac(u_i, y_i)
-
-            title = 'Tested case (T = '+T_i+' K)'
-            if self.test_training and i > n-1:
-                title = 'Trained case (T = '+T_i+' K)'
-
-            # Collect data values
-            data_i = [title, [u_i, t_i], y_i]
-            if eval_f:
-                data_i.append(f_rhs[ii[0]:ii[1],:])
-
-            if i == 0:
-                data_test = [tuple(data_i)]
-            else:
-                data_test.append(tuple(data_i))
+        data_test = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_test_scenario)( \
+            i, ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_test)))
 
         return data_test
+
+    def single_test_scenario(self, i, ic_i, eval_jac, eval_f):
+
+        # Solving the ODE
+        T_i = str(int(ic_i[0]))
+        sol = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[T_i], \
+                                 eval_jac=eval_jac, eval_f=eval_f)
+        t_i, y_i = sol[0], sol[1]
+        if eval_jac:
+            norm_J_i, eig_J_i = sol[2], sol[3]
+        if eval_f:
+            f_rhs = sol[-1]
+
+        # Extract data values
+        tree     = KDTree(np.c_[t_i.ravel()])
+        d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
+        t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
+        u_i      = np.tile(ic_i[1:], (t_i.shape[0],1))
+        u_i, y_i = self.dens2mass_frac(u_i, y_i)
+
+        title = 'Tested case (T = '+T_i+' K)'
+        if self.test_training and i > self.test_cases-1:
+            title = 'Trained case (T = '+T_i+' K)'
+
+        # Collect data values
+        data_i = [title, [u_i, t_i], y_i]
+        if eval_f:
+            data_i.append(f_rhs[ii[0]:ii[1],:])
+
+        return data_i
 
 
     ###########################################################################
