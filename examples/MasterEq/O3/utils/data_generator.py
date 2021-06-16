@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from sklearn.utils import shuffle
 from scipy.spatial import KDTree
-import matplotlib.pyplot as plt
 from pyDOE import lhs
 
 from const      import const
@@ -89,10 +88,10 @@ class DataGenerator(object):
 
             infile = open(file, 'r')
             for line in infile:
-                reac_eq, rate_str = line.split(':')
+                reac_eqn, rate_str = line.split(':')
 
                 rate = float(rate_str.split(',')[0]) * 1.e-6
-                bins_idx = re.findall(r"\((.*?)\)",reac_eq)
+                bins_idx = re.findall(r"\((.*?)\)",reac_eqn)
 
                 if reac_name == 'diss':
                     rates[0,int(bins_idx[0])-1] = rate

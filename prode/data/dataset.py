@@ -31,27 +31,27 @@ class DataSet(Data):
         col_x=None,
         col_y=None,
         batch_size=32,
-        valid_batch_size=None):
+        valid_batch_size=32):
         super(DataSet, self).__init__(dim=dim)
         if x_train is not None:
-            self.train = self.get_dataset(x_train, y_train)
-            self.valid = self.get_dataset(x_valid, y_valid)
+            self.train = self.get_dataset(x_train, y_train, batch_size)
+            self.valid = self.get_dataset(x_valid, y_valid, valid_batch_size)
             self.test  = self.get_dataset(x_test,  y_test)
         elif file_train is not None:
-            self.train = self.load_data(file_train, col_x, col_y)
-            self.valid = self.load_data(file_valid, col_x, col_y)
+            self.train = self.load_data(file_train, col_x, col_y, batch_size)
+            self.valid = self.load_data(file_valid, col_x, col_y, valid_batch_size)
             self.test  = self.load_data(file_test,  col_x, col_y)
         else:
-            utils.raise_value_err("No training data passed into `{}`.".format(self.__name__))
+            utils.raise_value_err("No training data passed into `{}`.".format(self.name))
 
-        self.batch_size = batch_size
+        self.batch_size       = batch_size
         self.valid_batch_size = valid_batch_size
         self.validation_split = valid_split
 
 
     # Handling Data
     ###########################################################################
-    def load_data(self, filename, col_x, col_y):
+    def load_data(self, filename, col_x, col_y, batch_size):
         if filename is None:
             return None
         if col_x is None or col_y is None:
@@ -65,7 +65,7 @@ class DataSet(Data):
         else:
             x_data = data[:, col_x[0]:col_x[1]], data[:, col_y[0]:col_y[1]]
         y_data = data[:, col_y[0]:col_y[1]]
-        return self.get_dataset(x_data, y_data)
+        return self.get_dataset(x_data, y_data, batch_size)
 
 
     # Util functions

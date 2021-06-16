@@ -23,12 +23,10 @@ class FFNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        adaptive_weights='LossWeightsAdapter',
         name='ffnn'):
         super(FFNN, self).__init__(
             dim=dim,
             block=block,
-            adaptive_weights=adaptive_weights,
             name=name)
         
         ### Hyperparameters Initialization ------------------------------------
@@ -84,14 +82,14 @@ class FFNN(Net):
         # Input Transform
         y = x
         if self.inp_trans is not None:
-            y = self.input_fn(y)
+            y = self.inp_trans(y)
 
         # Block Hidden Layer
         y = self.hidden_blk(y)
 
         # Output Transform
         if self.out_trans is not None:
-            y = self.output_fn(y)
+            y = self.out_trans(y)
 
         return y
 

@@ -137,7 +137,8 @@ class Model(object):
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
         # Update data ids
-        self.net.add_data_ids(self.data)
+        if self.data.name == 'ODE':
+            self.net.add_data_ids(self.data)
 
         # Initializing loss loss_weights
         self.loss_weights = loss_weights
@@ -147,15 +148,17 @@ class Model(object):
             loss_fns = self.get_losses(loss)
             if self.data.name == 'ODE':
                 self.net.add_loss_fun(loss_fns, self.data)
-            else:
+            elif isinstance(loss_fns, dict):
                 utils.raise_value_err("Multiple losses can be used only with `data.ode` data.")
+            else:
+                self.loss = loss_fns
         elif isinstance(loss, str):
-            loss = losses_module.get(loss)
+            loss_fns = losses_module.get(loss)
             if self.data.name == 'ODE':
                 loss_fns = {data_id: loss for data_id in self.data.data_ids}
                 self.net.add_loss_fun(loss_fns, self.data)
             else:
-                self.loss = loss
+                self.loss = loss_fns
         else:
             utils.raise_value_err("Losses have to be defined as a `dict` or a `str`.")
 
@@ -171,16 +174,19 @@ class Model(object):
         self.net.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
 
 
-    def get_losses(self, losses):
-        if isinstance(losses, dict):
-            loss_fns = {}
-            for loss_id, loss in losses.items():
-                if isinstance(loss, dict):
-                    loss_fns[loss_id] = losses_module.get(**loss)
-                else:
-                    loss_fns[loss_id] = losses_module.get(loss)
+    def get_losses(self, loss):
+        if isinstance(loss, dict):
+            if any(isinstance(loss[loss_id], dict) for loss_id in loss):
+                loss_fns = {}
+                for loss_id, loss in loss.items():
+                    if isinstance(loss, dict):
+                        loss_fns[loss_id] = losses_module.get(**loss)
+                    else:
+                        loss_fns[loss_id] = losses_module.get(loss)
+            else:
+                loss_fns = losses_module.get(**loss)
         else:
-            loss_fns = [ losses_module.get(loss) for loss in losses ]
+            loss_fns = [ losses_module.get(loss) for loss in loss ]
         return loss_fns
 
 
