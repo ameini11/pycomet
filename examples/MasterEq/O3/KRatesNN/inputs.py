@@ -46,7 +46,7 @@ class InputData(object):
             }
 
     # Structure ---------------------------------------------------------------
-    layer_size         = [dim['inp'], 16, 16, dim['inp']]
+    layer_size         = [dim['inp'], 16, 16, dim['out']]
     activation         = 'sigmoid'
     regularization     = {
                             'name': 'l1+l2',
@@ -72,32 +72,35 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 10
+    epochs       = 10000
     optimizer    = 'adam'
-    lr           = 5.e-4
+    lr           = 1.e-2
 
     # Learning rate scheduler -------------------------------------------------
-    decay        = ["exponential", 2000, 0.98]
+    decay        = ["exponential", 2000, 0.95]
 
     # Losses ------------------------------------------------------------------
     loss    = {'identifier': 'mape', 'axis': 0} # `axis` = reduction axis
     metrics = ['mape']
+    
+    # Callbacks ---------------------------------------------------------------
+    weighted_loss = None
 
-    # Early Stopping Callback -------------------------------------------------
-    min_delta    = 1.e-6
-    patience     = 10000
-    monitor      = 'val_tot_loss'
+    early_stopping = {
+        'monitor': 'val_tot_loss',
+        'min_delta': 1.e-6,
+        'patience': 20000}
+    model_ckpt = {
+        'monitor': 'val_tot_loss'}
 
 
     ###########################################################################
     ### Plotting Quantities
     ###########################################################################
-    # # Variables Name ----------------------------------------------------------
-    # var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(dim['out']-1) ]
-    # var_names.append(r'$O$')
+    # Variables Name ----------------------------------------------------------
+    var_names_diss = [ r'$O_2^{({%s})}$' % (i+1) for i in range(3) ]
+    var_names_exci = [ r'$O_2^{({%s})}\/\rightarrow\/O_2^{({%s})}$' % i for i in [(2,1),(3,1),(3,2)] ]
 
-    # # Axis --------------------------------------------------------------------
-    # labels   = [r'$t\quad[s]$', r'$Y$']         # x, y labels
-    # scales   = ['log', 'linear']                # x, y scales
-    # log_plot = True
-    # limit_y  = False
+    # Axis --------------------------------------------------------------------
+    labels   = [r'$T\quad[K]$', r'$K$']         # x, y labels
+    scales   = ['linear', 'log']                # x, y scales

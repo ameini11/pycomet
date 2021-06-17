@@ -112,13 +112,7 @@ def main():
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:
-        ES = callbacks.EarlyStopping(monitor=inp.monitor,
-                                     min_delta=inp.min_delta,
-                                     patience=inp.patience,
-                                     restore_best_weights=True,
-                                     verbose=1)
-        cb_list = [ES]
-
+        cb_list = []
         if inp.plot_flg == 2:
             PL = pro_callbacks.Plotter(data_test, inp.var_names, inp.labels,
                                        inp.scales, inp.log_plot,

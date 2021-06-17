@@ -17,7 +17,8 @@ def plot_loss(history, path, scale='log', limit_y=False,
     plt.yscale(scale)
 
     for i, var_i in enumerate(var):
-        plt.plot(history[var_i], lw=1, label=labels[i])
+        if var_i in history:
+            plt.plot(history[var_i], lw=1, label=labels[i])
     plt.xlabel('Epoch')
     plt.legend()
     plt.grid()
@@ -82,8 +83,9 @@ def plot_metric(history, path, metric, scale='log', limit_y=False):
         plt.ylim(limits(history[[metric,'val_'+metric]]))
     plt.yscale(scale)
 
-    plt.plot(history[[metric]],        lw=1, label='Training')
-    plt.plot(history[['val_'+metric]], lw=1, label='Validation')
+    plt.plot(history[[metric]], lw=1, label='Training')
+    if 'val_'+metric in history:
+        plt.plot(history[['val_'+metric]], lw=1, label='Validation')
     plt.xlabel('Epoch')
     plt.title(r'$\it{%s}$' % metric.replace("_", "\ ").title() + '  Metric History')
     plt.legend()

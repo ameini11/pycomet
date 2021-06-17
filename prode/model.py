@@ -196,26 +196,33 @@ class Model(object):
         self,
         epochs=1,
         callbacks=[],
-        weighted_loss_callback=None,
+        weighted_loss_cb=None,
+        early_stopping_cb=None,
+        model_ckpt_cb=None,
         profile_batch=0,
         verbose=1):
         utils.print_main("Training the model ...")
 
         # Defining callbacks
         utils.print_submain("Initilizing callbacks")
-        MC = CB.ModelCheckpoint(filepath=self.ckpt_dir+"/weights_{epoch:06d}.h5", \
-                monitor='val_loss', save_best_only=True, save_weights_only=True)
+        if early_stopping_cb and early_stopping_cb['monitor']:    # Early Stopping callback
+            ES = CB.EarlyStopping(**early_stopping_cb,
+                                         restore_best_weights=True,
+                                         verbose=1)
+            callbacks.append(ES)
+        if model_ckpt_cb and model_ckpt_cb['monitor']:            # Model Checkpoint callback
+            MC = CB.ModelCheckpoint(**model_ckpt_cb, save_best_only=True, \
+                filepath=self.ckpt_dir+"/weights_{epoch:06d}.h5", save_weights_only=True)
+            callbacks.append(MC)
+        if weighted_loss_cb:                          # Weighted Loss callback
+            self.net.add_loss_weights(self.loss_weights)
+            WL = self.add_weighted_loss_callback(weighted_loss_cb)
+            callbacks.append(WL)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
                 write_graph=True, write_images=True, profile_batch=profile_batch)
         LR = callbacks_module.LearningRateTracker(file=self.train_dir+'/lr.csv', \
                 log_dir=self.TB_dir, verbose=verbose)
-        callbacks.extend([MC, TB, LR])
-
-        # Defining weighted loss callback
-        if weighted_loss_callback is not None:
-            self.net.add_loss_weights(self.loss_weights)
-            WL = self.add_weighted_loss_callback(weighted_loss_callback)
-            callbacks.append(WL)
+        callbacks.extend([TB, LR])
 
         # Defining train/valid pts
         utils.print_submain("")
@@ -239,20 +246,20 @@ class Model(object):
             hist_df.to_csv(path_or_buf=f, index=False)
 
 
-    def add_weighted_loss_callback(self, weighted_loss_callback):
+    def add_weighted_loss_callback(self, weighted_loss_cb):
         kwargs = {}
         kwargs['model'] = self.net
         kwargs['data_generator'] = self.data.train
         kwargs['log_dir'] = self.TB_dir
-        if isinstance(weighted_loss_callback, dict):
-            name = weighted_loss_callback.pop('name')
-            kwargs.update(weighted_loss_callback)
-        elif isinstance(weighted_loss_callback, str):
-            name = weighted_loss_callback
+        if isinstance(weighted_loss_cb, dict):
+            name = weighted_loss_cb.pop('name')
+            kwargs.update(weighted_loss_cb)
+        elif isinstance(weighted_loss_cb, str):
+            name = weighted_loss_cb
         else:
             utils.raise_value_err(
-                "`weighted_loss_callback` passed into `Model.fit` must "
-                "be a `dict` or a `str` (name of the loss adapter callback).")
+                "`weighted_loss_cb` passed into `Model.fit` must be a "
+                "`dict` or a `str` (name of the loss adapter callback).")
         return utils.get_class(weighted_loss, name)(**kwargs)
 
 

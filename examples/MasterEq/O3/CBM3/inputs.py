@@ -149,17 +149,19 @@ class InputData(object):
         }
     metrics = None
     
-    weighted_loss_cb = None
-    # weighted_loss_cb = {
+    # Callbacks ---------------------------------------------------------------
+    weighted_loss = None
+    # weighted_loss = {
     #     'name':  'EmpiricalWeightsAdapter',
     #     'alpha': 0.9,
     #     'freq': 100
     #     }
-
-    # Early Stopping Callback -------------------------------------------------
-    min_delta    = 1.e-6
-    patience     = 20000
-    monitor      = 'val_tot_loss'
+    early_stopping = {
+        'monitor': 'val_tot_loss',
+        'min_delta': 1.e-6,
+        'patience': 20000}
+    model_ckpt = {
+        'monitor': 'val_tot_loss'}
 
 
     ###########################################################################
