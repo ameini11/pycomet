@@ -4,4 +4,4 @@ __pycache__/
 build/
 dist/
 prode.egg-info/
-
+.DS_Store
