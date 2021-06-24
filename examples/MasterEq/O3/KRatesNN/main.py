@@ -2,18 +2,8 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-# Remove the following line if you install `prode` as a Python package --------
-sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
-# -----------------------------------------------------------------------------
-import prode as pro
-import tensorflow as tf
-tf.keras.backend.set_epsilon(1.e-30)
 
-from prode.utilities.training_utils import callbacks as pro_callbacks
-from prode.utilities.model_utils import layers as pro_layers
-from prode.utilities import utils as pro_utils
-from tensorflow.keras import layers
-from tensorflow.keras import callbacks
+from scipy.optimize import curve_fit
 from matplotlib import pyplot as plt
 
 from inputs import InputData as inp
@@ -21,119 +11,27 @@ sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
 
-@pro_utils.main_decorator
-def main():
+# Constants
+###############################################################################
+R = 8.31446261815324
+eps = 1.e-40
 
-    ###########################################################################
-    ### Data
-    ###########################################################################
-    # Generate Data -----------------------------------------------------------
-    dataGen = DataGenerator(inp)
-    x, y = dataGen.training_data()
+# Arrhenius Functions
+###############################################################################
+def modified_arrhenius(T, a, b, c):
+    return a * np.power(T,b) * np.exp(-c/(R*T))
 
-    # Initialize Data ---------------------------------------------------------
-    data = pro_utils.get_class(pro.data, inp.data_name)(
-        dataGen.dim,
-        x_train=x,
-        y_train=y)
+def modified_arrhenius_lin(T, a_log, b, c):
+    # a_log = np.log(a)
+    return a_log + b*np.log(T) - c/(R*T)
 
-    ###########################################################################
-    ### Network
-    ###########################################################################
-    # Initialize Network ------------------------------------------------------
-    net = pro_utils.get_class(pro.networks, inp.nn_name)(
-        dataGen.dim,
-        inp.layer_size,
-        inp.activation,
-        inp.kernel_initializer,
-        regularization=inp.regularization,
-        dropout_rate=inp.dropout_rate,
-        batch_norm=inp.batch_norm,
-        block=inp.block)
+def modified_arrhenius_inv(T_inv, a, b, c):
+    # T_inv = 1/T
+    return a * np.power(1/T_inv,b) * np.exp(-c/R*T_inv)
 
-    # Apply I/O Transformation ------------------------------------------------
-    mn, mx = min(inp.T), max(inp.T)
-    net.apply_input_transform(pro_layers.Scaling(init_scale=1./(mx-mn), \
-        init_offset=-mn/(mx-mn), name='input_fn', trainable=False))
-    net.apply_output_transform(layers.Lambda(tf.math.exp, name='output_fn'))
-
-
-    ###########################################################################
-    ### Model
-    ###########################################################################
-    # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.name)
-
-    # Build Model -------------------------------------------------------------
-    model.build(inp.dim['inp'], verbose=0, load_net=inp.load_flg, visualize_graph=False)
-
-    # Compile Model -----------------------------------------------------------
-    model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, \
-        metrics=inp.metrics, decay=inp.decay)
-
-    # Fit Model ---------------------------------------------------------------
-    if inp.train_flg > 0:
-        cb_list = []
-        if inp.plot_flg == 2:
-            PL = pro_callbacks.Plotter(data_test, inp.var_names, inp.labels,
-                                       inp.scales, inp.log_plot,
-                                       model.train_dir, inp.period)
-            cb_list.append(PL)
-
-        model.fit(epochs=inp.epochs, callbacks=cb_list)
-
-    # Save Model ---------------------------------------------------------------
-    if inp.save_flg > 0:
-        model.save()
-
-
-    ###########################################################################
-    ### Postprocessing
-    ###########################################################################
-    # Training phase ----------------------------------------------------------
-    model.visualize_training(model.train_dir+'/history.csv')
-
-    # Testing phase -----------------------------------------------------------
-    if inp.test_flg > 0:
-        x_pred = np.linspace(min(inp.T), max(inp.T), 1000, dtype=np.float64)
-        y_pred = net.predict(x_pred)
-
-        path = model.post_dir+'/testing_plots/'
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-        # Dissociation
-        y_true_diss = y[:,0:dataGen.num_diss]
-        y_pred_diss = y_pred[:,0:dataGen.num_diss]
-        fig_name    = path + 'dissociation.pdf'
-        plot_test(
-            fig_name,
-            x,
-            x_pred,
-            y_true_diss,
-            y_pred_diss,
-            inp.var_names_diss,
-            'Dissociation Rates',
-            labels=inp.labels,
-            scales=inp.scales)
-
-        # Excitation
-        y_true_exci = y[:,dataGen.num_diss:]
-        y_pred_exci = y_pred[:,dataGen.num_diss:]
-        fig_name    = path + 'excitation.pdf'
-        plot_test(
-            fig_name,
-            x,
-            x_pred,
-            y_true_exci,
-            y_pred_exci,
-            inp.var_names_exci,
-            'Exchange + Inelastic Rates',
-            labels=inp.labels,
-            scales=inp.scales)
-
-
-def plot_test(
+# Plot function
+###############################################################################
+def plot_rates(
     fig_name,
     x_true,
     x_pred,
@@ -153,11 +51,14 @@ def plot_test(
     x_scale, y_scale = scales
 
     # X axis
-    if x_label is not None: plt.xlabel(x_label)
-    if x_scale is not None: plt.xscale(x_scale)
+    if x_label is not None:
+        plt.xlabel(x_label)
+    if x_scale is not None:
+        plt.xscale(x_scale)
 
     # Y axis
-    if y_label is not None: plt.ylabel(y_label)
+    if y_label is not None:
+        plt.ylabel(y_label)
     if y_scale == 'log':
         plt.yscale(y_scale)
         plt.ylim([np.amin(y_true[y_true!=0.])*1.e-1, np.amax(y_true)*1.e+1])
@@ -181,12 +82,104 @@ def plot_test(
         name = 'Pred ' + var_name[d]
         plt.plot(x_pred, y_pred[:,d], c=col[d], ls=lin[1], lw=1, label=name)
 
-
     plt.legend(fontsize='x-small')
     fig.savefig(fig_name)
     plt.close()
 
-            
+
+# Main Function
+###############################################################################
+def main():
+
+    # Generate Data -----------------------------------------------------------
+    print('[Main]: Generating data\n')
+    dataGen = DataGenerator(inp)
+    T, K = dataGen.training_data()
+
+    # Linear Fit --------------------------------------------------------------
+    print('\n[Main]: Fitting rates')
+    for j in range(K.shape[1]):
+        K_log_j = np.log( K[:,j][ K[:,j] != 0. ] )
+        T_j     = T[:,0][ K[:,j] != 0. ]
+
+        param_j, _ = curve_fit(modified_arrhenius_lin, T_j, K_log_j, \
+            p0=[1,1,1.e4], method='trf')
+        param_j[0] = np.exp(param_j[0])
+        if j == 0:
+            param = np.array(param_j)
+        else:
+            param = np.vstack((param, np.array(param_j)))
+
+    pd.DataFrame(param, columns=['A', 'n', 'Ea'], index=dataGen.rates_names).to_csv( \
+        dataGen.data_dir+'arrhenius_const.csv', float_format='{:e}'.format)
+
+    # Plotting ----------------------------------------------------------------
+    print('\n[Main]: Plotting rates')
+    x_true = np.reciprocal(np.array(inp.T))
+    y_true = K
+
+    n = 1000
+    x_pred = np.reciprocal(np.linspace(1000.0e0, max(inp.T), n, dtype=np.float64))
+    y_pred = np.zeros((n, dataGen.K_mat_dim), dtype=np.float64)
+    for i, param_i in enumerate(param):
+        y_pred[:,i] = modified_arrhenius_inv(x_pred, *param_i)
+
+    path = './plots/'
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    # Dissociation
+    start = 0
+    end   = dataGen.num_diss
+    y_true_diss = y_true[:,start:end]
+    y_pred_diss = y_pred[:,start:end]
+    fig_name    = path + 'dissociation.pdf'
+    plot_rates(
+        fig_name,
+        x_true,
+        x_pred,
+        y_true_diss,
+        y_pred_diss,
+        inp.var_names_diss,
+        'Dissociation Rates',
+        labels=inp.labels,
+        scales=inp.scales)
+
+    # Exchange
+    start = dataGen.num_diss
+    end   = dataGen.num_diss + dataGen.num_exc
+    y_true_exch = y_true[:,start:end]
+    y_pred_exch = y_pred[:,start:end]
+    fig_name    = path + 'exchange.pdf'
+    plot_rates(
+        fig_name,
+        x_true,
+        x_pred,
+        y_true_exch,
+        y_pred_exch,
+        inp.var_names_exc,
+        'Exchange Rates',
+        labels=inp.labels,
+        scales=inp.scales)
+
+    # Inelastic
+    start = dataGen.num_diss + dataGen.num_exc
+    end   = dataGen.num_diss + dataGen.num_exc * 2
+    y_true_inel = y_true[:,start:end]
+    y_pred_inel = y_pred[:,start:end]
+    fig_name    = path + 'inelastic.pdf'
+    plot_rates(
+        fig_name,
+        x_true,
+        x_pred,
+        y_true_inel,
+        y_pred_inel,
+        inp.var_names_exc,
+        'Inelastic Rates',
+        labels=inp.labels,
+        scales=inp.scales)
+
+
 
 if __name__ == "__main__":
     main()

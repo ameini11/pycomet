@@ -135,6 +135,7 @@ class DataGenerator(object):
         unit_vec = np.array([[1.]*self.inp_dim])
 
         # Contructing Design Matrix -------------------------------------------
+        self.X_header = ['Ttr', 'T0', 'P0', 'XO2']
         X       = lhs(self.inp_dim, samples=n)
         X[:,:1] = np.random.choice(self.Ttr, size=(n,1))
         X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
@@ -160,8 +161,10 @@ class DataGenerator(object):
 
         if self.test_cases > 0:
             idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
+            self.X_train, self.X_test = X[idx_train,:], X[idx_test,:]
             return [ic[idx_train,:], ic[idx_test,:]]
         else:
+            self.X_train, self.X_test = X, None
             return [ic]
 
 
@@ -199,7 +202,11 @@ class DataGenerator(object):
                     os.makedirs(path)
                 unpack = *data[data_type][data_id][0], data[data_type][data_id][1]
                 pd.DataFrame(np.hstack(unpack)).to_csv(path+data_id+".csv", \
-                    index=False, header=None)
+                    index=False, header=False)
+            # Print input space
+            i_0 = 0 if data_type == 'train' else 1
+            pd.DataFrame(self.X_train[range(i_0,i,2),:]).to_csv(path+"input_space.csv", \
+                index=False, header=self.X_header)
 
         return data['train'], data['valid']
 
@@ -276,10 +283,23 @@ class DataGenerator(object):
 
         print('\n' + self.header + 'Generating testing pts ...')
 
+        # Print input space
+        path = self.data_dir+"test/"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        pd.DataFrame(self.X_test).to_csv(path+"test_inp_space.csv", \
+            index=False, header=self.X_header)
+
         if self.test_training:      # Test underfitting
             assert self.scenarios >= self.test_cases
             idx     = np.random.choice(ic_train.shape[0], size=self.test_cases, replace=False)
             ic_test = np.vstack((ic_test, ic_train[idx, :]))
+            # Print input space
+            pd.DataFrame(self.X_train[idx,:]).to_csv(path+"input_space.csv", \
+                index=False, header=self.X_header)
+
+        # Print ics
+        pd.DataFrame(ic_test).to_csv(path+"ics.csv", index=False, header=None)
 
         data_test = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_test_scenario)( \
             i, ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_test)))

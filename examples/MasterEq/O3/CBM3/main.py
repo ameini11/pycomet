@@ -120,7 +120,9 @@ def main():
             cb_list.append(PL)
 
         model.fit(epochs=inp.epochs, callbacks=cb_list, \
-            weighted_loss_callback=inp.weighted_loss_cb)
+            weighted_loss_cb=inp.weighted_loss,
+            early_stopping_cb=inp.early_stopping,
+            model_ckpt_cb=inp.model_ckpt)
 
     # Save Model ---------------------------------------------------------------
     if inp.save_flg > 0:
@@ -137,9 +139,13 @@ def main():
     if inp.test_cases > 0 and inp.test_flg > 0:
         plot_style = dict(plotting=inp.plot_flg, var_names=inp.var_names, labels=inp.labels)
         for i, test_i in enumerate(data_test):
-            model.predict(test_i, test_case_num=i, scales=inp.scales, **plot_style)
+            # Define 'path'
+            path = model.post_dir+'/testing_plots/test_'+str(i)
+            if not os.path.exists(path):
+                os.makedirs(path)
+            model.predict(test_i, path=path, scales=inp.scales, **plot_style)
             if inp.log_plot:
-                model.predict(test_i, test_case_num=i, scales=['log', 'log'], **plot_style)
+                model.predict(test_i, path=path, scales=['log', 'log'], **plot_style)
             
 
 if __name__ == "__main__":

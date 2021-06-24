@@ -250,30 +250,36 @@ class Plotter(CB.Callback):
         self.log_flg    = log_flg
 
         self.path = train_dir+'/testing_plots'
-        if not os.path.exists(self.path): os.makedirs(self.path)
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
 
         self.period = period
 
     def on_epoch_end(self, epoch, logs=None):
-
         if epoch % self.period == 0:
             for i, test_i in enumerate(self.test_cases):
-                if len(test_i) == 4:
-                    title, x, y_true, data_val = test_i
-                elif len(test_i) == 3:
-                    title, x, y_true = test_i
-                    data_val = None
-                elif len(test_i) == 2:
-                    x, y_true = test_i
-                    title = data_val = None
-
+                title, x, y_true = self.unpack_test_data(test_i)
                 y_pred = self.model.predict(x)
 
-                testing_plots.plot_test(self.path, x, y_true, y_pred, self.var_names,
-                    title, i, labels=self.labels, scales=self.scales, data_val=data_val)
+                path = self.path + '/test_'+str(i)
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                testing_plots.plot_test(path, x, y_true, y_pred, self.var_names,
+                    title=title, labels=self.labels, scales=self.scales)
                 if self.log_flg:
-                    testing_plots.plot_test(self.path, x, y_true, y_pred, self.var_names,
-                        title, i, labels=self.labels, scales=['log','log'], data_val=data_val)
+                    testing_plots.plot_test(path, x, y_true, y_pred, self.var_names,
+                        title=title, labels=self.labels, scales=['log','log'])
+
+    def unpack_test_data(self, test_data):
+        if len(test_data) == 3:
+            title, x, y_true = test_data
+        elif len(test_data) == 2:
+            x, y_true = test_data
+            title = None
+        else:
+            x = test_data
+            title = y_true = None
+        return title, x, y_true
 
 
 # class MovieDumper(CB.Callback):

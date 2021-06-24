@@ -6,7 +6,6 @@ import pandas as pd
 from const import const
 
 
-
 class DataGenerator(object):
 
     ###########################################################################
@@ -14,13 +13,12 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(self, inputs):
 
-        self.header   = '[PrODE - Data Gen]: '
+        self.header   = '[Data Gen]: '
         self.data_dir = "./data/"
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
 
         # Data Quantities -----------------------------------------------------
-        self.dim   = inputs.dim                                     # Data dimensionality
         self.T_str = list(map(lambda x: str(int(x)), inputs.T))     # Temp. in string form
 
         # Retrieving Molecular data -------------------------------------------
@@ -36,8 +34,8 @@ class DataGenerator(object):
         # Building Master Equation matrices -----------------------------------
         self.num_exc    = int((self.num_bins-1)*self.num_bins/2)
         self.num_diss   = int(self.num_bins)
-        self.dim['out'] = self.num_exc + self.num_diss
-        self.rates      = self.get_rates()
+        self.K_mat_dim  = self.num_exc*2 + self.num_diss
+        self.rates_coeff, self.rates_names = self.get_rates()
 
 
     ###########################################################################
@@ -45,14 +43,18 @@ class DataGenerator(object):
     ###########################################################################
     def training_data(self):
 
-        x = np.zeros((len(self.T_str), self.dim['inp']), dtype=np.float64)
-        y = np.zeros((len(self.T_str), self.dim['out']), dtype=np.float64)
+        x = np.zeros((len(self.T_str), 1), dtype=np.float64)
+        y = np.zeros((len(self.T_str), self.K_mat_dim), dtype=np.float64)
 
-        for i, T_i in enumerate(self.rates):
+        for i, T_i in enumerate(self.rates_coeff):
             x[i,0] = float(T_i)
-            y_diss = self.rates[T_i]['diss']
-            y_exc  = self.rates[T_i]['exch'] + self.rates[T_i]['inel']
-            y[i,:] = np.hstack((y_diss,y_exc))
+            # y_diss = self.rates[T_i]['diss']
+            # y_exc  = self.rates[T_i]['exch'] + self.rates[T_i]['inel']
+            y[i,:] = np.hstack(tuple([K for name,K in self.rates_coeff[T_i].items()]))
+
+        pd.DataFrame(np.hstack((x,y)), columns=['T', *self.rates_names]).set_index( \
+            'T').to_csv(self.data_dir+'rates_coeff.csv', float_format='{:e}'.format)
+
         return x,y
 
 
@@ -62,14 +64,20 @@ class DataGenerator(object):
     def get_rates(self):
         '''Retrieve rates coefficients from file.'''
         rates_coeff = dict()
-        for T_i in self.T_str:
-            if T_i in rates_coeff: continue
+        rates_name  = []
+        for i, T_i in enumerate(self.T_str):
+            if T_i in rates_coeff:
+                continue
             rates_coeff[T_i] = dict()
             print(self.header + ' Temp.: %5d K' % int(T_i))
+            rates_name_i = []
             for reac in self.react_file:
                 data_file = self.rates_path + 'T' + T_i + 'K/' + self.react_file[reac]
-                rates_coeff[T_i][reac] = self.read_rates(data_file, reac)
-        return rates_coeff
+                rates_coeff[T_i][reac], reac_names = self.read_rates(data_file, reac)
+                rates_name_i.extend(reac_names)
+            if len(rates_name_i) > len(rates_name):
+                rates_name = rates_name_i
+        return rates_coeff, rates_name
 
     def read_rates(self, file, reac_name):
         '''Read rates coefficients from file.'''
@@ -79,18 +87,22 @@ class DataGenerator(object):
         rates = np.zeros(shape, dtype=np.float64)
 
         infile = open(file, 'r')
+        names = []
         for i, line in enumerate(infile):
             reac_eqn, rate_str = line.split(':')
             rate = float(rate_str.split(',')[0]) * 1.e-6
+            bins_idx = re.findall(r"\((.*?)\)",reac_eqn)
 
             if reac_name == 'diss':
-                bins_idx = re.findall(r"\((.*?)\)",reac_eqn)
                 rates[0,int(bins_idx[0])-1] = rate
+                names.append(reac_name + '_' + str(int(bins_idx[0])))
             else:
                 rates[0,i] = rate
+                names.append(reac_name + '_' + str(int(bins_idx[0])) \
+                    + '-' + str(int(bins_idx[1])))
 
         infile.close()
-        return rates
+        return rates, names
 
 
     ###########################################################################

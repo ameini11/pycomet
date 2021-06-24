@@ -32,11 +32,11 @@ class InputData(object):
 
     # Input Space Extreme Values ----------------------------------------------
     inp_dim = 4                         # Input Space Dimensionality
-    Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
+    Ttr = [10000.0e0,   10000.0e0]       # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [300.0e0,    10000.0e0]       # Initial TInt
-    P0  = [1.013250e2, 1.013250e4]      # Initial P
-    XO2 = [0.2e0,      1.e0]            # Initial O2 Mole Frac
+    T0  = [1000.0e0,    10000.0e0]       # Initial TInt
+    P0  = [1.013250e2,  1.013250e4]      # Initial P
+    XO2 = [0.05e0,      1.e0]            # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
@@ -113,7 +113,7 @@ class InputData(object):
 
     # Training ----------------------------------------------------------------
     train_pts = {
-                'ics': 12,     # Number of training scenarios
+                'ics': 100,     # Number of training scenarios
                 'pts': 0,       # Number of total anchor pts for each scenario
                 'res': 160      # Number of total collocaion pts for each scenario
             }
@@ -121,15 +121,15 @@ class InputData(object):
     train_pts_dist = 'uniform'  # Training pts distribution
 
     # Testing -----------------------------------------------------------------
-    test_cases     = 1              # Number of testing cases
-    test_training  = False           # Test training case
-    period         = 1000            # Plotting frequency during training [epochs]
+    test_cases     = 10              # Number of testing cases
+    test_training  = True           # Test training case
+    period         = 10            # Plotting frequency during training [epochs]
 
 
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 30000
+    epochs       = 50
     batch_size   = {'ics': 1, 'pts': 1, 'res': 128}
     valid_batch_size = {'ics': 1, 'pts': 1, 'res': 32}
 

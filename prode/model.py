@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.callbacks as CB
-import tensorboard_plugin_profile
+# import tensorboard_plugin_profile
 
 from prode.utilities.training_utils import callbacks as callbacks_module
 from prode.utilities.training_utils import losses as losses_module
@@ -266,33 +266,34 @@ class Model(object):
     # ======================================================================= #
     def predict(
         self,
-        test_case,
+        test_data,
+        path=None,
         plotting=False,
-        test_case_num=0,
         var_names=None,
         labels=None,
         scales=None):
 
-        title, x, y_true = self.unpack_test_data(test_case)
+        title, x, y_true = self.unpack_test_data(test_data)
         y_pred = self.net.predict(x)
 
         if plotting:
-            path = self.post_dir+'/testing_plots'
+            if path is not None:
+                path = self.post_dir+'/testing_plots'
             if not os.path.exists(path):
                 os.makedirs(path)
-            testing_plots.plot_test(path, x, y_true, y_pred, var_names, title, \
-                test_case_num, labels=labels, scales=scales)
+            testing_plots.plot_test(path, x, y_true, y_pred, var_names, \
+                title=title, labels=labels, scales=scales)
         else:
             return y_pred
 
-    def unpack_test_data(self, test_case):
-        if len(test_case) == 3:
-            title, x, y_true = test_case
-        elif len(test_case) == 2:
-            x, y_true = test_case
+    def unpack_test_data(self, test_data):
+        if len(test_data) == 3:
+            title, x, y_true = test_data
+        elif len(test_data) == 2:
+            x, y_true = test_data
             title = None
         else:
-            x = test_case
+            x = test_data
             title = y_true = None
         return title, x, y_true
 

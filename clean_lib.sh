@@ -1,5 +1,5 @@
 #!/bin/bash
 
-find . -name __pycache__ -type d -exec rm -r {} \;
-find . -name *.pyc -type f -exec rm -r {} \;
-
+find . -type d -name __pycache__ -exec rm -r {} \;
+find . -type f -name .DS_Store 	 -exec rm -r {} \;
+find . -type f -name *.pyc 		 -exec rm -r {} \;
