@@ -26,13 +26,13 @@ class InputData(object):
     ###########################################################################
     name  = 'MEq_OpNN'
 
-    # Input Space Extreme Values ----------------------------------------------
+    # Input Space Extreme Values ----------------------------------------------ß
     inp_dim = 4                         # Input Space Dimensionality
     Ttr = [10000.0e0,  10000.0e0]       # Tanslational Temperature
     # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
     T0  = [300.0e0,    10000.0e0]       # Initial TInt
     P0  = [1.013250e2, 1.013250e4]      # Initial P
-    XO2 = [0.2e0,      1.e0]            # Initial O2 Mole Frac
+    XO2 = [0.05e0,      1.e0]            # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'

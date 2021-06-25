@@ -31,5 +31,5 @@ class InputData(object):
     var_names_exc  = [ r'$O_2^{({%s})}\/\rightarrow\/O_2^{({%s})}$' % i for i in [(2,1),(3,1),(3,2)] ]
 
     # Axis --------------------------------------------------------------------
-    labels   = [r'$1/T\quad[1/K]$', r'$K$']     # x, y labels
+    labels   = [r'$1/T\quad[$K$^{-1}]$', r'$K$']     # x, y labels
     scales   = ['log', 'log']                   # x, y scales

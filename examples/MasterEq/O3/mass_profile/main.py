@@ -24,21 +24,29 @@ def main():
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
     ic      = dataGen.initial_cond()[0]
-    Y       = []
+    Y_hat, Y = [], []
     for i, ic_i in enumerate(tqdm(ic)):
         mat = dataGen.ODE_mat[str(int(ic_i[0]))]
         sol = dataGen.ODE_sol.solve(ic_i[1:], mat)
         t, y_i = sol[0], sol[1][:,:-1]
-        y_i = np.divide(y_i, np.sum(y_i, axis=0, keepdims=True))
         Y.append(y_i)
+        y_i = np.divide(y_i, np.sum(y_i, axis=0, keepdims=True))
+        Y_hat.append(y_i)
 
     path = './plots/'
     if not os.path.exists(path):
         os.makedirs(path)
     for i in tqdm(range(y_i.shape[1])):
-        y = np.hstack([y_j[:,i:i+1] for y_j in Y])
+        y = np.hstack([y_j[:,i:i+1] for y_j in Y_hat])
         plot_profiles(
             path+'group_'+str(i)+'.pdf',
+            t, y,
+            inp.var_names[i] + ' Mass Fraction',
+            labels=inp.labels,
+            scales=inp.scales)
+        y = np.hstack([y_j[:,i:i+1] for y_j in Y])
+        plot_profiles(
+            path+'group_'+str(i)+'_rel.pdf',
             t, y,
             inp.var_names[i] + ' Relative Mass Fraction',
             labels=inp.labels,
