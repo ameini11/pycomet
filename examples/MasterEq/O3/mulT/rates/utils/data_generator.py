@@ -99,7 +99,7 @@ class DataGenerator(object):
             else:
                 rates[0,i] = rate
                 names.append(reac_name + '_' + str(int(bins_idx[0])) \
-                    + '-' + str(int(bins_idx[1])))
+                    + '_' + str(int(bins_idx[1])))
 
         infile.close()
         return rates, names

@@ -16,7 +16,6 @@ from const      import const
 from ode_solver import ODESolver
 
 
-
 class DataGenerator(object):
 
     ###########################################################################
@@ -47,81 +46,73 @@ class DataGenerator(object):
         self.test_training  = inputs.test_training          # Test training case [Bool]
         self.t0, self.t_end = inputs.t0, inputs.t_end       # Time limits for testing
 
-        self.inp_dim        = inputs.inp_dim                # Input Space Dimensionality
         self.dim            = inputs.dim                    # Data dimensionality
 
         # Input Space Variables -----------------------------------------------
+        self.inp_dim = inputs.inp_dim                       # Input Space Dimensionality
         inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
-        self.Ttr, self.T0, self.P0, self.XO2 = list(map(lambda x: np.array(x, dtype=np.float64), inp_var))
-        self.T_str = list(map(lambda x: str(int(x)), self.Ttr))     # Temp. in string form
+        self.Ttr, self.T0, self.P0, self.XO2 = list(map(lambda x: \
+            np.array(x, dtype=np.float64), inp_var))
+        self.T_str   = list(map(lambda x: str(int(x)), self.Ttr))   # Temp. in string form
 
         # Retrieving Molecular data -------------------------------------------
-        self.levels_file = inputs.database_path + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = inputs.database_path + '/grouping/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
+        self.levels_file = inputs.database_path + \
+            '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
+        self.binMap_file = inputs.database_path + \
+            '/grouping/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
         self.g, self.EeV, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
         # Retrieving Rates coefficients ---------------------------------------
-        self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + inputs.grouping + '/'
-        self.react_file = {'diss': 'Diss_Corrected.dat', 'exch': 'Exch_Type1.dat', 'inel': 'Inel.dat'}
+        self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + \
+            inputs.grouping + '/'
+        self.reac_file  = {'diss': 'Diss_Corrected.dat', \
+            'exch': 'Exch_Type1.dat', 'inel': 'Inel.dat'}
 
         # Building Master Equation matrices -----------------------------------
         mat_name     = list(inputs.MEq_mat.keys())
         mat_mask     = list(inputs.MEq_mat.values())
         self.ODE_sol = ODESolver(mat_name, mat_mask)
-        self.ODE_mat = self.build_matrices()
+        self.arrhenius_coeff = pd.read_csv( \
+            self.rates_path+'arrhenius_coeff.csv',index_col=0)
+
+        # Labeling Data -------------------------------------------------------
+        self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
+        data_label_inp = self.groups_label + ['Y_O','rho','t']
+        # data_label_inp  = groups_label + ['Y_O','rho','T','t']
+        data_label_out = self.groups_label + ['Y_O']
+        self.data_label = data_label_inp + data_label_out
 
 
     ###########################################################################
     ### Master Equation matrices
     ###########################################################################
-    def get_rates(self):
-        '''Retrieve rates coefficients from file.'''
+    def modified_arrhenius(T, A, n, Ea):
+        return A * np.power(T,n) * np.exp(-Ea/(R*T))
 
-        # ---------------------------------------------------------------------
-        def read_rates(file, reac_name):
-            '''Read rates coefficients from file.'''
-            print(self.header + '  Reading', reac_name, 'rates from file')
-
-            shape = (1,self.num_bins) if reac_name == 'diss' else (self.num_bins,self.num_bins)
-            rates = np.zeros(shape, dtype=np.float64)
-
-            infile = open(file, 'r')
-            for line in infile:
-                reac_eqn, rate_str = line.split(':')
-
-                rate = float(rate_str.split(',')[0]) * 1.e-6
-                bins_idx = re.findall(r"\((.*?)\)",reac_eqn)
-
-                if reac_name == 'diss':
-                    rates[0,int(bins_idx[0])-1] = rate
-                else:
-                    rates[int(bins_idx[0])-1,int(bins_idx[1])-1] = rate
-            infile.close()
-            return rates
-        # ---------------------------------------------------------------------
-
+    def get_rates(self, T):
+        '''Retrieve rates coefficients from dataframe.'''
         rates_coeff = dict()
-        for T_i in self.T_str:
-            if T_i in rates_coeff: continue
-            rates_coeff[T_i] = dict()
-            for reac in self.react_file:
-                data_file = self.rates_path + 'T' + T_i + 'K/' + self.react_file[reac]
-                rates_coeff[T_i][reac] = read_rates(data_file, reac)
+        for reac_name in self.reac_file:
+            shape = (self.num_bins,) if reac_name == 'diss' \
+                else (self.num_bins, self.num_bins)
+            rates_coeff[reac_name] = np.zeros(shape, dtype=np.float64)
+
+        for index, row in self.arrhenius_coeff.iterrows():
+            rate = self.modified_arrhenius(T, row['A'], row['n'], row['Ea'])
+            reac_name, bins_idx = index.split('_')
+            if reac_name == 'diss':
+                idx = [int(bins_idx)]
+            else:
+                idx = [int(bins_idx[0])-1, int(bins_idx[1])-1]
+            rates_coeff[reac_name][**idx] = rate
         return rates_coeff
 
-
-    def build_matrices(self):
+    def build_matrices(self, T):
         '''Build Master Equation matrices.'''
-
-        print('\n' + self.header + 'Building Master Equation matrices ...')
-
-        mat = dict()
-        rates_coeff = self.get_rates()
-        for i, T_i in enumerate(self.T_str):
-            Q_bins_T = self.compute_partition_func(self.Ttr[i])
-            mat[T_i] = self.ODE_sol.get_matrices(rates_coeff[T_i], Q_bins_T, self.Ttr[i])
-        return mat
+        Q_bins = self.compute_partition_func(T)
+        rates_coeff = self.get_rates(T)
+        return self.ODE_sol.get_matrices(rates_coeff, Q_bins, T)
 
 
     ###########################################################################
@@ -135,7 +126,7 @@ class DataGenerator(object):
         unit_vec = np.array([[1.]*self.inp_dim])
 
         # Contructing Design Matrix -------------------------------------------
-        self.X_header = ['Ttr', 'T0', 'P0', 'XO2']
+        self.X_col = ['Ttr', 'T0', 'P0', 'X_O2']
         X       = lhs(self.inp_dim, samples=n)
         X[:,:1] = np.random.choice(self.Ttr, size=(n,1))
         X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
@@ -161,8 +152,8 @@ class DataGenerator(object):
 
         if self.test_cases > 0:
             idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
-            self.X_train, self.X_test = X[idx_train,:], X[idx_test,:]
-            return [ic[idx_train,:], ic[idx_test,:]]
+            self.X_train, self.X_test = X[idx_train], X[idx_test]
+            return [ic[idx_train], ic[idx_test]]
         else:
             self.X_train, self.X_test = X, None
             return [ic]
@@ -182,14 +173,15 @@ class DataGenerator(object):
         for i, data_i in enumerate(data_list):
             # Define data type
             data_type = 'train' if (i % 2) == 0 else 'valid'
-            # if (i % 2) == 0:
-            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                         fillstyle='full', markersize=2)
-            #     plt.xscale('log')
-            #     plt.yscale('log')
-            #     plt.plot(data_i['res'][0][1], data_i['res'][1], **marker_style)
-            #     plt.grid()
-            #     plt.show()
+            if (i % 2) == 0:
+                marker_style = dict(marker='o', lw=0.5, ls='none', \
+                                    fillstyle='full', markersize=2)
+                plt.xscale('log')
+                plt.yscale('log')
+                plt.plot(data_i['res'][0][1], data_i['res'][1], **marker_style)
+                plt.plot(data_i['pts'][0][1], data_i['pts'][1], c='k', **marker_style)
+                plt.grid()
+                plt.show()
             data = self.stack_data(data, data_i, data_type)
 
         # Save data in a `.csv` file
@@ -200,19 +192,19 @@ class DataGenerator(object):
                 path = self.data_dir+data_type+"/"
                 if not os.path.exists(path):
                     os.makedirs(path)
-                unpack = *data[data_type][data_id][0], data[data_type][data_id][1]
-                pd.DataFrame(np.hstack(unpack)).to_csv(path+data_id+".csv", \
-                    index=False, header=False)
+                unpacked_data = *data[data_type][data_id][0], data[data_type][data_id][1]
+                pd.DataFrame(np.hstack(unpacked_data), columns=self.data_label).to_csv( \
+                    path+data_id+".csv", index=False, float_format='{:e}'.format)
             # Print input space
             i_0 = 0 if data_type == 'train' else 1
-            pd.DataFrame(self.X_train[range(i_0,i,2),:]).to_csv(path+"input_space.csv", \
-                index=False, header=self.X_header)
+            pd.DataFrame(self.X_train[range(i_0,i,2)], columns=self.X_col).to_csv( \
+                path+"input_space.csv", index=False, float_format='{:e}'.format)
 
         return data['train'], data['valid']
 
     def single_train_scenario(self, i, ic_i, eval_jac, eval_f):
         # Solving the ODE
-        mat = self.ODE_mat[str(int(ic_i[0]))]
+        mat = self.build_matrices(ic_i[0])
         sol = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac, eval_f=eval_f)
         t_i, y_i = np.delete(sol[0], 0, 0), np.delete(sol[1], 0, 0)
         t_i[0,:] = 0.
@@ -224,19 +216,21 @@ class DataGenerator(object):
         # Define data type
         pts = self.train_pts if (i % 2) == 0 else self.valid_pts
         # Sample data
-        n_pts  = sum([ n for k,n in pts.items() if k != 'ics' ])
-        idx    = self.get_indices(t_i, norm_J_i, n_pts)
+        n_pts = sum([ n for k,n in pts.items() if k != 'ics' ])
+        idx = self.get_indices(t_i, norm_J_i, n_pts)
         data_i = self.get_data(ic_i, t_i, y_i, pts, idx)
 
         return data_i
 
     def extract_data_scenario(self, idx, ic, t, y):
-        m = np.shape(idx)[0]
-        T = np.tile(ic[0 ], (m,1))
-        u = np.tile(ic[1:], (m,1))
+        # Number of data pts
+        n = np.shape(idx)[0]
+        # Input and Target data
+        T = np.tile(ic[0 ], (n,1))
+        u = np.tile(ic[1:], (n,1))
         t, y = t[idx,:], y[idx,:]
-        u, y = self.dens2mass_frac(u, y)
-        # return [[T, u, t], y]
+        u, y = self.dens2mass_frac(u, y=y)
+        u = np.hstack((u, T))
         return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
@@ -287,20 +281,29 @@ class DataGenerator(object):
         path = self.data_dir+"test/"
         if not os.path.exists(path):
             os.makedirs(path)
-        pd.DataFrame(self.X_test).to_csv(path+"test_inp_space.csv", \
-            index=False, header=self.X_header)
 
-        if self.test_training:      # Test underfitting
+        # Test underfitting
+        if self.test_training:
             assert self.scenarios >= self.test_cases
             idx     = np.random.choice(ic_train.shape[0], size=self.test_cases, replace=False)
-            ic_test = np.vstack((ic_test, ic_train[idx, :]))
-            # Print input space
-            pd.DataFrame(self.X_train[idx,:]).to_csv(path+"input_space.csv", \
-                index=False, header=self.X_header)
+            ic_test = np.vstack((ic_test, ic_train[idx]))
+            self.X_test = np.vstack((self.X_test, self.X_train[idx]))
 
         # Print ics
-        pd.DataFrame(ic_test).to_csv(path+"ics.csv", index=False, header=None)
+        pd.DataFrame(self.dens2mass_frac(ic_test[:,1:]), \
+            columns=self.groups_label + ['Y_O','rho']).to_csv( \
+            path+"ics.csv", index=False, float_format='{:e}'.format)
 
+        # Print and plot input space
+        path = path+"input_space/"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        pd.DataFrame(self.X_test, columns=self.X_col, \
+            index=list(range(1,self.test_cases*2+1))).to_csv( \
+            path+"data.csv", float_format='{:e}'.format)
+        self.plot_inp_space(path)
+
+        # Generate data
         data_test = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_test_scenario)( \
             i, ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_test)))
 
@@ -311,8 +314,9 @@ class DataGenerator(object):
         # Solving the ODE
         T_i = str(int(ic_i[0]))
         sol = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[T_i], \
-                                 eval_jac=eval_jac, eval_f=eval_f)
+            eval_jac=eval_jac, eval_f=eval_f)
         t_i, y_i = sol[0], sol[1]
+        ic_i[1:] = y_i[1]
         if eval_jac:
             norm_J_i, eig_J_i = sol[2], sol[3]
         if eval_f:
@@ -321,9 +325,9 @@ class DataGenerator(object):
         # Extract data values
         tree     = KDTree(np.c_[t_i.ravel()])
         d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
-        t_i, y_i = t_i[ii[0]:ii[1],:], y_i[ii[0]:ii[1],:]
+        t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
         u_i      = np.tile(ic_i[1:], (t_i.shape[0],1))
-        u_i, y_i = self.dens2mass_frac(u_i, y_i)
+        u_i, y_i = self.dens2mass_frac(u_i, y=y_i)
 
         title = 'Tested case (T = '+T_i+' K)'
         if self.test_training and i > self.test_cases-1:
@@ -335,6 +339,25 @@ class DataGenerator(object):
             data_i.append(f_rhs[ii[0]:ii[1],:])
 
         return data_i
+
+    def plot_inp_space(self, path):
+        lbl = [ r'$T_0$', r'$P_0$', r'${X_O}_2$' ]
+        X_tr = self.X_train[range(0,len(self.X_train),2)]
+        for i, X_i in enumerate(self.X_test):
+            fig = plt.figure()
+            ax  = plt.axes(projection='3d')
+            ax.set_xlabel(lbl[0])
+            ax.set_ylabel(lbl[1])
+            ax.set_zlabel(lbl[2])
+
+            marker_style = dict(marker='x', lw=0.5, linestyle='none', \
+                fillstyle='none', markersize=5)
+            ax.plot3D(X_tr[:,1], X_tr[:,2], X_tr[:,3], c='k', **marker_style)
+            ax.plot3D(X_i[1], X_i[2], X_i[3], c='r', **marker_style)
+
+            plt.grid()
+            fig.savefig(path+'/test_'+str(i+1)+'.pdf')
+            plt.close()
 
 
     ###########################################################################
@@ -372,12 +395,15 @@ class DataGenerator(object):
         num  = max(bins) + 1
         return bins, num
 
-    def dens2mass_frac(self, u, y):
+    def dens2mass_frac(self, u, y=None):
         '''Transform variables from partial densities to mass fractions.'''
-        mass = np.sum(u, axis=1, keepdims=True)
-        u = np.hstack((np.divide(u, mass), mass))
-        y = np.divide(y, mass)
-        return u, y
+        rho = np.sum(u, axis=1, keepdims=True)
+        u = np.hstack((np.divide(u, rho), rho))
+        if y is not None:
+            y = np.divide(y, rho)
+            return u, y
+        else:
+            return u
 
     # -------------------------------------------------------------------------
     # Sampling methods

@@ -110,8 +110,10 @@ def main():
         else:
             param = np.vstack((param, np.array(param_j)))
 
-    pd.DataFrame(param, columns=['A', 'n', 'Ea'], index=dataGen.rates_names).to_csv( \
-        dataGen.data_dir+'arrhenius_const.csv', float_format='{:e}'.format)
+    arr_coeff = pd.DataFrame(param, columns=['A', 'n', 'Ea'], index=dataGen.rates_names)
+    arr_coeff.index.name = 'reaction'
+    arr_coeff.to_csv(dataGen.data_dir+'arrhenius_coeff.csv', float_format='{:e}'.format)
+    arr_coeff.to_csv(dataGen.rates_path+'arrhenius_coeff.csv', float_format='{:e}'.format)
 
     # Plotting ----------------------------------------------------------------
     print('\n[Main]: Plotting rates')

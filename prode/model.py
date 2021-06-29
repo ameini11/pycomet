@@ -200,15 +200,15 @@ class Model(object):
         early_stopping_cb=None,
         model_ckpt_cb=None,
         profile_batch=0,
-        verbose=1):
+        verbose=1
+    ):
         utils.print_main("Training the model ...")
 
         # Defining callbacks
         utils.print_submain("Initilizing callbacks")
         if early_stopping_cb and early_stopping_cb['monitor']:    # Early Stopping callback
-            ES = CB.EarlyStopping(**early_stopping_cb,
-                                         restore_best_weights=True,
-                                         verbose=1)
+            ES = CB.EarlyStopping( \
+                **early_stopping_cb, restore_best_weights=True, verbose=1)
             callbacks.append(ES)
         if model_ckpt_cb and model_ckpt_cb['monitor']:            # Model Checkpoint callback
             MC = CB.ModelCheckpoint(**model_ckpt_cb, save_best_only=True, \
@@ -219,9 +219,9 @@ class Model(object):
             WL = self.add_weighted_loss_callback(weighted_loss_cb)
             callbacks.append(WL)
         TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
-                write_graph=True, write_images=True, profile_batch=profile_batch)
+            write_graph=True, write_images=True, profile_batch=profile_batch)
         LR = callbacks_module.LearningRateTracker(file=self.train_dir+'/lr.csv', \
-                log_dir=self.TB_dir, verbose=verbose)
+            log_dir=self.TB_dir, verbose=verbose)
         callbacks.extend([TB, LR])
 
         # Defining train/valid pts
@@ -231,19 +231,19 @@ class Model(object):
         utils.print_submain("")
 
         # Fit the model
-        self.history = self.net.fit(
+        self.net.fit(
             self.data.train,
             batch_size=self.data.batch_size,
             epochs=epochs,
             callbacks=callbacks,
             validation_split=self.data.validation_split,
             validation_data=self.data.valid,
-            validation_batch_size=self.data.valid_batch_size)
+            validation_batch_size=self.data.valid_batch_size
+        )
 
         # Save `history.history` in a file
-        hist_df = pd.DataFrame.from_dict(self.history.history)
-        with open(self.train_dir+'/history.csv', mode='w') as f:
-            hist_df.to_csv(path_or_buf=f, index=False)
+        pd.DataFrame.from_dict(self.net.history.history).to_csv( \
+            path_or_buf=self.train_dir+'/history.csv', index=False)
 
 
     def add_weighted_loss_callback(self, weighted_loss_cb):
@@ -277,8 +277,8 @@ class Model(object):
         y_pred = self.net.predict(x)
 
         if plotting:
-            if path is not None:
-                path = self.post_dir+'/testing_plots'
+            if path is None:
+                path = self.post_dir+'/testing'
             if not os.path.exists(path):
                 os.makedirs(path)
             testing_plots.plot_test(path, x, y_true, y_pred, var_names, \
@@ -317,12 +317,14 @@ class Model(object):
 
     # ======================================================================= #
     @utils.timing
-    def visualize_training(self, history=None, scale='log', limit_y=False):
+    def visualize_training(self, history=None, path=None, scale='log', limit_y=False):
         utils.print_main("Postprocessing training quantities ...")
-        history = self.get_history(history)
 
-        path = self.post_dir+'/training_plots'
-        if not os.path.exists(path): os.makedirs(path)
+        history = self.get_history(history)
+        if path is None:
+            path = self.post_dir+'/training'
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         training_plots.plot_lr(self.train_dir+'/lr.csv', path)
         if 'loss' in history.columns:
@@ -341,7 +343,7 @@ class Model(object):
 
     def get_history(self, history):
         if history is None:
-            history = self.history
+            history = self.net.history
         if isinstance(history, str):
             return pd.read_csv(history)
         else:

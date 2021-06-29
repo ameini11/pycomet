@@ -2,13 +2,14 @@ import os
 import sys
 import time
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.backend as K
 import tensorflow.keras.callbacks as CB
 
 from datetime import datetime
 from tensorflow.python.util.tf_export import keras_export
-from prode.postprocessing import testing_plots
+from prode.postprocessing import testing_plots, training_plots
 from prode.utilities import utils
 
 
@@ -240,35 +241,68 @@ class Plotter(CB.Callback):
         labels,
         scales,
         log_flg,
+        limit_y,
         train_dir,
         period):
         super(Plotter, self).__init__()
+
         self.test_cases = test_cases
         self.var_names  = var_names
         self.labels     = labels
         self.scales     = scales
         self.log_flg    = log_flg
 
-        self.path = train_dir+'/testing_plots'
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        self.limit_y    = limit_y
 
+        self.train_dir  = train_dir
+        self.path = {
+            'train': self.train_dir+'plots/training',
+            'test':  self.train_dir+'plots/testing'
+        }
+        for k, v in self.path.items():
+            if not os.path.exists(v):
+                os.makedirs(v)
         self.period = period
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % self.period == 0:
-            for i, test_i in enumerate(self.test_cases):
-                title, x, y_true = self.unpack_test_data(test_i)
-                y_pred = self.model.predict(x)
+            print(">> `Plotter` callback:")
+            self.training(limit_y=self.limit_y)
+            self.testing()
 
-                path = self.path + '/test_'+str(i)
-                if not os.path.exists(path):
-                    os.makedirs(path)
+    def training(self, scale='log', limit_y=False):
+        print("   - Plotting training quantities ...")
+        history = pd.DataFrame.from_dict(self.model.history.history)
+        path = self.path['train']
+        # Learning rate
+        training_plots.plot_lr(self.train_dir+'/lr.csv', path)
+        # Losses
+        if 'loss' in history:
+            training_plots.plot_loss(history, path, scale=scale, limit_y=limit_y)
+        elif 'tot_loss' in history:
+            training_plots.plot_composite_loss(history, path, scale=scale, limit_y=limit_y)
+            if any([ c.endswith('weight') for c in history ]):
+                training_plots.plot_loss_weights(history, path)
+        # Metrics
+        metrics = self.model.compiled_metrics._metrics
+        if metrics:
+            for metric in metrics:
+                training_plots.plot_metric(history, path, metric, scale=scale, limit_y=limit_y)
+
+    def testing(self):
+        print("   - Plotting test cases ...")
+        for i, test_i in enumerate(self.test_cases):
+            title, x, y_true = self.unpack_test_data(test_i)
+            y_pred = self.model.predict(x)
+
+            path = self.path['test'] + '/test_'+str(i+1)
+            if not os.path.exists(path):
+                os.makedirs(path)
+            testing_plots.plot_test(path, x, y_true, y_pred, self.var_names,
+                title=title, labels=self.labels, scales=self.scales)
+            if self.log_flg:
                 testing_plots.plot_test(path, x, y_true, y_pred, self.var_names,
-                    title=title, labels=self.labels, scales=self.scales)
-                if self.log_flg:
-                    testing_plots.plot_test(path, x, y_true, y_pred, self.var_names,
-                        title=title, labels=self.labels, scales=['log','log'])
+                    title=title, labels=self.labels, scales=['log','log'])
 
     def unpack_test_data(self, test_data):
         if len(test_data) == 3:

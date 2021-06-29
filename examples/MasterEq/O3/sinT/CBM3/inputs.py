@@ -10,7 +10,7 @@ class InputData(object):
     ###########################################################################
     ### Paths
     ###########################################################################
-    database_path = os.path.normpath(os.getcwd()+'/../database')
+    database_path = os.path.normpath(os.getcwd()+'/../../database')
     utils_path = os.path.normpath(os.getcwd()+'/../utils')
 
 
@@ -129,7 +129,7 @@ class InputData(object):
     ###########################################################################
     ### Training
     ###########################################################################
-    epochs       = 50
+    epochs       = 20
     batch_size   = {'ics': 1, 'pts': 1, 'res': 128}
     valid_batch_size = {'ics': 1, 'pts': 1, 'res': 32}
 

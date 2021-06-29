@@ -114,9 +114,9 @@ def main():
     if inp.train_flg > 0:
         cb_list = []
         if inp.plot_flg == 2:
-            PL = pro_callbacks.Plotter(data_test, inp.var_names, inp.labels,
-                                       inp.scales, inp.log_plot,
-                                       model.train_dir, inp.period)
+            PL = pro_callbacks.Plotter(test_cases=data_test, var_names=inp.var_names, \
+                labels=inp.labels, scales=inp.scales, log_flg=inp.log_plot, \
+                limit_y=inp.limit_y, train_dir=model.train_dir, period=inp.period)
             cb_list.append(PL)
 
         model.fit(epochs=inp.epochs, callbacks=cb_list, \
@@ -140,9 +140,7 @@ def main():
         plot_style = dict(plotting=inp.plot_flg, var_names=inp.var_names, labels=inp.labels)
         for i, test_i in enumerate(data_test):
             # Define 'path'
-            path = model.post_dir+'/testing_plots/test_'+str(i)
-            if not os.path.exists(path):
-                os.makedirs(path)
+            path = model.post_dir+'/testing/test_'+str(i+1)
             model.predict(test_i, path=path, scales=inp.scales, **plot_style)
             if inp.log_plot:
                 model.predict(test_i, path=path, scales=['log', 'log'], **plot_style)
