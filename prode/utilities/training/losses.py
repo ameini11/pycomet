@@ -14,7 +14,7 @@ def mae(axis):
         y_pred = ops.convert_to_tensor_v2_with_dispatch(y_pred)
         y_true = math_ops.cast(y_true, y_pred.dtype)
         err    = math_ops.abs(y_pred - y_true)
-        return tf.reduce_mean(err, axis=axis)
+        return tf.reduce_sum(tf.reduce_mean(err, axis=axis))
     return mean_absolute_error
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')
