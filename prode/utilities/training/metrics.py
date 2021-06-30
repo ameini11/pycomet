@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow.keras.metrics as met
 
-from prode.utilities.training_utils import losses as losses_module
+from prode.utilities.training import losses as losses_module
 from prode.utilities import utils
 
 

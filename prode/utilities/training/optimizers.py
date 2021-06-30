@@ -28,5 +28,5 @@ def _get_optimizer(name, lr):
         "ftrl":         opt.Ftrl(learning_rate=lr),
         "rmsprop":      opt.RMSprop(learning_rate=lr),
         "sgd":          opt.SGD(learning_rate=lr),
-        "sgd_nesterov": opt.SGD(learning_rate=lr, nesterov=True),
+        "sgd_nesterov": opt.SGD(learning_rate=lr, nesterov=True)
     }[name]

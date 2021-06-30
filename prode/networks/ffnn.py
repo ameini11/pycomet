@@ -1,8 +1,8 @@
 import tensorflow as tf
 
-from prode.utilities.model_utils import activations
-from prode.utilities.model_utils import initializers
-from prode.utilities.model_utils import regularizers
+from prode.utilities.model import activations
+from prode.utilities.model import initializers
+from prode.utilities.model import regularizers
 from prode.networks.net import Net
 
 

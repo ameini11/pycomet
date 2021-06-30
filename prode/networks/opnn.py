@@ -1,9 +1,9 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
-from prode.utilities.model_utils import activations
-from prode.utilities.model_utils import initializers
-from prode.utilities.model_utils import regularizers
+from prode.utilities.model import activations
+from prode.utilities.model import initializers
+from prode.utilities.model import regularizers
 from prode.networks.net import Net
 from prode.utilities import utils
 
@@ -26,12 +26,10 @@ class OpNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        loss_weights=None,
         name='opnn'):
         super(OpNN, self).__init__(
             dim=dim,
             block=block,
-            loss_weights=loss_weights,
             name=name)
 
         ### Hyperparameters Initialization ------------------------------------

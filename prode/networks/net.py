@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from prode.utilities.model_utils import layers
+from prode.utilities.model import layers
 from prode.utilities import utils
 from prode.networks import steps
 
@@ -15,7 +15,6 @@ class Net(tf.keras.Model):
         self,
         dim,
         block='FFBlock',
-        loss_weights=None,
         name='net'):
         super(Net, self).__init__()
 
@@ -30,7 +29,7 @@ class Net(tf.keras.Model):
 
         self.block   = utils.get_class(layers, block)
 
-        self.loss_weights = loss_weights
+        self.loss_weights = None
 
         self.inp_trans    = None
         self.out_trans    = None
@@ -117,8 +116,6 @@ class Net(tf.keras.Model):
     def add_loss_weights(self, loss_weights):
         if loss_weights is not None:
             self.loss_weights = self.get_loss_properties(loss_weights, 'loss_weights')
-        else:
-            self.loss_weights = None
 
     def get_loss_properties(self, properties, prop_name):
         if isinstance(properties, dict):

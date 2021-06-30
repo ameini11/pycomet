@@ -1,9 +1,11 @@
-from prode.utilities import model_utils
-from prode.utilities import training_utils
+from prode.utilities import callbacks
+from prode.utilities import model
+from prode.utilities import training
 from prode.utilities import utils
 
 __all__ = [
-    "model_utils",
-    "training_utils",
+    "callbacks",
+    "model",
+    "training",
     "utils"
 ]

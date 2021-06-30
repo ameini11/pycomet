@@ -1,10 +1,10 @@
 import tensorflow as tf
 import tensorflow.keras.layers as lay
 
-from prode.utilities.model_utils import activations
-from prode.utilities.model_utils import initializers
-from prode.utilities.model_utils import layers
-from prode.utilities.model_utils import regularizers
+from prode.utilities.model import activations
+from prode.utilities.model import initializers
+from prode.utilities.model import layers
+from prode.utilities.model import regularizers
 from prode.networks.func_net import FuncNet
 from prode.utilities import utils
 

@@ -5,13 +5,11 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.callbacks as CB
-# import tensorboard_plugin_profile
 
-from prode.utilities.training_utils import callbacks as callbacks_module
-from prode.utilities.training_utils import losses as losses_module
-from prode.utilities.training_utils import metrics as metrics_module
-from prode.utilities.training_utils import weighted_loss
-from prode.utilities.training_utils.optimizers import get_train_opt
+from prode.utilities.callbacks import callbacks as callbacks_module
+from prode.utilities.training import losses as losses_module
+from prode.utilities.training import metrics as metrics_module
+from prode.utilities.training.optimizers import get_train_opt
 from prode.postprocessing import training_plots, testing_plots
 from prode.utilities import utils
 
@@ -195,40 +193,19 @@ class Model(object):
     def fit(
         self,
         epochs=1,
-        callbacks=[],
-        weighted_loss_cb=None,
-        early_stopping_cb=None,
-        model_ckpt_cb=None,
-        profile_batch=0,
+        callbacks={},
         verbose=1
     ):
         utils.print_main("Training the model ...")
 
         # Defining callbacks
         utils.print_submain("Initilizing callbacks")
-        if early_stopping_cb and early_stopping_cb['monitor']:    # Early Stopping callback
-            ES = CB.EarlyStopping( \
-                **early_stopping_cb, restore_best_weights=True, verbose=1)
-            callbacks.append(ES)
-        if model_ckpt_cb and model_ckpt_cb['monitor']:            # Model Checkpoint callback
-            MC = CB.ModelCheckpoint(**model_ckpt_cb, save_best_only=True, \
-                filepath=self.ckpt_dir+"/weights_{epoch:06d}.h5", save_weights_only=True)
-            callbacks.append(MC)
-        if weighted_loss_cb:                          # Weighted Loss callback
-            self.net.add_loss_weights(self.loss_weights)
-            WL = self.add_weighted_loss_callback(weighted_loss_cb)
-            callbacks.append(WL)
-        TB = CB.TensorBoard(log_dir=self.TB_dir, histogram_freq=0, \
-            write_graph=True, write_images=True, profile_batch=profile_batch)
-        LR = callbacks_module.LearningRateTracker(file=self.train_dir+'/lr.csv', \
-            log_dir=self.TB_dir, verbose=verbose)
-        callbacks.extend([TB, LR])
+        callbacks = callbacks_module.get_cb_list(self, callbacks)
 
         # Defining train/valid pts
-        utils.print_submain("")
         num_train_pts = self.data.get_num_pts(data_type='training', verbose=verbose)
         num_valid_pts = self.data.get_num_pts(data_type='validation', verbose=verbose)
-        utils.print_submain("")
+        print("")
 
         # Fit the model
         self.net.fit(
@@ -244,23 +221,6 @@ class Model(object):
         # Save `history.history` in a file
         pd.DataFrame.from_dict(self.net.history.history).to_csv( \
             path_or_buf=self.train_dir+'/history.csv', index=False)
-
-
-    def add_weighted_loss_callback(self, weighted_loss_cb):
-        kwargs = {}
-        kwargs['model'] = self.net
-        kwargs['data_generator'] = self.data.train
-        kwargs['log_dir'] = self.TB_dir
-        if isinstance(weighted_loss_cb, dict):
-            name = weighted_loss_cb.pop('name')
-            kwargs.update(weighted_loss_cb)
-        elif isinstance(weighted_loss_cb, str):
-            name = weighted_loss_cb
-        else:
-            utils.raise_value_err(
-                "`weighted_loss_cb` passed into `Model.fit` must be a "
-                "`dict` or a `str` (name of the loss adapter callback).")
-        return utils.get_class(weighted_loss, name)(**kwargs)
 
 
     # ======================================================================= #
