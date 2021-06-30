@@ -105,7 +105,7 @@ class DataGenerator(object):
                 idx = [int(bins_idx)]
             else:
                 idx = [int(bins_idx[0])-1, int(bins_idx[1])-1]
-            rates_coeff[reac_name][**idx] = rate
+            rates_coeff[reac_name][*idx] = rate
         return rates_coeff
 
     def build_matrices(self, T):
