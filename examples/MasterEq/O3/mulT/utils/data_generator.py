@@ -102,10 +102,10 @@ class DataGenerator(object):
             rate = self.modified_arrhenius(T, row['A'], row['n'], row['Ea'])
             reac_name, bins_idx = index.split('_')
             if reac_name == 'diss':
-                idx = [int(bins_idx)]
+                idx = int(bins_idx)
             else:
-                idx = [int(bins_idx[0])-1, int(bins_idx[1])-1]
-            rates_coeff[reac_name][*idx] = rate
+                idx = int(bins_idx[0])-1, int(bins_idx[1])-1
+            rates_coeff[reac_name][idx] = rate
         return rates_coeff
 
     def build_matrices(self, T):
