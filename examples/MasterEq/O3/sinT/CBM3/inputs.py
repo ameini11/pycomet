@@ -41,7 +41,7 @@ class InputData(object):
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
     MEq_mat   = {'excit': 1, 'diss': 1, 'recomb': 1}    # Processes Activator
-    t0, t_end = 1.e-12, 1.e-3           # Time limits for testing
+    t0, t_end = 1.e-14, 1.e-3           # Time limits for testing
 
 
     ###########################################################################

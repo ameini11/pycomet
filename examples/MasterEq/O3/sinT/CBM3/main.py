@@ -1,14 +1,14 @@
 import os
 import sys
+import numpy as np
+import pandas as pd
 # Remove the following line if you install `prode` as a Python package --------
 sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
 # -----------------------------------------------------------------------------
 import prode as pro
-from prode.utilities import utils
-
-import pandas as pd
-import numpy as np
 import tensorflow as tf
+
+from prode.utilities import utils
 from tensorflow.keras import callbacks
 
 from inputs import InputData as inp
