@@ -30,6 +30,7 @@ def train_step(model, data):
     else:
         # Calculate unweighted total loss
         total_loss = get_tot_loss(model, losses, training=False)
+        # Add weighted total loss
         metric = {'tot_loss_weighted': tot_loss_weighted}
 
     return {**metric, **get_metrics(total_loss, losses, reg_loss=reg_loss)}
