@@ -18,8 +18,6 @@ def get_cb_list(model, callbacks):
             get_callback(model, identifier, args) for identifier, args in \
                 callbacks.items() if args is not None
         ]
-    else:
-        return []
 
 def get_callback(model, identifier, args):
     if identifier == "early_stopping":
@@ -31,7 +29,7 @@ def get_callback(model, identifier, args):
     elif identifier == "timer":
         return early_stopping.Timer(**args)
     elif identifier == "lr_scheduler":
-        return get_lr_scheduler(model, args)
+        return get_lr_scheduler(args)
     elif identifier == "weighted_loss":
         return get_weighted_loss(model, args)
     elif identifier == "lr_tracker":
@@ -59,6 +57,6 @@ def get_weighted_loss(model, args):
     )
     return utils.get_class(weighted_loss, name)(**args)
 
-def get_lr_scheduler(model, args):
+def get_lr_scheduler(args):
     name = args.pop('name')
     return utils.get_class(learning_rate, name)(**args)

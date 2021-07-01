@@ -64,7 +64,7 @@ class Plotter(CB.Callback):
         metrics = self.model.compiled_metrics._metrics
         if metrics:
             for metric in metrics:
-                training_plots.plot_metric(history, path, metric, scale=scale, limit_y=limit_y)
+                training_plots.plot_metric(history, path, metric._name, scale=scale, limit_y=limit_y)
 
     def testing(self):
         print("   - Plotting test cases ...")

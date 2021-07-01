@@ -125,7 +125,7 @@ class InputData(object):
 
     # Training ----------------------------------------------------------------
     train_pts = {
-        'ics': 100,     # Number of training scenarios
+        'ics': 10,     # Number of training scenarios
         'pts': 0,       # Number of total anchor pts for each scenario
         'res': 160      # Number of total collocaion pts for each scenario
     }

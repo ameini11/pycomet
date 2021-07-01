@@ -193,7 +193,7 @@ class Model(object):
     def fit(
         self,
         epochs=1,
-        callbacks={},
+        callbacks=None,
         verbose=1
     ):
         utils.print_main("Training the model ...")
@@ -293,13 +293,18 @@ class Model(object):
             training_plots.plot_composite_loss(history, path, scale=scale, limit_y=limit_y)
             if any([ c.endswith('weight') for c in history.columns ]):
                 training_plots.plot_loss_weights(history, path)
-        if self.metrics is not None:
-            for met in self.metrics:
-                try:
-                    name = met.name
-                except AttributeError:
-                    name = met.__name__
-                training_plots.plot_metric(history, path, name, scale=scale, limit_y=limit_y)
+
+        metrics = self.net.compiled_metrics._metrics
+        if metrics:
+            for metric in metrics:
+                training_plots.plot_metric(history, path, metric._name, scale=scale, limit_y=limit_y)
+        # if self.metrics is not None:
+        #     for met in self.metrics:
+        #         try:
+        #             name = met.name
+        #         except AttributeError:
+        #             name = met.__name__
+        #         training_plots.plot_metric(history, path, name, scale=scale, limit_y=limit_y)
 
     def get_history(self, history):
         if history is None:
