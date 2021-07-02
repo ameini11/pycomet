@@ -28,12 +28,12 @@ def ode(ic, t, grads, params):
 
     # Rearranging variables
     Y, dY_dt = [ grad * mass for grad in grads ]
-    Y_O      = tf.split(Y, Y.shape[1], axis=1)[-1]
+    Y_O      = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)[-1]
 
-    # Computing Residuals - Master Equation
-    excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
-    disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
-    recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
+    # Computing Master Equation terms
+    excit_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
+    disso_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
+    recom_term = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
 
     rhs = excit_term + disso_term + recom_term
 

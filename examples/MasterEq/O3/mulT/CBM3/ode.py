@@ -1,0 +1,265 @@
+import os
+import sys
+# Remove the following line if you install `prode` as a Python package --------
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
+# -----------------------------------------------------------------------------
+import prode as pro
+from prode.utilities import utils as pro_utils
+from prode.utilities.training_utils import callbacks as pro_callbacks
+
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import callbacks
+from tensorflow.python.keras import backend as K
+
+from inputs import InputData as inp
+sys.path.append(inp.utils_path)
+from data_generator import DataGenerator
+
+
+
+from const      import const
+from ode_solver import ODESolver
+
+
+class MasterEq(object):
+
+    ###########################################################################
+    ### Initialization
+    ###########################################################################
+    def __init__(self, inputs):
+
+        self.header   = '[PrODE - Data Gen]: '
+
+        # Retrieving Molecular data -------------------------------------------
+        self.levels_file = inputs.database_path + \
+            '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
+        self.binMap_file = inputs.database_path + \
+            '/grouping/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
+        self.g, self.EeV, self.num_lev = self.read_levels()
+        self.bins, self.num_bins = self.read_groups()
+
+        # Retrieve Arrhenius coefficients -------------------------------------
+        self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + \
+            inputs.grouping + '/'
+        self.arrhenius_name = ['A', 'n', 'Ea']
+        self.arrhenius_coeff, self.excit_idx = self.get_arrhenius()
+
+        # Master Equation matrices --------------------------------------------
+        num_exc = int((self.num_bins-1)*self.num_bins/2)
+        num_diss = int(self.num_bins)
+        self.split_proc = [num_diss, num_exc, num_exc]
+        self.me_mask = list(inputs.MEq_mat.values())
+
+
+    ###########################################################################
+    ### ODEs Residual
+    ###########################################################################
+    def ode(ic, t, grads, params):
+        """Evaluates the residual error of a ODEs system given the Initial
+        Conditions, the time vector and the n-order derivatives of the model 
+        outputs w.r.t. the time input.
+
+        >> Study case herein: Kinetic Master Equations for O2+O system
+
+        Args:
+            ic: The Initial Conditions (IC) input `Tensor` with shape 
+                (batch_size, d), where `d` is the number of the IC variables.
+            t: Time input `Tensor` with shape (batch_size, 1).
+            grads: List of `Tensors` with shape (batch_size, var) of the 
+                derivatives of the model outputs (`var`) w.r.t. the time input
+                `t`. From 0-th to n-order derivatives:
+                d^i(y)/dt^i with i = 0,...,n 
+            params: Parameters of the ODEs system. It depends on the user's
+                usage and on the type of ODEs.
+
+        Returns:
+            A `Tensor` with shape (batch_size, var), with `var` the number of
+            variables of the ODEs system.
+        """
+
+        # Extract `mass` and `T` vectors from the `ic` tensor
+        ic = tf.split(ic, num_or_size_splits=inputs.dim["inp"][0], axis=1)
+        mass, T = ic[-2], ic[-1]
+
+        # Get Master Equations matrices
+        K_e, K_d, K_r = self.get_matrices(T, params)
+
+        # Manipulate variables
+        Y, dY_dt = [ grad * mass for grad in grads ]
+
+        # Extract atomic oxygen O mass fraction vector from model outputs
+        Y_O = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)[-1]
+
+        # Compute Master Equations RHS
+        excit_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
+        disso_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
+        recom_term = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
+        rhs = excit_term + disso_term + recom_term
+
+        # Return the residual error
+        return dY_dt - rhs
+
+
+    ###########################################################################
+    ### Build Matrices
+    ###########################################################################
+    def get_matrices(self, T, arrhenius):
+        rates_diss, rates_exc = self.modified_arrhenius(T, **arrhenius)
+        Q_bins = self.partition_func(T)
+
+        K_e = self.excitation_mat( \
+            self.me_mask[0], rates_exc, Q_bins) / const.mO
+        K_d = self.dissociation_mat( \
+            self.me_mask[1], rates_diss) / const.mO
+        K_r = self.recombination_mat( \
+            self.me_mask[2], rates_diss, Q_bins, T) / const.mO**2 * 2
+        return K_e, K_d, K_r
+
+    def modified_arrhenius(self, T, A, n, Ea):
+        # Manage temperature vector (n,1)
+        T_log = tf.math.log(tf.tranpose(T))
+        T_rec = tf.math.reciprocal(tf.tranpose(T))
+
+        rates_log = tf.math.log(A) + tf.tensordot(n, T_log, 1) \
+            - tf.tensordot(Ea, T_rec, 1)/const.Ru
+        rates = tf.tranpose(tf.math.exp(rates_log))
+
+        # Split rates between different processes: dissociation & exicitation
+        rates = tf.split(rates, num_or_size_splits=self.split_proc, axis=1)
+        rates_diss, rates_exc = rates[0], rates[1] + rates[2]
+        return rates_diss, rates_exc
+
+    def partition_func(self, T):
+        '''Compute bins partition function.'''
+        T_rec = tf.math.reciprocal(tf.tranpose(T))
+        q = tf.math.multiply(self.g, \
+            tf.math.exp(-tf.tensordot(self.EeV*const.Ue, T_rec, 1)/const.UKb))
+        Q_bins = []
+        for bin_i in range(self.num_bins):
+            Q_bins.append( \
+                tf.math.reduce_sum(q[self.bins==bin_i], axis=0, keepdims=True))
+        Q_bins = tf.concat(Q_bins, 0)
+        return tf.tranpose(Q_bins)
+
+    # Excitation processes ----------------------------------------------------
+    def excitation_mat(self, mask, rates, Q_bins):
+        '''Excit. & Relax. rates matrix'''
+
+        # Define dimesion
+        d = self.num_bins + 1
+
+        # Create a `zeros` 3D tensor of shape (n,d,d)
+        placeholder = tf.zeros_like(rates[:,0:1], dtype=K.floatx())
+        K = tf.reshape(np.tile(placeholder, [1,d**2]), [-1,d,d])
+        
+        if mask:
+            # Feed matrix with rates
+            for k, (i,j) in enumerate(self.excit_idx):
+                K[:,i,j] = rates[:,k]
+                K[:,j,i] = rates[:,k] * Q_bins[:,i] / Q_bins[:,j]
+            # Construct the Excit. & Relax. Master Eq. matrix
+            K = - tf.linalg.diag(tf.reduce_sum(K, axis=1)) \
+                + tf.transpose(K, perm=[0, 2, 1])
+        return K
+
+    # Dissociation processes --------------------------------------------------
+    def dissociation_mat(self, mask, rates):
+        '''Dissociation rates matrix'''
+
+        # Define dimesion
+        d = self.num_bins + 1
+
+        # Create a `zeros` 3D tensor of shape (n,d,d)
+        placeholder = tf.zeros_like(rates[:,0:1], dtype=K.floatx())
+        K = tf.reshape(np.tile(placeholder, [1,d**2]), [-1,d,d])
+
+        if mask:
+            # Construct the Dissociation Master Eq. matrix
+            K[:,:-1,:-1] = - tf.linalg.diag(rates)
+            K[:, -1,:-1] = rates
+        return K
+
+    # Recombination processes -------------------------------------------------
+    def recombination_mat(self, mask, rates, Q_bins, T):
+        '''Recombination rates matrix'''
+
+        # Obtain recombination rates from dissociation ones
+        rates = tf.math.multiply(rates, self.Keq_diss(Q_bins, T))
+
+        # Define dimesion
+        d = self.num_bins + 1
+
+        # Create a `zeros` 3D tensor of shape (n,d,1)
+        placeholder = tf.zeros_like(rates[:,0:1], dtype=K.floatx())
+        K = tf.reshape(np.tile(placeholder, [1,d]), [-1,d,1])
+
+        if mask:
+            # Construct the Recombination Master Eq. matrix
+            K[:,:-1,0] = rates
+            K[:, -1,0] = - tf.reduce_sum(rates)
+        return K
+
+    def Keq_diss(self, Q_bins, T):
+        '''Diss.-Recomb. equilibrium constants matrix'''
+
+        # Calculate translational partition functions
+        Qtr_O = tf.math.pow(2*np.pi*const.UKb*T*const.mO / const.hp**2, 3./2.)
+        Qtr_O2 = tf.math.pow(2., 3./2.) * Qtr_O
+
+        # Calculate internal partition functions
+        Q_O = 9
+        Q_O2 = Q_bins
+
+        # Calculate equilibrium constants
+        num = tf.math.multiply(Q_O2, Qtr_O2)
+        den = tf.math.pow(Q_O * Qtr_O, 2)
+        Keq = tf.divide(num, den)
+
+        return Keq
+
+
+    ###########################################################################
+    ### Util Functions
+    ###########################################################################
+    def get_arrhenius(self):
+        # Read the Arrhenius coefficients table as a dataframe
+        arr = pd.read_csv(self.rates_path + 'arrhenius_coeff.csv', \
+            index_col=0)
+
+        # Read the reaction bins index
+        excit_idx = []
+        for index, _ in arr.iterrows():
+            reac_name, bins_idx = index.split('_')
+            if reac_name == 'exch':
+                excit_idx.append(tuple(int(bins_idx[0])-1, int(bins_idx[1])-1))
+
+        # Extract the Arrhenius coefficient by name
+        arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(arr[x], \
+            dtype=K.floatx()), 1), self.arrhenius_name))
+
+        return arr_coeff, excit_idx
+
+    def read_levels(self):
+        '''Retrieve all the ro-vib levels.'''
+        data = pd.read_csv(self.levels_file, header=None, skiprows=15, delim_whitespace=True)
+        data = data.apply(pd.to_numeric, errors='coerce')
+        vqn  = np.array(data[0])                    # Vibrational Q.N.
+        jqn  = np.array(data[1])                    # Rotational  Q.N.
+        g    = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
+        EeV  = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
+        EeV  = EeV - EeV[0]
+        num  = len(vqn)
+        g, EeV = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
+            dtype=K.floatx()), 1), [g, EeV]))
+        return g, EeV, num
+
+    def read_groups(self):
+        '''Retrieve mapping of each rot-vib level to the respective bin.'''
+        data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
+        data = data.apply(pd.to_numeric, errors='coerce')
+        idx  = np.array(data[0])                                                                           
+        bins = np.array(data[1]) - 1    # Level-to-Bin
+        num  = max(bins) + 1
+        return bins, num
