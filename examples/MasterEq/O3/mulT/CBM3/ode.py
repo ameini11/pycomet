@@ -1,26 +1,13 @@
-import os
+# import os
 import sys
-# Remove the following line if you install `prode` as a Python package --------
-sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
-# -----------------------------------------------------------------------------
-import prode as pro
-from prode.utilities import utils as pro_utils
-from prode.utilities.training_utils import callbacks as pro_callbacks
-
-import pandas as pd
 import numpy as np
+import pandas as pd
 import tensorflow as tf
-from tensorflow.keras import callbacks
-from tensorflow.python.keras import backend as K
 
+from tensorflow.python.keras import backend as K
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
-from data_generator import DataGenerator
-
-
-
 from const      import const
-from ode_solver import ODESolver
 
 
 class MasterEq(object):
@@ -81,7 +68,7 @@ class MasterEq(object):
 
         # Extract `mass` and `T` vectors from the `ic` tensor
         ic = tf.split(ic, num_or_size_splits=inputs.dim["inp"][0], axis=1)
-        mass, T = ic[-2], ic[-1]
+        T, mass = ic[0], ic[1]
 
         # Get Master Equations matrices
         K_e, K_d, K_r = self.get_matrices(T, params)
@@ -177,7 +164,7 @@ class MasterEq(object):
 
         if mask:
             # Construct the Dissociation Master Eq. matrix
-            K[:,:-1,:-1] = - tf.linalg.diag(rates)
+            K[:,:-1,:-1] = tf.linalg.diag(-rates)
             K[:, -1,:-1] = rates
         return K
 
@@ -231,9 +218,9 @@ class MasterEq(object):
         # Read the reaction bins index
         excit_idx = []
         for index, _ in arr.iterrows():
-            reac_name, bins_idx = index.split('_')
+            reac_name, *bins_idx = index.split('_')
             if reac_name == 'exch':
-                excit_idx.append(tuple(int(bins_idx[0])-1, int(bins_idx[1])-1))
+                excit_idx.append(tuple([int(bins_idx[0])-1, int(bins_idx[1])-1]))
 
         # Extract the Arrhenius coefficient by name
         arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(arr[x], \

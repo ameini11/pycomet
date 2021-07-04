@@ -1,46 +1,24 @@
 import os
 import sys
+import numpy as np
+import pandas as pd
 # Remove the following line if you install `prode` as a Python package --------
 sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
 # -----------------------------------------------------------------------------
 import prode as pro
-from prode.utilities import utils as pro_utils
-from prode.utilities.training_utils import callbacks as pro_callbacks
-
-import pandas as pd
-import numpy as np
 import tensorflow as tf
+
+from prode.utilities import utils
 from tensorflow.keras import callbacks
 
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
+from ode import MasterEq
 
 
-def ode(ic, t, grads, params):
 
-    # Extracting `mass` and `T_trans`
-    ic   = tf.split(ic, num_or_size_splits=inp.dim["inp"][0], axis=1)
-    mass, T = ic[-2], ic[-1]
-
-    # Getting Rate Coefficient matrices
-    K_e, K_d, K_r = [ tf.transpose(params[T][name]) for name in params[T] ]
-
-    # Rearranging variables
-    Y, dY_dt = [ grad * mass for grad in grads ]
-    Y_O      = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)[-1]
-
-    # Computing Master Equation terms
-    excit_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
-    disso_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
-    recom_term = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
-
-    rhs = excit_term + disso_term + recom_term
-
-    return dY_dt - rhs
-
-
-@pro_utils.main_decorator
+@utils.main_decorator
 def main():
 
     ###########################################################################
@@ -61,14 +39,16 @@ def main():
         train_data['data_source'] = valid_data['data_source'] = 'file'
         col_x, col_y = inp.col_x, inp.col_y
 
-    print(train_data)
-    input('_________________')
     # Initialize Data ---------------------------------------------------------
-    data = pro_utils.get_class(pro.data, inp.data_name)(
+    me = MasterEq(inp)
+
+    input('_________________')
+
+    data = utils.get_class(pro.data, inp.data_name)(
         inp.dim,
-        ode_func=ode,
+        ode_func=me.ode,
         ode_order=1,
-        ode_params=dataGen.ODE_mat,
+        ode_params=me.arrhenius_coeff,
         train_data=train_data,
         valid_data=valid_data,
         col_x=col_x,
@@ -81,7 +61,7 @@ def main():
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    net = pro_utils.get_class(pro.networks, inp.nn_name)(
+    net = utils.get_class(pro.networks, inp.nn_name)(
         inp.dim,
         inp.layer_size,
         inp.activation,
@@ -112,17 +92,13 @@ def main():
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:
-        cb_list = []
-        if inp.plot_flg == 2:
-            PL = pro_callbacks.Plotter(test_cases=data_test, var_names=inp.var_names, \
-                labels=inp.labels, scales=inp.scales, log_flg=inp.log_plot, \
-                limit_y=inp.limit_y, train_dir=model.train_dir, period=inp.period)
-            cb_list.append(PL)
+        if 'plotter' in inp.callbacks:
+            if inp.plot_flg != 2:
+                inp.callbacks.pop('plotter')
+            else:
+                inp.callbacks['plotter']['test_cases'] = data_test
 
-        model.fit(epochs=inp.epochs, callbacks=cb_list, \
-            weighted_loss_cb=inp.weighted_loss,
-            early_stopping_cb=inp.early_stopping,
-            model_ckpt_cb=inp.model_ckpt)
+        model.fit(epochs=inp.epochs, callbacks=inp.callbacks)
 
     # Save Model ---------------------------------------------------------------
     if inp.save_flg > 0:

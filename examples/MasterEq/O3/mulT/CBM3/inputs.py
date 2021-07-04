@@ -32,11 +32,10 @@ class InputData(object):
 
     # Input Space Extreme Values ----------------------------------------------
     inp_dim = 4                         # Input Space Dimensionality
-    Ttr = [10000.0e0,   10000.0e0]       # Tanslational Temperature
-    # T_tr = [1500.0e0,2500.0e0,5000.0e0,6000.0e0,8000.0e0,10000.0e0,12000.0e0,14000.0e0,15000.0e0,20000.0e0]
-    T0  = [1000.0e0,    10000.0e0]       # Initial TInt
-    P0  = [1.013250e2,  1.013250e4]      # Initial P
-    XO2 = [0.05e0,      1.e0]            # Initial O2 Mole Frac
+    Ttr = [5000.0e0,    10000.0e0]      # Tanslational Temperature
+    T0  = [1000.0e0,    10000.0e0]      # Initial TInt
+    P0  = [1.013250e2,  1.013250e4]     # Initial P
+    XO2 = [0.05e0,      1.e0]           # Initial O2 Mole Frac
 
     # Other properties --------------------------------------------------------
     grouping  = 'CBM3' #'DPM10'
@@ -51,7 +50,7 @@ class InputData(object):
 
     # Variables Dimensionality ------------------------------------------------
     dim = {
-        "inp": [5, 1],      # Branch-Trunk input dimensionality
+        "inp": [6, 1],      # Branch-Trunk input dimensionality
         "out": 4            # Output dimensionality
     }
 
@@ -118,15 +117,13 @@ class InputData(object):
         'pts': './data/valid/pts.csv',
         'res': './data/valid/res.csv'
     }
-    # col_x = [[1,6],[6,7]]
-    # col_y = [7,11]
-    col_x = [[0,5],[5,6]]
-    col_y = [6,10]
+    col_x = [[0,6],[6,7]]
+    col_y = [7,11]
 
     # Training ----------------------------------------------------------------
     train_pts = {
         'ics': 10,     # Number of training scenarios
-        'pts': 0,       # Number of total anchor pts for each scenario
+        'pts': 1,       # Number of total anchor pts for each scenario
         'res': 160      # Number of total collocaion pts for each scenario
     }
     valid = 0.2                 # % of Validation pts

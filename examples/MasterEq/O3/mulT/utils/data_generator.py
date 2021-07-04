@@ -78,8 +78,7 @@ class DataGenerator(object):
 
         # Labeling Data -------------------------------------------------------
         self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
-        data_label_inp = self.groups_label + ['Y_O','rho','t']
-        # data_label_inp  = groups_label + ['Y_O','rho','T','t']
+        data_label_inp = ['T', 'rho'] + self.groups_label + ['Y_O', 't']
         data_label_out = self.groups_label + ['Y_O']
         self.data_label = data_label_inp + data_label_out
 
@@ -87,8 +86,8 @@ class DataGenerator(object):
     ###########################################################################
     ### Master Equation matrices
     ###########################################################################
-    def modified_arrhenius(T, A, n, Ea):
-        return A * np.power(T,n) * np.exp(-Ea/(R*T))
+    def modified_arrhenius(self, T, A, n, Ea):
+        return A * np.power(T,n) * np.exp(-Ea/(const.Ru*T))
 
     def get_rates(self, T):
         '''Retrieve rates coefficients from dataframe.'''
@@ -100,9 +99,9 @@ class DataGenerator(object):
 
         for index, row in self.arrhenius_coeff.iterrows():
             rate = self.modified_arrhenius(T, row['A'], row['n'], row['Ea'])
-            reac_name, bins_idx = index.split('_')
+            reac_name, *bins_idx = index.split('_')
             if reac_name == 'diss':
-                idx = int(bins_idx)
+                idx = int(bins_idx[0])-1
             else:
                 idx = int(bins_idx[0])-1, int(bins_idx[1])-1
             rates_coeff[reac_name][idx] = rate
@@ -127,28 +126,29 @@ class DataGenerator(object):
 
         # Contructing Design Matrix -------------------------------------------
         self.X_col = ['Ttr', 'T0', 'P0', 'X_O2']
-        X       = lhs(self.inp_dim, samples=n)
-        X[:,:1] = np.random.choice(self.Ttr, size=(n,1))
-        X[:,1:] = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
-                                     range(1,4), [self.T0, self.P0, self.XO2])))
+        X = lhs(self.inp_dim, samples=n)
+        X = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
+            range(4), [self.Ttr, self.T0, self.P0, self.XO2])))
         # Sort wrt the norm of the projection
         norm_fn = lambda i,x: (X[:,i:i+1] - x[0])/(x[1] - x[0]) \
                               if x[1] != x[0] else np.ones(X[:,i:i+1].shape)
-        X_norm  = np.hstack(tuple(map(norm_fn, range(0,4), [self.Ttr, self.T0, self.P0, self.XO2])))
-        proj    = (np.dot(X_norm, unit_vec.transpose()) \
-                    / np.dot(unit_vec, unit_vec.transpose())) * unit_vec
-        X       = X[np.linalg.norm(proj, axis=1).argsort()]
+        X_norm = np.hstack(tuple(map(norm_fn, range(0,4), \
+            [self.Ttr, self.T0, self.P0, self.XO2])))
+        proj = (np.dot(X_norm, unit_vec.transpose()) \
+            / np.dot(unit_vec, unit_vec.transpose())) * unit_vec
+        X = X[np.linalg.norm(proj, axis=1).argsort()]
 
         # Generating Initial Conditions ---------------------------------------
-        ic = np.zeros((n,self.num_bins+1), dtype=np.float64)
+        rho_s = np.zeros((n,self.num_bins+1), dtype=np.float64)
         for i in tqdm(range(n)):
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
             XO        = 1. - XO2
             nd        = P0 / (const.UKb * T0)
             Q_bins    = self.compute_partition_func(T0)
-            ic[i,:-1] = XO2 * Q_bins / sum(Q_bins) * 2.0 * const.mO * nd
-            ic[i, -1] = XO  * const.mO * nd
-        ic = np.hstack((X[:,0:1], ic))
+            rho_s[i,:-1] = XO2 * Q_bins / sum(Q_bins) * 2.0 * const.mO * nd
+            rho_s[i, -1] = XO  * const.mO * nd
+        Ttr, rho = X[:,0:1], np.sum(rho_s, axis=1, keepdims=True)
+        ic = np.hstack((Ttr, rho, np.divide(rho_s, rho)))
 
         if self.test_cases > 0:
             idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
@@ -173,15 +173,15 @@ class DataGenerator(object):
         for i, data_i in enumerate(data_list):
             # Define data type
             data_type = 'train' if (i % 2) == 0 else 'valid'
-            if (i % 2) == 0:
-                marker_style = dict(marker='o', lw=0.5, ls='none', \
-                                    fillstyle='full', markersize=2)
-                plt.xscale('log')
-                plt.yscale('log')
-                plt.plot(data_i['res'][0][1], data_i['res'][1], **marker_style)
-                plt.plot(data_i['pts'][0][1], data_i['pts'][1], c='k', **marker_style)
-                plt.grid()
-                plt.show()
+            # if (i % 2) == 0:
+            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
+            #                         fillstyle='full', markersize=2)
+            #     plt.xscale('log')
+            #     plt.yscale('log')
+            #     plt.plot(data_i['res'][0][1], data_i['res'][1], **marker_style)
+            #     plt.plot(data_i['pts'][0][1], data_i['pts'][1], c='k', **marker_style)
+            #     plt.grid()
+            #     plt.show()
             data = self.stack_data(data, data_i, data_type)
 
         # Save data in a `.csv` file
@@ -205,10 +205,10 @@ class DataGenerator(object):
     def single_train_scenario(self, i, ic_i, eval_jac, eval_f):
         # Solving the ODE
         mat = self.build_matrices(ic_i[0])
-        sol = self.ODE_sol.solve(ic_i[1:], mat, eval_jac=eval_jac, eval_f=eval_f)
-        t_i, y_i = np.delete(sol[0], 0, 0), np.delete(sol[1], 0, 0)
-        t_i[0,:] = 0.
-        ic_i[1:5] = y_i[0,:]
+        rho_0 = ic_i[2:] * ic_i[1]
+        sol = self.ODE_sol.solve(rho_0, mat, eval_jac=eval_jac, eval_f=eval_f)
+        t_i, y_i = np.delete(sol[0], 0, 0), np.delete(sol[1], 0, 0)/ic_i[1]
+        t_i[0,:], ic_i[2:] = 0., y_i[0,:]
         if eval_jac:
             norm_J_i, eig_J_i = np.delete(sol[2], 0, 0), np.delete(sol[3], 0, 0)
         if eval_f:
@@ -226,11 +226,8 @@ class DataGenerator(object):
         # Number of data pts
         n = np.shape(idx)[0]
         # Input and Target data
-        T = np.tile(ic[0 ], (n,1))
-        u = np.tile(ic[1:], (n,1))
-        t, y = t[idx,:], y[idx,:]
-        u, y = self.dens2mass_frac(u, y=y)
-        u = np.hstack((u, T))
+        u = np.tile(ic, (n,1))
+        t, y = t[idx], y[idx]
         return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
@@ -290,8 +287,7 @@ class DataGenerator(object):
             self.X_test = np.vstack((self.X_test, self.X_train[idx]))
 
         # Print ics
-        pd.DataFrame(self.dens2mass_frac(ic_test[:,1:]), \
-            columns=self.groups_label + ['Y_O','rho']).to_csv( \
+        pd.DataFrame(ic_test, columns=['T','rho'] + self.groups_label + ['Y_O']).to_csv( \
             path+"ics.csv", index=False, float_format='{:e}'.format)
 
         # Print and plot input space
@@ -304,6 +300,9 @@ class DataGenerator(object):
         self.plot_inp_space(path)
 
         # Generate data
+        # data_test = []
+        # for i, ic_i in enumerate(tqdm(ic_test)):
+        #     data_test.append(self.single_test_scenario(i, ic_i, eval_jac, eval_f))
         data_test = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_test_scenario)( \
             i, ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_test)))
 
@@ -312,11 +311,11 @@ class DataGenerator(object):
     def single_test_scenario(self, i, ic_i, eval_jac, eval_f):
 
         # Solving the ODE
-        T_i = str(int(ic_i[0]))
-        sol = self.ODE_sol.solve(ic_i[1:], self.ODE_mat[T_i], \
-            eval_jac=eval_jac, eval_f=eval_f)
-        t_i, y_i = sol[0], sol[1]
-        ic_i[1:] = y_i[1]
+        mat = self.build_matrices(ic_i[0])
+        rho_0 = ic_i[2:] * ic_i[1]
+        sol = self.ODE_sol.solve(rho_0, mat, eval_jac=eval_jac, eval_f=eval_f)
+        t_i, y_i = sol[0], sol[1]/ic_i[1]
+        ic_i[2:] = y_i[1]
         if eval_jac:
             norm_J_i, eig_J_i = sol[2], sol[3]
         if eval_f:
@@ -326,12 +325,11 @@ class DataGenerator(object):
         tree     = KDTree(np.c_[t_i.ravel()])
         d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
         t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
-        u_i      = np.tile(ic_i[1:], (t_i.shape[0],1))
-        u_i, y_i = self.dens2mass_frac(u_i, y=y_i)
+        u_i      = np.tile(ic_i, (t_i.shape[0],1))
 
-        title = 'Tested case (T = '+T_i+' K)'
+        title = 'Tested case'
         if self.test_training and i > self.test_cases-1:
-            title = 'Trained case (T = '+T_i+' K)'
+            title = 'Trained case'
 
         # Collect data values
         data_i = [title, [u_i, t_i], y_i]
@@ -436,9 +434,18 @@ class DataGenerator(object):
 
         tree  = KDTree(np.c_[t.ravel()])
         QoI_del = np.amax(np.abs((QoI[:-1,:] - QoI[1:,:]) / QoI[1:,:]), axis=1, keepdims=True)
-        idx_min = np.where(QoI_del > 1.e-5)[0][ 0]  # Dynamics start-point
+
+        # Get min and max indices
+        idx_min, delta_min = None, 1.e-5
+        while idx_min is None:
+            try:
+                idx_min = np.where(QoI_del > delta_min)[0][ 0]  # Dynamics start-point
+            except:
+                idx_min = None
+                delta_min = delta_min * 0.99
         idx_max = np.where(QoI_del > 1.e-13)[0][-1]  # Dynamics end-point
 
+        # Split the number of pts among the 3 different regions of sampling
         pts_dist = list(map(lambda i: round(self.train_split[i]*pts), range(2)))
         pts_dist.append(pts - sum(pts_dist))
 
@@ -450,7 +457,7 @@ class DataGenerator(object):
         idx_1 = self.sampling(5, idx_min-2, t, tree, pts_dist[1])
 
         # Sampling the equilibrium
-        idx_2 = self.sampling(idx_max+2, idx_max+500, t, tree, pts_dist[2])
+        idx_2 = self.sampling(idx_max+2, min(idx_max+500, QoI.shape[0]), t, tree, pts_dist[2])
 
         # Merging indices
         idx = np.sort(np.concatenate([idx_0,idx_1,idx_2]))

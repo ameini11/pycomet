@@ -79,7 +79,7 @@ class ODESolver(object):
             r.integrate(r.t+dt)
             if eval_jac:
                 norm_J, eig_J = list(map(lambda x,y: np.vstack((x,y)), \
-                                [norm_J, eig_J], self.eval_J(r.t, r.y, params)))
+                    [norm_J, eig_J], self.eval_J(r.t, r.y, params)))
             if eval_f:
                 f_rhs = np.vstack((f_rhs, self.f(r.t, r.y, params)))
             t  = np.vstack((t, np.expand_dims(r.t,0)))
@@ -145,7 +145,7 @@ class ODESolver(object):
         d = np.shape(rates)[0] + 1
         K = np.zeros((d,d), dtype=np.float64)
         if mask:
-            K[:-1,:-1] = -np.diag(np.sum(rates, axis=0)) + np.transpose(rates)
+            K[:-1,:-1] = -np.diag(np.sum(rates, axis=1)) + np.transpose(rates)
         return K
 
     def disso(self, mask, rates_coeff):
@@ -158,7 +158,7 @@ class ODESolver(object):
         d = np.shape(rates)[0] + 1
         K = np.zeros((d,d), dtype=np.float64)
         if mask:
-            K[:-1,:-1] = -np.diag(rates)
+            K[:-1,:-1] = np.diag(-rates)
             K[ -1,:-1] = rates
         return K
 
