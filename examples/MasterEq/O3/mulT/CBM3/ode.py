@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from tensorflow.python.keras import backend as K
+from tensorflow.python.keras import backend
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
 from const      import const
@@ -39,6 +39,9 @@ class MasterEq(object):
         self.split_proc = [num_diss, num_exc, num_exc]
         self.me_mask = list(inputs.MEq_mat.values())
 
+        # Master Equation matrices --------------------------------------------
+        self.ic_dim = inputs.dim["inp"][0]
+
 
     ###########################################################################
     ### ODEs Residual
@@ -67,7 +70,7 @@ class MasterEq(object):
         """
 
         # Extract `mass` and `T` vectors from the `ic` tensor
-        ic = tf.split(ic, num_or_size_splits=inputs.dim["inp"][0], axis=1)
+        ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
         T, mass = ic[0], ic[1]
 
         # Get Master Equations matrices
@@ -93,7 +96,7 @@ class MasterEq(object):
     ### Build Matrices
     ###########################################################################
     def get_matrices(self, T, arrhenius):
-        rates_diss, rates_exc = self.modified_arrhenius(T, **arrhenius)
+        rates_diss, rates_exc = self.modified_arrhenius(T, *arrhenius)
         Q_bins = self.partition_func(T)
 
         K_e = self.excitation_mat( \
@@ -106,12 +109,12 @@ class MasterEq(object):
 
     def modified_arrhenius(self, T, A, n, Ea):
         # Manage temperature vector (n,1)
-        T_log = tf.math.log(tf.tranpose(T))
-        T_rec = tf.math.reciprocal(tf.tranpose(T))
+        T_log = tf.math.log(tf.transpose(T))
+        T_rec = tf.math.reciprocal(tf.transpose(T))
 
         rates_log = tf.math.log(A) + tf.tensordot(n, T_log, 1) \
             - tf.tensordot(Ea, T_rec, 1)/const.Ru
-        rates = tf.tranpose(tf.math.exp(rates_log))
+        rates = tf.transpose(tf.math.exp(rates_log))
 
         # Split rates between different processes: dissociation & exicitation
         rates = tf.split(rates, num_or_size_splits=self.split_proc, axis=1)
@@ -120,7 +123,7 @@ class MasterEq(object):
 
     def partition_func(self, T):
         '''Compute bins partition function.'''
-        T_rec = tf.math.reciprocal(tf.tranpose(T))
+        T_rec = tf.math.reciprocal(tf.transpose(T))
         q = tf.math.multiply(self.g, \
             tf.math.exp(-tf.tensordot(self.EeV*const.Ue, T_rec, 1)/const.UKb))
         Q_bins = []
@@ -128,7 +131,7 @@ class MasterEq(object):
             Q_bins.append( \
                 tf.math.reduce_sum(q[self.bins==bin_i], axis=0, keepdims=True))
         Q_bins = tf.concat(Q_bins, 0)
-        return tf.tranpose(Q_bins)
+        return tf.transpose(Q_bins)
 
     # Excitation processes ----------------------------------------------------
     def excitation_mat(self, mask, rates, Q_bins):
@@ -138,16 +141,17 @@ class MasterEq(object):
         d = self.num_bins + 1
 
         # Create a `zeros` 3D tensor of shape (n,d,d)
-        placeholder = tf.zeros_like(rates[:,0:1], dtype=K.floatx())
+        placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
         K = tf.reshape(np.tile(placeholder, [1,d**2]), [-1,d,d])
+        K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
         
         if mask:
             # Feed matrix with rates
             for k, (i,j) in enumerate(self.excit_idx):
-                K[:,i,j] = rates[:,k]
-                K[:,j,i] = rates[:,k] * Q_bins[:,i] / Q_bins[:,j]
+                K = K[:,i,j].assign(rates[:,k])
+                K = K[:,j,i].assign(rates[:,k] * Q_bins[:,i] / Q_bins[:,j])
             # Construct the Excit. & Relax. Master Eq. matrix
-            K = - tf.linalg.diag(tf.reduce_sum(K, axis=1)) \
+            K = - tf.linalg.diag(tf.reduce_sum(K, axis=2)) \
                 + tf.transpose(K, perm=[0, 2, 1])
         return K
 
@@ -159,13 +163,14 @@ class MasterEq(object):
         d = self.num_bins + 1
 
         # Create a `zeros` 3D tensor of shape (n,d,d)
-        placeholder = tf.zeros_like(rates[:,0:1], dtype=K.floatx())
+        placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
         K = tf.reshape(np.tile(placeholder, [1,d**2]), [-1,d,d])
+        K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
 
         if mask:
             # Construct the Dissociation Master Eq. matrix
-            K[:,:-1,:-1] = tf.linalg.diag(-rates)
-            K[:, -1,:-1] = rates
+            K = K[:,:-1,:-1].assign(tf.linalg.diag(-rates))
+            K = K[:, -1,:-1].assign(rates)
         return K
 
     # Recombination processes -------------------------------------------------
@@ -179,13 +184,14 @@ class MasterEq(object):
         d = self.num_bins + 1
 
         # Create a `zeros` 3D tensor of shape (n,d,1)
-        placeholder = tf.zeros_like(rates[:,0:1], dtype=K.floatx())
+        placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
         K = tf.reshape(np.tile(placeholder, [1,d]), [-1,d,1])
+        K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
 
         if mask:
             # Construct the Recombination Master Eq. matrix
-            K[:,:-1,0] = rates
-            K[:, -1,0] = - tf.reduce_sum(rates)
+            K = K[:,:-1,0].assign(rates)
+            K = K[:, -1,0].assign(-tf.reduce_sum(rates, axis=1))
         return K
 
     def Keq_diss(self, Q_bins, T):
@@ -193,7 +199,7 @@ class MasterEq(object):
 
         # Calculate translational partition functions
         Qtr_O = tf.math.pow(2*np.pi*const.UKb*T*const.mO / const.hp**2, 3./2.)
-        Qtr_O2 = tf.math.pow(2., 3./2.) * Qtr_O
+        Qtr_O2 = tf.cast(tf.math.pow(2., 3./2.), backend.floatx()) * Qtr_O
 
         # Calculate internal partition functions
         Q_O = 9
@@ -224,7 +230,7 @@ class MasterEq(object):
 
         # Extract the Arrhenius coefficient by name
         arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(arr[x], \
-            dtype=K.floatx()), 1), self.arrhenius_name))
+            dtype=backend.floatx()), 1), self.arrhenius_name))
 
         return arr_coeff, excit_idx
 
@@ -239,7 +245,7 @@ class MasterEq(object):
         EeV  = EeV - EeV[0]
         num  = len(vqn)
         g, EeV = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
-            dtype=K.floatx()), 1), [g, EeV]))
+            dtype=backend.floatx()), 1), [g, EeV]))
         return g, EeV, num
 
     def read_groups(self):
