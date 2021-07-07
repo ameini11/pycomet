@@ -5,7 +5,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 from tensorflow.python.keras import backend
-from inputs import InputData as inp
+import inputs as inp
 sys.path.append(inp.utils_path)
 from const import const
 
@@ -34,7 +34,7 @@ class MasterEq(object):
         # Master Equation matrices --------------------------------------------
         # Dimension
         self.dim = self.num_bins + 1
-        # Non-zero elements flatten positions
+        # Non-zero elements positions (flatten)
         self.indices = {
             'excit': tf.constant(
                 [ [i * self.dim + j] for (i,j) in self.excit_bins ] + \
@@ -113,11 +113,11 @@ class MasterEq(object):
     ### Build Matrices
     ###########################################################################
     def get_matrices(self, T, arrhenius):
-        rates_diss, rates_exc = self.modified_arrhenius(T, *arrhenius)
+        rates_diss, rates_excit = self.modified_arrhenius(T, *arrhenius)
         Q_bins = self.partition_func(T)
 
         K_e = self.excitation_mat( \
-            self.me_mask[0], rates_exc, Q_bins) / const.mO
+            self.me_mask[0], rates_excit, Q_bins) / const.mO
         K_d = self.dissociation_mat( \
             self.me_mask[1], rates_diss) / const.mO
         K_r = self.recombination_mat( \
@@ -135,8 +135,8 @@ class MasterEq(object):
 
         # Split rates between different processes: dissociation & exicitation
         rates = tf.split(rates, num_or_size_splits=self.split_proc, axis=1)
-        rates_diss, rates_exc = rates[0], rates[1] + rates[2]
-        return rates_diss, rates_exc
+        rates_diss, rates_excit = rates[0], rates[1] + rates[2]
+        return rates_diss, rates_excit
 
     def partition_func(self, T):
         '''Compute bins partition function.'''
@@ -145,10 +145,11 @@ class MasterEq(object):
             tf.math.exp(-tf.tensordot(self.EeV*const.Ue, T_rec, 1)/const.UKb))
         Q_bins = []
         for bin_i in range(self.num_bins):
-            Q_bins.append( \
-                tf.math.reduce_sum(q[self.bins==bin_i], axis=0, keepdims=True))
-        Q_bins = tf.concat(Q_bins, 0)
-        return tf.transpose(Q_bins)
+            Q_bins.append(
+                tf.math.reduce_sum(q[self.bins==bin_i], axis=0, keepdims=True)
+            )
+        Q_bins = tf.transpose(tf.concat(Q_bins, 0))
+        return Q_bins
 
     # Excitation processes ----------------------------------------------------
     def excitation_mat(self, mask, rates, Q_bins):
@@ -267,8 +268,8 @@ class MasterEq(object):
                 excit_idx.append(tuple([int(bins_idx[0])-1, int(bins_idx[1])-1]))
 
         # Extract the Arrhenius coefficient by name
-        arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(arr[x], \
-            dtype=backend.floatx()), 1), self.arrhenius_name))
+        arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(
+            arr[x], dtype=backend.floatx()), 1), self.arrhenius_name))
 
         return arr_coeff, excit_idx
 
