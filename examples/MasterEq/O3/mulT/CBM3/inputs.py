@@ -125,8 +125,8 @@ col_y = [7,11]
 
 # Training ----------------------------------------------------------------
 train_pts = {
-    'ics': 4096,     # Number of training scenarios
-    'pts': 0,       # Number of total anchor pts for each scenario
+    'ics': 30,     # Number of training scenarios
+    'pts': 1,       # Number of total anchor pts for each scenario
     'res': 160     # Number of total collocaion pts for each scenario
 }
 valid = 0.2                 # % of Validation pts

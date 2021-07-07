@@ -2,7 +2,6 @@ import sys
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 from tensorflow.python.keras import backend
 import inputs as inp

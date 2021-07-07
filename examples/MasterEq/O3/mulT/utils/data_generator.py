@@ -449,18 +449,26 @@ class DataGenerator(object):
         pts_dist = list(map(lambda i: round(self.train_split[i]*pts), range(2)))
         pts_dist.append(pts - sum(pts_dist))
 
+        # Sampling indices
+        idx = []
+
+        # Sampling the equilibrium region
+        if idx_max+2+pts_dist[2] <= QoI.shape[0]:
+            idx.append(self.sampling(idx_max+2, min(idx_max+500, QoI.shape[0]), t, tree, pts_dist[2]))
+        else:
+            pts_dist[0] = pts_dist[0] + pts_dist[2]
+
+        # Sampling the initial dynamics region
+        if idx_min-2 >= 5+pts_dist[1]:
+            idx.append(self.sampling(5, idx_min-2, t, tree, pts_dist[1]))
+        else:
+            pts_dist[0] = pts_dist[0] + pts_dist[1]
+
         # Sampling inside the strongest nonequilibrium region
-        idx_0 = self.sampling(idx_min, idx_max, t, tree, pts_dist[0])
-
-        # Sampling the initial dynamics
-        # _, ii = tree.query(t[idx_min]*1.e-2, k=1)
-        idx_1 = self.sampling(5, idx_min-2, t, tree, pts_dist[1])
-
-        # Sampling the equilibrium
-        idx_2 = self.sampling(idx_max+2, min(idx_max+500, QoI.shape[0]), t, tree, pts_dist[2])
+        idx.append(self.sampling(idx_min, idx_max, t, tree, pts_dist[0]))
 
         # Merging indices
-        idx = np.sort(np.concatenate([idx_0,idx_1,idx_2]))
+        idx = np.sort(np.concatenate(idx))
         _, counts = np.unique(idx, return_counts=True)
         assert pts == np.sum(counts)
 
