@@ -17,8 +17,6 @@ class MasterEq(object):
     ###########################################################################
     def __init__(self, inputs):
 
-        # self.header   = '[PrODE - Data Gen]: '
-
         # Retrieving Molecular data -------------------------------------------
         self.levels_file = inputs.database_path + \
             '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
@@ -33,10 +31,10 @@ class MasterEq(object):
         self.arrhenius_name = ['A', 'n', 'Ea']
         self.arrhenius_coeff, self.excit_bins = self.get_arrhenius()
 
-        # Dimensions
+        # Master Equation matrices --------------------------------------------
+        # Dimension
         self.dim = self.num_bins + 1
-
-        # Non-zero elements flatten positions of the Master Equation matrices
+        # Non-zero elements flatten positions
         self.indices = {
             'excit': tf.constant(
                 [ [i * self.dim + j] for (i,j) in self.excit_bins ] + \
@@ -47,14 +45,18 @@ class MasterEq(object):
                 [ [i + (self.dim * self.num_bins)] for i in range(self.num_bins) ]
             )
         }
-
-        # Master Equation matrices --------------------------------------------
-        num_exc = int((self.num_bins-1)*self.num_bins/2)
-        num_diss = int(self.num_bins)
-        self.split_proc = [num_diss, num_exc, num_exc]
+        # Number of reactions for each process
+        num_reac = {
+            'exch': int((self.num_bins-1) * self.num_bins / 2),
+            'inel': int((self.num_bins-1) * self.num_bins / 2),
+            'diss': int(self.num_bins)
+        }
+        # Rates matrix splitted between different processes
+        self.split_proc = [ v for k,v in num_reac.items() ]
+        # Reactions flags activator (masking)
         self.me_mask = list(inputs.MEq_mat.values())
 
-        # Master Equation matrices --------------------------------------------
+        # IC input dimension --------------------------------------------------
         self.ic_dim = inputs.dim["inp"][0]
 
 
@@ -149,43 +151,6 @@ class MasterEq(object):
         return tf.transpose(Q_bins)
 
     # Excitation processes ----------------------------------------------------
-    # def excitation_mat(self, mask, rates, Q_bins):
-    #     '''Excit. & Relax. rates matrix'''
-
-    #     # Forward rates
-    #     rates_for = tfp.math.fill_triangular(rates)
-    #     pad_for = tf.constant([[0,0], [1, 1], [0, 2]])
-    #     rates_for = tf.pad(rates_for, pad_for, "CONSTANT")
-    #     print(pad_for)
-
-    #     # Reverse rates
-    #     rates_rev = tfp.math.fill_triangular(
-    #         tf.concat(
-    #             [ tf.expand_dims(rates[:,k] * Q_bins[:,i] / Q_bins[:,j], 1) \
-    #                 for k, (i,j) in enumerate(self.excit_bins) ], -1
-    #         ), upper=True
-    #     )
-    #     pad_rev = tf.constant([[0,0], [0, 2], [1, 1]])
-    #     rates_rev = tf.pad(rates_rev, pad_rev, "CONSTANT")
-
-    #     # Matrix Rates
-    #     rates = rates_rev + rates_for
-    #     print(rates.shape)
-    #     print(rates[0])
-    #     input('=========')
-
-    #     if mask:
-    #         # Construct the Excit. & Relax. Master Eq. matrix
-    #         K = - tf.linalg.diag(tf.reduce_sum(rates, axis=2)) \
-    #             + tf.transpose(rates, perm=[0, 2, 1])
-    #     else:
-    #         K = tf.zeros_like(rates, dtype=backend.floatx())
-    #     print(K.shape)
-    #     print(K[0])
-    #     input('=========')
-
-    #     return K
-
     def excitation_mat(self, mask, rates, Q_bins):
         '''Excit. & Relax. rates matrix'''\
 
