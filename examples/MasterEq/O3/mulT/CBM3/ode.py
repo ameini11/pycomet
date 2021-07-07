@@ -1,13 +1,13 @@
-# import os
 import sys
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from tensorflow.python.keras import backend
 from inputs import InputData as inp
 sys.path.append(inp.utils_path)
-from const      import const
+from const import const
 
 
 class MasterEq(object):
@@ -17,7 +17,7 @@ class MasterEq(object):
     ###########################################################################
     def __init__(self, inputs):
 
-        self.header   = '[PrODE - Data Gen]: '
+        # self.header   = '[PrODE - Data Gen]: '
 
         # Retrieving Molecular data -------------------------------------------
         self.levels_file = inputs.database_path + \
@@ -31,7 +31,22 @@ class MasterEq(object):
         self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + \
             inputs.grouping + '/'
         self.arrhenius_name = ['A', 'n', 'Ea']
-        self.arrhenius_coeff, self.excit_idx = self.get_arrhenius()
+        self.arrhenius_coeff, self.excit_bins = self.get_arrhenius()
+
+        # Dimensions
+        self.dim = self.num_bins + 1
+
+        # Non-zero elements flatten positions of the Master Equation matrices
+        self.indices = {
+            'excit': tf.constant(
+                [ [i * self.dim + j] for (i,j) in self.excit_bins ] + \
+                [ [j * self.dim + i] for (i,j) in self.excit_bins ]
+            ),
+            'diss': tf.constant(
+                [ [i * (self.dim + 1)] for i in range(self.num_bins) ] + \
+                [ [i + (self.dim * self.num_bins)] for i in range(self.num_bins) ]
+            )
+        }
 
         # Master Equation matrices --------------------------------------------
         num_exc = int((self.num_bins-1)*self.num_bins/2)
@@ -134,31 +149,73 @@ class MasterEq(object):
         return tf.transpose(Q_bins)
 
     # Excitation processes ----------------------------------------------------
+    # def excitation_mat(self, mask, rates, Q_bins):
+    #     '''Excit. & Relax. rates matrix'''
+
+    #     # Forward rates
+    #     rates_for = tfp.math.fill_triangular(rates)
+    #     pad_for = tf.constant([[0,0], [1, 1], [0, 2]])
+    #     rates_for = tf.pad(rates_for, pad_for, "CONSTANT")
+    #     print(pad_for)
+
+    #     # Reverse rates
+    #     rates_rev = tfp.math.fill_triangular(
+    #         tf.concat(
+    #             [ tf.expand_dims(rates[:,k] * Q_bins[:,i] / Q_bins[:,j], 1) \
+    #                 for k, (i,j) in enumerate(self.excit_bins) ], -1
+    #         ), upper=True
+    #     )
+    #     pad_rev = tf.constant([[0,0], [0, 2], [1, 1]])
+    #     rates_rev = tf.pad(rates_rev, pad_rev, "CONSTANT")
+
+    #     # Matrix Rates
+    #     rates = rates_rev + rates_for
+    #     print(rates.shape)
+    #     print(rates[0])
+    #     input('=========')
+
+    #     if mask:
+    #         # Construct the Excit. & Relax. Master Eq. matrix
+    #         K = - tf.linalg.diag(tf.reduce_sum(rates, axis=2)) \
+    #             + tf.transpose(rates, perm=[0, 2, 1])
+    #     else:
+    #         K = tf.zeros_like(rates, dtype=backend.floatx())
+    #     print(K.shape)
+    #     print(K[0])
+    #     input('=========')
+
+    #     return K
+
     def excitation_mat(self, mask, rates, Q_bins):
-        '''Excit. & Relax. rates matrix'''
+        '''Excit. & Relax. rates matrix'''\
 
-        # Define dimesion
-        d = self.num_bins + 1
-
-        # Reverse rates
-        rates_rev = tf.concat(
-            [ tf.expand_dims(rates[:,k] * Q_bins[:,i] / Q_bins[:,j], 1) \
-                for k, (i,j) in enumerate(self.excit_idx) ], -1)
-        print(rates_rev.shape)
-
-        # Create a `zeros` 3D tensor of shape (n,d,d)
+        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.reshape(tf.tile(placeholder, [1,d**2]), [-1,d,d])
-        # K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
-        
+        K = tf.tile(placeholder, [1,self.dim**2])
+
         if mask:
-            # Feed matrix with rates
-            for k, (i,j) in enumerate(self.excit_idx):
-                # K = K[:,i,j].assign(rates[:,k])
-                # K = K[:,j,i].assign(rates[:,k] * Q_bins[:,i] / Q_bins[:,j])
-                K[:,i,j] = rates[:,k]
-                K[:,j,i] = rates[:,k] * Q_bins[:,i] / Q_bins[:,j]
-            # Construct the Excit. & Relax. Master Eq. matrix
+            # Reverse Reaction rates
+            rates_rev = tf.concat(
+                [ tf.expand_dims(rates[:,k] * Q_bins[:,i] / Q_bins[:,j], 1) \
+                    for k, (i,j) in enumerate(self.excit_bins) ], -1
+            )
+
+            # Concatenate forward and reverse reaction rates: shape=(n,num_reac)
+            rates = tf.concat([rates, rates_rev], -1)
+
+            # Fill the Excit. & Relax. Master Eq. matrix with rates
+            K = tf.transpose(
+                tf.tensor_scatter_nd_update(
+                    tf.transpose(K), self.indices['excit'], tf.transpose(rates)
+                )
+            )
+
+        # Reshape the Excit. & Relax. Master Eq. matrix
+        K = tf.reshape(K, [-1,self.dim,self.dim])
+
+        if mask:
+            # Rearrange the Excit. & Relax. Master Eq. matrix to respect the
+            # system of equations
             K = - tf.linalg.diag(tf.reduce_sum(K, axis=2)) \
                 + tf.transpose(K, perm=[0, 2, 1])
         return K
@@ -167,39 +224,47 @@ class MasterEq(object):
     def dissociation_mat(self, mask, rates):
         '''Dissociation rates matrix'''
 
-        # Define dimesion
-        d = self.num_bins + 1
-
-        # Create a `zeros` 3D tensor of shape (n,d,d)
+        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.reshape(tf.tile(placeholder, [1,d**2]), [-1,d,d])
-        K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
+        K = tf.tile(placeholder, [1,self.dim**2])
 
         if mask:
-            # Construct the Dissociation Master Eq. matrix
-            K = K[:,:-1,:-1].assign(tf.linalg.diag(-rates))
-            K = K[:, -1,:-1].assign(rates)
+            # Rearrange rates to respect the Master Eq. system of equations
+            rates = tf.concat([-rates, rates], -1)
+
+            # Fill the Dissociation Master Eq. matrix with rearranged rates
+            K = tf.transpose(
+                tf.tensor_scatter_nd_update(
+                    tf.transpose(K), self.indices['diss'], tf.transpose(rates)
+                )
+            )
+
+        # Reshape the Dissociation Master Eq. matrix
+        K = tf.reshape(K, [-1,self.dim,self.dim])
+
         return K
 
     # Recombination processes -------------------------------------------------
     def recombination_mat(self, mask, rates, Q_bins, T):
         '''Recombination rates matrix'''
 
-        # Obtain recombination rates from dissociation ones
-        rates = tf.math.multiply(rates, self.Keq_diss(Q_bins, T))
-
-        # Define dimesion
-        d = self.num_bins + 1
-
-        # Create a `zeros` 3D tensor of shape (n,d,1)
+        # Create a `zeros` 2D tensor: shape=[n,d] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.reshape(tf.tile(placeholder, [1,d]), [-1,d,1])
-        K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
+        K = tf.tile(placeholder, [1,self.dim])
 
         if mask:
-            # Construct the Recombination Master Eq. matrix
-            K = K[:,:-1,0].assign(rates)
-            K = K[:, -1,0].assign(-tf.reduce_sum(rates, axis=1))
+            # Obtain recombination rates from dissociation ones
+            rates = tf.math.multiply(rates, self.Keq_diss(Q_bins, T))
+
+            # Rearrange rates to respect the Master Eq. system of equations
+            rates = tf.concat([rates, -tf.reduce_sum(rates, axis=1, keepdims=True)], -1)
+
+            # Fill the Recombination Master Eq. matrix with rates
+            K = rates
+
+        # Reshape the Recombination Master Eq. matrix
+        K = tf.reshape(K, [-1,self.dim,1])
+
         return K
 
     def Keq_diss(self, Q_bins, T):
