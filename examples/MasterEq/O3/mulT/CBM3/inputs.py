@@ -55,8 +55,8 @@ dim = {
 
 # Structure ---------------------------------------------------------------
 layer_size = {
-    "branch": [dim['inp'][0], 16, 16, 8],
-    "trunk":  [dim['inp'][1], 16, 16, 8]
+    "branch": [dim['inp'][0], 128, 128, 64],
+    "trunk":  [dim['inp'][1], 256, 256, 64]
 }
 activation = {
     "branch": 'elu',
@@ -75,7 +75,7 @@ batch_norm = {
 dropout_rate = 0
 # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
 kernel_initializer = "GlorotNormal"
-block = 'FFBlock' #'ResPIBlock'
+block = 'ResPIBlock' # FFBlock, ResPIBlock
 
 # I/O Transformation ------------------------------------------------------
 def branch_fn(x):
@@ -125,38 +125,38 @@ col_y = [7,11]
 
 # Training ----------------------------------------------------------------
 train_pts = {
-    'ics': 10,     # Number of training scenarios
-    'pts': 1,       # Number of total anchor pts for each scenario
-    'res': 160      # Number of total collocaion pts for each scenario
+    'ics': 4096,     # Number of training scenarios
+    'pts': 0,       # Number of total anchor pts for each scenario
+    'res': 160     # Number of total collocaion pts for each scenario
 }
 valid = 0.2                 # % of Validation pts
 train_pts_dist = 'uniform'  # Training pts distribution
 
 # Testing -----------------------------------------------------------------
-test_cases     = 10              # Number of testing cases
+test_cases     = 20              # Number of testing cases
 test_training  = True           # Test training case
 
 
 ###########################################################################
 ### Training
 ###########################################################################
-epochs       = 20
-batch_size   = {'ics': 1, 'pts': 1, 'res': 128}
-valid_batch_size = {'ics': 1, 'pts': 1, 'res': 32}
+epochs       = 30000
+batch_size   = {'ics': 128, 'pts': 128, 'res': 512}
+valid_batch_size = {'ics': 128, 'pts': 128, 'res': 128}
 
 optimizer    = 'adam'
-lr           = 1.e-3
+lr           = 5.e-4
 
 # Learning rate scheduler -------------------------------------------------
 # decay_epochs = 1000
-decay_steps  = 1000 # round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
-decay        = ["exponential", decay_steps, 0.9]
+decay_steps  = 512*300 # round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
+decay        = ["exponential", decay_steps, 0.98]
 
 # Losses ------------------------------------------------------------------
 loss = {
-    'ics': {'identifier': 'malpe', 'axis': -1}, # `axis` = reduction axis
-    'pts': {'identifier': 'malpe', 'axis': -1},
-    'res': {'identifier': 'mse',   'axis': -1}
+    'ics': {'identifier': 'malpe', 'axis': 0}, # `axis` = reduction axis
+    'pts': {'identifier': 'malpe', 'axis': 0},
+    'res': {'identifier': 'mae',   'axis': 0}
 }
 metrics = None
 
@@ -164,11 +164,11 @@ metrics = None
 callbacks = {
 
     'early_stopping': {
-        'monitor':              'val_tot_loss',
-        'min_delta':            1.e-6,
-        'patience':             20000,
-        'restore_best_weights': True,
-        'verbose':              1
+       'monitor':              'val_tot_loss',
+       'min_delta':            1.e-8,
+       'patience':             10000,
+       'restore_best_weights': True,
+       'verbose':              1
     },
 
     'lr_tracker': {
@@ -187,7 +187,7 @@ callbacks = {
         'scales':    scales,
         'log_flg':   log_plot,
         'limit_y':   limit_y,
-        'period':    10,
+        'period':    200,
     },
 
     'tensorboard': {
@@ -198,9 +198,10 @@ callbacks = {
     },
 
     'weighted_loss': {
-        'name':  'EmpiricalWeightsAdapter',
+        'name':  'EmpiricalMeanWeightsAdapter',
         'alpha': 0.9,
-        'freq':  100
+        'freq':  50
     }
 
 }
+
