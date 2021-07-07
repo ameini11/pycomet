@@ -1,5 +1,6 @@
 import os
 import prode as pro
+import tensorflow as tf
 
 from tensorflow.keras import layers
 from prode.utilities.model import layers as pro_layers
@@ -79,8 +80,13 @@ class InputData(object):
     block = 'FFBlock' #'ResPIBlock'
 
     # I/O Transformation ------------------------------------------------------
+    def branch_fn(x):
+        # T_scaled = (x[:,0:1] - Ttr[0]) / (Ttr[1] - Ttr[0])
+        T_scaled = (x[:,0:1] - 5000.0e0) / 5000.0e0
+        return tf.concat([T_scaled, x[:,1:]], 1)
+
     input_fn = {
-        "branch": layers.Lambda(lambda x: x, name='branch_fn'),
+        "branch": layers.Lambda(branch_fn, name='branch_fn'),
         "trunk" : pro_layers.Scaling(init_scale=1.e7, name='trunk_fn', trainable=False)
     }
     output_fn = layers.Softmax(axis=-1, name='output_fn')

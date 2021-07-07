@@ -46,7 +46,7 @@ class MasterEq(object):
     ###########################################################################
     ### ODEs Residual
     ###########################################################################
-    def ode(ic, t, grads, params):
+    def ode(self, ic, t, grads, params):
         """Evaluates the residual error of a ODEs system given the Initial
         Conditions, the time vector and the n-order derivatives of the model 
         outputs w.r.t. the time input.
@@ -140,16 +140,24 @@ class MasterEq(object):
         # Define dimesion
         d = self.num_bins + 1
 
+        # Reverse rates
+        rates_rev = tf.concat(
+            [ tf.expand_dims(rates[:,k] * Q_bins[:,i] / Q_bins[:,j], 1) \
+                for k, (i,j) in enumerate(self.excit_idx) ], -1)
+        print(rates_rev.shape)
+
         # Create a `zeros` 3D tensor of shape (n,d,d)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.reshape(np.tile(placeholder, [1,d**2]), [-1,d,d])
-        K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
+        K = tf.reshape(tf.tile(placeholder, [1,d**2]), [-1,d,d])
+        # K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
         
         if mask:
             # Feed matrix with rates
             for k, (i,j) in enumerate(self.excit_idx):
-                K = K[:,i,j].assign(rates[:,k])
-                K = K[:,j,i].assign(rates[:,k] * Q_bins[:,i] / Q_bins[:,j])
+                # K = K[:,i,j].assign(rates[:,k])
+                # K = K[:,j,i].assign(rates[:,k] * Q_bins[:,i] / Q_bins[:,j])
+                K[:,i,j] = rates[:,k]
+                K[:,j,i] = rates[:,k] * Q_bins[:,i] / Q_bins[:,j]
             # Construct the Excit. & Relax. Master Eq. matrix
             K = - tf.linalg.diag(tf.reduce_sum(K, axis=2)) \
                 + tf.transpose(K, perm=[0, 2, 1])
@@ -164,7 +172,7 @@ class MasterEq(object):
 
         # Create a `zeros` 3D tensor of shape (n,d,d)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.reshape(np.tile(placeholder, [1,d**2]), [-1,d,d])
+        K = tf.reshape(tf.tile(placeholder, [1,d**2]), [-1,d,d])
         K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
 
         if mask:
@@ -185,7 +193,7 @@ class MasterEq(object):
 
         # Create a `zeros` 3D tensor of shape (n,d,1)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.reshape(np.tile(placeholder, [1,d]), [-1,d,1])
+        K = tf.reshape(tf.tile(placeholder, [1,d]), [-1,d,1])
         K = tf.Variable(initial_value=K, trainable=False, validate_shape=False)
 
         if mask:

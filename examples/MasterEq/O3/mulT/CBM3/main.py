@@ -42,8 +42,6 @@ def main():
     # Initialize Data ---------------------------------------------------------
     me = MasterEq(inp)
 
-    input('_________________')
-
     data = utils.get_class(pro.data, inp.data_name)(
         inp.dim,
         ode_func=me.ode,
