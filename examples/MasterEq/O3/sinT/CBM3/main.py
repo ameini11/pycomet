@@ -11,7 +11,6 @@ import tensorflow as tf
 from prode.utilities import utils
 from tensorflow.keras import callbacks
 
-# from inputs import InputData as inp
 import inputs as inp
 sys.path.append(inp.utils_path)
 from data_generator import DataGenerator

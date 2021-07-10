@@ -1,13 +1,10 @@
 import os
 import numpy as np
 import prode as pro
-import tensorflow as tf
 
 from tensorflow.keras import layers
 from prode.utilities.model import layers as pro_layers
 
-
-# class InputData(object):
 
 ###########################################################################
 ### Paths
@@ -79,7 +76,7 @@ batch_norm = {
 dropout_rate = 0
 # NB: Not use `dropout_rate` and `batch_norm` together >> too much regularization
 kernel_initializer = "GlorotNormal"
-block = 'FFBlock' #'ResPIBlock'
+block = 'ResPIBlock' # FFBlock, ResPIBlock
 
 # I/O Transformation ------------------------------------------------------
 input_fn = {
@@ -109,7 +106,7 @@ limit_y  = False
 data_name = 'ODE'
 
 # Data source -------------------------------------------------------------
-from_file = True
+from_file = False
 data_train_file = {
     'ics': './data/train/ics.csv',
     'pts': './data/train/pts.csv',
