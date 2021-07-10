@@ -270,34 +270,37 @@ class DataGenerator(object):
     ###########################################################################
     ### Testing Data
     ###########################################################################
-    def testing_data(self, ic_test, ic_train=None, eval_jac=False, eval_f=False):
+    def testing_data(self, ic_test, ic_train=None, eval_jac=False, eval_f=False, header=None):
 
         print('\n' + self.header + 'Generating testing pts ...')
 
-        # Print input space
-        path = self.data_dir+"test/"
-        if not os.path.exists(path):
-            os.makedirs(path)
+        if isinstance(ic_test, str):
+            ic_test = pd.read_csv(ic_test, sep=',', header=header).values
+        else:
+            # Print input space
+            path = self.data_dir+"test/"
+            if not os.path.exists(path):
+                os.makedirs(path)
 
-        # Test underfitting
-        if self.test_training:
-            assert self.scenarios >= self.test_cases
-            idx     = np.random.choice(ic_train.shape[0], size=self.test_cases, replace=False)
-            ic_test = np.vstack((ic_test, ic_train[idx]))
-            self.X_test = np.vstack((self.X_test, self.X_train[idx]))
+            # Test underfitting
+            if self.test_training and ic_train is not None:
+                assert self.scenarios >= self.test_cases
+                idx     = np.random.choice(ic_train.shape[0], size=self.test_cases, replace=False)
+                ic_test = np.vstack((ic_test, ic_train[idx]))
+                self.X_test = np.vstack((self.X_test, self.X_train[idx]))
 
-        # Print ics
-        pd.DataFrame(ic_test, columns=['T','rho'] + self.groups_label + ['Y_O']).to_csv( \
-            path+"ics.csv", index=False, float_format='{:e}'.format)
+            # Print ics
+            pd.DataFrame(ic_test, columns=['T','rho'] + self.groups_label + ['Y_O']).to_csv( \
+                path+"ics.csv", index=False, float_format='{:e}'.format)
 
-        # Print and plot input space
-        path = path+"input_space/"
-        if not os.path.exists(path):
-            os.makedirs(path)
-        pd.DataFrame(self.X_test, columns=self.X_col, \
-            index=list(range(1,self.test_cases*2+1))).to_csv( \
-            path+"data.csv", float_format='{:e}'.format)
-        self.plot_inp_space(path)
+            # Print and plot input space
+            path = path+"input_space/"
+            if not os.path.exists(path):
+                os.makedirs(path)
+            pd.DataFrame(self.X_test, columns=self.X_col, \
+                index=list(range(1,self.test_cases*2+1))).to_csv( \
+                path+"data.csv", float_format='{:e}'.format)
+            self.plot_inp_space(path)
 
         # Generate data
         # data_test = []

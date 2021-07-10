@@ -26,18 +26,20 @@ def main():
     ###########################################################################
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(inp)
-    ic      = dataGen.initial_cond()
-    if inp.test_flg > 0 and inp.test_cases > 0:
-        data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
     if not inp.from_file:
+        ic = dataGen.initial_cond()
+        col_x, col_y, header = None, None, None
         train_data, valid_data = dataGen.training_data(ic[0])
         train_data['data_source'] = valid_data['data_source'] = 'array'
-        col_x, col_y = None, None
+        if inp.test_flg > 0 and inp.test_cases > 0:
+            data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
     else:
+        col_x, col_y, header = inp.col_x, inp.col_y, inp.header
         train_data = inp.data_train_file
         valid_data = inp.data_valid_file
         train_data['data_source'] = valid_data['data_source'] = 'file'
-        col_x, col_y = inp.col_x, inp.col_y
+        if inp.test_flg > 0 and inp.test_cases > 0:
+            data_test = dataGen.testing_data(inp.data_test_file, header=header)
 
     # Initialize Data ---------------------------------------------------------
     me = MasterEq(inp)
@@ -51,6 +53,8 @@ def main():
         valid_data=valid_data,
         col_x=col_x,
         col_y=col_y,
+        header=header,
+        preproc_fn=inp.preproc_fn,
         batch_size=inp.batch_size,
         valid_batch_size=inp.valid_batch_size)
 

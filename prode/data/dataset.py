@@ -30,17 +30,26 @@ class DataSet(Data):
         valid_split=None,
         col_x=None,
         col_y=None,
+        header=None,
+        preproc_fn=None,
         batch_size=32,
         valid_batch_size=32):
         super(DataSet, self).__init__(dim=dim)
+
+        # Only if data from file
+        self.col_x = col_x
+        self.col_y = col_y
+        self.header = header
+        self.preproc_fn = preproc_fn
+
         if x_train is not None:
             self.train = self.get_dataset(x_train, y_train, batch_size)
             self.valid = self.get_dataset(x_valid, y_valid, valid_batch_size)
             self.test  = self.get_dataset(x_test,  y_test)
         elif file_train is not None:
-            self.train = self.load_data(file_train, col_x, col_y, batch_size)
-            self.valid = self.load_data(file_valid, col_x, col_y, valid_batch_size)
-            self.test  = self.load_data(file_test,  col_x, col_y)
+            self.train = self.load_data(file_train, batch_size=batch_size)
+            self.valid = self.load_data(file_valid, batch_size=valid_batch_size)
+            self.test  = self.load_data(file_test)
         else:
             utils.raise_value_err("No training data passed into `{}`.".format(self.name))
 
@@ -51,20 +60,22 @@ class DataSet(Data):
 
     # Handling Data
     ###########################################################################
-    def load_data(self, filename, col_x, col_y, batch_size):
+    def load_data(self, filename, batch_size=None):
         if filename is None:
             return None
-        if col_x is None or col_y is None:
+        if col_x is None or self.col_y is None:
             utils.raise_value_err("In `{}` you have to provide `col_x` and "
                 "`col_y` to extract data from file.".format(self.__name__))
-        data = pd.read_csv(filename, sep=',', header=None).values
-        if any(isinstance(i, list) for i in col_x):
+        data = pd.read_csv(filename, sep=',', header=self.header).values
+        if self.preproc_fn is not None:
+            data = self.preproc_fn(data)
+        if any(isinstance(i, list) for i in self.col_x):
             x_data = []
-            for i in range(len(col_x)):
-                x_data.append(data[:, col_x[i][0]:col_x[i][1]])
+            for i in range(len(self.col_x)):
+                x_data.append(data[:, self.col_x[i][0]:self.col_x[i][1]])
         else:
-            x_data = data[:, col_x[0]:col_x[1]], data[:, col_y[0]:col_y[1]]
-        y_data = data[:, col_y[0]:col_y[1]]
+            x_data = data[:, self.col_x[0]:self.col_x[1]], data[:, self.col_y[0]:self.col_y[1]]
+        y_data = data[:, self.col_y[0]:self.col_y[1]]
         return self.get_dataset(x_data, y_data, batch_size)
 
 

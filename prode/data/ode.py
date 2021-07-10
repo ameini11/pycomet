@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tensorflow.keras.backend as K
+
 from sklearn.model_selection import train_test_split
 from varname import nameof
 
@@ -28,6 +30,8 @@ class ODE(Data):
         valid_split=None,
         col_x=None,
         col_y=None,
+        header=None,
+        preproc_fn=None,
         batch_size=32,
         valid_batch_size=None):
         super(ODE, self).__init__(dim=dim)
@@ -39,8 +43,11 @@ class ODE(Data):
             'res'   # Collocation pts (residual)
             ])
         
+        # Only if data from file
         self.col_x = col_x
         self.col_y = col_y
+        self.header = header
+        self.preproc_fn = preproc_fn
 
         # Training/Validation data
         self.check_data_source(train_data, nameof(train_data))
@@ -124,7 +131,9 @@ class ODE(Data):
                     "`self.col_x` and `self.col_y` to extract data from file.\nThey should "
                     "be the doublet 'start'-'end+1' columns (or a list of those) "
                     "of x and y data.".format(self.name))
-            data_frame = pd.read_csv(data[data_id], sep=',', header=None).values
+            data_frame = pd.read_csv(data[data_id], sep=',', header=self.header).astype(K.floatx()).values
+            if self.preproc_fn is not None:
+                data_frame = self.preproc_fn(data_frame)
             if any(isinstance(i, (list,tuple)) for i in self.col_x):
                 x_data = []
                 for i in range(len(self.col_x)):

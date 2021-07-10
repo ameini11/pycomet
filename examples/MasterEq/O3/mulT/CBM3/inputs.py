@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import prode as pro
 import tensorflow as tf
 
@@ -31,7 +32,7 @@ name  = 'MEq_OpNN'
 
 # Input Space Extreme Values ----------------------------------------------
 inp_dim = 4                         # Input Space Dimensionality
-Ttr = [5000.0e0,    10000.0e0]      # Tanslational Temperature
+Ttr = [5000.0e0,    15000.0e0]      # Tanslational Temperature
 T0  = [1000.0e0,    10000.0e0]      # Initial TInt
 P0  = [1.013250e2,  1.013250e4]     # Initial P
 XO2 = [0.05e0,      1.e0]           # Initial O2 Mole Frac
@@ -120,12 +121,17 @@ data_valid_file = {
     'pts': './data/valid/pts.csv',
     'res': './data/valid/res.csv'
 }
+data_test_file = './data/test/ics.csv'
 col_x = [[0,6],[6,7]]
 col_y = [7,11]
+header = 0
+def preproc_fn(x):
+    x[:,-1] = 1. - np.sum(x[:,col_y[0]:col_y[1]-1], axis=1)
+    return x
 
 # Training ----------------------------------------------------------------
 train_pts = {
-    'ics': 30,     # Number of training scenarios
+    'ics': 10,     # Number of training scenarios
     'pts': 1,       # Number of total anchor pts for each scenario
     'res': 160     # Number of total collocaion pts for each scenario
 }
@@ -133,14 +139,14 @@ valid = 0.2                 # % of Validation pts
 train_pts_dist = 'uniform'  # Training pts distribution
 
 # Testing -----------------------------------------------------------------
-test_cases     = 20              # Number of testing cases
+test_cases     = 5              # Number of testing cases
 test_training  = True           # Test training case
 
 
 ###########################################################################
 ### Training
 ###########################################################################
-epochs       = 30000
+epochs       = 100
 batch_size   = {'ics': 128, 'pts': 128, 'res': 512}
 valid_batch_size = {'ics': 128, 'pts': 128, 'res': 128}
 
@@ -187,7 +193,7 @@ callbacks = {
         'scales':    scales,
         'log_flg':   log_plot,
         'limit_y':   limit_y,
-        'period':    200,
+        'period':    50,
     },
 
     'tensorboard': {
