@@ -9,15 +9,16 @@ class Data(object):
 
     # Initialization
     ###########################################################################
-    def __init__(self, dim):
+    def __init__(self, dim, training=True):
 
-        self.name  = utils.get_class_name(self)
+        self.name = utils.get_class_name(self)
 
-        self.dim   = dim
+        self.dim = dim
+        self.training = training
 
         self.train = None
         self.valid = None
-        self.test  = None
+        self.test = None
         
         self.data_ids = None
         
@@ -34,8 +35,9 @@ class Data(object):
         else:
             return x.shape[0]
             
-    def get_dataset(self, x, y, batch_size=None):
-        if x is not None:
+    def get_dataset(self, data, batch_size=None):
+        if data is not None:
+            x, y = data
             if batch_size:
                 return tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
             else:

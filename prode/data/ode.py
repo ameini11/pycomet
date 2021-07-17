@@ -20,6 +20,7 @@ class ODE(Data):
     def __init__(
         self,
         dim,
+        training=True,
         ode_func=None,
         ode_order=0,
         ode_params=None,
@@ -33,8 +34,9 @@ class ODE(Data):
         header=None,
         preproc_fn=None,
         batch_size=32,
-        valid_batch_size=None):
-        super(ODE, self).__init__(dim=dim)
+        valid_batch_size=None
+    ):
+        super(DataSet, self).__init__(dim=dim, training=training)
 
         # Defining data ids
         self.data_ids = tuple([
@@ -50,23 +52,24 @@ class ODE(Data):
         self.preproc_fn = preproc_fn
 
         # Training/Validation data
-        self.check_data_source(train_data, nameof(train_data))
-        if valid_data:
-            self.check_data_source(valid_data, nameof(valid_data))
-            train_dset = self.data_as_dict(train_data, nameof(train_data))
-            valid_dset = self.data_as_dict(valid_data, nameof(valid_data))
-        elif valid_split:
-            self.validation_split = valid_split
-            train_dset, valid_dset = get_train_valid(self.data_as_dict(train_data))
-        else:
-            train_dset = self.data_as_dict(train_data)
-            valid_dset = None
+        if training:
+            self.check_data_source(train_data, nameof(train_data))
+            if valid_data:
+                self.check_data_source(valid_data, nameof(valid_data))
+                train_dset = self.data_as_dict(train_data, nameof(train_data))
+                valid_dset = self.data_as_dict(valid_data, nameof(valid_data))
+            elif valid_split:
+                self.validation_split = valid_split
+                train_dset, valid_dset = get_train_valid(self.data_as_dict(train_data))
+            else:
+                train_dset = self.data_as_dict(train_data)
+                valid_dset = None
 
-        self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
-        if valid_dset:
-            if valid_batch_size is None:
-                valid_batch_size = batch_size
-            self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
+            self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
+            if valid_dset:
+                if valid_batch_size is None:
+                    valid_batch_size = batch_size
+                self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
 
         # Testing data
         if test_data:

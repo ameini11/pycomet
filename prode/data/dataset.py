@@ -18,12 +18,10 @@ class DataSet(Data):
     def __init__(
         self,
         dim,
-        x_train=None,
-        y_train=None,
-        x_valid=None,
-        y_valid=None,
-        x_test=None,
-        y_test=None,
+        training=True,
+        train_data=None,
+        valid_data=None,
+        test_data=None,
         file_train=None,
         file_valid=None,
         file_test=None,
@@ -33,8 +31,9 @@ class DataSet(Data):
         header=None,
         preproc_fn=None,
         batch_size=32,
-        valid_batch_size=32):
-        super(DataSet, self).__init__(dim=dim)
+        valid_batch_size=32
+    ):
+        super(DataSet, self).__init__(dim=dim, training=training)
 
         # Only if data from file
         self.col_x = col_x
@@ -42,15 +41,15 @@ class DataSet(Data):
         self.header = header
         self.preproc_fn = preproc_fn
 
-        if x_train is not None:
-            self.train = self.get_dataset(x_train, y_train, batch_size)
-            self.valid = self.get_dataset(x_valid, y_valid, valid_batch_size)
-            self.test  = self.get_dataset(x_test,  y_test)
+        if train_data is not None:
+            self.train = self.get_dataset(train_data, batch_size)
+            self.valid = self.get_dataset(valid_data, valid_batch_size)
+            self.test  = self.get_dataset(test_data)
         elif file_train is not None:
             self.train = self.load_data(file_train, batch_size=batch_size)
             self.valid = self.load_data(file_valid, batch_size=valid_batch_size)
             self.test  = self.load_data(file_test)
-        else:
+        elif training:
             utils.raise_value_err("No training data passed into `{}`.".format(self.name))
 
         self.batch_size       = batch_size
