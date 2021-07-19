@@ -35,11 +35,11 @@ class Data(object):
         else:
             return x.shape[0]
             
-    def get_dataset(self, data, batch_size=None):
-        if data is not None:
-            x, y = data
-            if batch_size:
-                return tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
-            else:
-                return tf.data.Dataset.from_tensor_slices((x, y))
+    # def get_dataset(self, data, batch_size=None):
+    #     if data is not None:
+    #         x, y = data
+    #         if batch_size:
+    #             return tf.data.Dataset.from_tensor_slices((x, y)).batch(batch_size)
+    #         else:
+    #             return tf.data.Dataset.from_tensor_slices((x, y))
 
