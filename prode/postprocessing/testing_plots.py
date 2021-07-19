@@ -53,6 +53,9 @@ def plot_test(
     marker_style = dict(marker='^', fillstyle='none', markersize=5, markevery=y_true.shape[0]//20)
 
     # Solution
+    if len(y_true.shape) < 2:
+        y_true = np.expand_dims(y_true, 1)
+
     for d in range(y_true.shape[1]):
 
         name = 'True ' + var_name[d]
