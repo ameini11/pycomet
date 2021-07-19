@@ -9,8 +9,11 @@ class Data(object):
 
     # Initialization
     ###########################################################################
-    def __init__(self, dim, training=True):
-
+    def __init__(
+        self,
+        dim,
+        training=True
+    ):
         self.name = utils.get_class_name(self)
 
         self.dim = dim

@@ -8,6 +8,7 @@ def plot_test(
     y_true,
     y_pred,
     var_name,
+    x_index=-1,
     title=None,
     labels=[None, None],
     scales=['log', 'linear'],
@@ -25,12 +26,15 @@ def plot_test(
 
     # X axis
     if isinstance(x, (list,tuple)):
-        x = x[1] # Time input
+        x = x[x_index] # Time input
+    else:
+        x = x[:,x_index]
     if x_label is not None:
         plt.xlabel(x_label)
     if x_scale is not None:
         plt.xscale(x_scale)
-    plt.xlim([min(x), max(x)])
+    if x_scale != 'log':
+        plt.xlim([min(x), max(x)])
 
     # Y axis
     if y_label is not None:

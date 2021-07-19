@@ -36,7 +36,7 @@ class ODE(Data):
         batch_size=32,
         valid_batch_size=None
     ):
-        super(DataSet, self).__init__(dim=dim, training=training)
+        super(ODE, self).__init__(dim=dim, training=training)
 
         # Defining data ids
         self.data_ids = tuple([
@@ -60,9 +60,9 @@ class ODE(Data):
                 valid_dset = self.data_as_dict(valid_data, nameof(valid_data))
             elif valid_split:
                 self.validation_split = valid_split
-                train_dset, valid_dset = get_train_valid(self.data_as_dict(train_data))
+                train_dset, valid_dset = self.get_train_valid(self.data_as_dict(train_data, nameof(train_data)))
             else:
-                train_dset = self.data_as_dict(train_data)
+                train_dset = self.data_as_dict(train_data, nameof(train_data))
                 valid_dset = None
 
             self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
@@ -72,10 +72,11 @@ class ODE(Data):
                 self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
 
         # Testing data
-        if test_data:
-            self.check_data_source(test_data, nameof(test_data))
-            self.test = ODEDataSequence(self.data_as_dict(test_data, nameof(test_data)), \
-                self.data_ids)
+        self.test = test_data
+        # if test_data:
+        #     self.check_data_source(test_data, nameof(test_data))
+        #     self.test = ODEDataSequence(self.data_as_dict(test_data, nameof(test_data)), \
+        #         self.data_ids)
 
         # Update data ids
         self.data_ids = self.train.data_ids
@@ -98,9 +99,9 @@ class ODE(Data):
 
     # Handling Data
     ###########################################################################
-    def check_data_source(self, data, var_name):
+    def check_data_source(self, data, data_name):
         if data is None:
-            utils.raise_value_err("No `{}` passed into `{}`.".format(var_name, self.name))
+            utils.raise_value_err("No `{}` passed into `{}`.".format(data_name, self.name))
         elif not isinstance(data, dict):
             utils.raise_value_err(
                 "`{}` passed into `{}` has to be a dict:\n"
@@ -108,13 +109,13 @@ class ODE(Data):
                 "  - 'ics': initial condition pts (arrays or file path);\n"
                 "  - 'pts': additional anchor pts (arrays or file path);\n"
                 "  - 'res': collocation pts for residual (arrays or file path).".format( \
-                    var_name, self.name, var_name))
+                    data_name, self.name, data_name))
 
-    def data_as_dict(self, data, var_name):
-        data = list(map(lambda i: self.get_data(data, var_name, i), self.data_ids))
+    def data_as_dict(self, data, data_name):
+        data = list(map(lambda i: self.get_data(data, data_name, i), self.data_ids))
         return {self.data_ids[i]: data[i] for i in range(len(self.data_ids))}
 
-    def get_data(self, data, var_name, data_id):
+    def get_data(self, data, data_name, data_id):
         if data[data_id] is None or data['data_source'] is None:
             return None
         if data['data_source'] == 'array':
@@ -126,7 +127,7 @@ class ODE(Data):
                 return data[data_id], np.empty(shape)
             else:
                 utils.raise_value_err("`{}[{}]` passed into `{}` has to be a list "
-                    "or a tuple of arrays: [x, y]".format(var_name, data_id, self.name))
+                    "or a tuple of arrays: [x, y]".format(data_name, data_id, self.name))
         elif data['data_source'] == 'file':
             # Data from `.csv` file
             if self.col_x is None or self.col_y is None:
@@ -149,7 +150,7 @@ class ODE(Data):
             return x_data, y_data
         else:
             utils.raise_value_err("`{}['data_source']` passed into `{}` "
-                "has to be equal to 'array' or 'file'.".format(var_name, self.name))
+                "has to be equal to 'array' or 'file'.".format(data_name, self.name))
 
 
     # Splitting Training/Validation Data
@@ -174,6 +175,8 @@ class ODE(Data):
                 x_val.append(split[i*2+1])
             else:
                 y, y_val = split[i*2], split[i*2+1]
+        if x_len == 1:
+            x, x_val = *x, *x_val
         return (x, y), (x_val, y_val)
 
 

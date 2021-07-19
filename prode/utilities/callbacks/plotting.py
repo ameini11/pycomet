@@ -61,10 +61,12 @@ class Plotter(CB.Callback):
             if any([ c.endswith('weight') for c in history ]):
                 training_plots.plot_loss_weights(history, path)
         # Metrics
-        metrics = self.model.compiled_metrics._metrics
+        metrics = self.model.compiled_metrics.metrics
         if metrics:
             for metric in metrics:
-                training_plots.plot_metric(history, path, metric._name, scale=scale, limit_y=limit_y)
+                if metric.name in history:
+                    training_plots.plot_metric(
+                        history, path, metric.name, scale=scale, limit_y=limit_y)
 
     def testing(self):
         print("   - Plotting test cases ...")

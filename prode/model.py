@@ -209,7 +209,7 @@ class Model(object):
 
         # Fit the model
         self.net.fit(
-            self.data.train,
+            *self.data.train if isinstance(self.data.train, (list, tuple)) else self.data.train,
             batch_size=self.data.batch_size,
             epochs=epochs,
             callbacks=callbacks,
@@ -294,10 +294,13 @@ class Model(object):
             if any([ c.endswith('weight') for c in history.columns ]):
                 training_plots.plot_loss_weights(history, path)
 
-        metrics = self.net.compiled_metrics._metrics
+        metrics = self.net.compiled_metrics.metrics
         if metrics:
             for metric in metrics:
-                training_plots.plot_metric(history, path, metric._name, scale=scale, limit_y=limit_y)
+                training_plots.plot_metric(
+                    history, path, metric.name, scale=scale, limit_y=limit_y
+                )
+                
         # if self.metrics is not None:
         #     for met in self.metrics:
         #         try:
