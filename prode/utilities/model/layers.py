@@ -2,9 +2,15 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import tensorflow.keras.layers as lay
 
-from tensorflow.python.framework import dtypes, tensor_shape
+from tensorflow.python.framework import dtypes
+from tensorflow.python.framework import tensor_shape
+from tensorflow.python.keras import activations
 from tensorflow.python.keras import backend as K
-from tensorflow.python.keras.engine.input_spec import InputSpec
+from tensorflow.python.keras import constraints
+from tensorflow.python.keras import initializers
+from tensorflow.python.keras import regularizers
+from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import nn_ops
 from prode.utilities import utils
 
 
@@ -243,9 +249,9 @@ class Scaling(lay.Layer):
         name='scaling'):
         super(Scaling, self).__init__(name=name)
 
-        self.init_scale  = init_scale
+        self.init_scale = init_scale
         self.init_offset = init_offset
-        self.trainable   = trainable
+        self.trainable = trainable
 
         if trans_fn is not None:
             self.trans_fn = trans_fn
@@ -257,15 +263,14 @@ class Scaling(lay.Layer):
     def build(self, input_shape):
         dtype = dtypes.as_dtype(self.dtype or K.floatx())
         if not (dtype.is_floating or dtype.is_complex):
-            raise TypeError('Unable to build `Scale` layer with non-floating point '
-                            'dtype %s' % (dtype,))
+            raise TypeError("Unable to build `Scale` layer with non-floating"
+                " point dtype %s." % (dtype,))
 
         input_shape = tensor_shape.TensorShape(input_shape)
         last_dim = tensor_shape.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils.raise_value_err("The last dimension of the inputs to `Dense` "
-                "should be defined. Found `None`.")
-        self.input_spec = InputSpec(min_ndim=2, axes={-1: last_dim})
+            utils.raise_value_err("The last dimension of the inputs to "
+                "`Scale` should be defined. Found `None`.")
 
         self.scale = self.add_weight(
             name='scale',
@@ -301,3 +306,87 @@ class Scaling(lay.Layer):
     ###########################################################################
     def call(self, x):
         return self.trans_fn(x * self.scale + self.offset)
+
+
+# =========================================================================== #
+# Bias Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='BiasLay')
+class BiasLay(lay.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        activation=None,
+        initializer='zeros',
+        regularizer=None,
+        activity_regularizer=None,
+        constraint=None,
+        trainable=True,
+        **kwargs
+    ):
+    super(BiasLay, self).__init__(
+        activity_regularizer=activity_regularizer, **kwargs)
+
+    self.activation = activations.get(activation)
+    self.initializer = initializers.get(initializer)
+    self.regularizer = regularizers.get(regularizer)
+    self.constraint = constraints.get(constraint)
+
+    self.trainable = trainable
+
+    # Building
+    ###########################################################################
+    def build(self, input_shape):
+        dtype = dtypes.as_dtype(self.dtype or K.floatx())
+        if not (dtype.is_floating or dtype.is_complex):
+            raise TypeError("Unable to build `BiasLay` layer with non-floating"
+                " point dtype %s." % (dtype,))
+
+        input_shape = tensor_shape.TensorShape(input_shape)
+        last_dim = tensor_shape.dimension_value(input_shape[-1])
+        if last_dim is None:
+            utils.raise_value_err("The last dimension of the inputs to "
+                "`BiasLay` should be defined. Found `None`.")
+
+        self.bias = self.add_weight(
+            'bias',
+            shape=[last_dim,],
+            initializer=self.initializer,
+            regularizer=self.regularizer,
+            constraint=self.constraint,
+            dtype=self.dtype,
+            trainable=self.trainable
+        )
+
+        self.built = True
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = super(Dense, self).get_config()
+        config.update({
+            'activation': activations.serialize(self.activation),
+            'initializer': initializers.serialize(self.initializer),
+            'regularizer': regularizers.serialize(self.regularizer),
+            'constraint': constraints.serialize(self.constraint),
+            'trainable': self.trainable
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs):
+        if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
+            inputs = math_ops.cast(inputs, dtype=self._compute_dtype_object)
+
+        outputs = nn_ops.bias_add(inputs, self.bias)
+        if self.activation is not None:
+            outputs = self.activation(outputs)
+
+        return outputs
