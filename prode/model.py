@@ -69,6 +69,8 @@ class Model(object):
                     inputs_shape = tuple([1,input_dim])
                 self.net.build(inputs_shape)
             net_graph = self.net.build_graph()
+            self.net.inputs = net_graph.inputs
+            self.net.outputs = net_graph.outputs
 
         # Visualize net/graph
         net_graph.summary()

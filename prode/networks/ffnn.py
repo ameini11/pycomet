@@ -23,11 +23,13 @@ class FFNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        name='ffnn'):
+        name='ffnn'
+    ):
         super(FFNN, self).__init__(
             dim=dim,
             block=block,
-            name=name)
+            name=name
+        )
         
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size          = layer_size
@@ -44,13 +46,14 @@ class FFNN(Net):
 
         ### Layers Initialization ---------------------------------------------
         self.hidden_blk = self.block(
-                        self.layer_size,
-                        self.activation,
-                        self.kernel_initializer,
-                        regularization=self.regularizer,
-                        dropout_rate=self.dropout_rate,
-                        batch_norm=self.batch_norm,
-                        weight_norm=self.weight_norm)
+            self.layer_size,
+            self.activation,
+            self.kernel_initializer,
+            regularization=self.regularizer,
+            dropout_rate=self.dropout_rate,
+            batch_norm=self.batch_norm,
+            weight_norm=self.weight_norm
+        )
 
 
     # Configuration update
@@ -97,5 +100,5 @@ class FFNN(Net):
     # Graph
     ###########################################################################
     def build_graph(self):
-        x= tf.keras.Input(shape=(self.inp_dim,))
+        x = tf.keras.Input(shape=(self.inp_dim,))
         return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)

@@ -27,15 +27,15 @@ class Net(tf.keras.Model):
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
 
-        self.block   = utils.get_class(layers, block)
+        self.block = utils.get_class(layers, block)
 
         self.loss_weights = None
 
-        self.inp_trans    = None
-        self.out_trans    = None
+        self.inp_trans = None
+        self.out_trans = None
 
-        self.loss_fns     = None
-        self.data_ids     = None
+        self.loss_fns = None
+        self.data_ids = None
         self.data_ids_val = None
 
 

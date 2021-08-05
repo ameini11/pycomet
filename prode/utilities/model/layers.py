@@ -275,13 +275,13 @@ class Scaling(lay.Layer):
         self.scale = self.add_weight(
             name='scale',
             dtype=self.dtype,
-            initializer=tf.keras.initializers.Constant(value=self.init_scale),
+            initializer=initializers.Constant(value=self.init_scale),
             trainable=self.trainable)
 
         self.offset = self.add_weight(
             name='offset',
             dtype=self.dtype,
-            initializer=tf.keras.initializers.Constant(value=self.init_offset),
+            initializer=initializers.Constant(value=self.init_offset),
             trainable=self.trainable)
 
         self.built = True
@@ -323,7 +323,6 @@ class BiasLay(lay.Layer):
         regularizer=None,
         activity_regularizer=None,
         constraint=None,
-        trainable=True,
         **kwargs
     ):
     super(BiasLay, self).__init__(
@@ -333,8 +332,6 @@ class BiasLay(lay.Layer):
     self.initializer = initializers.get(initializer)
     self.regularizer = regularizers.get(regularizer)
     self.constraint = constraints.get(constraint)
-
-    self.trainable = trainable
 
     # Building
     ###########################################################################
@@ -357,7 +354,7 @@ class BiasLay(lay.Layer):
             regularizer=self.regularizer,
             constraint=self.constraint,
             dtype=self.dtype,
-            trainable=self.trainable
+            trainable=True
         )
 
         self.built = True
