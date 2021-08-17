@@ -15,8 +15,11 @@ class Net(tf.keras.Model):
         self,
         dim,
         block='FFBlock',
-        name='net'):
-        super(Net, self).__init__()
+        name='net',
+        *args,
+        **kwargs
+    ):
+        super(Net, self).__init__(*args, **kwargs)
 
         if not isinstance(dim, dict):
             utils.raise_value_err(
@@ -68,6 +71,82 @@ class Net(tf.keras.Model):
         return x
 
 
+    # Compiling
+    ###########################################################################
+    def compile(
+        self,
+        data_type,
+        optimizer='rmsprop',
+        loss=None,
+        metrics=None,
+        loss_weights=None,
+        weighted_metrics=None,
+        run_eagerly=None,
+        steps_per_execution=None,
+        **kwargs
+    ):
+        if data_type == 'ODE':
+            self.check_arg(loss, 'loss functions')
+            self.check_arg(loss_weights, 'loss weights')
+
+            base_layer.keras_api_gauge.get_cell('compile').set(True)
+
+            from_serialized = kwargs.pop('from_serialized', False)
+
+            self._validate_compile(optimizer, metrics, **kwargs)
+            self._run_eagerly = run_eagerly
+
+            self.optimizer = self._get_optimizer(optimizer)
+            self.compiled_loss = {}
+            for data_id in self.data_ids:
+                _output_names = [ data_id + '_' + name for name in self.output_names ]
+                _loss = loss[data_id] if loss else None
+                _loss_weights = loss_weights[data_id] if loss_weights else None
+                if data_id == 'res':
+                    self.compiled_loss[data_id] = ResidualLossContainer(
+                        _loss, _loss_weights, output_names=_output_names)
+                else:
+                    self.compiled_loss[data_id] = compile_utils.LossesContainer(
+                        _loss, _loss_weights, output_names=_output_names)
+                self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(name=data_id + '_loss')
+
+            self._configure_steps_per_execution(steps_per_execution or 1)
+
+            # Initializes attrs that are reset each time `compile` is called.
+            self._reset_compile_cache()
+            self._is_compiled = True
+            self.loss = loss or {}
+        else:
+            return super(Net, self).compile(
+                optimizer=optimizer,
+                loss=loss,
+                metrics=metrics,
+                loss_weights=loss_weights,
+                weighted_metrics=weighted_metrics,
+                run_eagerly=run_eagerly,
+                steps_per_execution=steps_per_execution,
+                **kwargs)
+
+    def check_arg(self, arg, definition):
+        if arg and not isinstance(arg, dict):
+            format_args = [ nameof(arg), *([definition]*3) ]
+            utils.raise_value_err(
+                "`{}` passed into `compile` has to be a `dict`:\n"
+                "  - 'ics': initial condition pts {};\n"
+                "  - 'pts': additional anchor pts {};\n"
+                "  - 'res': collocation pts residual {}.".format(*format_args))
+
+    @property
+    def metrics(self):
+        metrics = []
+        if self._is_compiled:
+            if self.compiled_loss is not None:
+                for container in self.compiled_loss.values():
+                    metrics += container.metrics
+        return metrics
+
+
+
     # Steps
     ###########################################################################
     # Training Step
@@ -101,7 +180,7 @@ class Net(tf.keras.Model):
     # Data identities
     ###########################################################################
     def add_data_ids(self, data_cls):
-        self.data_ids     = data_cls.data_ids
+        self.data_ids = data_cls.data_ids
         self.data_ids_val = data_cls.data_ids_val
 
 

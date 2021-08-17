@@ -11,10 +11,11 @@ def train_step(model, data):
     x, y = data_adapter.expand_1d(data)
 
     # Gradient descent step
-    pred, losses = {}, {}
+    losses = {}
     with backprop.GradientTape() as tape:
         for i, data_id in enumerate(model.data_ids):
-            pred[data_id], losses[data_id] = get_pred_loss(x[i], y[i], model, data_id)
+            losses[data_id] = get_loss(x[i], y[i], model, data_id)
+
         # Regularization loss
         reg_loss = get_reg_loss(model)
         # Calculate total loss
@@ -54,14 +55,13 @@ def test_step(model, data):
 
 # Util functions
 ###############################################################################
-def get_pred_loss(x, y, model, data_id, training=True):
-    loss_fn = model.loss_fns[data_id]
+def get_loss(x, y, model, data_id, training=True):
     if data_id == 'res':
-        return loss_fn(model, x, training=training)
+        y_pred = model.residual(model, x, training=training)
+        y = tf.zeros_like(y_pred)
     else:
         y_pred = model(x, training=training)
-        loss   = loss_fn(y, y_pred)
-        return y_pred, loss
+    return model.compiled_loss[data_id](y, y_pred)
 
 def get_reg_loss(model):
     if model.losses:

@@ -23,12 +23,16 @@ class FFNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        name='ffnn'
+        name='ffnn',
+        *args,
+        **kwargs
     ):
         super(FFNN, self).__init__(
             dim=dim,
             block=block,
-            name=name
+            name=name,
+            *args,
+            **kwargs
         )
         
         ### Hyperparameters Initialization ------------------------------------
@@ -99,6 +103,6 @@ class FFNN(Net):
 
     # Graph
     ###########################################################################
-    def build_graph(self):
+    def get_graph(self):
         x = tf.keras.Input(shape=(self.inp_dim,))
         return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)

@@ -57,29 +57,25 @@ class Model(object):
     @utils.timing
     def build(self, input_dim, verbose=1, load_net=0, visualize_graph=False):
         utils.print_main("Building '",self.net.name,"' network ...", sep="")
-
-        if self.net.name.startswith('func'):
-            self.net  = self.net.get_uncompiled_model()
-            net_graph = self.net
-        else:
-            if not self.net.built:
-                if isinstance(input_dim, (list,tuple)):
-                    inputs_shape = [ tuple([1,dim_i]) for dim_i in input_dim]
-                else:
-                    inputs_shape = tuple([1,input_dim])
-                self.net.build(inputs_shape)
-            net_graph = self.net.build_graph()
-            self.net.inputs = net_graph.inputs
-            self.net.outputs = net_graph.outputs
+        
+        if not self.net.built:
+            if isinstance(input_dim, (list,tuple)):
+                inputs_shape = [ tuple([1,dim_i]) for dim_i in input_dim]
+            else:
+                inputs_shape = tuple([1,input_dim])
+            self.net.build(inputs_shape)
+        graph = self.net.get_graph()
+        self.net.inputs = graph.inputs
+        self.net.outputs = graph.outputs
 
         # Visualize net/graph
-        net_graph.summary()
+        graph.summary()
         if verbose:
             if visualize_graph:
                 file_name = self.save_dir+self.name+'_struct.h5'
-                net_graph.save(file_name, save_format='h5')
+                graph.save(file_name, save_format='h5')
                 utils.print_submain("", end=""); netron.start(file_name)
-                tf.keras.utils.plot_model(net_graph, self.train_dir+"/"+self.name+".png")
+                tf.keras.utils.plot_model(graph, self.train_dir+"/"+self.name+".png")
         
             asw = utils.input_submain("Is the model structure correct? [y/n] ")
             if not asw.lower().startswith('y'):

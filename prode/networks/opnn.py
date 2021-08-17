@@ -27,11 +27,17 @@ class OpNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        name='opnn'):
+        name='opnn',
+        *args,
+        **kwargs
+    ):
         super(OpNN, self).__init__(
             dim=dim,
             block=block,
-            name=name)
+            name=name,
+            *args,
+            **kwargs
+        )
 
         ### Hyperparameters Initialization ------------------------------------
         if not isinstance(self.inp_dim, (list, tuple)):
@@ -157,14 +163,13 @@ class OpNN(Net):
         # Output transformation
         if self.out_trans is not None:
             G_uy = self.out_trans(G_uy)
-        
+            
         return G_uy
 
 
     # Graph
     ###########################################################################
-    def build_graph(self):
+    def get_graph(self):
         x_u = tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input")
         x_y = tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input")
-        x   = [x_u, x_y]
-        return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)
+        return tf.keras.Model(inputs=[x_u, x_y], outputs=self.call(x), name=self.name)
