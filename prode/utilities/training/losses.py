@@ -8,6 +8,8 @@ from tensorflow.python.framework import ops
 from prode.utilities import utils
 
 
+# Custom loss functions
+###########################################################################
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MAE')
 def mae(axis):
     def mean_absolute_error(y_true, y_pred):
@@ -66,9 +68,82 @@ def zero(*args):
     return tf.constant(0., dtype=K.floatx())
 
 
+# Utils
+###########################################################################
 def get(identifier, axis=-1):
+    """Get Keras callable/readable object for the specific loss function
+    identifier.
+
+    Args:
+        identifier: Name/callable of the loss function.
+        axis: Data matrix reduction axis for mean loss evaluation.
+
+    Returns:
+        A list/dict of loss function callables.
+
+    Examples to be used in the input file:
+        - Single output:
+            loss = 'mae'
+        - Single output + reduction axis:
+            loss = {'identifier': 'mae', 'axis': 0}
+        - Multi outputs:
+            loss = ['mae', 'mape']
+        - Multi outputs + reduction axis:
+            loss = [{'identifier': 'mae', 'axis': 0},
+                    {'identifier': 'mape', 'axis': 0}]
+
+        >> If ODE data type are considered (see first `model.get_loss_fn`):
+        - Single output:
+            loss = {
+                'ics': 'mae',
+                'pts': 'mae',
+                'res': 'mse',
+            }
+        - Single output + reduction axis:
+            loss = {
+                'ics': {'identifier': 'malpe', 'axis': 0},
+                'pts': {'identifier': 'malpe', 'axis': 0},
+                'res': {'identifier': 'mse', 'axis': 0},
+            }
+        - Multi outputs:
+            loss = {
+                'ics': ['mae', 'mape'],
+                'pts': ['mae', 'mape'],
+                'res': ['mse', 'mse']
+                }
+            }
+        - Multi outputs + reduction axis:
+            loss = {
+                'ics': [{'identifier': 'malpe', 'axis': 0},
+                        {'identifier': 'malpe', 'axis': 0}],
+                'pts': [{'identifier': 'malpe', 'axis': 0},
+                        {'identifier': 'malpe', 'axis': 0}],
+                'res': [{'identifier': 'mse', 'axis': 0},
+                        {'identifier': 'mse', 'axis': 0}]
+                }
+            }
+        - Multi outputs (names included) + reduction axis:
+            loss = {
+                'ics': {
+                    'out_1': {'identifier': 'malpe', 'axis': 0},
+                    'out_2': {'identifier': 'malpe', 'axis': 0}
+                },
+                'pts': {
+                    'out_1': {'identifier': 'malpe', 'axis': 0},
+                    'out_2': {'identifier': 'malpe', 'axis': 0}
+                },
+                'res': {
+                    'out_1': {'identifier': 'mse', 'axis': 0},
+                    'out_2': {'identifier': 'mse', 'axis': 0}
+                }
+            }
+    """
     if isinstance(identifier, (list, tuple)):
         return list(map(get, identifier))
+    
+    if isinstance(identifier, dict):
+        identifier, axis = identifier.values()
+
     loss_identifier = {
         "mae":   mae(axis),
         "malpe": malpe(axis),
@@ -77,8 +152,12 @@ def get(identifier, axis=-1):
         "msle":  msle(axis),
         "zero":  zero,
     }
+
     if isinstance(identifier, str):
-        return loss_identifier[identifier]
+        if identifier.lower() in loss_identifier:
+            return loss_identifier[identifier.lower()]
+        else:
+            return identifier
     elif callable(identifier):
         return identifier
     elif identifier == None:

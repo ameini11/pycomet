@@ -17,7 +17,8 @@ from prode.utilities import utils
 class Model(object):
     """The `Model` class trains a `Net` on a `Data`."""
 
-    # ======================================================================= #
+    # Initializing Model
+    ###########################################################################
     def __init__(
         self,
         data,
@@ -53,7 +54,8 @@ class Model(object):
             self.save_path = self.save_path + '.h5'
 
 
-    # ======================================================================= #
+    # Building Model
+    ###########################################################################
     @utils.timing
     def build(self, input_dim, verbose=1, load_net=0, visualize_graph=False):
         utils.print_main("Building '",self.net.name,"' network ...", sep="")
@@ -117,7 +119,8 @@ class Model(object):
                 "   >> 2: restoring network from last checkpoint.")
 
 
-    # ======================================================================= #
+    # Compiling Model
+    ###########################################################################
     @utils.timing
     def compile(
         self,
@@ -127,7 +130,7 @@ class Model(object):
         metrics=None,
         decay=None,
         loss_weights=None):
-        utils.print_main("Compiling '",self.net.name,"' network ...", sep="")
+        utils.print_main("Compiling '", self.net.name, "' network ...", sep="")
 
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
@@ -136,57 +139,37 @@ class Model(object):
         if self.data.name == 'ODE':
             self.net.add_data_ids(self.data)
 
-        # Initializing loss loss_weights
+        # Initializing loss weights
         self.loss_weights = loss_weights
 
         # Initializing loss functions
-        if isinstance(loss, (dict,list,tuple)):
-            loss_fns = self.get_losses(loss)
-            if self.data.name == 'ODE':
-                self.net.add_loss_fun(loss_fns, self.data)
-            elif isinstance(loss_fns, dict):
-                utils.raise_value_err("Multiple losses can be used only with `data.ode` data.")
-            else:
-                self.loss = loss_fns
-        elif isinstance(loss, str):
-            loss_fns = losses_module.get(loss)
-            if self.data.name == 'ODE':
-                loss_fns = {data_id: loss for data_id in self.data.data_ids}
-                self.net.add_loss_fun(loss_fns, self.data)
-            else:
-                self.loss = loss_fns
-        else:
-            utils.raise_value_err("Losses have to be defined as a `dict` or a `str`.")
+        self.loss = self.get_loss_fn(loss)
 
-        # Defining metrics
+        # Initializing metrics
         if metrics is not None:
-            if self.data.name == 'ODE':
-                self.metrics = None
-                utils.warning("With `data.ode` data, metrics evaluation is not available.")
-            else:
-                self.metrics = [ metrics_module.get(m) for m in metrics ]
+            self.metrics = [ metrics_module.get(m) for m in metrics ]
 
         # Compiling
-        self.net.compile(optimizer=self.optimizer, loss=self.loss, metrics=self.metrics)
+        self.net.compile(self.data, optimizer=self.optimizer, loss=self.loss, \
+            loss_weights=self.loss_weights, metrics=self.metrics)
 
-
-    def get_losses(self, loss):
-        if isinstance(loss, dict):
-            if any(isinstance(loss[loss_id], dict) for loss_id in loss):
-                loss_fns = {}
-                for loss_id, loss in loss.items():
-                    if isinstance(loss, dict):
-                        loss_fns[loss_id] = losses_module.get(**loss)
-                    else:
-                        loss_fns[loss_id] = losses_module.get(loss)
-            else:
-                loss_fns = losses_module.get(**loss)
+    def get_loss_fn(self, loss):
+        if self.data.name == 'ODE':
+            loss_fn = {}
+            for data_id in loss.keys():
+                if len(self.net.outputs) > 1:
+                    _loss = list(loss[data_id].values()) \
+                        if isinstance(loss[data_id], dict) else loss[data_id]
+                    loss_fn[data_id] = losses_module.get(_loss)
+                else:
+                    loss_fn[data_id] = losses_module.get(loss[data_id])
         else:
-            loss_fns = [ losses_module.get(loss) for loss in loss ]
-        return loss_fns
+            loss_fn = losses_module.get(loss)
+        return loss_fn
 
 
-    # ======================================================================= #
+    # Training Model
+    ###########################################################################
     @utils.timing
     def fit(
         self,
@@ -221,7 +204,8 @@ class Model(object):
             path_or_buf=self.train_dir+'/history.csv', index=False)
 
 
-    # ======================================================================= #
+    # Predicting
+    ###########################################################################
     def predict(
         self,
         test_data,
@@ -256,7 +240,8 @@ class Model(object):
         return title, x, y_true
 
 
-    # ======================================================================= #
+    # Saving Model
+    ###########################################################################
     @utils.timing
     def save(self):
         utils.print_main("Saving model ...")
@@ -273,7 +258,8 @@ class Model(object):
         dset.close()
 
 
-    # ======================================================================= #
+    # Postprocessing
+    ###########################################################################
     @utils.timing
     def visualize_training(self, history=None, path=None, scale='log', limit_y=False):
         utils.print_main("Postprocessing training quantities ...")

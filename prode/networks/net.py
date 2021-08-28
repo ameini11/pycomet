@@ -75,7 +75,7 @@ class Net(tf.keras.Model):
     ###########################################################################
     def compile(
         self,
-        data_type,
+        data_cls,
         optimizer='rmsprop',
         loss=None,
         metrics=None,
@@ -85,7 +85,7 @@ class Net(tf.keras.Model):
         steps_per_execution=None,
         **kwargs
     ):
-        if data_type == 'ODE':
+        if data_cls.name == 'ODE':
             self.check_arg(loss, 'loss functions')
             self.check_arg(loss_weights, 'loss weights')
 
@@ -96,7 +96,10 @@ class Net(tf.keras.Model):
             self._validate_compile(optimizer, metrics, **kwargs)
             self._run_eagerly = run_eagerly
 
+            # Defining optimizer
             self.optimizer = self._get_optimizer(optimizer)
+
+            # Defining loss containers
             self.compiled_loss = {}
             for data_id in self.data_ids:
                 _output_names = [ data_id + '_' + name for name in self.output_names ]
@@ -109,6 +112,10 @@ class Net(tf.keras.Model):
                     self.compiled_loss[data_id] = compile_utils.LossesContainer(
                         _loss, _loss_weights, output_names=_output_names)
                 self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(name=data_id + '_loss')
+
+            # Defining metrics container
+            if metrics is not None:
+                utils.warning("With `data.ode`, metrics evaluation is not available.")
 
             self._configure_steps_per_execution(steps_per_execution or 1)
 
@@ -141,10 +148,14 @@ class Net(tf.keras.Model):
         metrics = []
         if self._is_compiled:
             if self.compiled_loss is not None:
-                for container in self.compiled_loss.values():
-                    metrics += container.metrics
+                if isinstance(self.compiled_loss, dict):
+                    for container in self.compiled_loss.values():
+                        metrics += container.metrics
+                else:
+                    metrics += self.compiled_loss.metrics
+            if self.compiled_metrics is not None:
+                metrics += self.compiled_metrics.metrics
         return metrics
-
 
 
     # Steps
@@ -184,34 +195,34 @@ class Net(tf.keras.Model):
         self.data_ids_val = data_cls.data_ids_val
 
 
-    # Add loss properties
-    ###########################################################################
-    def add_loss_fun(self, loss_fns, data_cls):
-        """Add a `list`/`dict` of loss functions for composite loss."""
-        self.loss_fns = self.get_loss_properties(loss_fns, 'loss_fns')
-        if 'res' in self.loss_fns:
-            self.loss_fns['res'] = data_cls.residual_loss(self.loss_fns['res'])
+    # # Add loss properties
+    # ###########################################################################
+    # def add_loss_fun(self, loss_fns, data_cls):
+    #     """Add a `list`/`dict` of loss functions for composite loss."""
+    #     self.loss_fns = self.get_loss_properties(loss_fns, 'loss_fns')
+    #     if 'res' in self.loss_fns:
+    #         self.loss_fns['res'] = data_cls.residual_loss(self.loss_fns['res'])
 
-    def add_loss_weights(self, loss_weights):
-        if loss_weights is not None:
-            self.loss_weights = self.get_loss_properties(loss_weights, 'loss_weights')
+    # def add_loss_weights(self, loss_weights):
+    #     if loss_weights is not None:
+    #         self.loss_weights = self.get_loss_properties(loss_weights, 'loss_weights')
 
-    def get_loss_properties(self, properties, prop_name):
-        if isinstance(properties, dict):
-            return properties
-        elif isinstance(properties, (list,tuple)):
-            if isinstance(self.data_ids, (list,tuple,dict)):
-                if len(properties) == len(self.data_ids):
-                    return {data_id: properties[i] for i, data_id in enumerate(self.data_ids)}
-                else:
-                    utils.raise_value_err(
-                        "`{}` and `data.data_ids` passed into `{}.get_loss_properties` "
-                        "method have to be of the same length.".format(prop_name, self.name))
-            else:
-                utils.raise_value_err(
-                    "`data.data_ids` passed into `{}.get_loss_properties` method has "
-                    "to be a `dict` or a `list`/`tuple`.".format(self.name))
-        else:
-            utils.raise_value_err(
-                "`{}` passed into `{}.get_loss_properties` method has "
-                "to be a `dict` or a `list`/`tuple`.".format(prop_name, self.name))
+    # def get_loss_properties(self, properties, prop_name):
+    #     if isinstance(properties, dict):
+    #         return properties
+    #     elif isinstance(properties, (list,tuple)):
+    #         if isinstance(self.data_ids, (list,tuple,dict)):
+    #             if len(properties) == len(self.data_ids):
+    #                 return {data_id: properties[i] for i, data_id in enumerate(self.data_ids)}
+    #             else:
+    #                 utils.raise_value_err(
+    #                     "`{}` and `data.data_ids` passed into `{}.get_loss_properties` "
+    #                     "method have to be of the same length.".format(prop_name, self.name))
+    #         else:
+    #             utils.raise_value_err(
+    #                 "`data.data_ids` passed into `{}.get_loss_properties` method has "
+    #                 "to be a `dict` or a `list`/`tuple`.".format(self.name))
+    #     else:
+    #         utils.raise_value_err(
+    #             "`{}` passed into `{}.get_loss_properties` method has "
+                # "to be a `dict` or a `list`/`tuple`.".format(prop_name, self.name))

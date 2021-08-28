@@ -182,10 +182,10 @@ class ODE(Data):
 
     # Handling Residual Loss
     ###########################################################################
-    def residual_loss(self, loss):
+    def residual(self, loss):
         '''Residual loss function definition.'''
 
-        def res_loss_fn(model, inputs, training=True):
+        def res_pred(model, inputs, training=True):
 
             if self.input_is_list:
                 ic, t = inputs[self.time_idx-1], inputs[self.time_idx]
@@ -200,12 +200,10 @@ class ODE(Data):
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads, self.ode_params)
-            res_true = tf.zeros_like(res_pred)
-            res_loss = loss(res_true, res_pred)
 
-            return res_pred, res_loss
+            return res_pred
         
-        return res_loss_fn
+        return res_pred
 
 
     # Util functions
