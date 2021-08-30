@@ -155,7 +155,9 @@ class DataSet(Data):
             return self.split_data(*data)
 
     def split_data(self, x, y):
-        x_len = len(x) if isinstance(x, (list,tuple)) else 1
+        x = x if isinstance(x, (list,tuple)) else [x]
+        y = y if isinstance(y, (list,tuple)) else [y]
+        y_len = len(y) if isinstance(y, (list,tuple)) else 1
         data  = (*x, y) if x_len > 1 else (x, y)
         split = train_test_split(*data, test_size=self.validation_split)
         x, x_val = [], []
@@ -168,6 +170,11 @@ class DataSet(Data):
         if x_len == 1:
             x, x_val = *x, *x_val
         return (x, y), (x_val, y_val)
+
+    @static
+    def to_list(x):
+        return x if isinstance(x, (list,tuple)) else [x]
+
 
     # Util functions
     ###########################################################################

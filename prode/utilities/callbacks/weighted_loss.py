@@ -18,6 +18,7 @@ class ConstantWeightsAdapter(CB.Callback):
     def __init__(
         self,
         model,
+        ode_loss_weights=None,
         data_generator=None,
         freq=1,
         log_dir=None,
@@ -25,17 +26,27 @@ class ConstantWeightsAdapter(CB.Callback):
         **kwargs):
         super(ConstantWeightsAdapter, self).__init__()
 
+        self.name = name
         self.model = model
-        if self.model.loss_weights is None:
-            utils.warning("No loss weights have been provided to the network `{}`: "
-                "the default value of 1 will be applied.".format(self.model.name))
-            self.model.loss_weights = {}
-            for data_id in self.model.data_ids:
-                self.model.loss_weights[data_id] = 1.
+
+        if ode_loss_weights is None:
+            utils.warning("No loss weights have been provided: the default "
+                "value of 1 will be applied.".format(self.model.name))
+            _ode_loss_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
+        elif isinstance(ode_loss_weights, (list,tuple)):
+            _ode_loss_weights = dict(zip(self.model.data_ids, ode_loss_weights))
+        elif isinstance(ode_loss_weights, dict):
+            _ode_loss_weights = ode_loss_weights
+        else:
+            utils.raise_value_err("`ode_loss_weights` passed into `{}` "
+                "has to be a list or a dictionary:\n"
+                "  - 'ics': weight for initial condition pts loss;\n"
+                "  - 'pts': weight for anchor pts loss;\n"
+                "  - 'res': weight for residual loss.".format(self.name))
+        self.model.ode_loss_weights = _ode_loss_weights
 
         self.data_generator = data_generator
         self.freq = np.clip(freq, 1, None) if freq is not None else np.inf
-        self.name = name
 
         self.log_dir = log_dir
         if self.log_dir is not None:
@@ -72,11 +83,13 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     def __init__(
         self,
         model,
+        ode_loss_weights=None,
         data_generator=None,
         freq=1000,
         alpha=0.8,
         log_dir=None,
         max_samples=20000,
+        method='mean',
         name='empirical_weights_adapter',
         **kwargs):
         super(EmpiricalWeightsAdapter, self).__init__(
@@ -90,6 +103,8 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.loss_gradients = {}
         self.dataset = {}
         self.max_samples = max_samples
+
+        self.grads_eval = self.mean_grads if method is 'mean' else self.max_grads
 
     def on_train_begin(self, logs={}):
         if 'res' not in self.model.data_ids:
@@ -170,8 +185,8 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
             self.model.loss_weights[data_id] = weight.numpy()
 
     def eval_loss_weights(self):
-        # Get the maximum gradient value from residual loss
-        grad_res_max = self.max_grads(self.loss_gradients['res'])
+        # Get the maximum/mean gradient value from residual loss (see `method')
+        grad_res = self.grads_eval(self.loss_gradients['res'])
 
         # Get the mean of the gradient magnitudes for each remaining loss term
         new_weights = {}
@@ -194,55 +209,6 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         return tf.reduce_mean(mean)
 
 
-@keras_export('keras.callbacks.EmpiricalMeanWeightsAdapter')
-class EmpiricalMeanWeightsAdapter(EmpiricalWeightsAdapter):
-    """Adaptive loss weights technique for PINNs based on an empirical learning
-    rate annealing algorithm.
-
-    See:
-        Sifan Wang, Yujun Teng, Paris Perdikaris
-        `Understanding and mitigating gradient pathologies in physics-informed
-        neural networks`
-        https://arxiv.org/abs/2001.04536"""
-
-    def __init__(
-        self,
-        model,
-        data_generator=None,
-        freq=1,
-        alpha=0.8,
-        log_dir=None,
-        max_samples=20000,
-        name='empirical_mean_weights_adapter',
-        **kwargs):
-        super(EmpiricalMeanWeightsAdapter, self).__init__(
-            model=model,
-            data_generator=data_generator,
-            freq=freq,
-            alpha=alpha,
-            log_dir=log_dir,
-            max_samples=max_samples,
-            name=name)
-
-    # Handling loss weights
-    ###########################################################################
-    def eval_loss_weights(self):
-        # Get the maximum gradient value from residual loss
-        grad_res_mean = self.mean_grads(self.loss_gradients['res'])
-
-        # Get the mean of the gradient magnitudes for each remaining loss term
-        new_weights = {}
-        for data_id, grad in self.loss_gradients.items():
-            if data_id == 'res':
-                new_weights[data_id] = self.model.loss_weights[data_id]
-            # Get the mean of the gradient magnitudes for each remaining loss term
-            grads_mean = self.mean_grads(grad)
-            # Update the loss weights
-            new_weights[data_id] = grad_res_mean / grads_mean
-
-        return new_weights
-
-
 @keras_export('keras.callbacks.NTKWeightsAdapter')
 class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
@@ -256,6 +222,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     def __init__(
         self,
         model,
+        ode_loss_weights=None,
         data_generator=None,
         freq=None,
         log_dir=None,

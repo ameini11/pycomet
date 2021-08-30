@@ -45,7 +45,7 @@ def get_callback(model, identifier, args):
 
 def get_weighted_loss(model, args):
     # Add loss weights to the network class
-    model.net.add_loss_weights(model.loss_weights)
+    # model.net.add_loss_weights(model.loss_weights)
     # Manipulate arguments for `weighted_loss` callback
     name = args.pop('name')
     args.update(

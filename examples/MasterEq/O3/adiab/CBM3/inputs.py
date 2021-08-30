@@ -176,6 +176,23 @@ loss = {
         'Y_i': {'identifier': 'malpe', 'axis': 0}
     }
 }
+loss_weights = {
+    'ics': {
+        'T':   1.,
+        'Y_O': 1.,
+        'Y_i': 1.
+    },
+    'pts': {
+        'T':   1.,
+        'Y_O': 1.,
+        'Y_i': 1.
+    },
+    'res': {
+        'T':   1.,
+        'Y_O': 1.,
+        'Y_i': 1.
+    }
+}
 metrics = None
 
 # Callbacks ---------------------------------------------------------------
@@ -216,9 +233,10 @@ callbacks = {
     },
 
     'weighted_loss': {
-        'name':  'EmpiricalMeanWeightsAdapter',
+        'name':  'EmpiricalWeightsAdapter',
         'alpha': 0.9,
-        'freq':  50
+        'freq':  50,
+        'method': 'mean'
     }
 
 }

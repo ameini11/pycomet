@@ -141,10 +141,10 @@ class Model(object):
             self.net.data_ids_valid = self.data.data_ids_valid
 
         # Initializing loss weights
-        self.loss_weights = loss_weights
+        self.loss_weights = self.get_loss_weights(loss_weights)
 
         # Initializing loss functions
-        self.loss = self.get_loss_fn(loss)
+        self.loss = self.get_loss(loss)
         if self.data.name == 'ODE':
             self.net.add_residual(self.data.res_fn(self.net))
 
@@ -156,7 +156,7 @@ class Model(object):
         self.net.compile(self.data, optimizer=self.optimizer, loss=self.loss, \
             loss_weights=self.loss_weights, metrics=self.metrics)
 
-    def get_loss_fn(self, loss):
+    def get_loss(self, loss):
         if self.data.name == 'ODE':
             loss_fn = {}
             for data_id in loss.keys():
@@ -169,6 +169,17 @@ class Model(object):
         else:
             loss_fn = losses_module.get(loss)
         return loss_fn
+
+    def get_loss_weights(self, weights):
+        if weights:
+            if self.data.name == 'ODE':
+                loss_wg = {}
+                for data_id in weights.keys():
+                    loss_wg[data_id] = list(weights[data_id].values()) \
+                        if isinstance(weights[data_id], dict) else weights[data_id]
+            else:
+                loss_wg = list(weights.values()) if isinstance(weights, dict) else weights
+            return loss_wg
 
 
     # Training Model

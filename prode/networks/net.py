@@ -51,9 +51,10 @@ class Net(tf.keras.Model):
             'inp_dim':          self.inp_dim,
             'out_dim':          self.out_dim,
             'block':            self.block,
-            'ode_loss_weights': self.ode_loss_weights,
             'inp_trans':        self.inp_trans,
             'out_trans':        self.out_trans,
+            'ode_loss_weights': self.ode_loss_weights,
+            'residual':         self.residual,
             'loss_fns':         self.loss_fns,
             'data_ids':         self.data_ids,
             'data_ids_valid':   self.data_ids_valid

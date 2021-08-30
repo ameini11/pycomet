@@ -90,11 +90,12 @@ class ODE(Data):
                 "`time_idx` passed into `{}` has to be 0 or -1."
                 "It's the position (if list) or column (if array) of time "
                 "input vector.".format(self.name))
-        self.time_idx      = time_idx
+        self.time_idx = time_idx
 
-        self.ode_func      = ode_func
-        self.ode_params    = ode_params
-        self.grad_fn       = gradients.get_grad_fn(ode_order)
+        self.ode_order = ode_order
+        self.ode_func = ode_func
+        self.ode_params = ode_params
+        self.grad_fn = gradients.get_grad_fn(self.ode_order)
 
 
     # Handling Data
@@ -196,7 +197,8 @@ class ODE(Data):
                 ic, t = tf.split(inputs, sizes, axis=1)
 
             # Evaluate gradients
-            grads = self.grad_fn(self.input_is_list, model, ic, t, training)
+            # grads = self.grad_fn(self.input_is_list, model, ic, t, training)
+            grads = self.grad_fn(self, self.ode_order, model, ic, t, training)
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads, self.ode_params)
