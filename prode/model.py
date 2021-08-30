@@ -38,11 +38,11 @@ class Model(object):
         self.loss_weights = None
 
         # Define paths
-        self.save_dir  = path+"/saving/"
-        self.post_dir  = path+"/postprocessing/"
+        self.save_dir = path+"/saving/"
+        self.post_dir = path+"/postprocessing/"
         self.train_dir = path+"/training/"
-        self.ckpt_dir  = self.train_dir+"ckpt/"
-        self.TB_dir    = self.train_dir+"logs/"
+        self.ckpt_dir = self.train_dir+"ckpt/"
+        self.TB_dir = self.train_dir+"logs/"
         for dir_i in [self.save_dir, self.ckpt_dir, self.post_dir, self.train_dir]:
             if not os.path.exists(dir_i):
                 os.makedirs(dir_i)
@@ -137,13 +137,16 @@ class Model(object):
 
         # Update data ids
         if self.data.name == 'ODE':
-            self.net.add_data_ids(self.data)
+            self.net.data_ids = self.data.data_ids
+            self.net.data_ids_valid = self.data.data_ids_valid
 
         # Initializing loss weights
         self.loss_weights = loss_weights
 
         # Initializing loss functions
         self.loss = self.get_loss_fn(loss)
+        if self.data.name == 'ODE':
+            self.net.add_residual(self.data.res_fn(self.net))
 
         # Initializing metrics
         if metrics is not None:

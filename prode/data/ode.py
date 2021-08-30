@@ -182,10 +182,10 @@ class ODE(Data):
 
     # Handling Residual Loss
     ###########################################################################
-    def residual(self, loss):
+    def res_fn(self, model):
         '''Residual loss function definition.'''
 
-        def res_pred(model, inputs, training=True):
+        def residual(inputs, training=True):
 
             if self.input_is_list:
                 ic, t = inputs[self.time_idx-1], inputs[self.time_idx]
@@ -196,14 +196,14 @@ class ODE(Data):
                 ic, t = tf.split(inputs, sizes, axis=1)
 
             # Evaluate gradients
-            grads    = self.grad_fn(self.input_is_list, model, ic, t, training)
+            grads = self.grad_fn(self.input_is_list, model, ic, t, training)
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads, self.ode_params)
 
             return res_pred
         
-        return res_pred
+        return residual
 
 
     # Util functions
@@ -227,3 +227,4 @@ class ODE(Data):
             if verbose:
                 utils.print_submain("No", data_type, "pts available.")
             return None
+            

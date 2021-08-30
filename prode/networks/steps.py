@@ -15,7 +15,6 @@ def train_step(model, data):
     with backprop.GradientTape() as tape:
         for i, data_id in enumerate(model.data_ids):
             losses[data_id] = get_loss(x[i], y[i], model, data_id)
-
         # Regularization loss
         reg_loss = get_reg_loss(model)
         # Calculate total loss
@@ -41,10 +40,10 @@ def test_step(model, data):
     """Custom test step."""
 
     x, y = data_adapter.expand_1d(data)
-    
-    pred, losses = {}, {}
-    for i, data_id in enumerate(model.data_ids_val):
-        pred[data_id], losses[data_id] = get_pred_loss(x[i], y[i], model, data_id, training=False)
+
+    losses = {}, {}
+    for i, data_id in enumerate(model.data_ids_valid):
+        losses[data_id] = get_loss(x[i], y[i], model, data_id, training=False)
 
     # Calculate total loss
     total_loss = get_tot_loss(model, losses, training=False)
@@ -57,8 +56,11 @@ def test_step(model, data):
 ###############################################################################
 def get_loss(x, y, model, data_id, training=True):
     if data_id == 'res':
-        y_pred = model.residual(model, x, training=training)
-        y = tf.zeros_like(y_pred)
+        y_pred = model.residual(x, training=training)
+        if isinstance(y_pred, (list,tuple)):
+            y = [ tf.zeros_like(y_pred_i) for y_pred_i in y_pred ]
+        else:
+            y = tf.zeros_like(y_pred)
     else:
         y_pred = model(x, training=training)
     return model.compiled_loss[data_id](y, y_pred)

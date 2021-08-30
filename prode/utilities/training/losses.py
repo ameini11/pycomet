@@ -92,7 +92,7 @@ def get(identifier, axis=-1):
             loss = [{'identifier': 'mae', 'axis': 0},
                     {'identifier': 'mape', 'axis': 0}]
 
-        >> If ODE data type are considered (see first `model.get_loss_fn`):
+        >> If ODE data type are considered (see `model.get_loss_fn` first):
         - Single output:
             loss = {
                 'ics': 'mae',

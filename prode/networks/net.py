@@ -32,14 +32,14 @@ class Net(tf.keras.Model):
 
         self.block = utils.get_class(layers, block)
 
-        self.loss_weights = None
-
         self.inp_trans = None
         self.out_trans = None
 
-        self.loss_fns = None
+        # NN extra features for handling ODE data types
+        self.ode_loss_weights = None
+        self.residual = None
         self.data_ids = None
-        self.data_ids_val = None
+        self.data_ids_valid = None
 
 
     # Configuration update
@@ -51,12 +51,12 @@ class Net(tf.keras.Model):
             'inp_dim':          self.inp_dim,
             'out_dim':          self.out_dim,
             'block':            self.block,
-            'loss_weights':     self.loss_weights,
+            'ode_loss_weights': self.ode_loss_weights,
             'inp_trans':        self.inp_trans,
             'out_trans':        self.out_trans,
             'loss_fns':         self.loss_fns,
             'data_ids':         self.data_ids,
-            'data_ids_val':     self.data_ids_val
+            'data_ids_valid':   self.data_ids_valid
         })
         return config
 
@@ -105,17 +105,14 @@ class Net(tf.keras.Model):
                 _output_names = [ data_id + '_' + name for name in self.output_names ]
                 _loss = loss[data_id] if loss else None
                 _loss_weights = loss_weights[data_id] if loss_weights else None
-                if data_id == 'res':
-                    self.compiled_loss[data_id] = ResidualLossContainer(
-                        _loss, _loss_weights, output_names=_output_names)
-                else:
-                    self.compiled_loss[data_id] = compile_utils.LossesContainer(
-                        _loss, _loss_weights, output_names=_output_names)
+                self.compiled_loss[data_id] = compile_utils.LossesContainer(
+                    _loss, _loss_weights, output_names=_output_names)
                 self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(name=data_id + '_loss')
 
             # Defining metrics container
             if metrics is not None:
                 utils.warning("With `data.ode`, metrics evaluation is not available.")
+            self.compiled_metrics = None
 
             self._configure_steps_per_execution(steps_per_execution or 1)
 
@@ -190,22 +187,40 @@ class Net(tf.keras.Model):
 
     # Data identities
     ###########################################################################
-    def add_data_ids(self, data_cls):
-        self.data_ids = data_cls.data_ids
-        self.data_ids_val = data_cls.data_ids_val
+    @property
+    def data_ids(self):
+        return self._data_ids
+
+    @data_ids.setter
+    def data_ids(self, identifiers):
+        self._data_ids = identifiers
+
+    @property
+    def data_ids_valid(self):
+        return self._data_ids_valid
+
+    @data_ids_valid.setter
+    def data_ids_valid(self, identifiers):
+        self._data_ids_valid = identifiers
+
+    @property
+    def ode_loss_weights(self):
+        return self._ode_loss_weights
+
+    @ode_loss_weights.setter
+    def ode_loss_weights(self, weights):
+        self._ode_loss_weights = weights
 
 
     # # Add loss properties
     # ###########################################################################
-    # def add_loss_fun(self, loss_fns, data_cls):
-    #     """Add a `list`/`dict` of loss functions for composite loss."""
-    #     self.loss_fns = self.get_loss_properties(loss_fns, 'loss_fns')
-    #     if 'res' in self.loss_fns:
-    #         self.loss_fns['res'] = data_cls.residual_loss(self.loss_fns['res'])
+    def add_residual(self, res_fn):
+        """Add a `list`/`dict` of loss functions for composite loss."""
+        self.residual = res_fn
 
-    # def add_loss_weights(self, loss_weights):
-    #     if loss_weights is not None:
-    #         self.loss_weights = self.get_loss_properties(loss_weights, 'loss_weights')
+    # def add_loss_weights(self, ode_loss_weights):
+    #     if ode_loss_weights is not None:
+    #         self.ode_loss_weights = self.get_loss_properties(ode_loss_weights, 'ode_loss_weights')
 
     # def get_loss_properties(self, properties, prop_name):
     #     if isinstance(properties, dict):
@@ -225,4 +240,4 @@ class Net(tf.keras.Model):
     #     else:
     #         utils.raise_value_err(
     #             "`{}` passed into `{}.get_loss_properties` method has "
-                # "to be a `dict` or a `list`/`tuple`.".format(prop_name, self.name))
+    #             "to be a `dict` or a `list`/`tuple`.".format(prop_name, self.name))
