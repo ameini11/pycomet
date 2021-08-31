@@ -93,11 +93,6 @@ class DataSet(Data):
                 utils.raise_value_err("`{}` passed into `{}` has to be a list "
                     "or a tuple of arrays: [x, y]".format(data_name, self.name))
 
-    def read_dataframe(self, df, col):
-        if any(isinstance(i, (list,tuple)) for i in col):
-            return [ df[:, col[i][0]:col[i][1]] for i in range(len(col)) ]
-        else:
-            return df[:, col[0]:col[1]]
 
     def get_num_pts(self, dset):
 

@@ -67,7 +67,7 @@ def order_n(ode_cls, order, model, ic, t, training):
     return grads
 
 
-# Array operations
+# Operations on grad arrays
 ###############################################################################
 def split_grad(grad):
     if isinstance(grad, (list,tuple)):

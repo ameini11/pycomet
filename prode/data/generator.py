@@ -51,7 +51,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
                             "be a `list`/`tuple` of `np.ndarray` of length 2: "
                             "(inputs, outputs).".format(self.name))
                     else:
-                        self.data[k]      = data[k]
+                        self.data[k] = data[k]
                         self.n_samples[k] = self.get_cardinality(data[k])
                         if k not in self.batch_size:
                             self.batch_size[k] = 32

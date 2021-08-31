@@ -60,23 +60,23 @@ class ODE(Data):
                 valid_dset = self.data_as_dict(valid_data, nameof(valid_data))
             elif validation_split:
                 self.validation_split = validation_split
-                train_dset, valid_dset = self.get_train_valid(self.data_as_dict(train_data, nameof(train_data)))
+                train_dset, valid_dset = self.get_train_valid(
+                    self.data_as_dict(train_data, nameof(train_data))
+                )
             else:
                 train_dset = self.data_as_dict(train_data, nameof(train_data))
                 valid_dset = None
 
-            self.train = ODEDataSequence(train_dset, self.data_ids, batch_size=batch_size)
+            self.train = ODEDataSequence(train_dset, self.data_ids, \
+                batch_size=batch_size)
             if valid_dset:
                 if valid_batch_size is None:
                     valid_batch_size = batch_size
-                self.valid = ODEDataSequence(valid_dset, self.data_ids, batch_size=valid_batch_size)
+                self.valid = ODEDataSequence(valid_dset, self.data_ids, \
+                    batch_size=valid_batch_size)
 
         # Testing data
         self.test = test_data
-        # if test_data:
-        #     self.check_data_source(test_data, nameof(test_data))
-        #     self.test = ODEDataSequence(self.data_as_dict(test_data, nameof(test_data)), \
-        #         self.data_ids)
 
         # Update data ids
         self.data_ids = self.train.data_ids
@@ -101,24 +101,26 @@ class ODE(Data):
     ###########################################################################
     def check_data_source(self, data, data_name):
         if data is None:
-            utils.raise_value_err("No `{}` passed into `{}`.".format(data_name, self.name))
+            utils.raise_value_err("No `{}` passed into `{}`.".format(
+                data_name, self.name)
+            )
         elif not isinstance(data, dict):
             utils.raise_value_err(
                 "`{}` passed into `{}` has to be a dict:\n"
                 "  - 'data_source': 'array' or 'file';\n"
                 "  - 'ics': initial condition pts (arrays or file path);\n"
                 "  - 'pts': additional anchor pts (arrays or file path);\n"
-                "  - 'res': collocation pts for residual (arrays or file path).".format( \
-                    data_name, self.name, data_name))
+                "  - 'res': collocation pts for residual (arrays or file "
+                "path).".format(data_name, self.name)
+            )
 
-    def data_as_dict(self, data, data_name):
-        data = list(map(lambda i: self.get_data(data, data_name, i), self.data_ids))
+    def data_as_dict(self, data):
+        data = list(map(lambda i: self.get_data(data, i), self.data_ids))
         return {self.data_ids[i]: data[i] for i in range(len(self.data_ids))}
 
-    def get_data(self, data, data_name, data_id):
-        if data[data_id] is None or data['data_source'] is None:
+    def get_data(self, data, data_id):
+        if data[data_id] is None:
             return None
-
         if self.from_file:
             # Data from `.csv` file
             if self.col_x is None or self.col_y is None:
@@ -126,31 +128,34 @@ class ODE(Data):
                     "`self.col_x` and `self.col_y` to extract data from file."
                     "\nThey should be the doublet 'start'-'end+1' columns "
                     "(or a list of those) of x and y data.".format(self.name))
-            data_frame = pd.read_csv(data[data_id], sep=',', header=self.header).astype(K.floatx()).values
+            data_frame = pd.read_csv(data[data_id], sep=',', \
+                header=self.header).astype(K.floatx()).values
             if self.preproc_fn is not None:
                 data_frame = self.preproc_fn(data_frame)
-            if any(isinstance(i, (list,tuple)) for i in self.col_x):
-                x_data = []
-                for i in range(len(self.col_x)):
-                    x_data.append(data_frame[:, self.col_x[i][0]:self.col_x[i][1]])
-            else:
-                x_data = data_frame[:,self.col_x[0]:self.col_x[1]]
-            y_data = data_frame[:,self.col_y[0]:self.col_y[1]]
-            if y_data.size == 0:
-                y_data = np.empty(data[data_id].shape)
-            return x_data, y_data
+            x, y = list(map(lambda c: self.read_dataframe(data_frame, c), \
+                [self.col_x, self.col_y]))
+            if len(x) == 0:
+                utils.raise_value_err("No input data (see `col_x`) can be "
+                    "extracted from file '{}'.".format(data[data_id]))
+            if len(y) == 0:
+                if data_id == 'res':
+                    y = self.zeros_array(self.get_cardinality(x), 'out')
+                else:
+                    utils.raise_value_err("No target data (see `col_y`) can be "
+                        "extracted from file '{}'.".format(data[data_id]))
+            return x, y
         else:
             # Data from lists of `numpy.array`
-            if isinstance(data[data_id], (list,tuple)):
-                return data[data_id]
-            elif data_id == 'res':
-                n = data[data_id].shape[0]
-                
-                shape = [ data[data_id].shape[0], self.dim['out'] ]
-                return data[data_id], np.empty(shape)
+            if data_id == 'res':
+                x = self.check_data_consistency(data[data_id], 'inp')
+                y = self.zeros_array(self.get_cardinality(x), 'out')
+                return x, y
+            elif isinstance(data[data_id], (list,tuple)):
+                return list(map(self.check_data_consistency, data[data_id], \
+                    ['inp', 'out']))
             else:
-                utils.raise_value_err("`{}[{}]` passed into `{}` has to be a list "
-                    "or a tuple of arrays: [x, y]".format(data_name, data_id, self.name))
+                utils.raise_value_err("Data passed into `{}` has to be a "
+                    "list or a tuple of arrays: [x, y]".format(self.name))
 
     def get_num_pts(self, dset):
 
@@ -163,6 +168,28 @@ class ODE(Data):
             return num_pts
 
         super(ODE, self).get_num_pts(fun, data_type='training', verbose=1)
+
+    def check_data_consistency(self, x, identifier):
+        err_msg = "Inconsistency between data and NN dimensions (see `dim`)."
+        if isinstance(x, (list,tuple)):
+            if isinstance(self.dim[identifier], (list,tuple)):
+                if not len(x) == len(self.dim[identifier]):
+                    utils.raise_value_err(err_msg)
+                for i in range(len(x)):
+                    if not x[i].shape[1] == self.dim[identifier][i]:
+                        utils.raise_value_err(err_msg)
+        else:
+            if isinstance(self.dim[identifier], int):
+                if not x[i].shape[1] == self.dim[identifier][i]:
+                    utils.raise_value_err(err_msg)
+        return x
+
+    def zeros_array(self, n_samples, identifier):
+        d = [ self.dim[identifier] ] if isinstance(self.dim[identifier], int) \
+            else self.dim[identifier]
+        x = [ np.zeros((n_samples,d_i)) for d_i in d ]
+        return x if len(d) > 1 else *x
+
 
     # Splitting Training/Validation Data
     ###########################################################################

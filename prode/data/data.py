@@ -88,3 +88,9 @@ class Data(object):
 
     def to_list(self, x):
         return x if isinstance(x, (list,tuple)) else [x]
+
+    def read_dataframe(self, df, col):
+        if any(isinstance(i, (list,tuple)) for i in col):
+            x = [ df[:, col[i][0]:col[i][1]] for i in range(len(col)) ]
+        else:
+            x = df[:, col[0]:col[1]]
