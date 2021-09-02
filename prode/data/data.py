@@ -23,12 +23,13 @@ class Data(object):
         self.train = None
         self.valid = None
         self.test = None
-        
-        self.data_ids = None
+        self.validation_split = None
         
         self.batch_size = None
         self.valid_batch_size = None
-        self.validation_split = None
+        
+        self.data_ids = None
+        self.data_ids_val = None
 
 
     # Util functions
@@ -39,16 +40,16 @@ class Data(object):
         else:
             return x.shape[0]
 
-    def get_num_pts(self, fun, data_type='training', verbose=1):
+    def get_num_pts(self, data_type='training', verbose=1, print_fun=None):
         if data_type == 'training':
             dset = self.train
         elif data_type == 'validation':
             dset = self.valid
         else:
             utils.raise_value_err("`data_type` passed into `{}.get_num_pts` method "
-                "must be equal to 'training' or 'validation'.".format(self.__name__))
+                "must be equal to 'training' or 'validation'.".format(self.name))
         if dset:
-            return fun(dset, data_type, verbose)
+            return print_fun(dset, data_type, verbose) if print_fun else None
         else:
             if verbose:
                 utils.print_submain("No", data_type, "pts available.")
@@ -79,18 +80,33 @@ class Data(object):
 
         # Single input model
         if len(x) == 1:
-            x, x_val = *x, *x_val
+            x, x_val = x[0], x_val[0]
         # Single output model
         if len(y) == 1:
-            y, y_val = *y, *y_val
+            y, y_val = y[0], y_val[0]
 
         return (x, y), (x_val, y_val)
 
     def to_list(self, x):
-        return x if isinstance(x, (list,tuple)) else [x]
+        return list(x) if isinstance(x, (list,tuple)) else [x]
 
     def read_dataframe(self, df, col):
         if any(isinstance(i, (list,tuple)) for i in col):
             x = [ df[:, col[i][0]:col[i][1]] for i in range(len(col)) ]
         else:
             x = df[:, col[0]:col[1]]
+
+    def check_data_consistency(self, x, identifier):
+        msg = "Inconsistency between data and network I/O dimensions (see `dim`)."
+        dim = self.dim[identifier]
+        if isinstance(x, (list,tuple)):
+            if isinstance(dim, (list,tuple)):
+                if not len(x) == len(dim):
+                    utils.raise_value_err(msg)
+                for i in range(len(x)):
+                    if not x[i].shape[1] == dim[i]:
+                        utils.raise_value_err(msg)
+        else:
+            if isinstance(dim, int):
+                if not x[i].shape[1] == dim[i]:
+                    utils.raise_value_err(msg)

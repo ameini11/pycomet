@@ -71,32 +71,34 @@ class DataSet(Data):
                 utils.raise_value_err(
                     "No training data passed into `{}`.".format(self.name)
                 )
-
         if self.from_file:
             # Data from `.csv` file
             if self.col_x is None or self.col_y is None:
                 utils.raise_value_err("In `{}` you have to provide both "
                     "`self.col_x` and `self.col_y` to extract data from file."
-                    "\nThey should be the doublet 'start'-'end+1' columns "
+                    "\nThey should be the doublet (start,end+1) columns "
                     "(or a list of those) of x and y data.".format(self.name))
-            data_frame = pd.read_csv(data, sep=',', header=self.header).astype(
+            df = pd.read_csv(data, sep=',', header=self.header).astype(
                 K.floatx()).values
             if self.preproc_fn is not None:
-                data_frame = self.preproc_fn(data_frame)
-            return list(map(lambda c: self.read_dataframe(data_frame, c), \
-                [self.col_x, self.col_y]))
+                df = self.preproc_fn(df)
+            return list(
+                map(lambda c: self.read_dataframe(df, c), \
+                    [self.col_x, self.col_y])
+            )
         else:
             # Data from lists of `numpy.array`
             if isinstance(data, (list,tuple)):
+                map(self.check_data_consistency, data, ['inp', 'out'])
                 return data
             else:
-                utils.raise_value_err("`{}` passed into `{}` has to be a list "
-                    "or a tuple of arrays: [x, y]".format(data_name, self.name))
+                utils.raise_value_err("Data passed into `{}` has to be a "
+                    "list or a tuple of arrays: [x, y]".format(self.name))
 
 
-    def get_num_pts(self, dset):
+    def get_num_pts(self, data_type='training', verbose=1):
 
-        def fun(dset, data_type, verbose):
+        def print_fun(dset, data_type, verbose):
             num_pts = self.get_cardinality(dset)
             if verbose:
                 utils.print_submain(
@@ -104,4 +106,6 @@ class DataSet(Data):
                 )
             return num_pts
 
-        super(DataSet, self).get_num_pts(fun, data_type='training', verbose=1)
+        super(DataSet, self).get_num_pts(
+            data_type=data_type, verbose=verbose, print_fun=print_fun
+        )

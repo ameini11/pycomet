@@ -8,7 +8,7 @@ from prode.utilities import utils
 @keras_export('keras.utils.ODEDataSequence')
 class ODEDataSequence(tf.keras.utils.Sequence):
 
-    def __init__(self, data, data_ids, batch_size=32, shuffle=True):
+    def __init__(self, data, data_ids, batch_size=64, shuffle=True):
         super(ODEDataSequence, self).__init__()
 
         self.name = utils.get_class_name(self)
@@ -31,7 +31,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         # Check `data` variable
         if not isinstance(data, dict):
             utils.raise_value_err(
-                "`data` passed into `{}` has to be a `int` or `dict`. If `dict`:\n"
+                "`data` passed into `{}` has to be a `dict`:\n"
                 "  - 'ics': initial condition pts dataset;\n"
                 "  - 'pts': additional anchor pts dataset;\n"
                 "  - 'res': collocation pts dataset (residual).".format(self.name))
@@ -80,11 +80,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         Returns:
             A batch
         """
-        data = []
-        for xy in zip(*self.sequence[index]):
-            data.append(xy)
-        x, y = data
-        return x, y
+        return [ xy for xy in zip(*self.sequence[index]) ]
 
 
     # Handling data at the end of each epoch
@@ -94,33 +90,37 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         """Method called at the end of every epoch.
         """
         batches = dict()
-        for k, dset in self.data.items():
+        for dset_id, dset in self.data.items():
             if self.shuffle:
-                dset = self.shuffle_data(dset, k)
-            batches[k] = self.batch_data(dset, k)
+                dset = self.shuffle_data(dset, dset_id)
+            batches[dset_id] = self.batch_data(dset, dset_id)
         self.sequence = [ batch for batch in zip(*list(batches.values())) ]
 
     def shuffle_data(self, dset, dset_id):
         indeces = np.random.permutation(self.n_samples[dset_id])
-        dset_shuffled = []
+        _dset = []
         for xy in dset:
             if isinstance(xy, (list,tuple)):
-                dset_shuffled.append([i[indeces] for i in xy])
+                # Multiple I/O
+                _dset.append([i[indeces] for i in xy])
             else:
-                dset_shuffled.append(xy[indeces])
-        return dset_shuffled
+                # Single I/O
+                _dset.append(xy[indeces])
+        return _dset
 
     def batch_data(self, dset, dset_id):
         repeat = int(np.ceil(self.__len__()/self.steps[dset_id]))
-        dset_batched = []
+        _dset = []
         for xy in dset:
             if isinstance(xy, (list,tuple)):
-                dset_split = [np.array_split(i, self.steps[dset_id])*repeat for i in xy]
-                _xy = [ dset_split_zip for dset_split_zip in zip(*dset_split) ]
+                # Multiple I/O
+                dsplit = [ np.array_split(i, self.steps[dset_id])*repeat for i in xy ]
+                _xy = [ dsplit_i for dsplit_i in zip(*dsplit) ]
             else:
+                # Single I/O
                 _xy = np.array_split(xy, self.steps[dset_id])*repeat
-            dset_batched.append(_xy)
-        return [ dset_batched_zip for dset_batched_zip in zip(*dset_batched) ]
+            _dset.append(_xy)
+        return [ _dset_i for _dset_i in zip(*_dset) ]
 
 
     # Util functions

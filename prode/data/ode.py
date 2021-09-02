@@ -44,7 +44,7 @@ class ODE(Data):
             'res'   # Collocation pts (residual)
             ])
         
-        # Only if data from file
+        # Only for data from file
         self.from_file = from_file
         self.col_x = col_x
         self.col_y = col_y
@@ -70,10 +70,10 @@ class ODE(Data):
             self.train = ODEDataSequence(train_dset, self.data_ids, \
                 batch_size=batch_size)
             if valid_dset:
-                if valid_batch_size is None:
-                    valid_batch_size = batch_size
-                self.valid = ODEDataSequence(valid_dset, self.data_ids, \
-                    batch_size=valid_batch_size)
+                self.valid = ODEDataSequence(
+                    valid_dset, self.data_ids, batch_size=batch_size if \
+                        valid_batch_size is None else valid_batch_size
+                    )
 
         # Testing data
         self.test = test_data
@@ -84,7 +84,9 @@ class ODE(Data):
             self.data_ids_val = self.valid.data_ids
 
         # ODE properties
-        self.input_is_list = True if isinstance(self.dim['inp'],(list,tuple)) else False
+        self.input_is_list = True if isinstance(self.dim['inp'], (list,tuple)) \
+            and len(self.dim['inp']) > 1 else False
+            
         if time_idx not in [0,-1]:
             utils.raise_value_err(
                 "`time_idx` passed into `{}` has to be 0 or -1."
@@ -115,51 +117,53 @@ class ODE(Data):
             )
 
     def data_as_dict(self, data):
-        data = list(map(lambda i: self.get_data(data, i), self.data_ids))
+        data = list(map(lambda i: self.get_data(data[i], i), self.data_ids))
         return {self.data_ids[i]: data[i] for i in range(len(self.data_ids))}
 
     def get_data(self, data, data_id):
-        if data[data_id] is None:
+        if data is None:
             return None
         if self.from_file:
             # Data from `.csv` file
             if self.col_x is None or self.col_y is None:
                 utils.raise_value_err("In `{}` you have to provide both "
                     "`self.col_x` and `self.col_y` to extract data from file."
-                    "\nThey should be the doublet 'start'-'end+1' columns "
+                    "\nThey should be the doublet (start,end+1) columns "
                     "(or a list of those) of x and y data.".format(self.name))
-            data_frame = pd.read_csv(data[data_id], sep=',', \
-                header=self.header).astype(K.floatx()).values
+            df = pd.read_csv(data, sep=',', header=self.header).astype( \
+                K.floatx()).values
             if self.preproc_fn is not None:
-                data_frame = self.preproc_fn(data_frame)
-            x, y = list(map(lambda c: self.read_dataframe(data_frame, c), \
-                [self.col_x, self.col_y]))
+                df = self.preproc_fn(df)
+            x, y = list(
+                map(lambda c: self.read_dataframe(df, c), \
+                    [self.col_x, self.col_y])
+            )
             if len(x) == 0:
                 utils.raise_value_err("No input data (see `col_x`) can be "
-                    "extracted from file '{}'.".format(data[data_id]))
+                    "extracted from file '{}'.".format(data))
             if len(y) == 0:
                 if data_id == 'res':
                     y = self.zeros_array(self.get_cardinality(x), 'out')
                 else:
                     utils.raise_value_err("No target data (see `col_y`) can be "
-                        "extracted from file '{}'.".format(data[data_id]))
+                        "extracted from file '{}'.".format(data))
             return x, y
         else:
             # Data from lists of `numpy.array`
             if data_id == 'res':
-                x = self.check_data_consistency(data[data_id], 'inp')
-                y = self.zeros_array(self.get_cardinality(x), 'out')
+                self.check_data_consistency(data, 'inp')
+                x, y = data, self.zeros_array(self.get_cardinality(data), 'out')
                 return x, y
-            elif isinstance(data[data_id], (list,tuple)):
-                return list(map(self.check_data_consistency, data[data_id], \
-                    ['inp', 'out']))
+            elif isinstance(data, (list,tuple)):
+                map(self.check_data_consistency, data, ['inp', 'out'])
+                return data
             else:
                 utils.raise_value_err("Data passed into `{}` has to be a "
                     "list or a tuple of arrays: [x, y]".format(self.name))
 
-    def get_num_pts(self, dset):
+    def get_num_pts(self, data_type='training', verbose=1):
 
-        def fun(dset, data_type, verbose):
+        def print_fun(dset, data_type, verbose):
             num_pts = {data_id: dset.n_samples[data_id] for data_id in dset.data}
             if verbose:
                 utils.print_submain("Number of", data_type, "pts:")
@@ -167,28 +171,15 @@ class ODE(Data):
                     utils.print_submain("  - '%s': %8d" % (k, v))
             return num_pts
 
-        super(ODE, self).get_num_pts(fun, data_type='training', verbose=1)
-
-    def check_data_consistency(self, x, identifier):
-        err_msg = "Inconsistency between data and NN dimensions (see `dim`)."
-        if isinstance(x, (list,tuple)):
-            if isinstance(self.dim[identifier], (list,tuple)):
-                if not len(x) == len(self.dim[identifier]):
-                    utils.raise_value_err(err_msg)
-                for i in range(len(x)):
-                    if not x[i].shape[1] == self.dim[identifier][i]:
-                        utils.raise_value_err(err_msg)
-        else:
-            if isinstance(self.dim[identifier], int):
-                if not x[i].shape[1] == self.dim[identifier][i]:
-                    utils.raise_value_err(err_msg)
-        return x
+        super(ODE, self).get_num_pts(
+            data_type=data_type, verbose=verbose, print_fun=print_fun
+        )
 
     def zeros_array(self, n_samples, identifier):
-        d = [ self.dim[identifier] ] if isinstance(self.dim[identifier], int) \
-            else self.dim[identifier]
+        d = self.dim[identifier]
+        d = [d] if isinstance(d, int) else d
         x = [ np.zeros((n_samples,d_i)) for d_i in d ]
-        return x if len(d) > 1 else *x
+        return x if len(d) > 1 else x[0]
 
 
     # Splitting Training/Validation Data
