@@ -15,8 +15,3 @@ tf_setup = {
     'NUM_THREADS':          8,
     'TF_CPP_MIN_LOG_LEVEL': '3'
 }
-
-# Multiprocessing setup
-mp_setup = {
-    'NUM_CPU':  8
-}

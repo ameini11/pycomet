@@ -52,7 +52,7 @@ class ODEDataSequence(tf.keras.utils.Sequence):
                             "(inputs, outputs).".format(self.name))
                     else:
                         self.data[k] = data[k]
-                        self.n_samples[k] = self.get_cardinality(data[k])
+                        self.n_samples[k] = utils.get_cardinality(data[k])
                         if k not in self.batch_size:
                             self.batch_size[k] = 32
 
@@ -114,19 +114,10 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         for xy in dset:
             if isinstance(xy, (list,tuple)):
                 # Multiple I/O
-                dsplit = [ np.array_split(i, self.steps[dset_id])*repeat for i in xy ]
-                _xy = [ dsplit_i for dsplit_i in zip(*dsplit) ]
+                spl = [ np.array_split(i, self.steps[dset_id])*repeat for i in xy ]
+                _xy = [ spl_i for spl_i in zip(*spl) ]
             else:
                 # Single I/O
                 _xy = np.array_split(xy, self.steps[dset_id])*repeat
             _dset.append(_xy)
         return [ _dset_i for _dset_i in zip(*_dset) ]
-
-
-    # Util functions
-    ###########################################################################
-    def get_cardinality(self, x):
-        if isinstance(x, (list,tuple)):
-            return self.get_cardinality(x[0])
-        else:
-            return x.shape[0]

@@ -128,18 +128,10 @@ def close_all_hdf5():
             except:
                 pass
 
-# def parallelize_loop(f, iterable, *args):
-#     if get_num_args(f) > 1:
-#         new_iterable = []
-#         for i in iterable:
-#             elem = [i]
-#             elem.extend(args)
-#             new_iterable.append(elem)
-#         iterable = new_iterable
-#         print(iterable[0])
-#     pool = mp.Pool(min(mp.cpu_count(), mp_setup['NUM_CPU']))
-#     results = pool.map(f, iterable)
-#     return result
+# Array ops
+###############################################################################
+def get_cardinality(x):
+    return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
 
  
 

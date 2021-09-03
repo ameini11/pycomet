@@ -34,13 +34,7 @@ class Data(object):
 
     # Util functions
     ###########################################################################
-    def get_cardinality(self, x):
-        if isinstance(x, (list,tuple)):
-            return self.get_cardinality(x[0])
-        else:
-            return x.shape[0]
-
-    def get_num_pts(self, data_type='training', verbose=1, print_fun=None):
+    def get_num_pts(self, data_type='training', verbose=1, print_fn=None):
         if data_type == 'training':
             dset = self.train
         elif data_type == 'validation':
@@ -49,7 +43,7 @@ class Data(object):
             utils.raise_value_err("`data_type` passed into `{}.get_num_pts` method "
                 "must be equal to 'training' or 'validation'.".format(self.name))
         if dset:
-            return print_fun(dset, data_type, verbose) if print_fun else None
+            return print_fn(dset, data_type, verbose) if print_fn else None
         else:
             if verbose:
                 utils.print_submain("No", data_type, "pts available.")
@@ -58,7 +52,7 @@ class Data(object):
     # Splitting Training/Validation Data
     ###########################################################################
     def get_train_valid(self, data):
-        if data == None:
+        if data is None:
             return None, None
         else:
             return self.split_data(*data)

@@ -50,10 +50,10 @@ class MMOpNN(Net):
         else:
             self.names = names
 
-        self.dim = [ {
+        self.dim = {name: {
             "inp": self.inp_dim,
             "out": self.out_dim[i]
-        } for i in range(len(self.names)) ]
+        } for i, name in enumerate(self.names)}
 
         self.layer_size = layer_size
         self.activation = activation
@@ -68,7 +68,7 @@ class MMOpNN(Net):
 
         ### OpNNs Initialization ----------------------------------------------
         self.opnns = [ OpNN(
-            self.dim[i],
+            self.dim[name],
             self.layer_size[name],
             self.activation[name],
             self.kernel_initializer,
@@ -79,13 +79,25 @@ class MMOpNN(Net):
             weight_norm=self.weight_norm,
             block=self.block,
             name='opnn_'+name
-        ) for i, name in enumerate(self.names) ]
+        ) for name in self.names ]
 
         # Apply I/O Transformation
         if self.inp_opnn_trans:
+            if not isinstance(self.inp_opnn_trans, dict):
+                utils.raise_value_err(
+                    "`inp_opnn_trans` passed into `{}` has to be a `dict` in "
+                    "which a specific input transform function is defined "
+                    "for each DeepONet: {'name': fun}".format(self.name)
+                )
             for i, name in enumerate(self.names):
                 self.opnns[i].apply_input_transform(self.inp_opnn_trans[name])
         if self.out_opnn_trans:
+            if not isinstance(self.out_opnn_trans, dict):
+                utils.raise_value_err(
+                    "`out_opnn_trans` passed into `{}` has to be a `dict` in "
+                    "which a specific output transform function is defined "
+                    "for each DeepONet: {'name': fun}".format(self.name)
+                )
             for i, name in enumerate(self.names):
                 self.opnns[i].apply_output_transform(self.out_opnn_trans[name])
 
@@ -141,17 +153,18 @@ class MMOpNN(Net):
         # OpNNs
         G_uy = [ g_uy([x_u, x_y]) for g_uy in self.opnns ]
 
-
         # Output transformation
         if self.out_trans is not None:
             G_uy = self.out_trans(G_uy)
 
-        return {k: v for (k,v) in zip(self.names, G_uy)}
+        # return {k: v for (k,v) in zip(self.names, G_uy)}
+        return G_uy
 
 
     # Graph
     ###########################################################################
     def get_graph(self):
-        x_u = tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input")
-        x_y = tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input")
-        return tf.keras.Model(inputs=[x_u, x_y], outputs=self.call(x), name=self.name)
+        x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
+              tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
+        y = {k: v for (k,v) in zip(self.names, self.call(x))}
+        return tf.keras.Model(inputs=x, outputs=y, name=self.name)

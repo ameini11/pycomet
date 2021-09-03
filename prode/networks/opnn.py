@@ -170,6 +170,7 @@ class OpNN(Net):
     # Graph
     ###########################################################################
     def get_graph(self):
-        x_u = tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input")
-        x_y = tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input")
-        return tf.keras.Model(inputs=[x_u, x_y], outputs=self.call(x), name=self.name)
+        x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
+              tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
+        y = self.call(x)
+        return tf.keras.Model(inputs=x, outputs=y, name=self.name)

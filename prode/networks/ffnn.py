@@ -105,4 +105,5 @@ class FFNN(Net):
     ###########################################################################
     def get_graph(self):
         x = tf.keras.Input(shape=(self.inp_dim,))
-        return tf.keras.Model(inputs=x, outputs=self.call(x), name=self.name)
+        y = self.call(x)
+        return tf.keras.Model(inputs=x, outputs=y, name=self.name)

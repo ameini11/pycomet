@@ -56,7 +56,7 @@ class DataSet(Data):
                 self.valid = None
 
         # Testing data
-        self.test = test_data
+        self.test = self.get_data(test_data, nameof(test_data))
 
         self.batch_size = batch_size
         self.valid_batch_size = valid_batch_size
@@ -98,8 +98,8 @@ class DataSet(Data):
 
     def get_num_pts(self, data_type='training', verbose=1):
 
-        def print_fun(dset, data_type, verbose):
-            num_pts = self.get_cardinality(dset)
+        def print_fn(dset, data_type, verbose):
+            num_pts = utils.get_cardinality(dset)
             if verbose:
                 utils.print_submain(
                     "Number of", data_type, "batches:  %10d" % num_pts
@@ -107,5 +107,5 @@ class DataSet(Data):
             return num_pts
 
         super(DataSet, self).get_num_pts(
-            data_type=data_type, verbose=verbose, print_fun=print_fun
+            data_type=data_type, verbose=verbose, print_fn=print_fn
         )

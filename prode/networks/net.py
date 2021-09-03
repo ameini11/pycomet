@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from tensorflow.keras.engine import compile_utils
 from prode.utilities.model import layers
 from prode.utilities import utils
 from prode.networks import steps
@@ -19,14 +20,15 @@ class Net(tf.keras.Model):
         *args,
         **kwargs
     ):
-        super(Net, self).__init__(*args, **kwargs)
+        super(Net, self).__init__(name=name, *args, **kwargs)
 
         if not isinstance(dim, dict):
             utils.raise_value_err(
                 "`dim` passed into `{}` network has to be a `dict` of length 2:\n"
                 "  - 'inp': `int` (or list of `int`);\n"
                 "  - 'out': `int` (or list of `int`).\n"
-                "It represents the dimensions of the feature space.".format(self.name))
+                "It represents the dimensions of the feature space.".format(self.name)
+            )
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
 
@@ -55,7 +57,6 @@ class Net(tf.keras.Model):
             'out_trans':        self.out_trans,
             'ode_loss_weights': self.ode_loss_weights,
             'residual':         self.residual,
-            'loss_fns':         self.loss_fns,
             'data_ids':         self.data_ids,
             'data_ids_valid':   self.data_ids_valid
         })
@@ -134,12 +135,13 @@ class Net(tf.keras.Model):
 
     def check_arg(self, arg, definition):
         if arg and not isinstance(arg, dict):
-            format_args = [ nameof(arg), *([definition]*3) ]
+            msg_args = [ nameof(arg), *([definition]*3) ]
             utils.raise_value_err(
                 "`{}` passed into `compile` has to be a `dict`:\n"
                 "  - 'ics': initial condition pts {};\n"
                 "  - 'pts': additional anchor pts {};\n"
-                "  - 'res': collocation pts residual {}.".format(*format_args))
+                "  - 'res': collocation pts residual {}.".format(*msg_args)
+            )
 
     @property
     def metrics(self):

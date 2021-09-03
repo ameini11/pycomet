@@ -35,7 +35,7 @@ def plot_composite_loss(history, path, scale='log', limit_y=False):
         'res': 'Residual Loss',
         'reg': 'Regularization Loss',
         'tot': 'Total Loss'
-        }
+    }
 
     composite_loss = {'var': [], 'labels': []}
     for c in history.columns:

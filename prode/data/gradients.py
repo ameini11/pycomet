@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def get_grad_fn(ode_order):
+def get_grad_fn(ode_order=0):
     return order_0 if ode_order == 0 else order_n
 
 # def get_grad_fn(ode_order):
@@ -12,7 +12,7 @@ def get_grad_fn(ode_order):
 #     }[ode_order]
 
 
-# Gradient calculations
+# Gradient evaluation
 ###############################################################################
 # def zero(ode_cls, model, ic, t, training):
 #     if ode_cls.time_idx == 0:
@@ -42,6 +42,7 @@ def get_grad_fn(ode_order):
 #     grads.append(d2y_dt2)
 #     return grads
 
+
 def order_0(ode_cls, order, model, ic, t, training):
     assert order == 0
     if ode_cls.time_idx == 0:
@@ -62,21 +63,19 @@ def order_n(ode_cls, order, model, ic, t, training):
         tape.watch(t)
         grads = grad_fn(ode_cls, order-1, model, ic, t, training)
         y = split_grad(grads[-1])
-    dy = eval_concat_grad(y, tape)
+    dy = eval_concat_grad(y, t, tape)
     grads.append(dy)
     return grads
 
 
-# Operations on grad arrays
+# Gradient arrays ops
 ###############################################################################
 def split_grad(grad):
-    if isinstance(grad, (list,tuple)):
-        return [ tf.split(g, num_or_size_splits=g.shape[1], axis=1) for g in grad ]
-    else:
-        return tf.split(grad, num_or_size_splits=grad.shape[1], axis=1)
+    fn = lambda x: tf.split(x, num_or_size_splits=x.shape[1], axis=1)
+    return [ fn(g) for g in grad ] if isinstance(grad, (list,tuple)) \
+        else fn(grad)
 
-def eval_concat_grad(grad, tape):
-    if any(isinstance(g, (list,tuple)) for g in grad):
-        return [ tf.concat([tape.gradient(g_i, t) for g_i in g], axis=1) for g in grad ]
-    else:
-        return tf.concat([tape.gradient(g, t) for g in grad], axis=1)
+def eval_concat_grad(grad, t, tape):
+    fn = lambda x: tf.concat([tape.gradient(i, t) for i in x], axis=1)
+    return [ fn(g) for g in grad ] if any(isinstance(g, (list,tuple)) \
+        for g in grad) else fn(grad)

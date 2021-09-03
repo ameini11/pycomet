@@ -25,17 +25,17 @@ class Model(object):
         net,
         name,
         path='./',
-        save_format='h5'):
-
+        save_format='h5'
+    ):
         self.data = data
         self.net  = net
         self.name = name
 
         self.optimizer = None
-        self.metrics   = None
 
         self.loss = None
         self.loss_weights = None
+        self.metrics = None
 
         # Define paths
         self.save_dir = path+"/saving/"
@@ -43,13 +43,13 @@ class Model(object):
         self.train_dir = path+"/training/"
         self.ckpt_dir = self.train_dir+"ckpt/"
         self.TB_dir = self.train_dir+"logs/"
-        for dir_i in [self.save_dir, self.ckpt_dir, self.post_dir, self.train_dir]:
-            if not os.path.exists(dir_i):
-                os.makedirs(dir_i)
+        for d in [self.save_dir, self.ckpt_dir, self.post_dir, self.train_dir]:
+            if not os.path.exists(d):
+                os.makedirs(d)
 
         # Define saving format
         self.save_format = save_format
-        self.save_path   = self.save_dir + name
+        self.save_path = self.save_dir + name
         if self.save_format == 'h5':
             self.save_path = self.save_path + '.h5'
 
@@ -57,7 +57,13 @@ class Model(object):
     # Building Model
     ###########################################################################
     @utils.timing
-    def build(self, input_dim, verbose=1, load_net=0, visualize_graph=False):
+    def build(
+        self,
+        input_dim,
+        verbose=1,
+        load_net=0,
+        visualize_graph=False
+    ):
         utils.print_main("Building '",self.net.name,"' network ...", sep="")
         
         if not self.net.built:
@@ -74,10 +80,12 @@ class Model(object):
         graph.summary()
         if verbose:
             if visualize_graph:
-                file_name = self.save_dir+self.name+'_struct.h5'
+                file_name = self.save_dir + self.name + '_struct.h5'
                 graph.save(file_name, save_format='h5')
                 utils.print_submain("", end=""); netron.start(file_name)
-                tf.keras.utils.plot_model(graph, self.train_dir+"/"+self.name+".png")
+                tf.keras.utils.plot_model(
+                    graph, self.train_dir + "/" + self.name + ".png"
+                )
         
             asw = utils.input_submain("Is the model structure correct? [y/n] ")
             if not asw.lower().startswith('y'):
@@ -102,12 +110,17 @@ class Model(object):
                 path = self.save_path
                 utils.print_submain("Restoring network from file", path)
             elif load_net == 2:
-                ckpts = [self.ckpt_dir + "/" + name for name in os.listdir(self.ckpt_dir)]
+                ckpts = [ self.ckpt_dir + "/" + name \
+                    for name in os.listdir(self.ckpt_dir) ]
                 if ckpts:
                     path = max(ckpts, key=os.path.getctime)
-                    utils.print_submain("Restoring network from checkpoint", path)
+                    utils.print_submain(
+                        "Restoring network from checkpoint", path
+                    )
                 else:
-                    utils.print_submain("No checkpoints available: making new network")
+                    utils.print_submain(
+                        "No checkpoints available: making new network"
+                    )
                     return
             self.net.load_weights(path)
         else:
@@ -129,7 +142,8 @@ class Model(object):
         loss="MSE",
         metrics=None,
         decay=None,
-        loss_weights=None):
+        loss_weights=None
+    ):
         utils.print_main("Compiling '", self.net.name, "' network ...", sep="")
 
         # Initializing the optimizer
@@ -170,15 +184,15 @@ class Model(object):
             loss_fn = losses_module.get(loss)
         return loss_fn
 
-    def get_loss_weights(self, weights):
-        if weights:
+    def get_loss_weights(self, wg):
+        if wg:
             if self.data.name == 'ODE':
                 loss_wg = {}
-                for data_id in weights.keys():
-                    loss_wg[data_id] = list(weights[data_id].values()) \
-                        if isinstance(weights[data_id], dict) else weights[data_id]
+                for data_id in wg.keys():
+                    loss_wg[data_id] = list(wg[data_id].values()) \
+                        if isinstance(wg[data_id], dict) else wg[data_id]
             else:
-                loss_wg = list(weights.values()) if isinstance(weights, dict) else weights
+                loss_wg = list(wg.values()) if isinstance(wg, dict) else wg
             return loss_wg
 
 
@@ -198,13 +212,18 @@ class Model(object):
         callbacks = callbacks_module.get_cb_list(self, callbacks)
 
         # Defining train/valid pts
-        num_train_pts = self.data.get_num_pts(data_type='training', verbose=verbose)
-        num_valid_pts = self.data.get_num_pts(data_type='validation', verbose=verbose)
+        num_train_pts = self.data.get_num_pts(
+            data_type='training', verbose=verbose
+        )
+        num_valid_pts = self.data.get_num_pts(
+            data_type='validation', verbose=verbose
+        )
         print("")
 
         # Fit the model
         self.net.fit(
-            *self.data.train if isinstance(self.data.train, (list, tuple)) else self.data.train,
+            *self.data.train if isinstance(self.data.train, (list, tuple)) \
+                else self.data.train,
             batch_size=self.data.batch_size,
             epochs=epochs,
             callbacks=callbacks,
@@ -218,18 +237,22 @@ class Model(object):
             path_or_buf=self.train_dir+'/history.csv', index=False)
 
 
-    # Predicting
+    # Predicting phase
     ###########################################################################
     def predict(
         self,
         test_data,
-        path=None,
         plotting=False,
+        path=None,
+        output_ops=None,
         var_names=None,
+        time_idx=-1,
+        fig_name=None,
         labels=None,
-        scales=None):
-
-        title, x, y_true = self.unpack_test_data(test_data)
+        scales=None,
+        log_flg=False
+    ):
+        x, y_true = self.unpack_test_data(test_data)
         y_pred = self.net.predict(x)
 
         if plotting:
@@ -237,21 +260,45 @@ class Model(object):
                 path = self.post_dir+'/testing'
             if not os.path.exists(path):
                 os.makedirs(path)
-            testing_plots.plot_test(path, x, y_true, y_pred, var_names, \
-                title=title, labels=labels, scales=scales)
-        else:
-            return y_pred
+            if output_ops:
+                y_true, y_pred = list(map(output_ops, [y_true, y_pred]))
+            if isinstance(y_pred, (list,tuple)):
+                for y_i in range(len(y_pred)):
+                    kwargs = dict(
+                        y_true=y_true[y_i],
+                        y_pred=y_pred[y_i],
+                        var_names=var_names[y_i],
+                        time_idx=time_idx,
+                        fig_name=fig_name[y_i],
+                        labels=self.labels[y_i],
+                        scales=self.scales[y_i]
+                    )
+                    self.testing_plot_fn(path, x, log_flg, kwargs)
+            else:
+                kwargs = dict(
+                    y_true=y_true,
+                    y_pred=y_pred,
+                    var_names=self.var_names,
+                    time_idx=self.time_idx,
+                    fig_name=self.fig_name,
+                    labels=self.labels,
+                    scales=self.scales
+                )
+                self.testing_plot_fn(path, x, log_flg, kwargs)
+
+        return y_pred
 
     def unpack_test_data(self, test_data):
-        if len(test_data) == 3:
-            title, x, y_true = test_data
         elif len(test_data) == 2:
-            x, y_true = test_data
-            title = None
+            return test_data
         else:
-            x = test_data
-            title = y_true = None
-        return title, x, y_true
+            return test_data, None
+
+    def testing_plot_fn(self, path, x, log_flg, kwargs):
+        testing_plots.plot_test(path, x, **kwargs)
+        if log_flg:
+            kwargs['scales'] = ['log','log']
+            testing_plots.plot_test(path, x,**kwargs)
 
 
     # Saving Model
@@ -262,7 +309,9 @@ class Model(object):
         utils.close_all_hdf5()
 
         # Save weights
-        self.net.save_weights(self.save_path, overwrite=True, save_format=self.save_format)
+        self.net.save_weights(
+            self.save_path, overwrite=True, save_format=self.save_format
+        )
 
         # Save trainable weights (for `regularizers.FineTuningRegularizer')
         file_name = self.save_dir+self.name+'_weights.h5'
@@ -275,7 +324,13 @@ class Model(object):
     # Postprocessing
     ###########################################################################
     @utils.timing
-    def visualize_training(self, history=None, path=None, scale='log', limit_y=False):
+    def visualize_training(
+        self,
+        history=None,
+        path=None,
+        scale='log',
+        limit_y=False
+    ):
         utils.print_main("Postprocessing training quantities ...")
 
         history = self.get_history(history)
@@ -284,28 +339,27 @@ class Model(object):
         if not os.path.exists(path):
             os.makedirs(path)
 
+        # Learning Rate
         training_plots.plot_lr(self.train_dir+'/lr.csv', path)
-        if 'loss' in history.columns:
-            training_plots.plot_loss(history, path, scale=scale, limit_y=limit_y)
-        elif 'tot_loss' in history.columns:
-            training_plots.plot_composite_loss(history, path, scale=scale, limit_y=limit_y)
+        # Losses
+        if 'loss' in history:
+            training_plots.plot_loss(
+                history, path, scale=scale, limit_y=limit_y
+            )
+        elif 'tot_loss' in history:
+            training_plots.plot_composite_loss(
+                history, path, scale=scale, limit_y=limit_y
+            )
             if any([ c.endswith('weight') for c in history.columns ]):
                 training_plots.plot_loss_weights(history, path)
-
-        metrics = self.net.compiled_metrics.metrics
+        # Metrics
+        metrics = self.model.compiled_metrics.metrics
         if metrics:
             for metric in metrics:
-                training_plots.plot_metric(
-                    history, path, metric.name, scale=scale, limit_y=limit_y
-                )
-                
-        # if self.metrics is not None:
-        #     for met in self.metrics:
-        #         try:
-        #             name = met.name
-        #         except AttributeError:
-        #             name = met.__name__
-        #         training_plots.plot_metric(history, path, name, scale=scale, limit_y=limit_y)
+                if metric.name in history:
+                    training_plots.plot_metric(
+                        history, path, metric.name, scale=scale, limit_y=limit_y
+                    )
 
     def get_history(self, history):
         if history is None:

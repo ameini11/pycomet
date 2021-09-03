@@ -79,7 +79,7 @@ def get(identifier, axis=-1):
         axis: Data matrix reduction axis for mean loss evaluation.
 
     Returns:
-        A list/dict of loss function callables.
+        A `list`/`dict` of loss function callables.
 
     Examples to be used in the input file:
         - Single output:

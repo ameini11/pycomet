@@ -21,10 +21,12 @@ def train_step(model, data):
         tot_loss_weighted = get_tot_loss(model, losses, reg_loss=reg_loss)
 
     # Update parameters
-    model.optimizer.minimize(tot_loss_weighted, model.trainable_variables, tape=tape)
+    model.optimizer.minimize(
+        tot_loss_weighted, model.trainable_variables, tape=tape
+    )
 
     # Collect metrics to return
-    if model.loss_weights is None:
+    if model.ode_loss_weights is None:
         total_loss = tot_loss_weighted
         metric = {}
     else:
@@ -41,7 +43,7 @@ def test_step(model, data):
 
     x, y = data_adapter.expand_1d(data)
 
-    losses = {}, {}
+    losses = {}
     for i, data_id in enumerate(model.data_ids_valid):
         losses[data_id] = get_loss(x[i], y[i], model, data_id, training=False)
 
@@ -57,10 +59,10 @@ def test_step(model, data):
 def get_loss(x, y, model, data_id, training=True):
     if data_id == 'res':
         y_pred = model.residual(x, training=training)
-        if isinstance(y_pred, (list,tuple)):
-            y = [ tf.zeros_like(y_pred_i) for y_pred_i in y_pred ]
-        else:
-            y = tf.zeros_like(y_pred)
+        # if isinstance(y_pred, (list,tuple)):
+        #     y = [ tf.zeros_like(y_pred_i) for y_pred_i in y_pred ]
+        # else:
+        #     y = tf.zeros_like(y_pred)
     else:
         y_pred = model(x, training=training)
     return model.compiled_loss[data_id](y, y_pred)
@@ -75,8 +77,8 @@ def get_tot_loss(model, losses, reg_loss=None, training=True):
     if training and reg_loss is not None:
         total_loss = total_loss + reg_loss
     for data_id, loss in losses.items():
-        if training and model.loss_weights is not None:
-            total_loss = total_loss + model.loss_weights[data_id]*loss
+        if training and model.ode_loss_weights is not None:
+            total_loss = total_loss + model.ode_loss_weights[data_id]*loss
         else:
             total_loss = total_loss + loss
     return total_loss

@@ -4,7 +4,9 @@ import pandas as pd
 import tensorflow.keras.callbacks as CB
 
 from tensorflow.python.util.tf_export import keras_export
-from prode.postprocessing import testing_plots, training_plots
+from prode.postprocessing import testing_plots
+from prode.postprocessing import training_plots
+from prode.utilities import utils
 
 
 @keras_export('keras.callbacks.Plotter')
@@ -17,15 +19,17 @@ class Plotter(CB.Callback):
         var_names,
         labels,
         scales,
-        log_flg,
-        limit_y,
         train_dir,
-        period):
+        output_ops=None,
+        limit_y=False,
+        log_flg=False,
+        period=100):
         super(Plotter, self).__init__()
 
         self.test_cases = test_cases
         self.var_names  = var_names
         self.labels     = labels
+
         self.scales     = scales
         self.log_flg    = log_flg
 
@@ -39,16 +43,19 @@ class Plotter(CB.Callback):
         for k, v in self.path.items():
             if not os.path.exists(v):
                 os.makedirs(v)
+
+        self.output_ops = output_ops
+        
         self.period = period
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % self.period == 0:
-            print(">> `Plotter` callback:")
+            utils.print_main(">> `Plotter` callback:")
             self.training(limit_y=self.limit_y)
             self.testing()
 
     def training(self, scale='log', limit_y=False):
-        print("   - Plotting training quantities ...")
+        utils.print_submain("- Plotting training quantities ...")
         history = pd.DataFrame.from_dict(self.model.history.history)
         path = self.path['train']
         # Learning rate
@@ -66,33 +73,57 @@ class Plotter(CB.Callback):
             for metric in metrics:
                 if metric.name in history:
                     training_plots.plot_metric(
-                        history, path, metric.name, scale=scale, limit_y=limit_y)
+                        history, path, metric.name, scale=scale, limit_y=limit_y
+                    )
 
     def testing(self):
-        print("   - Plotting test cases ...")
+        utils.print_submain("- Plotting test cases ...")
         for i, test_i in enumerate(self.test_cases):
-            title, x, y_true = self.unpack_test_data(test_i)
+            # x, y_true = self.unpack_test_data(test_i)
+            x, y_true = test_i
             y_pred = self.model.predict(x)
+            if self.output_ops:
+                y_true, y_pred = list(map(self.output_ops, [y_true, y_pred]))
 
             path = self.path['test'] + '/test_'+str(i+1)
             if not os.path.exists(path):
                 os.makedirs(path)
-            testing_plots.plot_test(path, x, y_true, y_pred, self.var_names,
-                title=title, labels=self.labels, scales=self.scales)
-            if self.log_flg:
-                testing_plots.plot_test(path, x, y_true, y_pred, self.var_names,
-                    title=title, labels=self.labels, scales=['log','log'])
+            if isinstance(y_pred, (list,tuple)):
+                for y_i in range(len(y_pred)):
+                    kwargs = dict(
+                        y_true=y_true[y_i],
+                        y_pred=y_pred[y_i],
+                        var_names=self.var_names[y_i],
+                        time_idx=self.time_idx,
+                        fig_name=self.fig_name[y_i],
+                        labels=self.labels[y_i],
+                        scales=self.scales[y_i]
+                    )
+                    self.testing_plot_fn(path, x, kwargs)
+            else:
+                kwargs = dict(
+                    y_true=y_true,
+                    y_pred=y_pred,
+                    var_names=self.var_names,
+                    time_idx=self.time_idx,
+                    fig_name=self.fig_name,
+                    labels=self.labels,
+                    scales=self.scales
+                )
+                self.testing_plot_fn(path, x, kwargs)
 
-    def unpack_test_data(self, test_data):
-        if len(test_data) == 3:
-            title, x, y_true = test_data
-        elif len(test_data) == 2:
-            x, y_true = test_data
-            title = None
-        else:
-            x = test_data
-            title = y_true = None
-        return title, x, y_true
+    def testing_plot_fn(self, path, x, kwargs):
+        testing_plots.plot_test(path, x, **kwargs)
+        if self.log_flg:
+            kwargs['scales'] = ['log','log']
+            testing_plots.plot_test(path, x,**kwargs)
+
+    # def unpack_test_data(self, test_data):
+    #     elif len(test_data) == 2:
+    #         x, y = test_data
+    #     else:
+    #         x, y = test_data, None
+    #     return x, y
 
 
 # class MovieDumper(CB.Callback):

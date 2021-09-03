@@ -4,7 +4,7 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 
 from varname import nameof
-from prode.data.generator import ODEDataSequence
+from prode.data.sequence import ODEDataSequence
 from prode.data.data import Data
 from prode.data import gradients
 from prode.utilities import utils
@@ -76,7 +76,7 @@ class ODE(Data):
                     )
 
         # Testing data
-        self.test = test_data
+        self.test = self.get_data(test_data, 'pts')
 
         # Update data ids
         self.data_ids = self.train.data_ids
@@ -86,7 +86,7 @@ class ODE(Data):
         # ODE properties
         self.input_is_list = True if isinstance(self.dim['inp'], (list,tuple)) \
             and len(self.dim['inp']) > 1 else False
-            
+
         if time_idx not in [0,-1]:
             utils.raise_value_err(
                 "`time_idx` passed into `{}` has to be 0 or -1."
@@ -108,8 +108,7 @@ class ODE(Data):
             )
         elif not isinstance(data, dict):
             utils.raise_value_err(
-                "`{}` passed into `{}` has to be a dict:\n"
-                "  - 'data_source': 'array' or 'file';\n"
+                "`{}` passed into `{}` has to be a `dict`:\n"
                 "  - 'ics': initial condition pts (arrays or file path);\n"
                 "  - 'pts': additional anchor pts (arrays or file path);\n"
                 "  - 'res': collocation pts for residual (arrays or file "
@@ -143,7 +142,7 @@ class ODE(Data):
                     "extracted from file '{}'.".format(data))
             if len(y) == 0:
                 if data_id == 'res':
-                    y = self.zeros_array(self.get_cardinality(x), 'out')
+                    y = self.zeros_array(utils.get_cardinality(x), 'out')
                 else:
                     utils.raise_value_err("No target data (see `col_y`) can be "
                         "extracted from file '{}'.".format(data))
@@ -152,7 +151,7 @@ class ODE(Data):
             # Data from lists of `numpy.array`
             if data_id == 'res':
                 self.check_data_consistency(data, 'inp')
-                x, y = data, self.zeros_array(self.get_cardinality(data), 'out')
+                x, y = data, self.zeros_array(utils.get_cardinality(data), 'out')
                 return x, y
             elif isinstance(data, (list,tuple)):
                 map(self.check_data_consistency, data, ['inp', 'out'])
@@ -163,7 +162,7 @@ class ODE(Data):
 
     def get_num_pts(self, data_type='training', verbose=1):
 
-        def print_fun(dset, data_type, verbose):
+        def print_fn(dset, data_type, verbose):
             num_pts = {data_id: dset.n_samples[data_id] for data_id in dset.data}
             if verbose:
                 utils.print_submain("Number of", data_type, "pts:")
@@ -172,7 +171,7 @@ class ODE(Data):
             return num_pts
 
         super(ODE, self).get_num_pts(
-            data_type=data_type, verbose=verbose, print_fun=print_fun
+            data_type=data_type, verbose=verbose, print_fn=print_fn
         )
 
     def zeros_array(self, n_samples, identifier):

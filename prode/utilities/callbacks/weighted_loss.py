@@ -1,4 +1,5 @@
 import sys
+import itertools
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.backend as K
@@ -17,21 +18,20 @@ class ConstantWeightsAdapter(CB.Callback):
 
     def __init__(
         self,
-        model,
         ode_loss_weights=None,
         data_generator=None,
         freq=1,
         log_dir=None,
         name='constant_weights_adapter',
-        **kwargs):
+        **kwargs
+    ):
         super(ConstantWeightsAdapter, self).__init__()
 
-        self.name = name
-        self.model = model
+        self.name = utils.get_class_name(self)
 
         if ode_loss_weights is None:
             utils.warning("No loss weights have been provided: the default "
-                "value of 1 will be applied.".format(self.model.name))
+                "value of 1 will be applied.")
             _ode_loss_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
         elif isinstance(ode_loss_weights, (list,tuple)):
             _ode_loss_weights = dict(zip(self.model.data_ids, ode_loss_weights))
@@ -51,7 +51,7 @@ class ConstantWeightsAdapter(CB.Callback):
         self.log_dir = log_dir
         if self.log_dir is not None:
             self.logs = { k: tf.summary.create_file_writer(self.log_dir + \
-                '/scalars/loss_weights/' + k) for k in self.model.loss_weights }
+                '/scalars/ode_loss_weights/' + k) for k in self.model.ode_loss_weights }
 
     def on_train_begin(self, logs={}):
         self.print_weights(0, logs)
@@ -60,13 +60,13 @@ class ConstantWeightsAdapter(CB.Callback):
         self.print_weights(epoch, logs)
 
     def print_weights(self, epoch, logs):
-        log_weights = {k+'_loss_weight': v for k,v in self.model.loss_weights.items()}
+        log_weights = {k+'_loss_weight': v for k,v in self.model.ode_loss_weights.items()}
         logs.update(log_weights)
         if self.log_dir is not None:
             for k, log in self.logs.items():
                 with log.as_default():
                     tf.summary.scalar(name='epoch_'+k+'_loss_weight', \
-                        data=self.model.loss_weights[k], step=epoch)
+                        data=self.model.ode_loss_weights[k], step=epoch)
 
 
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
@@ -82,7 +82,6 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
 
     def __init__(
         self,
-        model,
         ode_loss_weights=None,
         data_generator=None,
         freq=1000,
@@ -91,9 +90,9 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         max_samples=20000,
         method='mean',
         name='empirical_weights_adapter',
-        **kwargs):
+        **kwargs
+    ):
         super(EmpiricalWeightsAdapter, self).__init__(
-            model=model,
             data_generator=data_generator,
             freq=freq,
             log_dir=log_dir,
@@ -109,7 +108,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     def on_train_begin(self, logs={}):
         if 'res' not in self.model.data_ids:
             utils.warning("Network `{}` hasn't any residual loss to be evaluated: "
-                "`{}` can't be applied.".format(self.model.name, self.__name__))
+                "`{}` can't be applied.".format(self.model.name, self.name))
         else:
             self.update()
         self.print_weights(0, logs)
@@ -128,28 +127,24 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     ###########################################################################
     def sample_dataset(self):
         for data_id, dset in self.data_generator.data.items():
-            n_samples = self.get_cardinality(dset)
+            n_samples = utils.get_cardinality(dset)
             indeces   = np.random.permutation(n_samples)
             if n_samples > self.max_samples:
-                indeces = np.random.choice(indeces, self.max_samples, replace=False)
-            self.dataset[data_id] = self.get_shuffled_data(dset, indeces)
+                indeces = np.random.choice(
+                    indeces, self.max_samples, replace=False
+                )
+            self.dataset[data_id] = self.shuffle_data(dset, indeces)
 
-    def get_cardinality(self, x):
-        if isinstance(x, (list,tuple)):
-            return self.get_cardinality(x[0])
-        else:
-            return x.shape[0]
-
-    def get_shuffled_data(self, dset, indeces):
-        dset_shuffled = []
+    def shuffle_data(self, dset, indeces):
+        _dset = []
         for xy in dset:
             if isinstance(xy, (list,tuple)):
-                dset_shuffled.append([tf.convert_to_tensor(i[indeces], \
+                _dset.append([tf.convert_to_tensor(i[indeces], \
                     dtype=K.floatx()) for i in xy])
             else:
-                dset_shuffled.append(tf.convert_to_tensor(xy[indeces], \
+                _dset.append(tf.convert_to_tensor(xy[indeces], \
                     dtype=K.floatx()))
-        return dset_shuffled
+        return _dset
 
     # Handling loss gradients
     ###########################################################################
@@ -158,46 +153,42 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         with backprop.GradientTape(persistent=True) as tape:
             for data_id in self.model.data_ids:
                 pred[data_id], losses[data_id] = self.get_pred_loss( \
-                    self.dataset[data_id], data_id)
+                    *self.dataset[data_id], data_id)
         for data_id in self.model.data_ids:
             self.loss_gradients[data_id] = tape.gradient(losses[data_id], \
                 self.model.trainable_variables)
 
-    def get_pred_loss(self, data, data_id):
-        x, y = data
-        loss_fn = self.model.loss_fns[data_id]
+    def get_pred_loss(self, x, y, data_id):
         if data_id == 'res':
-            return loss_fn(self.model, x, training=False)
+            y_pred = self.model.residual(x, training=False)
         else:
             y_pred = self.model(x, training=False)
-            loss   = loss_fn(y, y_pred)
-            return y_pred, loss
+        loss = self.model.compiled_loss[data_id](y, y_pred)
+        return y_pred, loss
 
     # Handling loss weights
     ###########################################################################
     def update_loss_weights(self):
         new_weights = self.eval_loss_weights()
-        for data_id, loss in self.model.loss_weights.items():
+        for data_id, loss in self.model.ode_loss_weights.items():
             if data_id == 'res':
                 continue
             weight = self.alpha * new_weights[data_id] + \
-                (1. - self.alpha) * self.model.loss_weights[data_id]
-            self.model.loss_weights[data_id] = weight.numpy()
+                (1. - self.alpha) * self.model.ode_loss_weights[data_id]
+            self.model.ode_loss_weights[data_id] = weight.numpy()
 
     def eval_loss_weights(self):
         # Get the maximum/mean gradient value from residual loss (see `method')
         grad_res = self.grads_eval(self.loss_gradients['res'])
-
-        # Get the mean of the gradient magnitudes for each remaining loss term
         new_weights = {}
         for data_id, grad in self.loss_gradients.items():
             if data_id == 'res':
-                new_weights[data_id] = self.model.loss_weights[data_id]
-            # Get the mean of the gradient magnitudes for each remaining loss term
+                continue
+            # Get the mean of the gradients for each remaining loss term
             grads_mean = self.mean_grads(grad)
             # Update the loss weights
-            new_weights[data_id] = grad_res_max / grads_mean
-
+            new_weights[data_id] = grad_res / grads_mean \
+                * self.model.ode_loss_weights['res']
         return new_weights
 
     def max_grads(self, grads):
@@ -205,8 +196,8 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         return tf.reduce_max(m)
 
     def mean_grads(self, grads):
-        mean = [ tf.reduce_mean(tf.math.abs(grad)) for grad in grads ]
-        return tf.reduce_mean(mean)
+        m = [ tf.reduce_mean(tf.math.abs(grad)) for grad in grads ]
+        return tf.reduce_mean(m)
 
 
 @keras_export('keras.callbacks.NTKWeightsAdapter')
@@ -221,16 +212,15 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
 
     def __init__(
         self,
-        model,
         ode_loss_weights=None,
         data_generator=None,
         freq=None,
         log_dir=None,
         max_samples=100,
         name='ntk_weights_adapter',
-        **kwargs):
+        **kwargs
+    ):
         super(NTKWeightsAdapter, self).__init__(
-            model=model,
             data_generator=data_generator,
             freq=freq,
             log_dir=log_dir,
@@ -258,10 +248,16 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         with backprop.GradientTape(persistent=True) as tape:
             for data_id in self.model.data_ids:
                 pred[data_id], losses[data_id] = self.get_pred_loss( \
-                    self.dataset[data_id], data_id)
+                    *self.dataset[data_id], data_id)
                 # Flatten prediction matrix into 1D vector
-                pred[data_id] = tf.split(tf.reshape(pred[data_id], [-1]), \
-                    tf.size(pred[data_id]).numpy())
+                if isinstance(pred[data_id], (list,tuple)):
+                    pred[data_id] = list(itertools.chain(
+                        *[ tf.split(tf.reshape(p, [-1]), tf.size(p).numpy()) \
+                            for p in pred[data_id] ])
+                    )
+                else:
+                    pred[data_id] = tf.split(tf.reshape(pred[data_id], [-1]), \
+                        tf.size(pred[data_id]).numpy())
         return self.eval_diag_ntk(pred, tape)
 
     def eval_diag_ntk(self, pred, tape):
@@ -283,7 +279,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     def update_loss_weights(self, ntk):
         normalization_grad = np.sum([ np.sum(ntk_i) for ntk_i in ntk.values()])
         for data_id in self.model.data_ids:
-            self.model.loss_weights[data_id] = normalization_grad / np.sum(ntk[data_id])
+            self.model.ode_loss_weights[data_id] = normalization_grad / np.sum(ntk[data_id])
 
 
 # @keras_export('keras.callbacks.NTKWeightsAdapter')
@@ -378,5 +374,5 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
 #     def update_loss_weights(self, ntk):
 #         normalization_grad = tf.math.reduce_sum([ tf.math.reduce_sum(ntk_i) for ntk_i in ntk.values()])
 #         for data_id in self.model.data_ids:
-#             self.model.loss_weights[data_id] = normalization_grad / tf.math.reduce_sum(ntk[data_id])
-#         print(self.model.loss_weights)
+#             self.model.ode_loss_weights[data_id] = normalization_grad / tf.math.reduce_sum(ntk[data_id])
+#         print(self.model.ode_loss_weights)
