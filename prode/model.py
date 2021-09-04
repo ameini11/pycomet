@@ -270,26 +270,26 @@ class Model(object):
                         var_names=var_names[y_i],
                         time_idx=time_idx,
                         fig_name=fig_name[y_i],
-                        labels=self.labels[y_i],
-                        scales=self.scales[y_i]
+                        labels=labels[y_i],
+                        scales=scales[y_i]
                     )
                     self.testing_plot_fn(path, x, log_flg, kwargs)
             else:
                 kwargs = dict(
                     y_true=y_true,
                     y_pred=y_pred,
-                    var_names=self.var_names,
-                    time_idx=self.time_idx,
-                    fig_name=self.fig_name,
-                    labels=self.labels,
-                    scales=self.scales
+                    var_names=var_names,
+                    time_idx=time_idx,
+                    fig_name=fig_name,
+                    labels=labels,
+                    scales=scales
                 )
                 self.testing_plot_fn(path, x, log_flg, kwargs)
 
         return y_pred
 
     def unpack_test_data(self, test_data):
-        elif len(test_data) == 2:
+        if len(test_data) == 2:
             return test_data
         else:
             return test_data, None

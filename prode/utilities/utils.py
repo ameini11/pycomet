@@ -13,7 +13,7 @@ import multiprocessing as mp
 
 from matplotlib import animation
 from functools import wraps
-from prode.config import headers, mp_setup
+from prode.config import headers
 
 
 # Printing functions

@@ -9,10 +9,7 @@ class ODESolver(object):
     ###########################################################################
     ### Initialization
     ###########################################################################
-    def __init__(
-            self,
-            mat_name,
-            mat_mask):
+    def __init__(self, processes):
 
         # Initial/Final time
         self.t0     = 0.
@@ -23,9 +20,8 @@ class ODESolver(object):
         self.dt_str = 1.015
         self.dt_max = 1.e-4
 
-        # ODE Matrices characterization
-        self.mat_name = mat_name     # Names
-        self.mat_mask = mat_mask     # Activation flags
+        # Reactive processes
+        self.processes = processes
 
 
     ###########################################################################
@@ -126,9 +122,9 @@ class ODESolver(object):
     ###########################################################################
     def get_matrices(self, rates_coeff, Q_bins, T):
         '''Get all the rates matrices for the ODE.'''
-        K_e = self.excit(self.mat_mask[0], rates_coeff, Q_bins) / const.mO
-        K_d = self.disso(self.mat_mask[1], rates_coeff) / const.mO
-        K_r = self.recom(self.mat_mask[2], rates_coeff, Q_bins, T) / const.mO**2 * 2
+        K_e = self.excit(self.processes['excit'], rates_coeff, Q_bins) / const.mO
+        K_d = self.disso(self.processes['diss'], rates_coeff) / const.mO
+        K_r = self.recom(self.processes['recomb'], rates_coeff, Q_bins, T) / const.mO**2 * 2
         return K_e, K_d, K_r
 
     def excit(self, mask, rates_coeff, Q_bins):

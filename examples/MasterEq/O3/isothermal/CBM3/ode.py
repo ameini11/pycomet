@@ -4,8 +4,8 @@ import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras import backend
-import inputs as inp
-sys.path.append(inp.utils_path)
+import inputs.data as inp_data
+sys.path.append(inp_data.paths['utils'])
 from const import const
 
 
@@ -14,19 +14,22 @@ class MasterEq(object):
     ###########################################################################
     ### Initialization
     ###########################################################################
-    def __init__(self, inputs):
-
+    def __init__(
+        self,
+        ic_dim,
+        database,
+        grouping,
+        processes
+    ):
         # Retrieving Molecular data -------------------------------------------
-        self.levels_file = inputs.database_path + \
-            '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = inputs.database_path + \
-            '/grouping/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
+        self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
+        self.binMap_file = database + '/grouping/O3_UMN/O2/LevelsMap_' \
+            + grouping + '.csv'
         self.g, self.EeV, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
         # Retrieve Arrhenius coefficients -------------------------------------
-        self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + \
-            inputs.grouping + '/'
+        self.rates_path = database + '/kinetics/O3_UMN_' + grouping + '/'
         self.arrhenius_name = ['A', 'n', 'Ea']
         self.arrhenius_coeff, self.excit_bins = self.get_arrhenius()
 
@@ -53,10 +56,10 @@ class MasterEq(object):
         # Rates matrix splitted between different processes
         self.split_proc = [ v for k,v in num_reac.items() ]
         # Reactions flags activator (masking)
-        self.me_mask = list(inputs.MEq_mat.values())
+        self.me_mask = list(processes.values())
 
         # IC input dimension --------------------------------------------------
-        self.ic_dim = inputs.dim["inp"][0]
+        self.ic_dim = ic_dim
 
 
     ###########################################################################

@@ -325,13 +325,13 @@ class BiasLay(lay.Layer):
         constraint=None,
         **kwargs
     ):
-    super(BiasLay, self).__init__(
-        activity_regularizer=activity_regularizer, **kwargs)
+        super(BiasLay, self).__init__(
+            activity_regularizer=activity_regularizer, **kwargs)
 
-    self.activation = activations.get(activation)
-    self.initializer = initializers.get(initializer)
-    self.regularizer = regularizers.get(regularizer)
-    self.constraint = constraints.get(constraint)
+        self.activation = activations.get(activation)
+        self.initializer = initializers.get(initializer)
+        self.regularizer = regularizers.get(regularizer)
+        self.constraint = constraints.get(constraint)
 
     # Building
     ###########################################################################

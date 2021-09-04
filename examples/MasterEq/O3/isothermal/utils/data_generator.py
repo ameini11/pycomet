@@ -21,60 +21,71 @@ class DataGenerator(object):
     ###########################################################################
     ### Initialization
     ###########################################################################
-    def __init__(self, inputs):
-
-        self.header   = '[PrODE - Data Gen]: '
+    def __init__(
+        self,
+        train_pts,
+        valid,
+        train_pts_dist,
+        test_cases,
+        test_training,
+        t_limit,
+        inp_space,
+        database,
+        grouping,
+        processes,
+        *args,
+        **kwargs
+    ):
+        self.header = '[PrODE - Data Gen]: '
         self.data_dir = "./data/"
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
 
         # Data Quantities -----------------------------------------------------
-        self.scenarios = inputs.train_pts['ics']
-        self.valid_pts = {k: round(inputs.valid*inputs.train_pts[k]) if k != 'ics' \
-                                else self.scenarios for k in inputs.train_pts }
-        self.train_pts = {k: inputs.train_pts[k] - self.valid_pts[k] if k != 'ics' \
-                                else self.scenarios for k in inputs.train_pts }
-        for k in inputs.train_pts:
+        self.scenarios = train_pts['ics']
+        self.valid_pts = {
+            k: round(valid*train_pts[k]) if k != 'ics' else self.scenarios \
+                for k in train_pts
+        }
+        self.train_pts = {
+            k: train_pts[k] - self.valid_pts[k] if k != 'ics' else self.scenarios \
+                for k in train_pts
+        }
+        for k in train_pts:
             if self.valid_pts[k] == 0 and self.train_pts[k] != 0:
                 self.valid_pts[k] = 1
 
-        self.train_pts_dist = inputs.train_pts_dist         # Training pts distribution
+        self.train_pts_dist = train_pts_dist         # Training pts distribution
         self.train_split    = [0.75, 0.17, 0.08]            # Training pts splitting
         # self.train_split    = [0.92, 0.08]            # Training pts splitting
 
-        self.test_cases     = inputs.test_cases             # Number of testing cases
-        self.test_training  = inputs.test_training          # Test training case [Bool]
-        self.t0, self.t_end = inputs.t0, inputs.t_end       # Time limits for testing
-
-        self.dim            = inputs.dim                    # Data dimensionality
+        self.test_cases     = test_cases             # Number of testing cases
+        self.test_training  = test_training          # Test training case [Bool]
+        self.t0, self.t_end = t_limit                   # Time limits for testing
 
         # Input Space Variables -----------------------------------------------
-        self.inp_dim = inputs.inp_dim                       # Input Space Dimensionality
-        inp_var = [inputs.Ttr, inputs.T0, inputs.P0, inputs.XO2]
-        self.Ttr, self.T0, self.P0, self.XO2 = list(map(lambda x: \
-            np.array(x, dtype=np.float64), inp_var))
-        self.T_str   = list(map(lambda x: str(int(x)), self.Ttr))   # Temp. in string form
+        self.inp_space = {k: np.array(v, dtype=np.float64) for k, v in inp_space.items()}
+        self.inp_dim = len(inp_space)
 
         # Retrieving Molecular data -------------------------------------------
-        self.levels_file = inputs.database_path + \
-            '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = inputs.database_path + \
-            '/grouping/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
+        self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
+        self.binMap_file = database + '/grouping/O3_UMN/O2/LevelsMap_' + grouping + '.csv'
         self.g, self.EeV, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
         # Retrieving Rates coefficients ---------------------------------------
-        self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + \
-            inputs.grouping + '/'
-        self.reac_file  = {'diss': 'Diss_Corrected.dat', \
-            'exch': 'Exch_Type1.dat', 'inel': 'Inel.dat'}
+        self.rates_path = database + '/kinetics/O3_UMN_' + grouping + '/'
+        self.reac_file  = {
+            'diss': 'Diss_Corrected.dat',
+            'exch': 'Exch_Type1.dat',
+            'inel': 'Inel.dat'
+        }
 
         # Building Master Equation matrices -----------------------------------
-        mat_name     = list(inputs.MEq_mat.keys())
-        mat_mask     = list(inputs.MEq_mat.values())
-        self.ODE_sol = ODESolver(mat_name, mat_mask)
-        self.arrhenius_coeff = pd.read_csv( \
-            self.rates_path+'arrhenius_coeff.csv',index_col=0)
+        self.ODE_sol = ODESolver(processes)
+        self.arrhenius_coeff = pd.read_csv(
+            self.rates_path+'arrhenius_coeff.csv', index_col=0
+        )
 
         # Labeling Data -------------------------------------------------------
         self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
@@ -125,15 +136,17 @@ class DataGenerator(object):
         unit_vec = np.array([[1.]*self.inp_dim])
 
         # Contructing Design Matrix -------------------------------------------
-        self.X_col = ['Ttr', 'T0', 'P0', 'X_O2']
         X = lhs(self.inp_dim, samples=n)
-        X = np.hstack(tuple(map(lambda i,x: X[:,i:i+1]*(x[1] - x[0]) + x[0], \
-            range(4), [self.Ttr, self.T0, self.P0, self.XO2])))
+        X = np.hstack(tuple(map(
+            lambda i,x: X[:,i:i+1] * (x[1] - x[0]) + x[0], range(4), \
+                self.inp_space.values()
+        )))
         # Sort wrt the norm of the projection
         norm_fn = lambda i,x: (X[:,i:i+1] - x[0])/(x[1] - x[0]) \
-                              if x[1] != x[0] else np.ones(X[:,i:i+1].shape)
-        X_norm = np.hstack(tuple(map(norm_fn, range(0,4), \
-            [self.Ttr, self.T0, self.P0, self.XO2])))
+            if x[1] != x[0] else np.ones(X[:,i:i+1].shape)
+        X_norm = np.hstack(tuple(map(
+            norm_fn, range(0,4), self.inp_space.values()
+        )))
         proj = (np.dot(X_norm, unit_vec.transpose()) \
             / np.dot(unit_vec, unit_vec.transpose())) * unit_vec
         X = X[np.linalg.norm(proj, axis=1).argsort()]
@@ -142,16 +155,18 @@ class DataGenerator(object):
         rho_s = np.zeros((n,self.num_bins+1), dtype=np.float64)
         for i in tqdm(range(n)):
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
-            XO        = 1. - XO2
-            nd        = P0 / (const.UKb * T0)
-            Q_bins    = self.compute_partition_func(T0)
+            XO = 1. - XO2
+            nd = P0 / (const.UKb * T0)
+            Q_bins = self.compute_partition_func(T0)
             rho_s[i,:-1] = XO2 * Q_bins / sum(Q_bins) * 2.0 * const.mO * nd
             rho_s[i, -1] = XO  * const.mO * nd
         Ttr, rho = X[:,0:1], np.sum(rho_s, axis=1, keepdims=True)
         ic = np.hstack((Ttr, rho, np.divide(rho_s, rho)))
 
         if self.test_cases > 0:
-            idx_train, idx_test = self.stratified_sampling(np.arange(n), self.test_cases)
+            idx_train, idx_test = self.stratified_sampling(
+                np.arange(n), self.test_cases
+            )
             self.X_train, self.X_test = X[idx_train], X[idx_test]
             return [ic[idx_train], ic[idx_test]]
         else:
@@ -197,8 +212,11 @@ class DataGenerator(object):
                     path+data_id+".csv", index=False, float_format='{:e}'.format)
             # Print input space
             i_0 = 0 if data_type == 'train' else 1
-            pd.DataFrame(self.X_train[range(i_0,i,2)], columns=self.X_col).to_csv( \
-                path+"input_space.csv", index=False, float_format='{:e}'.format)
+            pd.DataFrame(
+                self.X_train[range(i_0,i,2)], columns=self.inp_space.keys()
+            ).to_csv(
+                path+"input_space.csv", index=False, float_format='{:e}'.format
+            )
 
         return data['train'], data['valid']
 
@@ -228,6 +246,7 @@ class DataGenerator(object):
         # Input and Target data
         u = np.tile(ic, (n,1))
         t, y = t[idx], y[idx]
+        y = np.split(y, [2], axis=1)
         return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
@@ -297,7 +316,7 @@ class DataGenerator(object):
             path = path+"input_space/"
             if not os.path.exists(path):
                 os.makedirs(path)
-            pd.DataFrame(self.X_test, columns=self.X_col, \
+            pd.DataFrame(self.X_test, columns=self.inp_space.keys(), \
                 index=list(range(1,self.test_cases*2+1))).to_csv( \
                 path+"data.csv", float_format='{:e}'.format)
             self.plot_inp_space(path)

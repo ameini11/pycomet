@@ -11,11 +11,15 @@ import tensorflow as tf
 from prode.utilities import utils
 from tensorflow.keras import callbacks
 
-import inputs as inp
-sys.path.append(inp.utils_path)
+# Input files
+import inputs.data as inp_data
+import inputs.network as inp_net
+import inputs.model as inp_mod
+import inputs.postprocessing as inp_post
+
+sys.path.append(inp_data.paths['utils'])
 from data_generator import DataGenerator
 from ode import MasterEq
-
 
 
 @utils.main_decorator
@@ -25,58 +29,84 @@ def main():
     ### Data
     ###########################################################################
     # Generate Data -----------------------------------------------------------
-    dataGen = DataGenerator(inp)
-    if not inp.from_file:
+    dataGen = DataGenerator(
+        train_pts=inp_data.train_pts,
+        valid=inp_data.valid,
+        train_pts_dist=inp_data.train_pts_dist,
+        test_cases=inp_data.test_cases,
+        test_training=inp_data.test_training,
+        t_limit=inp_data.t_limit,
+        inp_space=inp_data.inp_space,
+        database=inp_data.paths['database'],
+        grouping=inp_data.grouping,
+        processes=inp_data.processes
+    )
+
+    if not inp_data.from_file:
         ic = dataGen.initial_cond()
-        col_x, col_y, header = None, None, None
         train_data, valid_data = dataGen.training_data(ic[0])
-        train_data['data_source'] = valid_data['data_source'] = 'array'
-        if inp.test_flg > 0 and inp.test_cases > 0:
-            data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
+        # input('=====================================')
+        # if inp.test_flg > 0 and inp.test_cases > 0:
+        #     test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
     else:
-        col_x, col_y, header = inp.col_x, inp.col_y, inp.header
-        train_data = inp.data_train_file
-        valid_data = inp.data_valid_file
-        train_data['data_source'] = valid_data['data_source'] = 'file'
+        train_data, valid_data = inp_data.train_file, inp_data.valid_file
         if inp.test_flg > 0 and inp.test_cases > 0:
-            data_test = dataGen.testing_data(inp.data_test_file, header=header)
+            test_data = dataGen.testing_data(inp_data.test_file, header=header)
+
+    print(train_data['ics'][1])
+
+    input('=====================================')
 
     # Initialize Data ---------------------------------------------------------
-    me = MasterEq(inp)
+    me = MasterEq(
+        ic_dim=inp_data.ic_dim,
+        database=inp_data.paths['database'],
+        grouping=inp_data.grouping,
+        processes=inp_data.processes
+    )
 
-    data = utils.get_class(pro.data, inp.data_name)(
-        inp.dim,
+    data = utils.get_class(pro.data, inp_data.data_type)(
+        inp_net.dim,
+        training=inp_mod.train_flg,
         ode_func=me.ode,
         ode_order=1,
         ode_params=me.arrhenius_coeff,
         train_data=train_data,
         valid_data=valid_data,
-        col_x=col_x,
-        col_y=col_y,
-        header=header,
-        preproc_fn=inp.preproc_fn,
-        batch_size=inp.batch_size,
-        valid_batch_size=inp.valid_batch_size)
+        test_data=test_data,
+        from_file=inp_data.from_file,
+        col_x=inp_data.col_x,
+        col_y=inp_data.col_y,
+        header=inp_data.header,
+        preproc_fn=inp_data.preproc_fn,
+        batch_size=inp_data.batch_size,
+        valid_batch_size=inp_data.valid_batch_size
+    )
+
+    input('=====================================')
 
 
     ###########################################################################
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    net = utils.get_class(pro.networks, inp.nn_name)(
-        inp.dim,
-        inp.layer_size,
-        inp.activation,
-        inp.kernel_initializer,
-        regularization=inp.regularization,
-        dropout_rate=inp.dropout_rate,
-        batch_norm=inp.batch_norm,
-        block=inp.block
-        )
+    net = utils.get_class(pro.networks, inp_net.nn_name)(
+        inp_net.output_names,
+        inp_net.dim,
+        inp_net.layer_size,
+        inp_net.activation,
+        inp_net.kernel_initializer,
+        inp_opnn_trans=inp_net.inp_opnn_trans,
+        out_opnn_trans=inp_net.out_opnn_trans,
+        regularization=inp_net.regularization,
+        dropout_rate=inp_net.dropout_rate,
+        batch_norm=inp_net.batch_norm,
+        block=inp_net.block
+    )
 
     # Apply I/O Transformation ------------------------------------------------
-    net.apply_input_transform(inp.input_fn)
-    net.apply_output_transform(inp.output_fn)
+    net.apply_input_transform(inp_net.input_fn)
+    net.apply_output_transform(inp_net.output_fn)
 
 
     ###########################################################################

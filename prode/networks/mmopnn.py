@@ -108,7 +108,7 @@ class MMOpNN(Net):
 
         config = super().get_config().copy()
         config.update({
-            'names':              self.names,
+            'names':       self.names,
             'dim':                self.dim,
             'layer_size':         self.layer_size,
             'activation':         self.activation,

@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from tensorflow.keras.engine import compile_utils
+from tensorflow.python.keras.engine import compile_utils
 from prode.utilities.model import layers
 from prode.utilities import utils
 from prode.networks import steps
