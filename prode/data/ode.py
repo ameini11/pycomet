@@ -56,15 +56,15 @@ class ODE(Data):
             self.check_data_source(train_data, nameof(train_data))
             if valid_data:
                 self.check_data_source(valid_data, nameof(valid_data))
-                train_dset = self.data_as_dict(train_data, nameof(train_data))
-                valid_dset = self.data_as_dict(valid_data, nameof(valid_data))
+                train_dset = self.data_as_dict(train_data)
+                valid_dset = self.data_as_dict(valid_data)
             elif validation_split:
                 self.validation_split = validation_split
                 train_dset, valid_dset = self.get_train_valid(
-                    self.data_as_dict(train_data, nameof(train_data))
+                    self.data_as_dict(train_data)
                 )
             else:
-                train_dset = self.data_as_dict(train_data, nameof(train_data))
+                train_dset = self.data_as_dict(train_data)
                 valid_dset = None
 
             self.train = ODEDataSequence(train_dset, self.data_ids, \
@@ -76,7 +76,7 @@ class ODE(Data):
                     )
 
         # Testing data
-        self.test = self.get_data(test_data, 'pts')
+        self.test = [ self.get_data(case, 'pts') for case in test_data ]
 
         # Update data ids
         self.data_ids = self.train.data_ids
@@ -137,24 +137,26 @@ class ODE(Data):
                 map(lambda c: self.read_dataframe(df, c), \
                     [self.col_x, self.col_y])
             )
-            if len(x) == 0:
+            print(data_id)
+            if any(i.size == 0 for i in x):
                 utils.raise_value_err("No input data (see `col_x`) can be "
                     "extracted from file '{}'.".format(data))
-            if len(y) == 0:
+            if any(i.size == 0 for i in y):
                 if data_id == 'res':
                     y = self.zeros_array(utils.get_cardinality(x), 'out')
                 else:
                     utils.raise_value_err("No target data (see `col_y`) can be "
                         "extracted from file '{}'.".format(data))
+            print(y)
             return x, y
         else:
             # Data from lists of `numpy.array`
-            if data_id == 'res':
-                self.check_data_consistency(data, 'inp')
-                x, y = data, self.zeros_array(utils.get_cardinality(data), 'out')
-                return x, y
-            elif isinstance(data, (list,tuple)):
-                map(self.check_data_consistency, data, ['inp', 'out'])
+            if isinstance(data, (list,tuple)):
+                self.check_data_consistency(data)
+                if data_id == 'res':
+                    data = data[0], self.zeros_array(
+                        utils.get_cardinality(data[0]), 'out'
+                    )
                 return data
             else:
                 utils.raise_value_err("Data passed into `{}` has to be a "

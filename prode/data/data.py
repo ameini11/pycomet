@@ -86,21 +86,42 @@ class Data(object):
 
     def read_dataframe(self, df, col):
         if any(isinstance(i, (list,tuple)) for i in col):
-            x = [ df[:, col[i][0]:col[i][1]] for i in range(len(col)) ]
+            return [ df[:, col[i][0]:col[i][1]] for i in range(len(col)) ]
         else:
-            x = df[:, col[0]:col[1]]
+            return df[:, col[0]:col[1]]
 
-    def check_data_consistency(self, x, identifier):
+    def check_data_consistency(self, data):
         msg = "Inconsistency between data and network I/O dimensions (see `dim`)."
-        dim = self.dim[identifier]
-        if isinstance(x, (list,tuple)):
-            if isinstance(dim, (list,tuple)):
-                if not len(x) == len(dim):
-                    utils.raise_value_err(msg)
-                for i in range(len(x)):
-                    if not x[i].shape[1] == dim[i]:
+        dim = list(self.dim.values())
+        for i, xy in enumerate(data):
+            if isinstance(xy, (list,tuple)):
+                if isinstance(dim[i], (list,tuple)):
+                    if not len(xy) == len(dim[i]):
                         utils.raise_value_err(msg)
-        else:
-            if isinstance(dim, int):
-                if not x[i].shape[1] == dim[i]:
+                    for j in range(len(xy)):
+                        if not xy[j].shape[1] == dim[i][j]:
+                            utils.raise_value_err(msg)
+                else:
                     utils.raise_value_err(msg)
+            else:
+                if isinstance(dim[i], int):
+                    if not xy.shape[1] == dim[i]:
+                        utils.raise_value_err(msg)
+
+    def check_size(self, data):
+        msg = "Inconsistency between data and network I/O dimensions (see `dim`)."
+        dim = list(self.dim.values())
+        for i, xy in enumerate(data):
+            if isinstance(xy, (list,tuple)):
+                if isinstance(dim[i], (list,tuple)):
+                    if not len(xy) == len(dim[i]):
+                        utils.raise_value_err(msg)
+                    for j in range(len(xy)):
+                        if not xy[j].shape[1] == dim[i][j]:
+                            utils.raise_value_err(msg)
+                else:
+                    utils.raise_value_err(msg)
+            else:
+                if isinstance(dim[i], int):
+                    if not xy.shape[1] == dim[i]:
+                        utils.raise_value_err(msg)

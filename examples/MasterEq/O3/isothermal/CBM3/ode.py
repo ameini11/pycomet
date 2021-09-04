@@ -35,16 +35,16 @@ class MasterEq(object):
 
         # Master Equation matrices --------------------------------------------
         # Dimension
-        self.dim = self.num_bins + 1
+        self.species = self.num_bins + 1
         # Non-zero elements positions (flatten)
         self.indices = {
             'excit': tf.constant(
-                [ [i * self.dim + j] for (i,j) in self.excit_bins ] + \
-                [ [j * self.dim + i] for (i,j) in self.excit_bins ]
+                [ [i * self.species + j] for (i,j) in self.excit_bins ] + \
+                [ [j * self.species + i] for (i,j) in self.excit_bins ]
             ),
             'diss': tf.constant(
-                [ [i * (self.dim + 1)] for i in range(self.num_bins) ] + \
-                [ [i + (self.dim * self.num_bins)] for i in range(self.num_bins) ]
+                [ [i * (self.species + 1)] for i in range(self.num_bins) ] + \
+                [ [i + (self.species * self.num_bins)] for i in range(self.num_bins) ]
             )
         }
         # Number of reactions for each process
@@ -167,7 +167,7 @@ class MasterEq(object):
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.dim**2])
+        K = tf.tile(placeholder, [1,self.species**2])
 
         if mask:
             # Reverse Reaction rates
@@ -187,7 +187,7 @@ class MasterEq(object):
             )
 
         # Reshape the Excit. & Relax. Master Eq. matrix
-        K = tf.reshape(K, [-1,self.dim,self.dim])
+        K = tf.reshape(K, [-1,self.species,self.species])
 
         if mask:
             # Rearrange the Excit. & Relax. Master Eq. matrix to respect the
@@ -202,7 +202,7 @@ class MasterEq(object):
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.dim**2])
+        K = tf.tile(placeholder, [1,self.species**2])
 
         if mask:
             # Rearrange rates to respect the Master Eq. system of equations
@@ -216,7 +216,7 @@ class MasterEq(object):
             )
 
         # Reshape the Dissociation Master Eq. matrix
-        K = tf.reshape(K, [-1,self.dim,self.dim])
+        K = tf.reshape(K, [-1,self.species,self.species])
 
         return K
 
@@ -226,7 +226,7 @@ class MasterEq(object):
 
         # Create a `zeros` 2D tensor: shape=[n,d] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.dim])
+        K = tf.tile(placeholder, [1,self.species])
 
         if mask:
             # Obtain recombination rates from dissociation ones
@@ -239,7 +239,7 @@ class MasterEq(object):
             K = rates
 
         # Reshape the Recombination Master Eq. matrix
-        K = tf.reshape(K, [-1,self.dim,1])
+        K = tf.reshape(K, [-1,self.species,1])
 
         return K
 

@@ -12,8 +12,8 @@ from sklearn.utils import shuffle
 from scipy.spatial import KDTree
 from pyDOE import lhs
 
-from const      import const
 from ode_solver import ODESolver
+from const import const
 
 
 class DataGenerator(object):
@@ -223,9 +223,9 @@ class DataGenerator(object):
                 path = self.data_dir + data_type + "/"
                 if not os.path.exists(path):
                     os.makedirs(path)
-                _data = self.unpack_data(data[data_type][data_id])
+                _data = np.hstack(self.unpack_data(data[data_type][data_id]))
                 pd.DataFrame(
-                    np.hstack(_data), columns=self.data_label
+                    _data, columns=self.data_label[:_data.shape[1]]
                 ).to_csv(
                     path+data_id+".csv", index=False, float_format='{:e}'.format
                 )
@@ -236,7 +236,7 @@ class DataGenerator(object):
             ).to_csv(
                 path+"input_space.csv", index=False, float_format='{:e}'.format
             )
-
+            
         return data['train'], data['valid']
 
     def unpack_data(self, x):
@@ -268,12 +268,15 @@ class DataGenerator(object):
     def extract_data_scenario(self, idx, ic, t, y):
         # Number of data pts
         n = np.shape(idx)[0]
-        # Input and Target data
-        u = np.tile(ic, (n,1))
-        t, y = t[idx], y[idx]
-        if self.split_out:
-            y = np.split(y, self.split_out, axis=1)
-        return [[u, t], y]
+        # Input data
+        u, t = np.tile(ic, (n,1)), t[idx]
+        # Target data
+        if y is None:
+            return [[u, t]]
+        else:
+            y = np.split(y[idx], self.split_out, axis=1) \
+                if self.split_out else y[idx]
+            return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
         data = {}
@@ -290,8 +293,12 @@ class DataGenerator(object):
                             idx = np.delete(idx, -1)
                         else:
                             idx, idx_k = self.stratified_sampling(idx, n)
-                    else:
+                    elif k == 'res':
                         idx_k = idx
+                        y = None
+                    else:
+                        raise KeyError(self.header + "Wrong `data_id` "
+                            "key in sampling training data.")
                 data[k] = self.extract_data_scenario(idx_k, ic, t, y)
         return data
 

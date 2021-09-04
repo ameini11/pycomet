@@ -56,7 +56,7 @@ class DataSet(Data):
                 self.valid = None
 
         # Testing data
-        self.test = self.get_data(test_data, nameof(test_data))
+        self.test = [ self.get_data(case, nameof(test_data)) for case in test_data ]
 
         self.batch_size = batch_size
         self.valid_batch_size = valid_batch_size
@@ -89,7 +89,7 @@ class DataSet(Data):
         else:
             # Data from lists of `numpy.array`
             if isinstance(data, (list,tuple)):
-                map(self.check_data_consistency, data, ['inp', 'out'])
+                self.check_data_consistency(data)
                 return data
             else:
                 utils.raise_value_err("Data passed into `{}` has to be a "

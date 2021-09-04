@@ -28,7 +28,7 @@ paths = {
 # Data properties
 # =============================================================================
 data_type = 'ODE'
-from_file = False
+from_file = True
 
 # File source -----------------------------------------------------------------
 train_file = {
@@ -55,7 +55,8 @@ def preproc_fn(x):
     Returns:
         An array or list of arrays.
     """
-    x[:,-1] = 1. - np.sum(x[:,col_y[0]:col_y[1]-1], axis=1)
+    if x.shape[1] == col_y[1][0]:
+        x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
     return x
 
 # Arrays source ---------------------------------------------------------------

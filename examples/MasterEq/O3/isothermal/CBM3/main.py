@@ -50,18 +50,17 @@ def main():
             test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
     else:
         train_data, valid_data = inp_data.train_file, inp_data.valid_file
-        if inp.test_flg > 0 and inp.test_cases > 0:
-            test_data = dataGen.testing_data(inp_data.test_file, header=header)
+        if inp_mdl.test_flg > 0 and inp_data.test_cases > 0:
+            test_data = dataGen.testing_data(inp_data.test_file, header=inp_data.header)
 
     # Initialize Data ---------------------------------------------------------
     me = MasterEq(
-        ic_dim=inp_net.dim,
+        dim=inp_net.dim,
         database=inp_data.paths['database'],
         grouping=inp_data.grouping,
         processes=inp_data.processes
     )
 
-    input('=====================================')
     data = utils.get_class(pro.data, inp_data.data_type)(
         inp_net.dim,
         training=inp_mdl.train_flg,
@@ -80,8 +79,8 @@ def main():
         valid_batch_size=inp_data.valid_batch_size
     )
 
+    print(data.train.__getitem__(0)[1])
     input('=====================================')
-
 
     ###########################################################################
     ### Network
@@ -105,6 +104,7 @@ def main():
     net.apply_input_transform(inp_net.input_fn)
     net.apply_output_transform(inp_net.output_fn)
 
+    input('=====================================')
 
     ###########################################################################
     ### Model
