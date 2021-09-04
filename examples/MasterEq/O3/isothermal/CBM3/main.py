@@ -14,7 +14,7 @@ from tensorflow.keras import callbacks
 # Input files
 import inputs.data as inp_data
 import inputs.network as inp_net
-import inputs.model as inp_mod
+import inputs.model as inp_mdl
 import inputs.postprocessing as inp_post
 
 sys.path.append(inp_data.paths['utils'])
@@ -30,6 +30,7 @@ def main():
     ###########################################################################
     # Generate Data -----------------------------------------------------------
     dataGen = DataGenerator(
+        dim=inp_net.dim,
         train_pts=inp_data.train_pts,
         valid=inp_data.valid,
         train_pts_dist=inp_data.train_pts_dist,
@@ -45,29 +46,25 @@ def main():
     if not inp_data.from_file:
         ic = dataGen.initial_cond()
         train_data, valid_data = dataGen.training_data(ic[0])
-        # input('=====================================')
-        # if inp.test_flg > 0 and inp.test_cases > 0:
-        #     test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
+        if inp_mdl.test_flg > 0 and inp_data.test_cases > 0:
+            test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
     else:
         train_data, valid_data = inp_data.train_file, inp_data.valid_file
         if inp.test_flg > 0 and inp.test_cases > 0:
             test_data = dataGen.testing_data(inp_data.test_file, header=header)
 
-    print(train_data['ics'][1])
-
-    input('=====================================')
-
     # Initialize Data ---------------------------------------------------------
     me = MasterEq(
-        ic_dim=inp_data.ic_dim,
+        ic_dim=inp_net.dim,
         database=inp_data.paths['database'],
         grouping=inp_data.grouping,
         processes=inp_data.processes
     )
 
+    input('=====================================')
     data = utils.get_class(pro.data, inp_data.data_type)(
         inp_net.dim,
-        training=inp_mod.train_flg,
+        training=inp_mdl.train_flg,
         ode_func=me.ode,
         ode_order=1,
         ode_params=me.arrhenius_coeff,

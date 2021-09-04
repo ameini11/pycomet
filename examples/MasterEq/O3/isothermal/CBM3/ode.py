@@ -16,7 +16,7 @@ class MasterEq(object):
     ###########################################################################
     def __init__(
         self,
-        ic_dim,
+        dim,
         database,
         grouping,
         processes
@@ -59,7 +59,8 @@ class MasterEq(object):
         self.me_mask = list(processes.values())
 
         # IC input dimension --------------------------------------------------
-        self.ic_dim = ic_dim
+        self.ic_dim = dim["inp"][0]
+        self.out_dim = dim["out"]
 
 
     ###########################################################################
@@ -96,7 +97,9 @@ class MasterEq(object):
         K_e, K_d, K_r = self.get_matrices(T, params)
 
         # Manipulate variables
-        Y, dY_dt = [ grad * mass for grad in grads ]
+        if any(isinstance(g, (list,tuple)) for g in grads):
+            grads = [ tf.concat(g, axis=1) for g in grads ]
+        Y, dY_dt = [ g * mass for g in grads ]
 
         # Extract atomic oxygen O mass fraction vector from model outputs
         Y_O = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)[-1]
@@ -108,7 +111,12 @@ class MasterEq(object):
         rhs = excit_term + disso_term + recom_term
 
         # Return the residual error
-        return dY_dt - rhs
+        res = dY_dt - rhs
+        if isinstance(self.out_dim, (list,tuple)):
+            res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
+
+        return res
+
 
 
     ###########################################################################

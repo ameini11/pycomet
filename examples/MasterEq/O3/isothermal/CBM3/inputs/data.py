@@ -89,7 +89,6 @@ test_training = True    # Test training cases
 # =============================================================================
 grouping = 'CBM3'                                  # ROM: ['CBM3', 'DPM10']
 processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
-ic_dim = inp_net.dim["inp"][0]                   # ICs space dimension
 
 # Input space (limit values)
 inp_space = {
