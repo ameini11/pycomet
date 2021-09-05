@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split
 class Data(object):
     """Data base class."""
 
-
     # Initialization
     ###########################################################################
     def __init__(

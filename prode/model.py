@@ -75,6 +75,7 @@ class Model(object):
         graph = self.net.get_graph()
         self.net.inputs = graph.inputs
         self.net.outputs = graph.outputs
+        print(graph.output_names)
 
         # Visualize net/graph
         graph.summary()

@@ -56,7 +56,7 @@ class DataSet(Data):
                 self.valid = None
 
         # Testing data
-        self.test = [ self.get_data(case, nameof(test_data)) for case in test_data ]
+        self.test = test_data
 
         self.batch_size = batch_size
         self.valid_batch_size = valid_batch_size

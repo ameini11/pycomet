@@ -21,7 +21,7 @@ from prode.utilities.model import layers as pro_layers
 
 # Architecture properties
 # =============================================================================
-arch = 'MMOpNN'
+architecture = 'MMOpNN'
 
 # Variables dimensionality ----------------------------------------------------
 dim = {
@@ -29,26 +29,26 @@ dim = {
     "out": [3, 1]   # Output dimensionality
 }
 
-names = ['O2', 'O']
+output_names = ['O2', 'O']
 
 # Structure -------------------------------------------------------------------
 layer_size = {
-    names[0]: {
+    output_names[0]: {
         "branch": [dim['inp'][0], 32, 32, 32],
         "trunk":  [dim['inp'][1], 32, 32, 32]
     },
-    names[1]: {
+    output_names[1]: {
         "branch": [dim['inp'][0], 32, 32, 32],
         "trunk":  [dim['inp'][1], 64, 64, 32]
     }
 }
 
 activation = {
-    names[0]: {
+    output_names[0]: {
         "branch": 'elu',
         "trunk":  'sigmoid'
     },
-    names[1]: {
+    output_names[1]: {
         "branch": 'elu',
         "trunk":  'sigmoid'
     }
@@ -90,14 +90,14 @@ input_fn = {
 }
 # >> Output
 output_fn = layers.Lambda(
-    lambda y: [ y[0], y[1]*(1.-y[0]) ], name='output_fn'
+    lambda y: [ y[0]*(1.-y[1]), y[1] ], name='output_fn'
 )
 
 # Each single DeepONet --------------------------------------------------------
 inp_opnn_trans = None
 out_opnn_trans = {
-    names[0]: layers.Lambda(
-        lambda x: tf.clip_by_value(x, 0., 1.), name=names[0]+'_output_fn'
+    output_names[0]: layers.Lambda(
+        lambda x: tf.clip_by_value(x, 0., 1.), name=output_names[0]+'_output_fn'
     ),
-    names[1]: layers.Softmax(axis=-1, name=names[1]+'_output_fn')
+    output_names[1]: layers.Softmax(axis=-1, name=output_names[1]+'_output_fn')
 }

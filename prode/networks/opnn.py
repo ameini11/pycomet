@@ -129,7 +129,7 @@ class OpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x):
+    def call(self, x, training=None, mask=None):
 
         # Inputs
         if isinstance(x, (list, tuple)):
@@ -149,14 +149,14 @@ class OpNN(Net):
                 x_y = self.inp_trans(x_y)
 
         # Branch/-es
-        G_u = [ self.branches[i](x_u) for i in range(self.out_dim) ]
+        G_u = [ branch(x_u) for branch in self.branches ]
 
         # Trunk
         G_y = self.trunk(x_y)
 
         # Output layer
-        G_uy = [ lay.Dot(axes=1)([G_u[i], G_y]) for i in range(self.out_dim) ]
-        G_uy = lay.Concatenate()(G_uy)
+        G_uy = [ lay.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]
+        G_uy = lay.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
         if self.use_end_bias:
             G_uy = self.end_bias(G_uy)
 

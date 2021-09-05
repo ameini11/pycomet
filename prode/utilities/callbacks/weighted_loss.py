@@ -103,7 +103,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.dataset = {}
         self.max_samples = max_samples
 
-        self.grads_eval = self.mean_grads if method is 'mean' else self.max_grads
+        self.grads_eval = self.mean_grads if method == 'mean' else self.max_grads
 
     def on_train_begin(self, logs={}):
         if 'res' not in self.model.data_ids:

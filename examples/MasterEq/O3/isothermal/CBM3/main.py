@@ -79,14 +79,12 @@ def main():
         valid_batch_size=inp_data.valid_batch_size
     )
 
-    print(data.train.__getitem__(0)[1])
-    input('=====================================')
 
     ###########################################################################
     ### Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    net = utils.get_class(pro.networks, inp_net.nn_name)(
+    net = utils.get_class(pro.networks, inp_net.architecture)(
         inp_net.output_names,
         inp_net.dim,
         inp_net.layer_size,
@@ -104,20 +102,35 @@ def main():
     net.apply_input_transform(inp_net.input_fn)
     net.apply_output_transform(inp_net.output_fn)
 
-    input('=====================================')
 
     ###########################################################################
     ### Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.name)
+    model = pro.model.Model(data, net, inp_mdl.name)
 
     # Build Model -------------------------------------------------------------
-    model.build(inp.dim['inp'], verbose=0, load_net=inp.load_flg, visualize_graph=False)
+    model.build(
+        input_dim=inp_net.dim['inp'],
+        verbose=1,
+        load_net=inp_mdl.load_flg,
+        visualize_graph=True
+    )
+
+    print(model.net.inputs)
+    print(model.net.outputs)
+    print(model.net.output_names)
+
+    input('=====================================')
 
     # Compile Model -----------------------------------------------------------
-    model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, \
-        metrics=inp.metrics, decay=inp.decay)
+    model.compile(
+        inp.optimizer,
+        lr=inp.lr,
+        loss=inp.loss,
+        metrics=inp.metrics,
+        decay=inp.decay
+    )
 
     # Fit Model ---------------------------------------------------------------
     if inp.train_flg > 0:

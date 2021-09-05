@@ -84,7 +84,7 @@ class FFNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x):
+    def call(self, x, training=None, mask=None):
 
         # Input Transform
         y = x

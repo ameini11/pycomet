@@ -43,16 +43,16 @@ decay = ["exponential", decay_steps, 0.98]
 # =============================================================================
 loss = {
     'ics': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+        inp_net.output_names[0]: {'identifier': 'malpe', 'axis': 0},
+        inp_net.output_names[1]: {'identifier': 'malpe', 'axis': 0}
     },
     'pts': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+        inp_net.output_names[0]: {'identifier': 'malpe', 'axis': 0},
+        inp_net.output_names[1]: {'identifier': 'malpe', 'axis': 0}
     },
     'res': {
-        inp_net.names[0]: {'identifier': 'mae', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mae', 'axis': 0}
+        inp_net.output_names[0]: {'identifier': 'mae', 'axis': 0},
+        inp_net.output_names[1]: {'identifier': 'mae', 'axis': 0}
     }
 }
 loss_weights = None

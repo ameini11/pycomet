@@ -362,7 +362,7 @@ class BiasLay(lay.Layer):
     # Configuration update
     ###########################################################################
     def get_config(self):
-        config = super(Dense, self).get_config()
+        config = super(BiasLay, self).get_config()
         config.update({
             'activation': activations.serialize(self.activation),
             'initializer': initializers.serialize(self.initializer),

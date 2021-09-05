@@ -76,7 +76,7 @@ class ODE(Data):
                     )
 
         # Testing data
-        self.test = [ self.get_data(case, 'pts') for case in test_data ]
+        self.test = test_data
 
         # Update data ids
         self.data_ids = self.train.data_ids
@@ -137,7 +137,6 @@ class ODE(Data):
                 map(lambda c: self.read_dataframe(df, c), \
                     [self.col_x, self.col_y])
             )
-            print(data_id)
             if any(i.size == 0 for i in x):
                 utils.raise_value_err("No input data (see `col_x`) can be "
                     "extracted from file '{}'.".format(data))
@@ -147,7 +146,6 @@ class ODE(Data):
                 else:
                     utils.raise_value_err("No target data (see `col_y`) can be "
                         "extracted from file '{}'.".format(data))
-            print(y)
             return x, y
         else:
             # Data from lists of `numpy.array`

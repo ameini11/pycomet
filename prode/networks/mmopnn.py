@@ -17,7 +17,7 @@ class MMOpNN(Net):
     ###########################################################################
     def __init__(
         self,
-        names,
+        output_names,
         dim,
         layer_size,
         activation,
@@ -43,17 +43,17 @@ class MMOpNN(Net):
         )
 
         ### Hyperparameters Initialization ------------------------------------
-        if len(names) <= 1:
+        if len(output_names) <= 1:
             utils.raise_value_err(
-                "The number of `names` passed into `{}` has to be grater "
-                "than 1 (multiple DeepONets).".format(self.name))
+                "The number of `output_names` passed into `{}` has to be "
+                "grater than 1 (multiple DeepONets).".format(self.name))
         else:
-            self.names = names
+            self.output_names = output_names
 
         self.dim = {name: {
             "inp": self.inp_dim,
             "out": self.out_dim[i]
-        } for i, name in enumerate(self.names)}
+        } for i, name in enumerate(self.output_names)}
 
         self.layer_size = layer_size
         self.activation = activation
@@ -79,7 +79,7 @@ class MMOpNN(Net):
             weight_norm=self.weight_norm,
             block=self.block,
             name='opnn_'+name
-        ) for name in self.names ]
+        ) for name in self.output_names ]
 
         # Apply I/O Transformation
         if self.inp_opnn_trans:
@@ -89,7 +89,7 @@ class MMOpNN(Net):
                     "which a specific input transform function is defined "
                     "for each DeepONet: {'name': fun}".format(self.name)
                 )
-            for i, name in enumerate(self.names):
+            for i, name in enumerate(self.output_names):
                 self.opnns[i].apply_input_transform(self.inp_opnn_trans[name])
         if self.out_opnn_trans:
             if not isinstance(self.out_opnn_trans, dict):
@@ -98,7 +98,7 @@ class MMOpNN(Net):
                     "which a specific output transform function is defined "
                     "for each DeepONet: {'name': fun}".format(self.name)
                 )
-            for i, name in enumerate(self.names):
+            for i, name in enumerate(self.output_names):
                 self.opnns[i].apply_output_transform(self.out_opnn_trans[name])
 
 
@@ -108,7 +108,6 @@ class MMOpNN(Net):
 
         config = super().get_config().copy()
         config.update({
-            'names':       self.names,
             'dim':                self.dim,
             'layer_size':         self.layer_size,
             'activation':         self.activation,
@@ -131,7 +130,7 @@ class MMOpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x):
+    def call(self, x, training=None, mask=None):
 
         # Inputs
         if isinstance(x, (list, tuple)):
@@ -157,7 +156,8 @@ class MMOpNN(Net):
         if self.out_trans is not None:
             G_uy = self.out_trans(G_uy)
 
-        # return {k: v for (k,v) in zip(self.names, G_uy)}
+        self.y = G_uy
+
         return G_uy
 
 
@@ -166,5 +166,7 @@ class MMOpNN(Net):
     def get_graph(self):
         x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
               tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
-        y = {k: v for (k,v) in zip(self.names, self.call(x))}
+        y = {k: v for (k,v) in zip(self.output_names, self.call(x))}
+        print(y)
+        # y = self.call(x)
         return tf.keras.Model(inputs=x, outputs=y, name=self.name)
