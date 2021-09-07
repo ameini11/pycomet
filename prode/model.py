@@ -247,7 +247,7 @@ class Model(object):
     ###########################################################################
     def predict(
         self,
-        test_data,
+        data,
         plotting=False,
         path=None,
         output_ops=None,
@@ -256,9 +256,9 @@ class Model(object):
         fig_name=None,
         labels=None,
         scales=None,
-        log_flg=False
+        log_plot=False
     ):
-        x, y_true = self.unpack_test_data(test_data)
+        x, y_true = self.unpack_test_data(data)
         y_pred = self.net.predict(x)
 
         if plotting:
@@ -279,7 +279,7 @@ class Model(object):
                         labels=labels[y_i],
                         scales=scales[y_i]
                     )
-                    self.testing_plot_fn(path, x, log_flg, kwargs)
+                    self.testing_plot_fn(path, x, log_plot, kwargs)
             else:
                 kwargs = dict(
                     y_true=y_true,
@@ -290,19 +290,19 @@ class Model(object):
                     labels=labels,
                     scales=scales
                 )
-                self.testing_plot_fn(path, x, log_flg, kwargs)
+                self.testing_plot_fn(path, x, log_plot, kwargs)
 
         return y_pred
 
-    def unpack_test_data(self, test_data):
-        if len(test_data) == 2:
-            return test_data
+    def unpack_test_data(self, data):
+        if len(data) == 2:
+            return data
         else:
-            return test_data, None
+            return data, None
 
-    def testing_plot_fn(self, path, x, log_flg, kwargs):
+    def testing_plot_fn(self, path, x, log_plot, kwargs):
         testing_plots.plot_test(path, x, **kwargs)
-        if log_flg:
+        if log_plot:
             kwargs['scales'] = ['log','log']
             testing_plots.plot_test(path, x,**kwargs)
 
@@ -359,9 +359,8 @@ class Model(object):
             if any([ c.endswith('weight') for c in history.columns ]):
                 training_plots.plot_loss_weights(history, path)
         # Metrics
-        metrics = self.model.compiled_metrics.metrics
-        if metrics:
-            for metric in metrics:
+        if self.net.compiled_metrics:
+            for metric in self.net.compiled_metrics.metrics:
                 if metric.name in history:
                     training_plots.plot_metric(
                         history, path, metric.name, scale=scale, limit_y=limit_y

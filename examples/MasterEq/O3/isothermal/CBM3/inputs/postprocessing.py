@@ -16,18 +16,21 @@ import tensorflow as tf
 import inputs.network as inp_net
 
 
-# Plotting quantities
+# Training quantities
 # =============================================================================
-# Variables -------------------------------------------------------------------
-var_names = [ r'$O_2^{({%s})}$' % (i+1) for i in range(inp_net.dim["out"][0]) ]
-var_names.append(r'$O$')
-
-# Axis ------------------------------------------------------------------------
-labels = [r'$t\quad[s]$', r'$Y$']         # x, y labels
-scales = ['log', 'linear']                # x, y scales
-log_plot = True
 limit_y = False
 
-# Axis ------------------------------------------------------------------------
+# Plotting quantities
+# =============================================================================
+# Outputs manipulation --------------------------------------------------------
 def output_ops(y):
     return tf.concat(y, 1)
+
+# Style -----------------------------------------------------------------------
+plot_style = {
+    'output_ops':   output_ops,
+    'var_names':    [r'$O_2^{({%s})}$' % (i+1) for i in range(inp_net.dim["out"][0])] + [r'$O$'],
+    'labels':       [r'$t\quad[s]$', r'$Y$'],
+    'scales':       ['log', 'linear'],
+    'log_plot':     True
+}

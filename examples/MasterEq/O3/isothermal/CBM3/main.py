@@ -143,29 +143,29 @@ def main():
             inp_mdl.callbacks.pop('plotter')
 
         model.fit(epochs=inp_mdl.epochs, callbacks=inp_mdl.callbacks)
-
-    input('=====================================')
     
     # Save Model ---------------------------------------------------------------
-    if inp.save_flg > 0:
+    if inp_mdl.save_flg > 0:
         model.save()
-
 
     ###########################################################################
     ### Postprocessing
     ###########################################################################
     # Training phase ----------------------------------------------------------
-    model.visualize_training(model.train_dir+'/history.csv', limit_y=inp.limit_y)
+    model.visualize_training(
+        history=model.train_dir+'/history.csv',
+        limit_y=inp_post.limit_y
+    )
 
     # Testing phase -----------------------------------------------------------
-    if inp.test_cases > 0 and inp.test_flg > 0:
-        plot_style = dict(plotting=inp.plot_flg, var_names=inp.var_names, labels=inp.labels)
-        for i, test_i in enumerate(data_test):
-            # Define 'path'
+    if inp_data.test_cases > 0 and inp_mdl.test_flg > 0:
+        for i, test_i in enumerate(data.test):
             path = model.post_dir+'/testing/test_'+str(i+1)
-            model.predict(test_i, path=path, scales=inp.scales, **plot_style)
-            if inp.log_plot:
-                model.predict(test_i, path=path, scales=['log', 'log'], **plot_style)
+            model.predict(
+                test_i,
+                plotting=inp_mdl.plot_flg,
+                path=path,
+                **inp_post.plot_style)
             
 
 if __name__ == "__main__":

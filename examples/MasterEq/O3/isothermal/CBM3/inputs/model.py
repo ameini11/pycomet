@@ -81,13 +81,9 @@ callbacks = {
     },
 
     'plotter': {
-        'output_ops': inp_post.output_ops,
-        'var_names':  inp_post.var_names,
-        'labels':     inp_post.labels,
-        'scales':     inp_post.scales,
-        'limit_y':    inp_post.limit_y,
-        'log_flg':    inp_post.log_plot,
-        'period':     50
+        **inp_post.plot_style,
+        'limit_y':  inp_post.limit_y,
+        'period':   50
     },
 
     'tensorboard': {
