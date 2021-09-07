@@ -32,7 +32,8 @@ class FFBlock(lay.Layer):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='ff_block'):
+        name='ff_block'
+    ):
         super(FFBlock, self).__init__(name=name)
         
         ### Hyperparameters Initialization ------------------------------------
@@ -43,7 +44,7 @@ class FFBlock(lay.Layer):
         self.dropout_rate        = dropout_rate
         if batch_norm not in [None, "before", "after"]:
             utils.raise_value_err("Invalid `batch_norm` argument passed into `{}`. "
-                "Available choices: {{None|'before'|'after'}}.".format(self.__name__))
+                "Available choices: {{None|'before'|'after'}}.".format(self.name))
         self.batch_norm          = batch_norm
         self.weight_norm         = weight_norm
 

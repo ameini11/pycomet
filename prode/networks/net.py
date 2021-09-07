@@ -51,7 +51,7 @@ class Net(tf.keras.Model):
     ###########################################################################
     def get_config(self):
 
-        config = super().get_config().copy()
+        config = super(Net, self).get_config().copy()
         config.update({
             'inp_dim':          self.inp_dim,
             'out_dim':          self.out_dim,

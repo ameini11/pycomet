@@ -103,7 +103,7 @@ class OpNN(Net):
     ###########################################################################
     def get_config(self):
 
-        config = super().get_config().copy()
+        config = super(OpNN, self).get_config().copy()
         config.update({
             'layer_size_branch':  self.layer_size_branch,
             'layer_size_trunk':   self.layer_size_trunk,
