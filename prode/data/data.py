@@ -28,7 +28,7 @@ class Data(object):
         self.valid_batch_size = None
         
         self.data_ids = None
-        self.data_ids_val = None
+        self.data_ids_valid = None
 
 
     # Util functions

@@ -12,6 +12,7 @@
 # --------------------------------------------------------------------------- #
 
 
+import tensorflow as tf
 import inputs.network as inp_net
 
 

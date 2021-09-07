@@ -15,27 +15,23 @@ class Plotter(CB.Callback):
 
     def __init__(
         self,
-        test_cases,
-        var_names,
-        labels,
-        scales,
-        train_dir,
+        test_data=None,
+        train_dir=None,
         output_ops=None,
+        var_names=None,
+        time_idx=-1,
+        fig_name=None,
+        labels=None,
+        scales=None,
         limit_y=False,
         log_flg=False,
-        period=100):
+        period=100
+    ):
         super(Plotter, self).__init__()
 
-        self.test_cases = test_cases
-        self.var_names  = var_names
-        self.labels     = labels
+        self.test_data = test_data
 
-        self.scales     = scales
-        self.log_flg    = log_flg
-
-        self.limit_y    = limit_y
-
-        self.train_dir  = train_dir
+        self.train_dir = train_dir
         self.path = {
             'train': self.train_dir+'plots/training',
             'test':  self.train_dir+'plots/testing'
@@ -45,8 +41,17 @@ class Plotter(CB.Callback):
                 os.makedirs(v)
 
         self.output_ops = output_ops
+
+        self.var_names = var_names
+        self.labels = labels
+        self.time_idx = time_idx
+
+        self.scales = scales
+        self.log_flg = log_flg
+        self.limit_y = limit_y
         
         self.period = period
+        self.fig_name = fig_name
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % self.period == 0:
@@ -68,9 +73,8 @@ class Plotter(CB.Callback):
             if any([ c.endswith('weight') for c in history ]):
                 training_plots.plot_loss_weights(history, path)
         # Metrics
-        metrics = self.model.compiled_metrics.metrics
-        if metrics:
-            for metric in metrics:
+        if self.model.compiled_metrics:
+            for metric in self.model.compiled_metrics.metrics:
                 if metric.name in history:
                     training_plots.plot_metric(
                         history, path, metric.name, scale=scale, limit_y=limit_y
@@ -78,7 +82,7 @@ class Plotter(CB.Callback):
 
     def testing(self):
         utils.print_submain("- Plotting test cases ...")
-        for i, test_i in enumerate(self.test_cases):
+        for i, test_i in enumerate(self.test_data):
             # x, y_true = self.unpack_test_data(test_i)
             x, y_true = test_i
             y_pred = self.model.predict(x)
@@ -89,6 +93,8 @@ class Plotter(CB.Callback):
             if not os.path.exists(path):
                 os.makedirs(path)
             if isinstance(y_pred, (list,tuple)):
+                if self.fig_name == None:
+                    self.fig_name = [ 'fig'+str(i) for i in range(1,len(y_true)+1)]
                 for y_i in range(len(y_pred)):
                     kwargs = dict(
                         y_true=y_true[y_i],

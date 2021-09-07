@@ -96,8 +96,8 @@ output_fn = layers.Lambda(
 # Each single DeepONet --------------------------------------------------------
 inp_opnn_trans = None
 out_opnn_trans = {
-    output_names[0]: layers.Lambda(
-        lambda x: tf.clip_by_value(x, 0., 1.), name=output_names[0]+'_output_fn'
-    ),
-    output_names[1]: layers.Softmax(axis=-1, name=output_names[1]+'_output_fn')
+    output_names[0]: layers.Softmax(axis=-1, name=output_names[0]+'_output_fn'),
+    output_names[1]: layers.Lambda(
+        lambda x: tf.clip_by_value(x, 0., 1.), name=output_names[1]+'_output_fn'
+    )
 }

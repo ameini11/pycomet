@@ -112,36 +112,40 @@ def main():
     # Build Model -------------------------------------------------------------
     model.build(
         input_dim=inp_net.dim['inp'],
-        verbose=1,
+        verbose=0,
         load_net=inp_mdl.load_flg,
         visualize_graph=True
     )
-
-    print(model.net.inputs)
-    print(model.net.outputs)
-    print(model.net.output_names)
-
-    input('=====================================')
+    
+    # print(model.net.inputs)
+    # print(model.net.outputs)
+    # print(model.net.output_names)
 
     # Compile Model -----------------------------------------------------------
     model.compile(
-        inp.optimizer,
-        lr=inp.lr,
-        loss=inp.loss,
-        metrics=inp.metrics,
-        decay=inp.decay
+        inp_mdl.optimizer,
+        lr=inp_mdl.lr,
+        loss=inp_mdl.loss,
+        metrics=inp_mdl.metrics,
+        decay=inp_mdl.decay
     )
 
+    # print(model.net.compiled_loss)
+    # for k,v in model.net.compiled_loss.items():
+    #     print(k)
+    #     print(v._output_names)
+    #     print(v._losses)
+    # input('=====================================')
+
     # Fit Model ---------------------------------------------------------------
-    if inp.train_flg > 0:
-        if 'plotter' in inp.callbacks:
-            if inp.plot_flg != 2:
-                inp.callbacks.pop('plotter')
-            else:
-                inp.callbacks['plotter']['test_cases'] = data_test
+    if inp_mdl.train_flg > 0:
+        if 'plotter' in inp_mdl.callbacks and inp_mdl.plot_flg != 2:
+            inp_mdl.callbacks.pop('plotter')
 
-        model.fit(epochs=inp.epochs, callbacks=inp.callbacks)
+        model.fit(epochs=inp_mdl.epochs, callbacks=inp_mdl.callbacks)
 
+    input('=====================================')
+    
     # Save Model ---------------------------------------------------------------
     if inp.save_flg > 0:
         model.save()

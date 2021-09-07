@@ -29,14 +29,48 @@ class ConstantWeightsAdapter(CB.Callback):
 
         self.name = utils.get_class_name(self)
 
-        if ode_loss_weights is None:
-            utils.warning("No loss weights have been provided: the default "
-                "value of 1 will be applied.")
+        self.ode_loss_weights = ode_loss_weights
+
+        # if ode_loss_weights is None:
+        #     utils.warning("No loss weights have been provided: the default "
+        #         "value of 1 will be applied.")
+        #     _ode_loss_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
+        # elif isinstance(ode_loss_weights, (list,tuple)):
+        #     _ode_loss_weights = dict(zip(self.model.data_ids, ode_loss_weights))
+        # elif isinstance(ode_loss_weights, dict):
+        #     _ode_loss_weights = ode_loss_weights
+        # else:
+        #     utils.raise_value_err("`ode_loss_weights` passed into `{}` "
+        #         "has to be a list or a dictionary:\n"
+        #         "  - 'ics': weight for initial condition pts loss;\n"
+        #         "  - 'pts': weight for anchor pts loss;\n"
+        #         "  - 'res': weight for residual loss.".format(self.name))
+        # self.model.ode_loss_weights = _ode_loss_weights
+
+        self.data_generator = data_generator
+        self.freq = np.clip(freq, 1, None) if freq is not None else np.inf
+
+        self.log_dir = log_dir
+        # if self.log_dir is not None:
+        #     self.logs = { k: tf.summary.create_file_writer(self.log_dir + \
+        #         '/scalars/ode_loss_weights/' + k) for k in self.model.ode_loss_weights }
+
+    def on_train_begin(self, logs={}):
+        self.init_weights()
+        self.print_weights(0, logs)
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.print_weights(epoch, logs)
+
+    def init_weights(self):
+        if self.ode_loss_weights is None:
+            utils.warning("No `ode_loss_weights` have been provided to `{}`: "
+                "the initial value of 1 will be applied.".format(self.name))
             _ode_loss_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
-        elif isinstance(ode_loss_weights, (list,tuple)):
+        elif isinstance(self.ode_loss_weights, (list,tuple)):
             _ode_loss_weights = dict(zip(self.model.data_ids, ode_loss_weights))
         elif isinstance(ode_loss_weights, dict):
-            _ode_loss_weights = ode_loss_weights
+            _ode_loss_weights = self.ode_loss_weights
         else:
             utils.raise_value_err("`ode_loss_weights` passed into `{}` "
                 "has to be a list or a dictionary:\n"
@@ -44,20 +78,10 @@ class ConstantWeightsAdapter(CB.Callback):
                 "  - 'pts': weight for anchor pts loss;\n"
                 "  - 'res': weight for residual loss.".format(self.name))
         self.model.ode_loss_weights = _ode_loss_weights
-
-        self.data_generator = data_generator
-        self.freq = np.clip(freq, 1, None) if freq is not None else np.inf
-
-        self.log_dir = log_dir
+        
         if self.log_dir is not None:
             self.logs = { k: tf.summary.create_file_writer(self.log_dir + \
                 '/scalars/ode_loss_weights/' + k) for k in self.model.ode_loss_weights }
-
-    def on_train_begin(self, logs={}):
-        self.print_weights(0, logs)
-
-    def on_epoch_end(self, epoch, logs={}):
-        self.print_weights(epoch, logs)
 
     def print_weights(self, epoch, logs):
         log_weights = {k+'_loss_weight': v for k,v in self.model.ode_loss_weights.items()}
@@ -67,6 +91,7 @@ class ConstantWeightsAdapter(CB.Callback):
                 with log.as_default():
                     tf.summary.scalar(name='epoch_'+k+'_loss_weight', \
                         data=self.model.ode_loss_weights[k], step=epoch)
+        print(log_weights)
 
 
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
@@ -93,10 +118,12 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         **kwargs
     ):
         super(EmpiricalWeightsAdapter, self).__init__(
+            ode_loss_weights=ode_loss_weights,
             data_generator=data_generator,
             freq=freq,
             log_dir=log_dir,
-            name=name)
+            name=name
+        )
 
         self.alpha = tf.cast(tf.clip_by_value(alpha, 0., 1.), K.floatx())
         self.loss_gradients = {}
@@ -106,6 +133,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.grads_eval = self.mean_grads if method == 'mean' else self.max_grads
 
     def on_train_begin(self, logs={}):
+        self.init_weights()
         if 'res' not in self.model.data_ids:
             utils.warning("Network `{}` hasn't any residual loss to be evaluated: "
                 "`{}` can't be applied.".format(self.model.name, self.name))
@@ -221,13 +249,15 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         **kwargs
     ):
         super(NTKWeightsAdapter, self).__init__(
+            ode_loss_weights=ode_loss_weights,
             data_generator=data_generator,
             freq=freq,
             log_dir=log_dir,
-            max_samples=max_samples,
-            name=name)
+            name=name
+        )
 
     def on_train_begin(self, logs={}):
+        self.init_weights()
         self.update()
         self.print_weights(0, logs)
 

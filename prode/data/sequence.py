@@ -80,7 +80,8 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         Returns:
             A batch
         """
-        return [ xy for xy in zip(*self.sequence[index]) ]
+        x, y = [ xy for xy in zip(*self.sequence[index]) ]
+        return x, y
 
 
     # Handling data at the end of each epoch

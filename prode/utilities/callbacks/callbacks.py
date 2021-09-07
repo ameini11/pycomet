@@ -39,7 +39,9 @@ def get_callback(model, identifier, args):
             **args, file=model.train_dir+'/lr.csv', log_dir=model.TB_dir
         )
     elif identifier == "plotter":
-        return plotting.Plotter(**args, train_dir=model.train_dir)
+        return plotting.Plotter(
+            test_data=model.data.test, train_dir=model.train_dir, **args
+        )
     elif identifier == "variable":
         return variable.VariableValue(**args)
     elif callable(identifier):

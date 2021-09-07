@@ -1,6 +1,9 @@
 import tensorflow as tf
 
 from tensorflow.python.keras.engine import compile_utils
+from tensorflow.python.keras.engine import base_layer
+from tensorflow.python.keras import metrics as metrics_mod
+
 from prode.utilities.model import layers
 from prode.utilities import utils
 from prode.networks import steps
@@ -162,14 +165,14 @@ class Net(tf.keras.Model):
     ###########################################################################
     # Training Step
     def train_step(self, data):
-        if self.loss_fns:
+        if self.residual:
             return steps.train_step(self, data)
         else:
             return super(Net, self).train_step(data)
 
     # Testing Step
     def test_step(self, data):
-        if self.loss_fns:
+        if self.residual:
             return steps.test_step(self, data)
         else:
             return super(Net, self).test_step(data)

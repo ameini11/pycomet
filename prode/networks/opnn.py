@@ -69,8 +69,8 @@ class OpNN(Net):
             self.batch_norm_branch = self.batch_norm_trunk = batch_norm
 
         self.kernel_initializer = initializers.get(kernel_initializer)
-        self.dropout_rate  = dropout_rate
-        self.weight_norm   = weight_norm
+        self.dropout_rate = dropout_rate
+        self.weight_norm = weight_norm
         self.use_end_bias = use_end_bias
 
         ### Blocks Initialization ---------------------------------------------

@@ -46,9 +46,9 @@ def get_grad_fn(ode_order=0):
 def order_0(ode_cls, order, model, ic, t, training):
     assert order == 0
     if ode_cls.time_idx == 0:
-        t = [t, ic]
+        x = [t, ic]
     else:
-        t = [ic, t]
+        x = [ic, t]
     if not ode_cls.input_is_list:
         x = tf.concat(x, axis=1)
     grads = [ model(x, training=training) ]

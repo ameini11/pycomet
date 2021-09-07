@@ -75,7 +75,6 @@ class Model(object):
         graph = self.net.get_graph()
         self.net.inputs = graph.inputs
         self.net.outputs = graph.outputs
-        print(graph.output_names)
 
         # Visualize net/graph
         graph.summary()
@@ -83,6 +82,7 @@ class Model(object):
             if visualize_graph:
                 file_name = self.save_dir + self.name + '_struct.h5'
                 graph.save(file_name, save_format='h5')
+                # graph.save_weights(file_name, save_format='h5')
                 utils.print_submain("", end=""); netron.start(file_name)
                 tf.keras.utils.plot_model(
                     graph, self.train_dir + "/" + self.name + ".png"
@@ -104,7 +104,7 @@ class Model(object):
         """Either restore the latest model, or create a fresh one if there is 
         no saved model/checkpoint available."""
         if load_net == 0:
-            utils.print_submain("Making new network")
+            utils.print_submain("Making a new network")
             return
         elif load_net in [1,2]:
             if load_net == 1:
@@ -120,7 +120,7 @@ class Model(object):
                     )
                 else:
                     utils.print_submain(
-                        "No checkpoints available: making new network"
+                        "No checkpoints available: making a new network"
                     )
                     return
             self.net.load_weights(path)
@@ -222,9 +222,14 @@ class Model(object):
         print("")
 
         # Fit the model
+        if self.data.name == 'ODE':
+            x, y = self.data.train, None
+        else:
+            x, y = self.data.train
+
         self.net.fit(
-            *self.data.train if isinstance(self.data.train, (list, tuple)) \
-                else self.data.train,
+            x=x,
+            y=y,
             batch_size=self.data.batch_size,
             epochs=epochs,
             callbacks=callbacks,

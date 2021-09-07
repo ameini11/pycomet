@@ -60,10 +60,10 @@ def plot_test(
 
     for d in range(y_true.shape[1]):
 
-        name = 'True ' + var_name[d]
+        name = 'True ' + var_names[d]
         plt.plot(x, y_true[:, d], c=col[d], ls=lin[0], lw=1, label=name)
 
-        name = 'Pred ' + var_name[d]
+        name = 'Pred ' + var_names[d]
         plt.plot(x, y_pred[:, d], c=col[d], ls=lin[1], lw=1, label=name, \
             **marker_style)
 

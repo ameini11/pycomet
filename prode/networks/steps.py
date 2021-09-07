@@ -37,6 +37,16 @@ def train_step(model, data):
 
     return {**metric, **get_metrics(total_loss, losses, reg_loss=reg_loss)}
 
+    # return_metrics = {}
+    # for metric in model.metrics:
+    #   result = metric.result()
+    #   if isinstance(result, dict):
+    #     return_metrics.update(result)
+    #   else:
+    #     return_metrics[metric.name] = result
+
+    # return { k: v for k,v in return_metrics.items() if k.startswith('res') }
+
 
 def test_step(model, data):
     """Custom test step."""

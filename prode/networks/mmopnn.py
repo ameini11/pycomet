@@ -156,8 +156,6 @@ class MMOpNN(Net):
         if self.out_trans is not None:
             G_uy = self.out_trans(G_uy)
 
-        self.y = G_uy
-
         return G_uy
 
 
@@ -166,7 +164,7 @@ class MMOpNN(Net):
     def get_graph(self):
         x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
               tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
-        y = {k: v for (k,v) in zip(self.output_names, self.call(x))}
-        print(y)
-        # y = self.call(x)
+        # y = {k: v for (k,v) in zip(self.output_names, self.call(x))}
+        y = self.call(x)
+        # print(y)
         return tf.keras.Model(inputs=x, outputs=y, name=self.name)
