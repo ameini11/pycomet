@@ -11,10 +11,6 @@ from prode.networks.net import Net
 
 
 
-import json
-
-
-
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MMOpNN')
 class MMOpNN(Net):
     """Multi-Physics Multi-Scale Deep Operator neural network."""
@@ -108,11 +104,11 @@ class MMOpNN(Net):
             for i, name in enumerate(self.output_names):
                 self.opnns[i].out_trans = self.opnn_out_trans[name]
 
-        for i in self.opnns:
-            print('+++++++++++')
-            # print(json.dumps(i.get_config(), sort_keys=False, indent=4))
-            print(i.get_config())
-            print('+++++++++++')
+        # for i in self.opnns:
+        #     print('+++++++++++')
+        #     # print(json.dumps(i.get_config(), sort_keys=False, indent=4))
+        #     print(i.get_config())
+        #     print('+++++++++++')
 
         # if self.opnn_inp_trans:
         #     if not isinstance(self.opnn_inp_trans, dict):
@@ -168,7 +164,6 @@ class MMOpNN(Net):
 
     @classmethod
     def from_config(cls, config):
-        print('Ciaooooooooooooooooooooooooooooooooooo')
         return cls(**config)
 
 
@@ -358,7 +353,7 @@ class OpNNLayer(lay.Layer):
             'trunk':                self.trunk,
             'end_bias':             self.end_bias
         })
-        print(config['name'])
+        # print(config['name'])
 
         return config
 

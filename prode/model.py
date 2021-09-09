@@ -68,7 +68,7 @@ class Model(object):
         
         if not self.net.built:
             if isinstance(input_dim, (list,tuple)):
-                inputs_shape = [ tuple([1,dim_i]) for dim_i in input_dim]
+                inputs_shape = [tuple([1,dim_i]) for dim_i in input_dim]
             else:
                 inputs_shape = tuple([1,input_dim])
             self.net.build(inputs_shape)

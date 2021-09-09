@@ -84,9 +84,7 @@ def branch_fn(x):
 
 input_fn = {
     "branch": layers.Lambda(branch_fn, name='branch_fn'),
-    "trunk" : pro_layers.Scaling(
-        init_scale=1.e7, name='trunk_fn', trainable=False
-    )
+    "trunk" : pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 # >> Output
 output_fn = layers.Lambda(

@@ -112,7 +112,7 @@ def main():
     # Build Model -------------------------------------------------------------
     model.build(
         input_dim=inp_net.dim['inp'],
-        verbose=1,
+        verbose=0,
         load_net=inp_mdl.load_flg,
         visualize_graph=True
     )

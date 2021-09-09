@@ -5,6 +5,10 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import tensorflow.keras.callbacks as CB
 
+
+import json
+
+
 from tqdm import tqdm
 from tensorflow.python.eager import backprop
 from tensorflow.python.util.tf_export import keras_export
@@ -91,7 +95,6 @@ class ConstantWeightsAdapter(CB.Callback):
                 with log.as_default():
                     tf.summary.scalar(name='epoch_'+k+'_loss_weight', \
                         data=self.model.ode_loss_weights[k], step=epoch)
-        print(log_weights)
 
 
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
@@ -150,13 +153,30 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.sample_dataset()
         self.eval_loss_gradients()
         self.update_loss_weights()
+        self.check_weights()
+
+    def check_weights(self):
+        weights = self.model.ode_loss_weights.values()
+        if any(tf.math.is_nan(w) for w in weights) \
+            or any(tf.math.is_inf(w) for w in weights):
+            print("")
+            utils.warning(
+                "One or multiple `ode_loss_weights` evaluated in `{}` class "
+                "are `inf` or `nan`.".format(self.name)
+            )
+            utils.print_submain("Here the `ode_loss_weights` values:")
+            for k,v in self.model.ode_loss_weights.items():
+                utils.print_submain("  - '{}': {}".format(k,v))
+            utils.print_submain("The training will be stopped.")
+            self.model.stop_training = True
+
 
     # Sampling data
     ###########################################################################
     def sample_dataset(self):
         for data_id, dset in self.data_generator.data.items():
             n_samples = utils.get_cardinality(dset)
-            indeces   = np.random.permutation(n_samples)
+            indeces = np.random.permutation(n_samples)
             if n_samples > self.max_samples:
                 indeces = np.random.choice(
                     indeces, self.max_samples, replace=False
@@ -180,11 +200,13 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         pred, losses = {}, {}
         with backprop.GradientTape(persistent=True) as tape:
             for data_id in self.model.data_ids:
-                pred[data_id], losses[data_id] = self.get_pred_loss( \
-                    *self.dataset[data_id], data_id)
+                pred[data_id], losses[data_id] = self.get_pred_loss(
+                    *self.dataset[data_id], data_id=data_id
+                )
         for data_id in self.model.data_ids:
-            self.loss_gradients[data_id] = tape.gradient(losses[data_id], \
-                self.model.trainable_variables)
+            self.loss_gradients[data_id] = tape.gradient(
+                losses[data_id], self.model.trainable_variables
+            )
 
     def get_pred_loss(self, x, y, data_id):
         if data_id == 'res':
@@ -270,6 +292,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         self.sample_dataset()
         ntk = self.get_ntk()
         self.update_loss_weights(ntk)
+        self.check_weights()
 
     # Handling loss gradients
     ###########################################################################

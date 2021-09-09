@@ -58,9 +58,10 @@ class Plotter(CB.Callback):
             utils.print_main(">> `Plotter` callback:")
             self.training(limit_y=self.limit_y)
             self.testing()
+            print("")
 
     def training(self, scale='log', limit_y=False):
-        utils.print_submain("- Plotting training quantities ...")
+        utils.print_submain(" - Plotting training quantities ...")
         history = pd.DataFrame.from_dict(self.model.history.history)
         path = self.path['train']
         # Learning rate
@@ -81,7 +82,7 @@ class Plotter(CB.Callback):
                     )
 
     def testing(self):
-        utils.print_submain("- Plotting test cases ...")
+        utils.print_submain(" - Plotting test cases ...")
         for i, test_i in enumerate(self.test_data):
             # x, y_true = self.unpack_test_data(test_i)
             x, y_true = test_i

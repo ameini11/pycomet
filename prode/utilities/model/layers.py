@@ -32,34 +32,33 @@ class FFBlock(lay.Layer):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='ff_block'
+        name='ff_block',
+        **kwargs
     ):
-        super(FFBlock, self).__init__(name=name)
+        super(FFBlock, self).__init__(name=name, **kwargs)
         
         ### Hyperparameters Initialization ------------------------------------
-        self.layer_size          = layer_size
-        self.activation          = activation
-        self.kernel_initializer  = kernel_initializer
-        self.regularizer         = regularization
-        self.dropout_rate        = dropout_rate
+        self.layer_size = layer_size
+        self.activation = activation
+        self.kernel_initializer = kernel_initializer
+        self.regularizer = regularization
+        self.dropout_rate = dropout_rate
         if batch_norm not in [None, "before", "after"]:
             utils.raise_value_err("Invalid `batch_norm` argument passed into `{}`. "
                 "Available choices: {{None|'before'|'after'}}.".format(self.name))
-        self.batch_norm          = batch_norm
-        self.weight_norm         = weight_norm
+        self.batch_norm = batch_norm
+        self.weight_norm = weight_norm
 
         ### Layers Initialization ---------------------------------------------
         # Hidden Layers
-        self.lays = [ self.DenseBlock(i+1) for i in range(len(self.layer_size)-2) ]
+        self.lays = [self.DenseBlock(i) for i in range(1,len(self.layer_size)-1)]
         # Output Layer
-        self.lays.append( self.Dense(self.layer_size[-1], name='output') )
+        self.lays.append(self.Dense(self.layer_size[-1], name='output'))
 
     # Configuration update
     ###########################################################################
     def get_config(self):
-
-        config = super().get_config().copy()
-        config.update({
+        config = {
             'layer_size':         self.layer_size,
             'activation':         self.activation,
             'kernel_initializer': self.kernel_initializer,
@@ -67,9 +66,10 @@ class FFBlock(lay.Layer):
             'dropout_rate':       self.dropout_rate,
             'batch_norm':         self.batch_norm,
             'weight_norm':        self.weight_norm,
-            'lays':               self.lays,
-        })
-        return config
+            'lays':               self.lays
+        }
+        base_config = super(FFBlock, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
@@ -77,58 +77,70 @@ class FFBlock(lay.Layer):
 
     # Calling
     ###########################################################################
-    def call(self, x):
+    def call(self, x, training=None):
 
         # Input layer
         y = x
 
         # Hidden layers
         for i in range(len(self.layer_size) - 2):
-            y = self.call_block(y, self.lays[i])
+            y = self.call_block(y, self.lays[i], training=training)
 
         # Output layer
         y = self.lays[-1](y)
 
         return y
 
-    def call_block(self, x, layer):
+    def call_block(self, x, layer, training=None):
         y = layer[0](x)
         if self.batch_norm == "before":
             y = self.activation( layer[1](y) )
         elif self.batch_norm == "after":
             y = layer[1](y)
         if self.dropout_rate > 0:
-            y = layer[-1](y)
+            y = layer[-1](y, training=training)
         return y
 
 
     # Sub-layers Definition
     ###########################################################################
-    def DenseBlock(self, number, name='hidden'):
+    def DenseBlock(
+        self,
+        index=1,
+        name='hidden'
+    ):
+        lay_name = name + str(index-1)
 
-        lay_name = name + str(number-1)
+        act_fn = None if self.batch_norm == "before" else self.activation
+        bias = False if self.batch_norm == "before" else True
 
-        act_fun = self.activation
-        bias    = True
-        if self.batch_norm == "before":
-            act_fun = None
-            bias    = False
-
-        l = [ self.Dense(self.layer_size[number], activation=act_fun, \
-                         use_bias=bias, name=lay_name) ]
+        lay_list = [self.Dense(
+            self.layer_size[index],
+            activation=act_fn,
+            use_bias=bias,
+            name=lay_name
+        )]
 
         if self.batch_norm is not None:
-            bn = lay.BatchNormalization(name=lay_name+'_batchNorm')
-            l.append(bn)
+            lay_list.append(
+                lay.BatchNormalization(name=lay_name+'_batchNorm')
+            )
 
         if self.dropout_rate > 0:
-            do = lay.Dropout(self.dropout_rate, name=lay_name+'_dropout')
-            l.append(do)
+            lay_list.append(
+                lay.Dropout(self.dropout_rate, name=lay_name+'_dropout')
+            )
 
-        return l
+        return lay_list
 
-    def Dense(self, units, activation=None, use_bias=True, name=None):
-        l = lay.Dense(
+    def Dense(
+        self,
+        units,
+        activation=None,
+        use_bias=True,
+        name=None
+    ):
+        dense = lay.Dense(
             units,
             activation=activation,
             use_bias=use_bias,
@@ -139,12 +151,13 @@ class FFBlock(lay.Layer):
             activity_regularizer=None,
             kernel_constraint=None,
             bias_constraint=None,
-            name=name)
+            name=name
+        )
         
         if self.weight_norm:
-            l = tfa.layers.WeightNormalization(l)
+            dense = tfa.layers.WeightNormalization(dense)
 
-        return l
+        return dense
 
 
 # =========================================================================== #
@@ -171,7 +184,9 @@ class ResPIBlock(FFBlock):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='res_pi_block'):
+        name='res_pi_block',
+        **kwargs
+    ):
         super(ResPIBlock, self).__init__(
             layer_size,
             activation,
@@ -180,51 +195,52 @@ class ResPIBlock(FFBlock):
             dropout_rate=dropout_rate,
             batch_norm=batch_norm,
             weight_norm=weight_norm,
-            name=name)
+            name=name,
+            **kwargs
+        )
         
         ### Hyperparameters Initialization ------------------------------------
         for i in range(1, len(self.layer_size)-2):
             if self.layer_size[i] != self.layer_size[i+1]:
                 utils.raise_value_err(
-                    "The number of neurons of each hidden layer must be the same in "
-                    "`{}`. Check `layer_size` variable.".format(self.__name__))
+                    "The number of neurons of each hidden layer must "
+                    "be the same in `{}`.".format(self.name)
+                )
 
         ### Layers Initialization ---------------------------------------------
-        self.U = self.DenseBlock(1, name='U')
-        self.V = self.DenseBlock(1, name='V')
+        self.U = self.DenseBlock(name='U')
+        self.V = self.DenseBlock(name='V')
 
 
     # Configuration update
     ###########################################################################
     def get_config(self):
-
-        config = super().get_config().copy()
-        config.update({
+        config = {
             'U': self.U,
-            'V': self.V,
-        })
-        return config
+            'V': self.V
+        }
+        base_config = super(ResPIBlock, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
         return cls(**config)
 
-
     # Calling
     ###########################################################################
-    def call(self, x):
+    def call(self, x, training=None):
 
         # Input layer
         y = x
 
         # Transformer layers
-        u = self.call_block(y, self.U)
-        v = self.call_block(y, self.V)
+        u = self.call_block(y, self.U, training=training)
+        v = self.call_block(y, self.V, training=training)
 
         # Hidden layers
-        y = self.call_block(y, self.lays[0])
-        for i in range(1,len(self.layer_size) - 2):
-            z = self.call_block(y, self.lays[i])
+        y = self.call_block(y, self.lays[0], training=training)
+        for i in range(1, len(self.layer_size) - 2):
+            z = self.call_block(y, self.lays[i], training=training)
             y = (1. - z) * u + z * v
 
         # Output layer
@@ -243,16 +259,16 @@ class Scaling(lay.Layer):
     ###########################################################################
     def __init__(
         self,
-        init_scale=1.,
-        init_offset=0.,
-        trainable=True,
+        slope=1.,
+        offset=0.,
         trans_fn=None,
-        name='scaling'):
-        super(Scaling, self).__init__(name=name)
+        name='scaling',
+        **kwargs
+    ):
+        super(Scaling, self).__init__(name=name, **kwargs)
 
-        self.init_scale = init_scale
-        self.init_offset = init_offset
-        self.trainable = trainable
+        self.slope = slope
+        self.offset = offset
 
         if trans_fn is not None:
             self.trans_fn = trans_fn
@@ -273,31 +289,32 @@ class Scaling(lay.Layer):
             utils.raise_value_err("The last dimension of the inputs to "
                 "`Scale` should be defined. Found `None`.")
 
-        self.scale = self.add_weight(
-            name='scale',
+        self.slope = self.add_weight(
+            name='slope',
             dtype=self.dtype,
-            initializer=initializers.Constant(value=self.init_scale),
-            trainable=self.trainable)
+            initializer=initializers.Constant(value=self.slope),
+            trainable=self.trainable
+        )
 
         self.offset = self.add_weight(
             name='offset',
             dtype=self.dtype,
-            initializer=initializers.Constant(value=self.init_offset),
-            trainable=self.trainable)
+            initializer=initializers.Constant(value=self.offset),
+            trainable=self.trainable
+        )
 
         self.built = True
 
     # Configuration update
     ###########################################################################
     def get_config(self):
-        config = super().get_config().copy()
-        config.update({
-            'init_scale':  self.init_scale,
-            'init_offset': self.init_offset,
-            'trainable':   self.trainable,
-            'trans_fn':    self.trans_fn
-        })
-        return config
+        config = {
+            'slope': self.slope,
+            'offset': self.offset,
+            'trans_fn': self.trans_fn
+        }
+        base_config = super(Scaling, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
@@ -306,7 +323,7 @@ class Scaling(lay.Layer):
     # Calling
     ###########################################################################
     def call(self, x):
-        return self.trans_fn(x * self.scale + self.offset)
+        return self.trans_fn(x * self.slope + self.offset)
 
 
 # =========================================================================== #
@@ -322,12 +339,13 @@ class BiasLay(lay.Layer):
         activation=None,
         initializer='zeros',
         regularizer=None,
-        activity_regularizer=None,
         constraint=None,
+        activity_regularizer=None,
+        name='bias_lay',
         **kwargs
     ):
         super(BiasLay, self).__init__(
-            activity_regularizer=activity_regularizer, **kwargs)
+            activity_regularizer=activity_regularizer, name=name, **kwargs)
 
         self.activation = activations.get(activation)
         self.initializer = initializers.get(initializer)
@@ -355,7 +373,7 @@ class BiasLay(lay.Layer):
             regularizer=self.regularizer,
             constraint=self.constraint,
             dtype=self.dtype,
-            trainable=True
+            trainable=self.trainable
         )
 
         self.built = True
@@ -363,15 +381,14 @@ class BiasLay(lay.Layer):
     # Configuration update
     ###########################################################################
     def get_config(self):
-        config = super(BiasLay, self).get_config()
-        config.update({
+        config = {
             'activation': activations.serialize(self.activation),
             'initializer': initializers.serialize(self.initializer),
             'regularizer': regularizers.serialize(self.regularizer),
-            'constraint': constraints.serialize(self.constraint),
-            'trainable': self.trainable
-        })
-        return config
+            'constraint': constraints.serialize(self.constraint)
+        }
+        base_config = super(BiasLay, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):

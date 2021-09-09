@@ -10,7 +10,10 @@ class Timer(CB.Callback):
     """Stop training when training time reaches the threshold.
     This Timer starts after the first call of `on_train_begin`."""
 
-    def __init__(self, available_time):
+    def __init__(
+        self,
+        available_time
+    ):
         super(Timer, self).__init__()
 
         self.threshold = available_time * 60  # convert to seconds
@@ -22,7 +25,7 @@ class Timer(CB.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if (time.time() - self.t_start) > self.threshold:
-            self.model.stop_training = True
             utils.print_main("Stop training as time used up."
                 "Time used: {:.1f} mins, epoch trained: {}".format(
                     (time.time() - self.t_start) / 60, epoch))
+            self.model.stop_training = True
