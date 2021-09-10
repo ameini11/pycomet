@@ -85,8 +85,9 @@ def main():
     ###########################################################################
     # Initialize Network ------------------------------------------------------
     net = utils.get_class(pro.networks, inp_net.architecture)(
-        inp_net.output_names,
         inp_net.dim,
+        inp_net.names,
+        inp_net.opnn_dim,
         inp_net.layer_size,
         inp_net.activation,
         inp_net.kernel_initializer,
@@ -112,7 +113,7 @@ def main():
     # Build Model -------------------------------------------------------------
     model.build(
         input_dim=inp_net.dim['inp'],
-        verbose=0,
+        verbose=1,
         load_net=inp_mdl.load_flg,
         visualize_graph=True
     )

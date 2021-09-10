@@ -22,12 +22,15 @@ def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
     )
 
 
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='FineTuningRegularizer')
+@tf.keras.utils.register_keras_serializable(
+    package='PrODE', name='FineTuningRegularizer'
+)
 class FineTuningRegularizer(reg.L1L2):
     """Transfer learning technique for fine-tuning.
     See:
         Xuhong Li, Yves Grandvalet, Franck Davoine
-        `A baseline regularization scheme for transfer learning with convolutional neural networks`
+        `A baseline regularization scheme for transfer
+            learning with convolutional neural networks`
         https://doi.org/10.1016/j.patcog.2019.107049"""
 
     # Initialization
@@ -37,7 +40,8 @@ class FineTuningRegularizer(reg.L1L2):
         l1=0.,
         l2=0.,
         weights_SP=None,
-        name='fine_tuning_reg'):
+        name='fine_tuning_reg'
+    ):
         super(FineTuningRegularizer, self).__init__(l1=l1, l2=l2)
 
         self.name = name
@@ -48,24 +52,22 @@ class FineTuningRegularizer(reg.L1L2):
                     "`FineTuningRegularizer` has to be an hdf5 file.")
             self.weights_SP = h5py.File(weights_SP,'r')
         else:
-            utils.warning("`FineTuningRegularizer` is not given "
-                    "any Starting Point weights `weights_SP`.")
+            utils.warning(
+                "`FineTuningRegularizer` is not given any Starting Point "
+                "weights (see `weights_SP`)."
+            )
             self.weights_SP = None
 
 
     # Configuration update
     ###########################################################################
     def get_config(self):
-        config = super().get_config().copy()
-        config.update({
-            'name':       self.name,
+        config = {
+            'name': self.name,
             'weights_SP': self.weights_SP
-            })
-        return config
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
+        }
+        base_config = super(FineTuningRegularizer, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
     # Calling

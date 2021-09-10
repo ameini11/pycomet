@@ -36,12 +36,12 @@ class FFNN(Net):
         )
         
         ### Hyperparameters Initialization ------------------------------------
-        self.layer_size          = layer_size
-        self.activation          = activations.get(activation)
-        self.kernel_initializer  = initializers.get(kernel_initializer)
-        self.dropout_rate        = dropout_rate
-        self.batch_norm          = batch_norm
-        self.weight_norm         = weight_norm
+        self.layer_size = layer_size
+        self.activation = activations.get(activation)
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.dropout_rate = dropout_rate
+        self.batch_norm = batch_norm
+        self.weight_norm = weight_norm
 
         if regularization is not None:
             self.regularizer = regularizers.get(**regularization)
@@ -53,7 +53,7 @@ class FFNN(Net):
             self.layer_size,
             self.activation,
             self.kernel_initializer,
-            regularization=self.regularizer,
+            regularizer=self.regularizer,
             dropout_rate=self.dropout_rate,
             batch_norm=self.batch_norm,
             weight_norm=self.weight_norm
@@ -63,17 +63,16 @@ class FFNN(Net):
     # Configuration update
     ###########################################################################
     def get_config(self):
-
         config = super().get_config().copy()
         config.update({
-            'layer_size':         self.layer_size,
-            'activation':         self.activation,
+            'layer_size': self.layer_size,
+            'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
-            'regularizer':        self.regularizer,
-            'dropout_rate':       self.dropout_rate,
-            'batch_norm':         self.batch_norm,
-            'weight_norm':        self.weight_norm,
-            'hidden_blk':         self.hidden_blk,
+            'regularizer': self.regularizer,
+            'dropout_rate': self.dropout_rate,
+            'batch_norm': self.batch_norm,
+            'weight_norm': self.weight_norm,
+            'hidden_blk': self.hidden_blk,
         })
         return config
 
@@ -84,7 +83,7 @@ class FFNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None):
+    def call(self, x, training=None):
 
         # Input Transform
         y = x
@@ -92,7 +91,7 @@ class FFNN(Net):
             y = self.inp_trans(y)
 
         # Block Hidden Layer
-        y = self.hidden_blk(y)
+        y = self.hidden_blk(y, training=training)
 
         # Output Transform
         if self.out_trans is not None:

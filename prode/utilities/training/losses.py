@@ -163,4 +163,8 @@ def get(identifier, axis=-1):
     elif identifier == None:
         return None
     else:
-        utils.raise_value_err("Could not interpret loss function identifier: `{}`".format(identifier))
+        utils.raise_value_err(
+            "Could not interpret loss function identifier: `{}`".format(
+                identifier
+            )
+        )

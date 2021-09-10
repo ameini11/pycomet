@@ -53,15 +53,15 @@ class Net(tf.keras.Model):
 
         config = super(Net, self).get_config().copy()
         config.update({
-            'inp_dim':          self.inp_dim,
-            'out_dim':          self.out_dim,
-            'block':            self.block,
-            'inp_trans':        self.inp_trans,
-            'out_trans':        self.out_trans,
+            'inp_dim': self.inp_dim,
+            'out_dim': self.out_dim,
+            'block': self.block,
+            'inp_trans': self.inp_trans,
+            'out_trans': self.out_trans,
             'ode_loss_weights': self.ode_loss_weights,
-            'residual':         self.residual,
-            'data_ids':         self.data_ids,
-            'data_ids_valid':   self.data_ids_valid
+            'residual': self.residual,
+            'data_ids': self.data_ids,
+            'data_ids_valid': self.data_ids_valid
         })
         return config
 

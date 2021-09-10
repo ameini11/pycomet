@@ -25,7 +25,8 @@ class LRPerformanceDecay(CB.ReduceLROnPlateau):
         min_delta=1e-4,
         cooldown=0,
         min_lr=0,
-        **kwargs):
+        **kwargs
+    ):
         super(ReduceLROnPlateau, self).__init__(
             monitor=monitor,
             factor=factor,
@@ -35,7 +36,8 @@ class LRPerformanceDecay(CB.ReduceLROnPlateau):
             min_delta=min_delta,
             cooldown=cooldown,
             min_lr=min_lr,
-            **kwargs)
+            **kwargs
+        )
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -100,7 +102,12 @@ class LRPiecewiseConstantDecay(CB.Callback):
 class LearningRateTracker(CB.Callback):
     """Learning rate tracker."""
 
-    def __init__(self, file=None, log_dir=None, verbose=1):
+    def __init__(
+        self,
+        file=None,
+        log_dir=None,
+        verbose=1
+    ):
         super(LearningRateTracker, self).__init__()
 
         self.log_dir = log_dir

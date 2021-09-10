@@ -5,11 +5,11 @@ from prode.utilities import utils
 def get_train_opt(optimizer, lr=None, decay=None):
     if lr is None:
         utils.raise_value_err("No learning rate for {}.".format(optimizer))
-    lr = _get_learningrate(lr, decay)
+    lr = _get_learning_rate(lr, decay)
     return _get_optimizer(optimizer, lr)
 
 
-def _get_learningrate(lr, decay):
+def _get_learning_rate(lr, decay):
     if decay is None:
         return lr
     return {

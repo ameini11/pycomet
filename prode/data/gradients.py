@@ -62,20 +62,20 @@ def order_n(ode_cls, order, model, ic, t, training):
     with tf.GradientTape(persistent=True) as tape:
         tape.watch(t)
         grads = grad_fn(ode_cls, order-1, model, ic, t, training)
-        y = split_grad(grads[-1])
-    dy = eval_concat_grad(y, t, tape)
+        y = _split_grad(grads[-1])
+    dy = _eval_concat_grad(y, t, tape)
     grads.append(dy)
     return grads
 
 
 # Gradient arrays ops
 ###############################################################################
-def split_grad(grad):
+def _split_grad(grad):
     fn = lambda x: tf.split(x, num_or_size_splits=x.shape[1], axis=1)
     return [ fn(g) for g in grad ] if isinstance(grad, (list,tuple)) \
         else fn(grad)
 
-def eval_concat_grad(grad, t, tape):
+def _eval_concat_grad(grad, t, tape):
     fn = lambda x: tf.concat([tape.gradient(i, t) for i in x], axis=1)
     return [ fn(g) for g in grad ] if any(isinstance(g, (list,tuple)) \
         for g in grad) else fn(grad)

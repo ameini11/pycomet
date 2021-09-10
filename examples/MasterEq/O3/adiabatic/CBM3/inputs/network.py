@@ -84,9 +84,7 @@ def branch_fn(x):
 
 input_fn = {
     "branch": layers.Lambda(branch_fn, name='branch_fn'),
-    "trunk" : pro_layers.Scaling(
-        init_scale=1.e7, name='trunk_fn', trainable=False
-    )
+    "trunk" : pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 # >> Output
 output_fn = layers.Lambda(
@@ -94,8 +92,8 @@ output_fn = layers.Lambda(
 )
 
 # Each single DeepONet --------------------------------------------------------
-inp_opnn_trans = None
-out_opnn_trans = {
+opnn_inp_trans = None
+opnn_out_trans = {
     output_names[0]: layers.Softmax(axis=-1, name=output_names[0]+'_output_fn'),
     output_names[1]: layers.Lambda(
         lambda x: tf.clip_by_value(x, 0., 1.), name=output_names[1]+'_output_fn'

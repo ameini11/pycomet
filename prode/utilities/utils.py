@@ -68,7 +68,7 @@ def main_decorator(f):
         print(" Eager execution:    {}".format(tf.executing_eagerly()))
         print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
         print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
-        print(" Threads num set:    {}".format(num_threads))
+        print(" Num. of threads:    {}".format(num_threads))
         print("--------------------------------------------------------------------------------------------------")
         result = f(*args, **kwargs)
         print_main('END')
@@ -83,7 +83,9 @@ def get_class(module, name):
     for name_i, obj_i in inspect.getmembers(module, inspect.isclass):
         if name_i == name:
             return obj_i
-    raise_value_err("Class `{}` not found in module `{}`.".format(name, module.__name__))
+    raise_value_err(
+        "Class `{}` not found in module `{}`.".format(name, module.__name__)
+    )
 
 def get_class_name(cls):
     """Return the class name."""
@@ -103,7 +105,9 @@ def list_to_str(nums, precision=2):
         return ""
     if not isinstance(nums, (list, tuple, np.ndarray)):
         return "{:.{}e}".format(nums, precision)
-    return "[{:s}]".format(", ".join(["{:.{}e}".format(x, precision) for x in nums]))
+    return "[{:s}]".format(
+        ", ".join(["{:.{}e}".format(x, precision) for x in nums])
+    )
 
 def get_num_args(func):
     """Get the number of arguments of a Python function."""

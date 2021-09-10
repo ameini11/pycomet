@@ -15,7 +15,7 @@
 import tensorflow as tf
 import inputs.data as inp_data
 
-from tensorflow.keras import layers
+from tensorflow.keras import layers as tf_layers
 from prode.utilities.model import layers as pro_layers
 
 
@@ -23,35 +23,55 @@ from prode.utilities.model import layers as pro_layers
 # =============================================================================
 architecture = 'MMOpNN'
 
-# Variables dimensionality ----------------------------------------------------
 dim = {
-    "inp": [6, 1],  # Branch-Trunk input dimensionality
-    "out": [3, 1]   # Output dimensionality
+    "inp": [6, 1],
+    "out": 4
 }
 
-output_names = ['O2', 'O']
+# DeepONets characterization --------------------------------------------------
+names = ['O2', 'O']
 
-# Structure -------------------------------------------------------------------
-layer_size = {
-    output_names[0]: {
-        "branch": [dim['inp'][0], 32, 32, 32],
-        "trunk":  [dim['inp'][1], 32, 32, 32]
+opnn_dim = {
+    names[0]: {
+        "inp": [6, 1],
+        "out": 3
     },
-    output_names[1]: {
-        "branch": [dim['inp'][0], 32, 32, 32],
-        "trunk":  [dim['inp'][1], 64, 64, 32]
+    names[1]: {
+        "inp": [6, 1],
+        "out": 1
+    }
+}
+
+layer_size = {
+    names[0]: {
+        "branch": [opnn_dim[names[0]]['inp'][0], 32, 32, 32],
+        "trunk":  [opnn_dim[names[0]]['inp'][1], 32, 32, 32]
+    },
+    names[1]: {
+        "branch": [opnn_dim[names[1]]['inp'][0], 32, 32, 32],
+        "trunk":  [opnn_dim[names[1]]['inp'][1], 64, 64, 32]
     }
 }
 
 activation = {
-    output_names[0]: {
+    names[0]: {
         "branch": 'elu',
         "trunk":  'sigmoid'
     },
-    output_names[1]: {
+    names[1]: {
         "branch": 'elu',
         "trunk":  'sigmoid'
     }
+}
+
+kernel_initializer = "GlorotNormal"
+
+block = 'ResPIBlock'
+
+# Regularizers ----------------------------------------------------------------
+batch_norm = {
+    "branch": None,
+    "trunk":  None
 }
 
 regularization = {
@@ -61,14 +81,7 @@ regularization = {
     'weights_SP':   None #'./saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
 }
 
-batch_norm = {
-    "branch": None,
-    "trunk":  None
-}
-
 dropout_rate = 0
-kernel_initializer = "GlorotNormal"
-block = 'ResPIBlock'
 
 # I/O Transformations
 # =============================================================================
@@ -83,19 +96,14 @@ def branch_fn(x):
     return tf.concat([T_norm, x[:,1:]], 1)
 
 input_fn = {
-    "branch": layers.Lambda(branch_fn, name='branch_fn'),
+    "branch": tf_layers.Lambda(branch_fn, name='branch_fn'),
     "trunk" : pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 # >> Output
-output_fn = layers.Lambda(
-    lambda y: [ y[0]*(1.-y[1]), y[1] ], name='output_fn'
+output_fn = tf_layers.Lambda(
+    lambda y: tf_layers.Softmax(axis=-1, name='output_fn')(tf.concat(y, 1))
 )
 
 # Each single DeepONet --------------------------------------------------------
 opnn_inp_trans = None
-opnn_out_trans = {
-    output_names[0]: layers.Softmax(axis=-1, name=output_names[0]+'_output_fn'),
-    output_names[1]: layers.Lambda(
-        lambda x: tf.clip_by_value(x, 0., 1.), name=output_names[1]+'_output_fn'
-    )
-}
+opnn_out_trans = None

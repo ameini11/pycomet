@@ -19,8 +19,9 @@ class MMOpNN(Net):
     ###########################################################################
     def __init__(
         self,
-        output_names,
         dim,
+        names,
+        opnn_dim,
         layer_size,
         activation,
         kernel_initializer,
@@ -45,17 +46,18 @@ class MMOpNN(Net):
         )
 
         ### Hyperparameters Initialization ------------------------------------
-        if len(output_names) <= 1:
+        if len(names) <= 1:
             utils.raise_value_err(
-                "The number of `output_names` passed into `{}` has to be "
+                "The number of `names` passed into `{}` has to be "
                 "grater than 1 (multiple DeepONets).".format(self.name))
         else:
-            self.output_names = output_names
+            self.names = names
 
-        self.dim = {name: {
-            "inp": self.inp_dim,
-            "out": self.out_dim[i]
-        } for i, name in enumerate(self.output_names)}
+        self.opnn_dim = opnn_dim
+        # self.opnn_dim = {name: {
+        #     "inp": self.inp_dim,
+        #     "out": self.out_dim[i]
+        # } for i, name in enumerate(self.names)}
 
         self.layer_size = layer_size
         self.activation = activation
@@ -70,19 +72,21 @@ class MMOpNN(Net):
 
         ### OpNNs Initialization ----------------------------------------------
         # self.opnns = [ OpNN(
-        self.opnns = [ OpNNLayer(
-            self.dim[name],
-            self.layer_size[name],
-            self.activation[name],
-            self.kernel_initializer,
-            regularization=self.regularization,
-            use_end_bias=self.use_end_bias,
-            dropout_rate=self.dropout_rate,
-            batch_norm=self.batch_norm,
-            weight_norm=self.weight_norm,
-            block=self.block,
-            name='opnn_'+name
-        ) for name in self.output_names ]
+        self.opnns = {
+            name: OpNNLayer(
+                self.opnn_dim[name],
+                self.layer_size[name],
+                self.activation[name],
+                self.kernel_initializer,
+                regularization=self.regularization,
+                use_end_bias=self.use_end_bias,
+                dropout_rate=self.dropout_rate,
+                batch_norm=self.batch_norm,
+                weight_norm=self.weight_norm,
+                block=self.block,
+                name='opnn_'+name
+            ) for name in self.names
+        }
 
         # Apply I/O Transformation
         if self.opnn_inp_trans:
@@ -92,8 +96,8 @@ class MMOpNN(Net):
                     "which a specific input transform function is defined "
                     "for each DeepONet: {'name': fun}".format(self.name)
                 )
-            for i, name in enumerate(self.output_names):
-                self.opnns[i].inp_trans = self.opnn_inp_trans[name]
+            for name, trans in self.opnn_inp_trans.items():
+                self.opnns[name].inp_trans = trans
         if self.opnn_out_trans:
             if not isinstance(self.opnn_out_trans, dict):
                 utils.raise_value_err(
@@ -101,8 +105,8 @@ class MMOpNN(Net):
                     "which a specific output transform function is defined "
                     "for each DeepONet: {'name': fun}".format(self.name)
                 )
-            for i, name in enumerate(self.output_names):
-                self.opnns[i].out_trans = self.opnn_out_trans[name]
+            for name, trans in self.opnn_out_trans.items():
+                self.opnns[name].out_trans = trans
 
         # for i in self.opnns:
         #     print('+++++++++++')
@@ -117,7 +121,7 @@ class MMOpNN(Net):
         #             "which a specific input transform function is defined "
         #             "for each DeepONet: {'name': fun}".format(self.name)
         #         )
-        #     for i, name in enumerate(self.output_names):
+        #     for i, name in enumerate(self.names):
         #         self.opnns[i].apply_input_transform(self.opnn_inp_trans[name])
         # if self.opnn_out_trans:
         #     if not isinstance(self.opnn_out_trans, dict):
@@ -126,7 +130,7 @@ class MMOpNN(Net):
         #             "which a specific output transform function is defined "
         #             "for each DeepONet: {'name': fun}".format(self.name)
         #         )
-        #     for i, name in enumerate(self.output_names):
+        #     for i, name in enumerate(self.names):
         #         self.opnns[i].apply_output_transform(self.opnn_out_trans[name])
 
 
@@ -135,7 +139,7 @@ class MMOpNN(Net):
     def get_config(self):
 
 
-        print('Ciaooooooooooooooooooooooooooooooooooo')
+        # print('Ciaooooooooooooooooooooooooooooooooooo')
 
         # opnn_config = {}
         # for opnn in self.opnns:
@@ -145,18 +149,19 @@ class MMOpNN(Net):
 
         config = super().get_config().copy()
         config.update({
-            'dim':                self.dim,
-            'layer_size':         self.layer_size,
-            'activation':         self.activation,
+            'names': self.names,
+            'opnn_dim': self.opnn_dim,
+            'layer_size': self.layer_size,
+            'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
-            'opnn_inp_trans':     self.opnn_inp_trans,
-            'opnn_out_trans':     self.opnn_out_trans,
-            'regularization':     self.regularization,
-            'use_end_bias':       self.use_end_bias,
-            'dropout_rate':       self.dropout_rate,
-            'batch_norm':         self.batch_norm,
-            'weight_norm':        self.weight_norm,
-            'opnns':              self.opnns
+            'opnn_inp_trans': self.opnn_inp_trans,
+            'opnn_out_trans': self.opnn_out_trans,
+            'regularization': self.regularization,
+            'use_end_bias': self.use_end_bias,
+            'dropout_rate': self.dropout_rate,
+            'batch_norm': self.batch_norm,
+            'weight_norm': self.weight_norm,
+            'opnns': self.opnns
             # **opnn_config
         })
 
@@ -189,7 +194,7 @@ class MMOpNN(Net):
                 x_y = self.inp_trans(x_y)
 
         # OpNNs
-        G_uy = [ g_uy([x_u, x_y]) for g_uy in self.opnns ]
+        G_uy = [ g_uy([x_u, x_y]) for g_uy in self.opnns.values() ]
 
         # Output transformation
         if self.out_trans is not None:
@@ -202,7 +207,7 @@ class MMOpNN(Net):
     def get_graph(self):
         x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
               tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
-        # y = {k: v for (k,v) in zip(self.output_names, self.call(x))}
+        # y = {k: v for (k,v) in zip(self.names, self.call(x))}
         y = self.call(x)
         # print(y)
         return tf.keras.Model(inputs=x, outputs=y, name=self.name)
@@ -289,7 +294,7 @@ class OpNNLayer(lay.Layer):
             self.layer_size_branch,
             self.act_branch,
             self.kernel_initializer,
-            regularization=self.regularizer,
+            regularizer=self.regularizer,
             dropout_rate=self.dropout_rate,
             batch_norm=self.batch_norm_branch,
             weight_norm=self.weight_norm,
@@ -300,7 +305,7 @@ class OpNNLayer(lay.Layer):
             self.layer_size_trunk,
             self.act_trunk,
             self.kernel_initializer,
-            regularization=self.regularizer,
+            regularizer=self.regularizer,
             dropout_rate=self.dropout_rate,
             batch_norm=self.batch_norm_trunk,
             weight_norm=self.weight_norm,
@@ -308,7 +313,6 @@ class OpNNLayer(lay.Layer):
         )
 
         self.end_bias = layers.BiasLay(name='EndBias') if self.use_end_bias else None
-
 
     @property
     def inp_trans(self):

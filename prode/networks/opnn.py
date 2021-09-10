@@ -78,7 +78,7 @@ class OpNN(Net):
             self.layer_size_branch,
             self.act_branch,
             self.kernel_initializer,
-            regularization=self.regularizer,
+            regularizer=self.regularizer,
             dropout_rate=self.dropout_rate,
             batch_norm=self.batch_norm_branch,
             weight_norm=self.weight_norm,
@@ -89,7 +89,7 @@ class OpNN(Net):
             self.layer_size_trunk,
             self.act_trunk,
             self.kernel_initializer,
-            regularization=self.regularizer,
+            regularizer=self.regularizer,
             dropout_rate=self.dropout_rate,
             batch_norm=self.batch_norm_trunk,
             weight_norm=self.weight_norm,
@@ -105,20 +105,20 @@ class OpNN(Net):
 
         config = super(OpNN, self).get_config().copy()
         config.update({
-            'layer_size_branch':  self.layer_size_branch,
-            'layer_size_trunk':   self.layer_size_trunk,
-            'act_branch':         self.act_branch,
-            'act_trunk':          self.act_trunk,
+            'layer_size_branch': self.layer_size_branch,
+            'layer_size_trunk': self.layer_size_trunk,
+            'act_branch': self.act_branch,
+            'act_trunk': self.act_trunk,
             'kernel_initializer': self.kernel_initializer,
-            'regularizer':        self.regularizer,
-            'dropout_rate':       self.dropout_rate,
-            'batch_norm_branch':  self.batch_norm_branch,
-            'batch_norm_trunk':   self.batch_norm_trunk,
-            'weight_norm':        self.weight_norm,
-            'use_end_bias':       self.use_end_bias,
-            'branches':           self.branches,
-            'trunk':              self.trunk,
-            'end_bias':           self.end_bias
+            'regularizer': self.regularizer,
+            'dropout_rate': self.dropout_rate,
+            'batch_norm_branch': self.batch_norm_branch,
+            'batch_norm_trunk': self.batch_norm_trunk,
+            'weight_norm': self.weight_norm,
+            'use_end_bias': self.use_end_bias,
+            'branches': self.branches,
+            'trunk': self.trunk,
+            'end_bias': self.end_bias
         })
         return config
 
@@ -129,7 +129,7 @@ class OpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None):
+    def call(self, x, training=None):
 
         # Inputs
         if isinstance(x, (list, tuple)):
@@ -149,10 +149,10 @@ class OpNN(Net):
                 x_y = self.inp_trans(x_y)
 
         # Branch/-es
-        G_u = [ branch(x_u) for branch in self.branches ]
+        G_u = [ branch(x_u, training=training) for branch in self.branches ]
 
         # Trunk
-        G_y = self.trunk(x_y)
+        G_y = self.trunk(x_y, training=training)
 
         # Output layer
         G_uy = [ lay.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]

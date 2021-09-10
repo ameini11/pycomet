@@ -14,11 +14,11 @@ def train_step(model, data):
     losses = {}
     with backprop.GradientTape() as tape:
         for i, data_id in enumerate(model.data_ids):
-            losses[data_id] = get_loss(x[i], y[i], model, data_id)
+            losses[data_id] = _get_loss(x[i], y[i], model, data_id)
         # Regularization loss
-        reg_loss = get_reg_loss(model)
+        reg_loss = _get_reg_loss(model)
         # Calculate total loss
-        tot_loss_weighted = get_tot_loss(model, losses, reg_loss=reg_loss)
+        tot_loss_weighted = _get_tot_loss(model, losses, reg_loss=reg_loss)
 
     # Update parameters
     model.optimizer.minimize(
@@ -31,13 +31,13 @@ def train_step(model, data):
         metric = {}
     else:
         # Calculate unweighted total loss
-        total_loss = get_tot_loss(model, losses, training=False)
+        total_loss = _get_tot_loss(model, losses, training=False)
         # Add weighted total loss
         metric = {'tot_loss_weighted': tot_loss_weighted}
 
-    return {**metric, **get_metrics(total_loss, losses, reg_loss=reg_loss)}
+    return {**metric, **_get_metrics(total_loss, losses, reg_loss=reg_loss)}
 
-    # m1 = {**metric, **get_metrics(total_loss, losses, reg_loss=reg_loss)}
+    # m1 = {**metric, **_get_metrics(total_loss, losses, reg_loss=reg_loss)}
 
     # return_metrics = {}
     # for metric in model.metrics:
@@ -58,18 +58,18 @@ def test_step(model, data):
 
     losses = {}
     for i, data_id in enumerate(model.data_ids_valid):
-        losses[data_id] = get_loss(x[i], y[i], model, data_id, training=False)
+        losses[data_id] = _get_loss(x[i], y[i], model, data_id, training=False)
 
     # Calculate total loss
-    total_loss = get_tot_loss(model, losses, training=False)
+    total_loss = _get_tot_loss(model, losses, training=False)
 
     # Collect metrics to return
-    return get_metrics(total_loss, losses)
+    return _get_metrics(total_loss, losses)
 
 
 # Util functions
 ###############################################################################
-def get_loss(x, y, model, data_id, training=True):
+def _get_loss(x, y, model, data_id, training=True):
     if data_id == 'res':
         y_pred = model.residual(x, training=training)
         # if isinstance(y_pred, (list,tuple)):
@@ -80,12 +80,12 @@ def get_loss(x, y, model, data_id, training=True):
         y_pred = model(x, training=training)
     return model.compiled_loss[data_id](y, y_pred)
 
-def get_reg_loss(model):
+def _get_reg_loss(model):
     if model.losses:
         reg_loss = losses_utils.cast_losses_to_common_dtype(model.losses)
         return math_ops.add_n(reg_loss)
 
-def get_tot_loss(model, losses, reg_loss=None, training=True):
+def _get_tot_loss(model, losses, reg_loss=None, training=True):
     total_loss = 0.
     if training and reg_loss is not None:
         total_loss = total_loss + reg_loss
@@ -96,7 +96,7 @@ def get_tot_loss(model, losses, reg_loss=None, training=True):
             total_loss = total_loss + loss
     return total_loss
 
-def get_metrics(total_loss, losses, reg_loss=None):
+def _get_metrics(total_loss, losses, reg_loss=None):
     metrics = {}
     metrics['tot_loss'] = total_loss
     for data_id, loss in losses.items():

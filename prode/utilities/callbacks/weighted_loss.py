@@ -5,15 +5,10 @@ import tensorflow as tf
 import tensorflow.keras.backend as K
 import tensorflow.keras.callbacks as CB
 
-
-import json
-
-
 from tqdm import tqdm
 from tensorflow.python.eager import backprop
 from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
-
 
 
 @keras_export('keras.callbacks.ConstantWeightsAdapter')
@@ -26,7 +21,6 @@ class ConstantWeightsAdapter(CB.Callback):
         data_generator=None,
         freq=1,
         log_dir=None,
-        name='constant_weights_adapter',
         **kwargs
     ):
         super(ConstantWeightsAdapter, self).__init__()
@@ -117,15 +111,13 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         log_dir=None,
         max_samples=20000,
         method='mean',
-        name='empirical_weights_adapter',
         **kwargs
     ):
         super(EmpiricalWeightsAdapter, self).__init__(
             ode_loss_weights=ode_loss_weights,
             data_generator=data_generator,
             freq=freq,
-            log_dir=log_dir,
-            name=name
+            log_dir=log_dir
         )
 
         self.alpha = tf.cast(tf.clip_by_value(alpha, 0., 1.), K.floatx())
@@ -267,15 +259,13 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         freq=None,
         log_dir=None,
         max_samples=100,
-        name='ntk_weights_adapter',
         **kwargs
     ):
         super(NTKWeightsAdapter, self).__init__(
             ode_loss_weights=ode_loss_weights,
             data_generator=data_generator,
             freq=freq,
-            log_dir=log_dir,
-            name=name
+            log_dir=log_dir
         )
 
     def on_train_begin(self, logs={}):
