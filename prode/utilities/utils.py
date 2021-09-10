@@ -116,6 +116,28 @@ def get_num_args(func):
     sig = inspect.signature(func)
     return len(sig.parameters)
 
+def get_args(obj):
+    """Get the number of arguments of a Python function."""
+    if inspect.isclass(obj):
+        args = inspect.getfullargspec(obj).args
+    else:
+        args = list(dict(inspect.signature(obj).parameters).keys())
+
+    removable = {'self', 'args', 'kwargs'}
+    for arg in removable:
+        if arg in args:
+            args.remove(arg)
+
+    return args
+
+def get_args_values(module, args):
+    """Get the number of arguments of a Python function."""
+    _args = {}
+    for arg in args:
+        if hasattr(module, arg):
+            _args.update({arg: getattr(module, arg)})
+    return _args
+
 
 # Others
 ###############################################################################

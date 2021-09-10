@@ -63,8 +63,7 @@ class FFNN(Net):
     # Configuration update
     ###########################################################################
     def get_config(self):
-        config = super().get_config().copy()
-        config.update({
+        config = {
             'layer_size': self.layer_size,
             'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
@@ -72,9 +71,10 @@ class FFNN(Net):
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
-            'hidden_blk': self.hidden_blk,
-        })
-        return config
+            'hidden_blk': self.hidden_blk
+        }
+        base_config = super(FFNN, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):

@@ -50,9 +50,7 @@ class Net(tf.keras.Model):
     # Configuration update
     ###########################################################################
     def get_config(self):
-
-        config = super(Net, self).get_config().copy()
-        config.update({
+        config = {
             'inp_dim': self.inp_dim,
             'out_dim': self.out_dim,
             'block': self.block,
@@ -62,19 +60,18 @@ class Net(tf.keras.Model):
             'residual': self.residual,
             'data_ids': self.data_ids,
             'data_ids_valid': self.data_ids_valid
-        })
-        return config
+        }
+        base_config = super(Net, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
         return cls(**config)
 
-
     # Calling
     ###########################################################################
     def call(self, x):
         return x
-
 
     # Compiling
     ###########################################################################
@@ -107,7 +104,10 @@ class Net(tf.keras.Model):
             # Defining loss containers
             self.compiled_loss = {}
             for data_id in self.data_ids:
-                _output_names = [ data_id + '_' + name for name in self.output_names ]
+                if self.output_names:
+                    _output_names = [ data_id + '_' + name for name in self.output_names ]
+                else:
+                    _output_names = data_id
                 _loss = loss[data_id] if loss else None
                 _loss_weights = loss_weights[data_id] if loss_weights else None
                 self.compiled_loss[data_id] = compile_utils.LossesContainer(
@@ -180,15 +180,32 @@ class Net(tf.keras.Model):
 
     # Apply I/O Transformation
     ###########################################################################
-    def apply_input_transform(self, transform):
-        """Compute the features by appling a transform to the network inputs, i.e.,
-        features = transform(inputs). Then, outputs = network(features)."""
-        self.inp_trans = transform
+    @property
+    def inp_trans(self):
+        return self._inp_trans
 
-    def apply_output_transform(self, transform):
-        """Apply a transform to the network outputs, i.e.,
-        outputs = transform(inputs, outputs)."""
-        self.out_trans = transform
+    @inp_trans.setter
+    def inp_trans(self, function):
+        self._inp_trans = function
+
+    @property
+    def out_trans(self):
+        return self._out_trans
+
+    @out_trans.setter
+    def out_trans(self, function):
+        self._out_trans = function
+
+
+    # def apply_input_transform(self, transform):
+    #     """Compute the features by appling a transform to the network inputs, i.e.,
+    #     features = transform(inputs). Then, outputs = network(features)."""
+    #     self.inp_trans = transform
+
+    # def apply_output_transform(self, transform):
+    #     """Apply a transform to the network outputs, i.e.,
+    #     outputs = transform(inputs, outputs)."""
+    #     self.out_trans = transform
 
 
     # Data identities
@@ -220,9 +237,17 @@ class Net(tf.keras.Model):
 
     # # Add loss properties
     # ###########################################################################
-    def add_residual(self, res_fn):
-        """Add a `list`/`dict` of loss functions for composite loss."""
-        self.residual = res_fn
+    @property
+    def residual(self):
+        return self._residual
+
+    @residual.setter
+    def residual(self, function):
+        self._residual = function
+
+    # def add_residual(self, function):
+    #     """Add a `list`/`dict` of loss functions for composite loss."""
+    #     self.residual = function
 
     # def add_loss_weights(self, ode_loss_weights):
     #     if ode_loss_weights is not None:

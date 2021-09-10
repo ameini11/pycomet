@@ -28,22 +28,28 @@ paths = {
 # Data properties
 # =============================================================================
 data_type = 'ODE'
+
+# Data source -----------------------------------------------------------------
 from_file = False
 
-# File source -----------------------------------------------------------------
+# *** From file
 train_file = {
     'ics': './data/train/ics.csv',
     'pts': './data/train/pts.csv',
     'res': './data/train/res.csv'
 }
+
 valid_file = {
     'ics': './data/valid/ics.csv',
     'pts': './data/valid/pts.csv',
     'res': './data/valid/res.csv'
 }
+
 test_file = './data/test/ics.csv'
+
 col_x = [[0,6],[6,7]]
 col_y = [[7,11]]
+
 header = 0
 
 def preproc_fn(x):
@@ -59,7 +65,7 @@ def preproc_fn(x):
         x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
     return x
 
-# Arrays source ---------------------------------------------------------------
+# *** From arrays
 # Training data
 train_pts = {
     'ics': 10,      # Number of training scenarios
@@ -67,7 +73,7 @@ train_pts = {
     'res': 160      # Number of total collocaion pts for each scenario
 }
 valid = 0.2                 # % of Validation pts
-train_pts_dist = 'uniform'  # Training pts distribution
+distribution = 'uniform'  # Training pts distribution
 
 batch_size = {
     'ics': 128,
@@ -85,14 +91,14 @@ valid_batch_size = {
 test_cases = 5          # Number of testing cases
 test_training = True    # Test training cases
 
-
 # ODE properties
 # =============================================================================
+ode_order = 1
 grouping = 'CBM3'                                   # ROM: ['CBM3', 'DPM10']
 processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
 
 # Input space (limit values)
-inp_space = {
+input_space = {
     'Ttr':  [10000.0e0,   10000.0e0],  # Tanslational temperature [K]
     'T0':   [1000.0e0,    10000.0e0],  # Initial temperature [K]
     'P0':   [1.e3,        1.e4],       # Initial pressure [Pa]

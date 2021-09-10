@@ -17,16 +17,21 @@ import inputs.network as inp_net
 import inputs.postprocessing as inp_post
 
 
+# Architecture properties
+# =============================================================================
 name = 'MEq_MMOpNN'
 
 # Execution Flags
 # =============================================================================
-load_flg  = 0       # Loading model     0: no, 1: saved model, 2: ckpt
-train_flg = 1       # Training          0: no, 1: yes
-test_flg  = 1       # Evaluating        0: no, 1: yes
-plot_flg  = 2       # Plotting          0: no, 1: offline, 2: online
-save_flg  = 1       # Saving model      0: no, 1: yes
-
+flags = {
+    'load':  0,       # Loading model       0: no, 1: saved model, 2: ckpt
+    'train': 1,       # Training model      0: no, 1: yes
+    'test':  1,       # Evaluating          0: no, 1: yes
+    'plot':  2,       # Plotting            0: no, 1: offline, 2: online
+    'save':  1        # Saving model        0: no, 1: yes
+}
+verbose = 0
+visualize_graph = 0
 
 # Training
 # =============================================================================
@@ -35,28 +40,17 @@ optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 512*300 # round(train_pts*train_cases*(1.-valid))/batch_size*decay_epochs
-decay = ["exponential", decay_steps, 0.98]
-
+decay_steps = 512*300
+decay_rate = 0.98
+decay = ["exponential", decay_steps, decay_rate]
 
 # Loss & Metrics
 # =============================================================================
 loss = {
-    'ics': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
-    },
-    'pts': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
-    },
-    'res': {
-        inp_net.names[0]: {'identifier': 'mae', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mae', 'axis': 0}
-    }
+    'ics': {'identifier': 'malpe', 'axis': 0},
+    'pts': {'identifier': 'malpe', 'axis': 0},
+    'res': {'identifier': 'mse', 'axis': 0}
 }
-loss_weights = None
-metrics = None
 
 # Callbacks
 # =============================================================================
@@ -94,10 +88,10 @@ callbacks = {
     },
 
     'weighted_loss': {
-        'name':  'EmpiricalWeightsAdapter',
-        'alpha': 0.9,
-        'freq':  10,
-        'method': 'mean'
+        'name':     'EmpiricalWeightsAdapter',
+        'alpha':    0.9,
+        'freq':     10,
+        'method':   'max'
     }
 
 }

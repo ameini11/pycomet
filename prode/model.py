@@ -32,7 +32,6 @@ class Model(object):
         self.name = name
 
         self.optimizer = None
-
         self.loss = None
         self.loss_weights = None
         self.metrics = None
@@ -161,7 +160,7 @@ class Model(object):
         # Initializing loss functions
         self.loss = self.get_loss(loss)
         if self.data.name == 'ODE':
-            self.net.add_residual(self.data.res_fn(self.net))
+            self.net.residual = self.data.res_fn(self.net)
 
         # Initializing metrics
         if metrics is not None:
@@ -329,7 +328,6 @@ class Model(object):
 
     # Postprocessing
     ###########################################################################
-    @utils.timing
     def visualize_training(
         self,
         history=None,

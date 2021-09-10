@@ -102,9 +102,7 @@ class OpNN(Net):
     # Configuration update
     ###########################################################################
     def get_config(self):
-
-        config = super(OpNN, self).get_config().copy()
-        config.update({
+        config = {
             'layer_size_branch': self.layer_size_branch,
             'layer_size_trunk': self.layer_size_trunk,
             'act_branch': self.act_branch,
@@ -119,8 +117,9 @@ class OpNN(Net):
             'branches': self.branches,
             'trunk': self.trunk,
             'end_bias': self.end_bias
-        })
-        return config
+        }
+        base_config = super(OpNN, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
     def from_config(cls, config):
