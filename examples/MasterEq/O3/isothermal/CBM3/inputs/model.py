@@ -35,12 +35,12 @@ visualize_graph = 0
 
 # Training
 # =============================================================================
-epochs = 100
+epochs = 30000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
-lr = 5.e-4
-decay_steps = 512*300
+lr = 1.e-4
+decay_steps = 512*600
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -49,7 +49,7 @@ decay = ["exponential", decay_steps, decay_rate]
 loss = {
     'ics': {'identifier': 'malpe', 'axis': 0},
     'pts': {'identifier': 'malpe', 'axis': 0},
-    'res': {'identifier': 'mse', 'axis': 0}
+    'res': {'identifier': 'mse',   'axis': 0}
 }
 
 # Callbacks
@@ -77,7 +77,7 @@ callbacks = {
     'plotter': {
         **inp_post.plot_style,
         'limit_y':  inp_post.limit_y,
-        'period':   50
+        'period':   200
     },
 
     'tensorboard': {
@@ -90,7 +90,7 @@ callbacks = {
     'weighted_loss': {
         'name':     'EmpiricalWeightsAdapter',
         'alpha':    0.9,
-        'freq':     10,
+        'freq':     50,
         'method':   'max'
     }
 

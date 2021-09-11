@@ -76,8 +76,8 @@ batch_norm = {
 
 regularization = {
     'name':         'l1+l2',                                # 'fine_tuning'
-    'l1':           1.e-4,
-    'l2':           1.e-4,
+    'l1':           1.e-2,
+    'l2':           1.e-2,
     'weights_SP':   None #'./saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
 }
 
@@ -97,7 +97,6 @@ def branch_fn(x):
 
 input_fn = {
     "branch": tf_layers.Lambda(branch_fn, name='branch_fn'),
-    "trunk" : pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 
 # *** Outputs

@@ -48,7 +48,7 @@ valid_file = {
 test_file = './data/test/ics.csv'
 
 col_x = [[0,6],[6,7]]
-col_y = [[7,11]]
+col_y = [7,11]
 
 header = 0
 
@@ -61,16 +61,16 @@ def preproc_fn(x):
     Returns:
         An array or list of arrays.
     """
-    if x.shape[1] == col_y[1][0]:
-        x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
+
+    x[:,-1] = 1. - np.sum(x[:,col_y[0]:col_y[1]-1], axis=1)
     return x
 
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 10,      # Number of training scenarios
+    'ics': 2048,    # Number of training scenarios
     'pts': 1,       # Number of total anchor pts for each scenario
-    'res': 160      # Number of total collocaion pts for each scenario
+    'res': 320      # Number of total collocaion pts for each scenario
 }
 valid = 0.2                 # % of Validation pts
 distribution = 'uniform'  # Training pts distribution
@@ -99,10 +99,10 @@ processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
 
 # Input space (limit values)
 input_space = {
-    'Ttr':  [10000.0e0,   10000.0e0],  # Tanslational temperature [K]
-    'T0':   [1000.0e0,    10000.0e0],  # Initial temperature [K]
-    'P0':   [1.e3,        1.e4],       # Initial pressure [Pa]
-    'XO2':  [0.05e0,      1.e0]        # Initial O2 mole fraction
+    'Ttr':  [1.e4,   1.e4],     # Tanslational temperature [K]
+    'T0':   [1.e3,   1.e4],     # Initial temperature [K]
+    'P0':   [5.e2,   5.e4],     # Initial pressure [Pa]
+    'XO2':  [0.05e0, 1.e0]      # Initial O2 mole fraction
 }
 
 # Time limits for testing
