@@ -88,7 +88,7 @@ valid_batch_size = {
 }
 
 # Testing data
-test_cases = 5          # Number of testing cases
+test_cases = 40         # Number of testing cases
 test_training = True    # Test training cases
 
 # ODE properties
