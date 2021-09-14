@@ -22,7 +22,7 @@ class OpNN(Net):
         activation,
         kernel_initializer,
         regularization=None,
-        end_scale='bias',
+        end_scale=None,
         stacked=True,
         dropout_rate=0,
         batch_norm=None,

@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tensorflow.keras.layers as lay
+import tensorflow.keras.layers as tf_layers
 
 from prode.utilities.model import activations
 from prode.utilities.model import initializers
@@ -24,10 +24,12 @@ class MMOpNN(Net):
         layer_size,
         activation,
         kernel_initializer,
+        end_scale=None,
         opnn_inp_trans=None,
         opnn_out_trans=None,
+        opnn_end_scale='bias',
+        stacked=True,
         regularization=None,
-        use_end_bias=True,
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
@@ -45,26 +47,27 @@ class MMOpNN(Net):
         )
 
         ### Hyperparameters Initialization ------------------------------------
+        self.layer_size = layer_size
+        self.activation = activation
+        self.kernel_initializer = kernel_initializer
+        self.regularization = regularization
+        self.dropout_rate = dropout_rate
+        self.batch_norm = batch_norm
+        self.weight_norm = weight_norm
+
+        ### OpNNs Initialization ----------------------------------------------
         if len(names) <= 1:
             utils.raise_value_err(
                 "The number of `names` passed into `{}` has to be "
                 "grater than 1 (multiple DeepONets).".format(self.name))
         else:
             self.names = names
-
         self.opnn_dim = opnn_dim
-        self.layer_size = layer_size
-        self.activation = activation
-        self.kernel_initializer = kernel_initializer
         self.opnn_inp_trans = opnn_inp_trans
         self.opnn_out_trans = opnn_out_trans
-        self.regularization = regularization
-        self.use_end_bias = use_end_bias
-        self.dropout_rate = dropout_rate
-        self.batch_norm = batch_norm
-        self.weight_norm = weight_norm
+        self.opnn_end_scale = opnn_end_scale
+        self.stacked = stacked
 
-        ### OpNNs Initialization ----------------------------------------------
         self.opnns = {
             name: OpNN(
                 self.opnn_dim[name],
@@ -72,7 +75,8 @@ class MMOpNN(Net):
                 self.activation[name],
                 self.kernel_initializer,
                 regularization=self.regularization,
-                use_end_bias=self.use_end_bias,
+                end_scale=self.opnn_end_scale,
+                stacked=self.stacked,
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
@@ -101,6 +105,21 @@ class MMOpNN(Net):
             for name, fun in self.opnn_out_trans.items():
                 self.opnns[name].out_trans = fun
 
+        ### Final Scaling -----------------------------------------------------
+        if end_scale not in {None, "bias", "dense"}:
+            utils.raise_value_err("Invalid `end_scale` argument "
+                "passed into `{}`. Available choices: {{None|'bias'|"
+                "'dense'}}.".format(self.name))
+        self.end_scale = end_scale
+
+        if self.end_scale == 'bias':
+            self._end_scale = layers.BiasLay(name='EndScale')
+        elif self.end_scale == 'dense':
+            self._end_scale = tf_layers.Dense(
+                units=self.out_dim,
+                kernel_initializer=self.kernel_initializer,
+                name='EndScale'
+            )
 
     # Configuration update
     ###########################################################################
@@ -113,12 +132,13 @@ class MMOpNN(Net):
             'kernel_initializer': self.kernel_initializer,
             'opnn_inp_trans': self.opnn_inp_trans,
             'opnn_out_trans': self.opnn_out_trans,
+            'opnn_end_scale': self.opnn_end_scale,
             'regularization': self.regularization,
-            'use_end_bias': self.use_end_bias,
+            'end_scale': self.end_scale,
+            'stacked': self.stacked,
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
-            'weight_norm': self.weight_norm,
-            'opnns': self.opnns
+            'weight_norm': self.weight_norm
         }
         base_config = super(MMOpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -151,6 +171,18 @@ class MMOpNN(Net):
 
         # OpNNs
         G_uy = [ g_uy([x_u, x_y]) for g_uy in self.opnns.values() ]
+
+        # Concatenate if single output or if final scaling is applied
+        if not isinstance(self.out_dim, (list,tuple)) or self.end_scale != None:
+            G_uy = tf_layers.Concatenate()(G_uy)
+
+        # Final scaling
+        if self.end_scale != None:
+            G_uy = self._end_scale(G_uy)
+
+        # Split if multiple output
+        if isinstance(self.out_dim, (list,tuple)):
+            G_uy = tf.split(G_uy, self.out_dim, axis=1)
 
         # Output transformation
         if self.out_trans is not None:

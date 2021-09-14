@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Cleaning the run folder
-
 find . -type d -name __pycache__ -exec rm -r {} \;
 if [[ -d "./training" ]]; then
     rm -rf training postprocessing *.h5
