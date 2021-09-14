@@ -68,6 +68,8 @@ kernel_initializer = 'GlorotNormal'
 
 block = 'ResPIBlock'
 
+use_end_bias = False
+
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
     "branch": None,
@@ -76,8 +78,8 @@ batch_norm = {
 
 regularization = {
     'name':         'l1+l2',                                # 'fine_tuning'
-    'l1':           1.e-2,
-    'l2':           1.e-2,
+    'l1':           1.e-3,
+    'l2':           1.e-3,
     'weights_SP':   None #'./saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
 }
 
@@ -87,7 +89,7 @@ dropout_rate = 0
 # =============================================================================
 # Global model ----------------------------------------------------------------
 # *** Inputs
-def branch_fn(x):
+def _branch_fn(x):
     T = inp_data.input_space['Ttr']
     if T[1] != T[0]:
         T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
@@ -96,14 +98,15 @@ def branch_fn(x):
     return tf.concat([T_norm, x[:,1:]], 1)
 
 input_fn = {
-    "branch": tf_layers.Lambda(branch_fn, name='branch_fn'),
+    "branch": tf_layers.Lambda(_branch_fn, name='branch_fn'),
     "trunk" : pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 
 # *** Outputs
-output_fn = tf_layers.Lambda(
-    lambda y: tf_layers.Softmax(axis=-1, name='output_fn')(tf.concat(y, 1))
-)
+def _output_fn(y):
+    return tf_layers.Softmax(axis=-1)(tf.concat(y, 1))
+
+output_fn = tf_layers.Lambda(_output_fn, name='output_fn'),
 
 # Each single DeepONet --------------------------------------------------------
 opnn_inp_trans = None

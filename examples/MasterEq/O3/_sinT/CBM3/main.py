@@ -1,0 +1,149 @@
+import os
+import sys
+import numpy as np
+import pandas as pd
+# Remove the following line if you install `prode` as a Python package --------
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
+# -----------------------------------------------------------------------------
+import prode as pro
+import tensorflow as tf
+
+from prode.utilities import utils
+from tensorflow.keras import callbacks
+
+import inputs as inp
+sys.path.append(inp.utils_path)
+from data_generator import DataGenerator
+
+
+def ode(ic, t, grads, params):
+
+    # Extracting `mass` and `T_trans`
+    ic   = tf.split(ic, num_or_size_splits=inp.dim["inp"][0], axis=1)
+    # mass, T  = ic[-2], ic[-1]
+    mass = ic[-1]
+    T    = str(10000)
+
+    # Getting Rate Coefficient matrices
+    K_e, K_d, K_r = [ tf.transpose(params[T][name]) for name in params[T] ]
+
+    # Rearranging variables
+    Y, dY_dt = [ grad * mass for grad in grads ]
+    Y_O      = tf.split(Y, Y.shape[1], axis=1)[-1]
+
+    # Computing Residuals - Master Equation
+    excit_term = tf.math.multiply(tf.matmul(Y, K_e), Y_O)
+    disso_term = tf.math.multiply(tf.matmul(Y, K_d), Y_O)
+    recom_term = tf.matmul(tf.math.pow(Y_O, 3), K_r)
+
+    rhs = excit_term + disso_term + recom_term
+
+    return dY_dt - rhs
+
+
+@utils.main_decorator
+def main():
+
+    ###########################################################################
+    ### Data
+    ###########################################################################
+    # Generate Data -----------------------------------------------------------
+    dataGen = DataGenerator(inp)
+    if not inp.from_file:
+        ic = dataGen.initial_cond()
+        col_x, col_y, header = None, None, None
+        train_data, valid_data = dataGen.training_data(ic[0])
+        train_data['data_source'] = valid_data['data_source'] = 'array'
+        if inp.test_flg > 0 and inp.test_cases > 0:
+            data_test = dataGen.testing_data(ic[1], ic_train=ic[0])
+    else:
+        col_x, col_y, header = inp.col_x, inp.col_y, inp.header
+        train_data = inp.data_train_file
+        valid_data = inp.data_valid_file
+        train_data['data_source'] = valid_data['data_source'] = 'file'
+        if inp.test_flg > 0 and inp.test_cases > 0:
+            data_test = dataGen.testing_data(inp.data_test_file, header=header)
+
+    # Initialize Data ---------------------------------------------------------
+    data = utils.get_class(pro.data, inp.data_name)(
+        inp.dim,
+        ode_func=ode,
+        ode_order=1,
+        ode_params=dataGen.ODE_mat,
+        train_data=train_data,
+        valid_data=valid_data,
+        col_x=col_x,
+        col_y=col_y,
+        header=header,
+        preproc_fn=inp.preproc_fn,
+        batch_size=inp.batch_size,
+        valid_batch_size=inp.valid_batch_size)
+
+
+    ###########################################################################
+    ### Network
+    ###########################################################################
+    # Initialize Network ------------------------------------------------------
+    net = utils.get_class(pro.networks, inp.nn_name)(
+        inp.dim,
+        inp.layer_size,
+        inp.activation,
+        inp.kernel_initializer,
+        regularization=inp.regularization,
+        dropout_rate=inp.dropout_rate,
+        batch_norm=inp.batch_norm,
+        block=inp.block
+        )
+
+    # Apply I/O Transformation ------------------------------------------------
+    net.apply_input_transform(inp.input_fn)
+    net.apply_output_transform(inp.output_fn)
+
+
+    ###########################################################################
+    ### Model
+    ###########################################################################
+    # Initialize Model --------------------------------------------------------
+    model = pro.model.Model(data, net, inp.name)
+
+    # Build Model -------------------------------------------------------------
+    model.build(inp.dim['inp'], verbose=0, load_net=inp.load_flg, visualize_graph=False)
+
+    # Compile Model -----------------------------------------------------------
+    model.compile(inp.optimizer, lr=inp.lr, loss=inp.loss, \
+        metrics=inp.metrics, decay=inp.decay)
+
+    # Fit Model ---------------------------------------------------------------
+    if inp.train_flg > 0:
+        if 'plotter' in inp.callbacks:
+            if inp.plot_flg != 2:
+                inp.callbacks.pop('plotter')
+            else:
+                inp.callbacks['plotter']['test_cases'] = data_test
+
+        model.fit(epochs=inp.epochs, callbacks=inp.callbacks)
+
+    # Save Model ---------------------------------------------------------------
+    if inp.save_flg > 0:
+        model.save()
+
+
+    ###########################################################################
+    ### Postprocessing
+    ###########################################################################
+    # Training phase ----------------------------------------------------------
+    model.visualize_training(model.train_dir+'/history.csv', limit_y=inp.limit_y)
+
+    # Testing phase -----------------------------------------------------------
+    if inp.test_cases > 0 and inp.test_flg > 0:
+        plot_style = dict(plotting=inp.plot_flg, var_names=inp.var_names, labels=inp.labels)
+        for i, test_i in enumerate(data_test):
+            # Define 'path'
+            path = model.post_dir+'/testing/test_'+str(i+1)
+            model.predict(test_i, path=path, scales=inp.scales, **plot_style)
+            if inp.log_plot:
+                model.predict(test_i, path=path, scales=['log', 'log'], **plot_style)
+            
+
+if __name__ == "__main__":
+    main()

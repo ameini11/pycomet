@@ -569,14 +569,14 @@ class Scaling(tf_layers.Layer):
             utils.raise_value_err("The last dimension of the inputs to "
                 "`Scale` should be defined. Found `None`.")
 
-        self.slope = self.add_weight(
+        self._slope = self.add_weight(
             name='slope',
             dtype=self.dtype,
             initializer=initializers.Constant(value=self.slope),
             trainable=self.trainable
         )
 
-        self.offset = self.add_weight(
+        self._offset = self.add_weight(
             name='offset',
             dtype=self.dtype,
             initializer=initializers.Constant(value=self.offset),
@@ -603,7 +603,7 @@ class Scaling(tf_layers.Layer):
     # Calling
     ###########################################################################
     def call(self, x, training=None):
-        return self.trans_fn(x * self.slope + self.offset)
+        return self.trans_fn(x * self._slope + self._offset)
 
 
 # =========================================================================== #

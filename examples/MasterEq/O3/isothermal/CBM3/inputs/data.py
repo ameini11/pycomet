@@ -68,7 +68,7 @@ def preproc_fn(x):
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 2048,    # Number of training scenarios
+    'ics': 10,    # Number of training scenarios
     'pts': 1,       # Number of total anchor pts for each scenario
     'res': 320      # Number of total collocaion pts for each scenario
 }
@@ -88,7 +88,7 @@ valid_batch_size = {
 }
 
 # Testing data
-test_cases = 40         # Number of testing cases
+test_cases = 5         # Number of testing cases
 test_training = True    # Test training cases
 
 # ODE properties

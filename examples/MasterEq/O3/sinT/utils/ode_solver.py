@@ -9,10 +9,7 @@ class ODESolver(object):
     ###########################################################################
     ### Initialization
     ###########################################################################
-    def __init__(
-            self,
-            mat_name,
-            mat_mask):
+    def __init__(self, processes):
 
         # Initial/Final time
         self.t0     = 0.
@@ -23,9 +20,8 @@ class ODESolver(object):
         self.dt_str = 1.015
         self.dt_max = 1.e-4
 
-        # ODE Matrices characterization
-        self.mat_name = mat_name     # Names
-        self.mat_mask = mat_mask     # Activation flags
+        # Reactive processes
+        self.processes = processes
 
 
     ###########################################################################
@@ -63,9 +59,6 @@ class ODESolver(object):
     def solve(self, rho_0, params, eval_jac=False, eval_f=False):
         '''Solving the ODE.'''
 
-        if isinstance(params, dict):
-            params = tuple([params[k] for k in params])
-
         r = ode(self.f, self.jac).set_integrator('vode', method='bdf', with_jacobian=True, atol=1.e-20)
         r.set_initial_value(rho_0, self.t0).set_f_params(params).set_jac_params(params)
 
@@ -82,7 +75,7 @@ class ODESolver(object):
             r.integrate(r.t+dt)
             if eval_jac:
                 norm_J, eig_J = list(map(lambda x,y: np.vstack((x,y)), \
-                                [norm_J, eig_J], self.eval_J(r.t, r.y, params)))
+                    [norm_J, eig_J], self.eval_J(r.t, r.y, params)))
             if eval_f:
                 f_rhs = np.vstack((f_rhs, self.f(r.t, r.y, params)))
             t  = np.vstack((t, np.expand_dims(r.t,0)))
@@ -129,12 +122,10 @@ class ODESolver(object):
     ###########################################################################
     def get_matrices(self, rates_coeff, Q_bins, T):
         '''Get all the rates matrices for the ODE.'''
-
-        ODE_mat = dict()
-        ODE_mat[self.mat_name[0]] = self.excit(self.mat_mask[0], rates_coeff, Q_bins) / const.mO
-        ODE_mat[self.mat_name[1]] = self.disso(self.mat_mask[1], rates_coeff) / const.mO
-        ODE_mat[self.mat_name[2]] = self.recom(self.mat_mask[2], rates_coeff, Q_bins, T) / const.mO**2 * 2
-        return ODE_mat
+        K_e = self.excit(self.processes['excit'], rates_coeff, Q_bins) / const.mO
+        K_d = self.disso(self.processes['diss'], rates_coeff) / const.mO
+        K_r = self.recom(self.processes['recomb'], rates_coeff, Q_bins, T) / const.mO**2 * 2
+        return K_e, K_d, K_r
 
     def excit(self, mask, rates_coeff, Q_bins):
         '''Excit. & Relax. rates matrix'''
@@ -150,12 +141,7 @@ class ODESolver(object):
         d = np.shape(rates)[0] + 1
         K = np.zeros((d,d), dtype=np.float64)
         if mask:
-            for i in range(d-1):
-                for j in range(d-1):
-                    if i==j:
-                        K[i,j] = -np.sum(rates[i,:], axis=0, dtype=np.float64)
-                    else:
-                        K[i,j] = rates[j,i]
+            K[:-1,:-1] = -np.diag(np.sum(rates, axis=1)) + np.transpose(rates)
         return K
 
     def disso(self, mask, rates_coeff):
@@ -165,12 +151,11 @@ class ODESolver(object):
         rates = rates_coeff['diss']
 
         # Construct Dissociation matrix
-        d = np.shape(rates)[1] + 1
+        d = np.shape(rates)[0] + 1
         K = np.zeros((d,d), dtype=np.float64)
         if mask:
-            for i in range(d-1):
-                K[ i,i] = -rates[0,i]
-                K[-1,i] =  rates[0,i]
+            K[:-1,:-1] = np.diag(-rates)
+            K[ -1,:-1] = rates
         return K
 
     def recom(self, mask, rates_coeff, Q_bins, T):
@@ -180,12 +165,11 @@ class ODESolver(object):
         rates = np.multiply(rates_coeff['diss'], self.Keq_diss(Q_bins, T))
 
         # Construct Recombination matrix
-        d = np.shape(rates)[1] + 1
+        d = np.shape(rates)[0] + 1
         K = np.zeros((d,1), dtype=np.float64)
         if mask:
-            for i in range(d-1):
-                K[ i,0]  = rates[0,i]
-                K[-1,0] -= rates[0,i]
+            K[:-1,0] = rates
+            K[ -1,0] = -np.sum(rates)
         return K
 
     def Keq_diss(self, Q_bins, T):

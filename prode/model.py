@@ -63,7 +63,7 @@ class Model(object):
         load_net=0,
         visualize_graph=False
     ):
-        utils.print_main("Building '",self.net.name,"' network ...", sep="")
+        utils.print_main("Building '", self.net.name,"' network ...", sep="")
         
         if not self.net.built:
             if isinstance(input_dim, (list,tuple)):

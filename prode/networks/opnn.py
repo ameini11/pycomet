@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tensorflow.keras.layers as lay
+import tensorflow.keras.layers as tf_layers
 
 from prode.utilities.model import activations
 from prode.utilities.model import initializers
@@ -22,7 +22,8 @@ class OpNN(Net):
         activation,
         kernel_initializer,
         regularization=None,
-        use_end_bias=True,
+        end_scale='bias',
+        stacked=True,
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
@@ -71,10 +72,17 @@ class OpNN(Net):
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.dropout_rate = dropout_rate
         self.weight_norm = weight_norm
-        self.use_end_bias = use_end_bias
+        self.stacked = stacked
+
+        if end_scale not in {None, "bias", "dense"}:
+            utils.raise_value_err("Invalid `end_scale` argument "
+                "passed into `{}`. Available choices: {{None|'bias'|"
+                "'dense'}}.".format(self.name))
+        self.end_scale = end_scale
 
         ### Blocks Initialization ---------------------------------------------
-        self.branches = [ self.block(
+        num_branches = self.out_dim if self.stacked else 1
+        self._branches = [ self.block(
             self.layer_size_branch,
             self.act_branch,
             self.kernel_initializer,
@@ -82,10 +90,10 @@ class OpNN(Net):
             dropout_rate=self.dropout_rate,
             batch_norm=self.batch_norm_branch,
             weight_norm=self.weight_norm,
-            name='Branch_'+str(i)
-        ) for i in range(self.out_dim) ]
+            name='Branch_' + str(i) if i != 0 else 'Branch'
+        ) for i in range(num_branches) ]
 
-        self.trunk = self.block(
+        self._trunk = self.block(
             self.layer_size_trunk,
             self.act_trunk,
             self.kernel_initializer,
@@ -93,11 +101,17 @@ class OpNN(Net):
             dropout_rate=self.dropout_rate,
             batch_norm=self.batch_norm_trunk,
             weight_norm=self.weight_norm,
-            name='Trunk_0'
+            name='Trunk'
         )
 
-        self.end_bias = layers.BiasLay(name='EndBias') if self.use_end_bias else None
-
+        if self.end_scale == 'bias':
+            self._end_scale = layers.BiasLay(name='EndScale')
+        elif self.end_scale == 'dense':
+            self._end_scale = tf_layers.Dense(
+                units=self.out_dim,
+                kernel_initializer=self.kernel_initializer,
+                name='EndScale'
+            )
 
     # Configuration update
     ###########################################################################
@@ -113,10 +127,7 @@ class OpNN(Net):
             'batch_norm_branch': self.batch_norm_branch,
             'batch_norm_trunk': self.batch_norm_trunk,
             'weight_norm': self.weight_norm,
-            'use_end_bias': self.use_end_bias,
-            'branches': self.branches,
-            'trunk': self.trunk,
-            'end_bias': self.end_bias
+            'end_scale': self.end_scale
         }
         base_config = super(OpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -148,21 +159,28 @@ class OpNN(Net):
                 x_y = self.inp_trans(x_y)
 
         # Branch/-es
-        G_u = [ branch(x_u, training=training) for branch in self.branches ]
+        G_u = [ branch(x_u, training=training) for branch in self._branches ]
 
         # Trunk
-        G_y = self.trunk(x_y, training=training)
+        G_y = self._trunk(x_y, training=training)
 
-        # Output layer
-        G_uy = [ lay.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]
-        G_uy = lay.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
-        if self.use_end_bias:
-            G_uy = self.end_bias(G_uy)
+        # Output layer - Dot product
+        if self.stacked:
+            G_uy = [ tf_layers.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]
+        else:
+            G_uy = tf.split(tf_layers.Multiply()([*G_u, G_y]), self.out_dim, axis=1)
+            # G_uy = tf.split(tf.math.multiply(*G_u, G_y), self.out_dim, axis=1)
+            G_uy = [tf.math.reduce_sum(g, axis=1, keepdims=True) for g in G_uy]
+
+        # Output layer - Concatenation
+        G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
+        if self.end_scale != None:
+            G_uy = self._end_scale(G_uy)
 
         # Output transformation
         if self.out_trans is not None:
             G_uy = self.out_trans(G_uy)
-            
+        
         return G_uy
 
 
