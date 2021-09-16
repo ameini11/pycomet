@@ -77,6 +77,8 @@ class Model(object):
 
         # Visualize net/graph
         graph.summary()
+        with open(self.save_dir+'model_summary.txt', 'w') as f:
+            graph.summary(print_fn=lambda x: f.write(x + '\n'))
         if verbose:
             if visualize_graph:
                 file_name = self.save_dir + self.name + '_struct.h5'
