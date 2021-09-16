@@ -19,7 +19,7 @@ import inputs.postprocessing as inp_post
 
 # Architecture properties
 # =============================================================================
-name = 'MEq_OpNN'
+name = 'MEq_MMOpNN'
 
 # Execution Flags
 # =============================================================================
@@ -31,7 +31,7 @@ flags = {
     'save':  1        # Saving model        0: no, 1: yes
 }
 verbose = 0
-visualize_graph = 1
+visualize_graph = 0
 
 # Training
 # =============================================================================
@@ -40,7 +40,7 @@ optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 256*300
+decay_steps = 512*300
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 

@@ -21,8 +21,8 @@ import inputs.network as inp_net
 # Paths
 # =============================================================================
 paths = {
-    'database': os.path.normpath(os.getcwd()+'/../../database'),
-    'utils':    os.path.normpath(os.getcwd()+'/../utils')
+    'database': os.path.normpath(os.getcwd()+'/../../../database'),
+    'utils':    os.path.normpath(os.getcwd()+'/../../utils')
 }
 
 # Data properties
@@ -67,23 +67,23 @@ def preproc_fn(x):
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 4096,    # Number of training scenarios
+    'ics': 2048,    # Number of training scenarios
     'pts': 1,       # Number of total anchor pts for each scenario
-    'res': 320      # Number of total collocation pts for each scenario
+    'res': 160      # Number of total collocation pts for each scenario
 }
 valid = 0.2                 # % of Validation pts
 distribution = 'uniform'  # Training pts distribution
 
 batch_size = {
-    'ics': 512,
-    'pts': 512,
-    'res': 4096
+    'ics': 128,
+    'pts': 128,
+    'res': 512
 }
 
 valid_batch_size = {
-    'ics': 256,
-    'pts': 256,
-    'res': 512
+    'ics': 128,
+    'pts': 128,
+    'res': 128
 }
 
 # Testing data

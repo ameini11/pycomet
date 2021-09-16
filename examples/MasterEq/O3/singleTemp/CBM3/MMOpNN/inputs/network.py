@@ -45,12 +45,12 @@ opnn_dim = {
 
 layer_size = {
     names[0]: {
-        "branch": [opnn_dim[names[0]]['inp'][0], 16, 16, 32],
-        "trunk":  [opnn_dim[names[0]]['inp'][1], 16, 16, 32]
+        "branch": [opnn_dim[names[0]]['inp'][0], 64, 64, 64],
+        "trunk":  [opnn_dim[names[0]]['inp'][1], 128, 128, 64]
     },
     names[1]: {
         "branch": [opnn_dim[names[1]]['inp'][0], 16, 16, 32],
-        "trunk":  [opnn_dim[names[1]]['inp'][1], 32, 32, 32]
+        "trunk":  [opnn_dim[names[1]]['inp'][1], 16, 16, 32]
     }
 }
 
