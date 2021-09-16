@@ -6,7 +6,7 @@ class InputData(object):
     ###########################################################################
     ### Paths
     ###########################################################################
-    database_path = os.path.normpath(os.getcwd()+'/../../database')
+    database_path = os.path.normpath(os.getcwd()+'/../database')
     utils_path = os.path.normpath('./utils')
 
 
