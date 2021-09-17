@@ -19,67 +19,128 @@
 ###############################################################################
 # Define arguments
 # -----------------------------------------------------------------------------
-import argparse
-parser = argparse.ArgumentParser(
-    prog='train',
-    description="Build and train Machine-Learning-based approximator for " \
-        "Ordinary Differential Equations (ODEs)"
-)
-parser.add_argument('-j', '--threads',
-    type=int,
-    default=16,
-    help='Number of threads.'
-)
-parser.add_argument('-i', '--inputs',
-    type=str,
-    default="./inputs",
-    help='Path to the inputs folder.'
-)
-parser.add_argument('-v', '--verbose',
-    type=int,
-    default=0,
-    help='Verbosity turned on/off.'
-)
-parser.add_argument('-g', '--graph',
-    type=int,
-    default=0,
-    help='Visualize model graph.'
-)
-args = parser.parse_args()
+# import argparse
+# def add_args()
+#     parser = argparse.ArgumentParser(
+#         prog='train',
+#         description="Build and train Machine-Learning-based approximator for " \
+#             "Ordinary Differential Equations (ODEs)"
+#     )
+#     parser.add_argument('-j', '--threads',
+#         type=int,
+#         default=16,
+#         help='Number of threads.'
+#     )
+#     parser.add_argument('-i', '--inputs',
+#         type=str,
+#         default="./inputs",
+#         help='Path to the inputs folder.'
+#     )
+#     parser.add_argument('-v', '--verbose',
+#         type=int,
+#         default=0,
+#         help='Verbosity turned on/off.'
+#     )
+#     parser.add_argument('-g', '--graph',
+#         type=int,
+#         default=0,
+#         help='Visualize model graph.'
+#     )
+#     return parser.parse_args()
 
-# Import needed libraries
-# -----------------------------------------------------------------------------
+# # Import needed libraries
+# # -----------------------------------------------------------------------------
+# import os
+# import sys
+# import argparse
+# import numpy as np
+# import pandas as pd
+# import prode as pro
+
+# # Configure TensorFlow
+# import tensorflow as tf
+# tf.config.threading.set_inter_op_parallelism_threads(args.threads)
+# tf.config.threading.set_intra_op_parallelism_threads(args.threads)
+
+# # Import input files
+# # -----------------------------------------------------------------------------
+# sys.path.append(args.inputs+'/..')
+# import inputs as inp
+
+# # Add paths
+# for path in inp.data.paths.values():
+#     sys.path.append(path)
+
+# from prode.utilities import utils
+
+# # Add classes for generating data
+# from data_generator import DataGenerator
+# from ode import MasterEq
+
+
+
 import os
 import sys
 import argparse
-import importlib
 import numpy as np
 import pandas as pd
 import prode as pro
-
-# Configure TensorFlow
 import tensorflow as tf
-tf.config.threading.set_inter_op_parallelism_threads(args.threads)
-tf.config.threading.set_intra_op_parallelism_threads(args.threads)
-
-# Import input files
-# -----------------------------------------------------------------------------
-sys.path.append(args.inputs+'/..')
-import inputs as inp
-
-# Add paths
-for path in inp.data.paths.values():
-    sys.path.append(path)
 
 from prode.utilities import utils
-
-# Add classes for generating data
-from data_generator import DataGenerator
-from ode import MasterEq
 
 
 @utils.main_decorator
 def main():
+
+    # Inizialization
+    ###########################################################################
+    # Define arguments --------------------------------------------------------
+    parser = argparse.ArgumentParser(
+        prog='train',
+        description="Build and train Machine-Learning-based approximator for " \
+            "Ordinary Differential Equations (ODEs)"
+    )
+    parser.add_argument('-j', '--threads',
+        type=int,
+        default=16,
+        help='Number of threads.'
+    )
+    parser.add_argument('-i', '--inputs',
+        type=str,
+        default="./inputs",
+        help='Path to the inputs folder.'
+    )
+    parser.add_argument('-v', '--verbose',
+        type=int,
+        default=0,
+        help='Verbosity turned on/off.'
+    )
+    parser.add_argument('-g', '--graph',
+        type=int,
+        default=0,
+        help='Visualize model graph.'
+    )
+    args = parser.parse_args()
+
+    # Configure TensorFlow
+    tf.config.threading.set_inter_op_parallelism_threads(args.threads)
+    tf.config.threading.set_intra_op_parallelism_threads(args.threads)
+
+    # Import input files ------------------------------------------------------
+    sys.path.append(args.inputs+'/..')
+    import inputs as inp
+
+    # Add paths
+    for path in inp.data.paths.values():
+        sys.path.append(path)
+
+    # Add classes for generating data
+    from data_generator import DataGenerator
+    from ode import MasterEq
+
+    utils.main_start()
+
 
     # Data
     ###########################################################################

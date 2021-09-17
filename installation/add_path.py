@@ -20,7 +20,7 @@ with open(bashrc,'w') as f:
 
     f.write(
         "\n# >>> prode >>>\n"
-        "export PATH={}/exec/:$PATH\n"
+        "export PATH={}/algos/:$PATH\n"
         "# <<< prode <<<".format(os.path.dirname(prode.__file__))
     )
     f.close()

@@ -2,7 +2,6 @@ import io
 from setuptools import setup
 from setuptools import find_packages
 
-
 with io.open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
@@ -20,6 +19,11 @@ setup(
     url="https://github.com/ivanZanardi/prode",
     license="Apache-2.0",
     install_requires=install_requires,
+    entry_points ={
+        'console_scripts': [
+            'train = prode.algos.train:main'
+        ]
+    },
     classifiers=[
         "Development Status :: 1 - Beta",
         "Intended Audience :: Developers",

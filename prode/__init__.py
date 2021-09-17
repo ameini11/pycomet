@@ -15,7 +15,6 @@ tf.keras.backend.set_epsilon(tf_setup['EPSILON'])
 
 # PrODE
 ###############################################################################
-# 
 __author__  = "Ivan Zanardi"
 __email__   = "zanardi3@illinois.edu"
 __url__     = "https://github.com/ivanZanardi/prode"
@@ -25,6 +24,7 @@ __version__ = "0.0.1"
 # Import all modules
 from prode import config
 from prode import data
+from prode import algos
 from prode import networks
 from prode.model import Model
 from prode import postprocessing
@@ -32,6 +32,7 @@ from prode import postprocessing
 __all__ = [
     "config",
     "data",
+    "algos",
     "networks",
     "Model",
     "postprocessing"

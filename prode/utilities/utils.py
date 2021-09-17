@@ -58,22 +58,51 @@ def main_decorator(f):
     @timing
     @wraps(f)
     def wrapper(*args, **kwargs):
-        num_threads = min(
-            tf.config.threading.get_inter_op_parallelism_threads(),
-            tf.config.threading.get_intra_op_parallelism_threads()
-            )
-        print_main('START')
-        print("--------------------------------------------------------------------------------------------------")
-        print(" TensorFlow version: {}".format(tf.__version__))
-        print(" Eager execution:    {}".format(tf.executing_eagerly()))
-        print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
-        print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
-        print(" Num. of threads:    {}".format(num_threads))
-        print("--------------------------------------------------------------------------------------------------")
+        print(
+            "\n********************************************************************************\n"
+            "                                      PrODE                                     \n"
+            "--------------------------------------------------------------------------------\n"
+            "                      Machine-Learning-Based Approximators                      \n"
+            "                   for Ordinary Differential Equations (ODEs)                   \n"
+            "                                                                                \n"
+            "********************************************************************************\n"
+        )
         result = f(*args, **kwargs)
         print_main('END')
         return result
     return wrapper
+
+# def main_start():
+#     """Decorator for the `main` function."""
+#     num_threads = min(
+#         tf.config.threading.get_inter_op_parallelism_threads(),
+#         tf.config.threading.get_intra_op_parallelism_threads()
+#         )
+#     print_main('START')
+#     print("--------------------------------------------------------------------------------")
+#     print(" TensorFlow version: {}".format(tf.__version__))
+#     print(" Eager execution:    {}".format(tf.executing_eagerly()))
+#     print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
+#     print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
+#     print(" Num. of threads:    {}".format(num_threads))
+#     print("--------------------------------------------------------------------------------")
+
+def main_start():
+    """Decorator for the `main` function."""
+    num_threads = min(
+        tf.config.threading.get_inter_op_parallelism_threads(),
+        tf.config.threading.get_intra_op_parallelism_threads()
+        )
+    print_main(
+        "START\n"
+        "--------------------------------------------------------------------------------"
+    )
+    print(" TensorFlow version: {}".format(tf.__version__))
+    print(" Eager execution:    {}".format(tf.executing_eagerly()))
+    print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
+    print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
+    print(" Num. of threads:    {}".format(num_threads))
+    print("--------------------------------------------------------------------------------")
 
 
 # Handling data types
