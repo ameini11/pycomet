@@ -113,12 +113,12 @@ class MMOpNN(Net):
         self.end_scale = end_scale
 
         if self.end_scale == 'bias':
-            self._end_scale = layers.BiasLay(name='EndScale')
+            self._end_scale = layers.BiasLay(name='end_scale')
         elif self.end_scale == 'dense':
             self._end_scale = tf_layers.Dense(
                 units=self.out_dim,
                 kernel_initializer=self.kernel_initializer,
-                name='EndScale'
+                name='end_scale'
             )
 
     # Configuration update

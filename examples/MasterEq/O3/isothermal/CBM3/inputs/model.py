@@ -30,7 +30,6 @@ flags = {
     'plot':  2,       # Plotting            0: no, 1: offline, 2: online
     'save':  1        # Saving model        0: no, 1: yes
 }
-verbose = 0
 visualize_graph = 0
 
 # Training
