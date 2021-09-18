@@ -18,25 +18,24 @@ from prode.config import headers
 
 # Printing functions
 ###############################################################################
-def print_main(text, *args, **kwargs):
-    print(headers['main'] + text, *args, **kwargs)
+def print_main(text, start='\n', *args, **kwargs):
+    print(start + headers['main'] + text, *args, **kwargs)
 
-def print_submain(text, *args, **kwargs):
-    print(headers['submain'] + text, *args, **kwargs)
+def print_submain(text, start='', *args, **kwargs):
+    print(start + headers['main'] + '  ' + text, *args, **kwargs)
 
-def input_main(text, *args, **kwargs):
-    return input(headers['main'] + text, *args, **kwargs)
+def input_main(text, start='', *args, **kwargs):
+    return input(start + headers['main'] + text, *args, **kwargs)
 
-def input_submain(text, *args, **kwargs):
-    return input(headers['submain'] + text, *args, **kwargs)
+def input_submain(text, start='', *args, **kwargs):
+    return input(start + headers['main'] + '  ' + text, *args, **kwargs)
 
-def warning(text, *args, **kwargs):
-    print(headers['warning'] + text, *args, **kwargs)
+def warning(text, start='', *args, **kwargs):
+    print(start + headers['warning'] + text, *args, **kwargs)
 
 def raise_value_err(text):
     message = ''.join([headers['val_err'], text])
     raise ValueError(message)
-
 
 # Decorators
 ###############################################################################
@@ -53,57 +52,55 @@ def timing(f):
         return result
     return wrapper
 
-def main_decorator(f):
-    """Decorator for the `main` function."""
-    @timing
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        print(
-            "\n********************************************************************************\n"
-            "                                      PrODE                                     \n"
-            "--------------------------------------------------------------------------------\n"
-            "                      Machine-Learning-Based Approximators                      \n"
-            "                   for Ordinary Differential Equations (ODEs)                   \n"
-            "                                                                                \n"
-            "********************************************************************************\n"
-        )
-        result = f(*args, **kwargs)
-        print_main('END')
-        return result
-    return wrapper
+# Decorator for applications --------------------------------------------------
+LEN = 98
 
-# def main_start():
-#     """Decorator for the `main` function."""
-#     num_threads = min(
-#         tf.config.threading.get_inter_op_parallelism_threads(),
-#         tf.config.threading.get_intra_op_parallelism_threads()
-#         )
-#     print_main('START')
-#     print("--------------------------------------------------------------------------------")
-#     print(" TensorFlow version: {}".format(tf.__version__))
-#     print(" Eager execution:    {}".format(tf.executing_eagerly()))
-#     print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
-#     print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
-#     print(" Num. of threads:    {}".format(num_threads))
-#     print("--------------------------------------------------------------------------------")
+def compose(text='', start='', between=' '):
+    end = ''.join(reversed(start))
+    l = len(text)
+    return start + between*int((LEN-len(start)*2-l)/2) \
+        + text + between*int((LEN-len(start)*2-l)/2) + end
 
-def main_start():
-    """Decorator for the `main` function."""
-    num_threads = min(
-        tf.config.threading.get_inter_op_parallelism_threads(),
-        tf.config.threading.get_intra_op_parallelism_threads()
-        )
-    print_main(
-        "START\n"
-        "--------------------------------------------------------------------------------"
-    )
-    print(" TensorFlow version: {}".format(tf.__version__))
-    print(" Eager execution:    {}".format(tf.executing_eagerly()))
-    print(" GPUs available:     {}".format(len(tf.config.list_physical_devices('GPU'))))
-    print(" CPUs available:     {}".format(len(tf.config.list_physical_devices('CPU'))))
-    print(" Num. of threads:    {}".format(num_threads))
-    print("--------------------------------------------------------------------------------")
+def app_decorator(name=None):
+    def dec(fun):
+        @wraps(fun)
+        def wrapper(name=name, *args, **kwargs):
+            ts = time.time()
+            start = '# '
+            print(
+                "\n" + compose(start='# ', between='*') +
+                "\n" + compose(text='PrODE ', start='# ') +
+                "\n" + compose(start='# ', between='-') +
+                "\n" + compose(
+                    text='Machine-Learning-Based Approximators', start='# '
+                ) +
+                "\n" + compose(
+                    text='for Ordinary Differential Equations (ODEs)',
+                    start='# '
+                ) +
+                "\n" + compose(start='# ') +
+                "\n" + compose(start='# ', between='*')
+            )
+            print_main('App `{}` starts\n'.format(name) + "="*LEN + "\n")
+            result = fun(*args, **kwargs)
+            te = time.time()
+            delta = datetime.timedelta(seconds=(te - ts))
+            if not name:
+                name = fun.__name__
+            print(app_epilog(name=name, delta=delta))
+            # print("\n" + "=" * LEN)
+            # print_main('App `{}` terminates'.format(name), start='')
+            # print_submain(">> It took {}\n".format(delta))
+            return result
+        return wrapper
+    return dec
 
+def app_epilog(name=None, delta=None):
+    s = '\n'+'='*LEN+'\n'+headers['main']+'App `{}` terminates\n'.format(name)
+    if delta:
+        return s + headers['main'] + '  ' + '>> It took {}\n'.format(delta)
+    else:
+        return s + ' '
 
 # Handling data types
 ###############################################################################
@@ -167,7 +164,6 @@ def get_args_values(module, args):
             _args.update({arg: getattr(module, arg)})
     return _args
 
-
 # Others
 ###############################################################################
 def kill_process():
@@ -182,6 +178,23 @@ def close_all_hdf5():
                 obj.close()
             except:
                 pass
+
+# Environment setup -----------------------------------------------------------
+def environment():
+    num_threads = min(
+        tf.config.threading.get_inter_op_parallelism_threads(),
+        tf.config.threading.get_intra_op_parallelism_threads()
+        )
+    print(headers['main'] + "Environment setup\n" + "-"*98)
+    print(" TensorFlow version:     {}".format(tf.__version__))
+    print(" Eager execution:        {}".format(tf.executing_eagerly()))
+    print(" GPUs available:         {}".format(
+        len(tf.config.list_physical_devices('GPU')))
+    )
+    print(" CPUs available:         {}".format(
+        len(tf.config.list_physical_devices('CPU')))
+    )
+    print(" Num. of threads:        {}\n".format(num_threads) + "-"*98)
 
 # Array ops
 ###############################################################################

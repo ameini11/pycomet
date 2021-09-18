@@ -1,14 +1,22 @@
-### Configuration file
+# *************************************************************************** #
+#                                    PrODE                                    #
+# --------------------------------------------------------------------------- #
+#                     Machine-Learning-Based Approximators                    #
+#                  for Ordinary Differential Equations (ODEs)                 #
+#                                                                             #
+# *************************************************************************** #
 
-# PrODE
+# --------------------------- CONFIGURATION FILE ---------------------------- #
+
+
+# PrODE -----------------------------------------------------------------------
 headers = {
-    'main':    '\n[PrODE]: ',
-    'submain': '[PrODE]:   ',
+    'main':    '[PrODE]: ',
     'warning': '[PrODE]:   WARNING! ',
-    'val_err': 'from PrODE\n'
+    'val_err': 'from PrODE\n>>> '
 }
 
-# TensorFlow setup
+# TensorFlow ------------------------------------------------------------------
 tf_setup = {
     'EPSILON':              1.e-15,
     'DTYPE':                'float64',

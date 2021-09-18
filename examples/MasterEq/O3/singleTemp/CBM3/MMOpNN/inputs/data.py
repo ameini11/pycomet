@@ -30,7 +30,7 @@ paths = {
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
 
 # *** From file
 train_file = {
@@ -67,7 +67,7 @@ def preproc_fn(x):
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 2048,    # Number of training scenarios
+    'ics': 10,#2048,    # Number of training scenarios
     'pts': 1,       # Number of total anchor pts for each scenario
     'res': 160      # Number of total collocation pts for each scenario
 }
@@ -87,7 +87,7 @@ valid_batch_size = {
 }
 
 # Testing data
-test_cases = 40         # Number of testing cases
+test_cases = 5#40         # Number of testing cases
 test_training = True    # Test training cases
 
 # ODE properties

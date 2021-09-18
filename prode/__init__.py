@@ -22,17 +22,17 @@ __license__ = "Apache-2.0"
 __version__ = "0.0.1"
 
 # Import all modules
+from prode import apps
 from prode import config
 from prode import data
-from prode import algos
 from prode import networks
 from prode.model import Model
 from prode import postprocessing
 
 __all__ = [
+    "apps",
     "config",
     "data",
-    "algos",
     "networks",
     "Model",
     "postprocessing"

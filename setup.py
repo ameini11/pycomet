@@ -21,7 +21,8 @@ setup(
     install_requires=install_requires,
     entry_points ={
         'console_scripts': [
-            'train = prode.algos.train:main'
+            'cleanPro = prode.apps.clean:main',
+            'trainPro = prode.apps.train:main'
         ]
     },
     classifiers=[

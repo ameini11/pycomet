@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 # *************************************************************************** #
 #                                    PrODE                                    #
 # --------------------------------------------------------------------------- #
@@ -8,76 +6,13 @@
 #                                                                             #
 # *************************************************************************** #
 
-# ----------------------------- TRAIN EXEC FILE ----------------------------- #
+# -------------------------------- EXEC FILE -------------------------------- #
 # Description:
-# >> Build and train Machine-Learning-based approximator for Ordinary
-#    Differential Equations (ODEs)
+# >> Build a ML-based approximator for ODEs
 # --------------------------------------------------------------------------- #
 
 
-# Inizialization
-###############################################################################
-# Define arguments
-# -----------------------------------------------------------------------------
-# import argparse
-# def add_args()
-#     parser = argparse.ArgumentParser(
-#         prog='train',
-#         description="Build and train Machine-Learning-based approximator for " \
-#             "Ordinary Differential Equations (ODEs)"
-#     )
-#     parser.add_argument('-j', '--threads',
-#         type=int,
-#         default=16,
-#         help='Number of threads.'
-#     )
-#     parser.add_argument('-i', '--inputs',
-#         type=str,
-#         default="./inputs",
-#         help='Path to the inputs folder.'
-#     )
-#     parser.add_argument('-v', '--verbose',
-#         type=int,
-#         default=0,
-#         help='Verbosity turned on/off.'
-#     )
-#     parser.add_argument('-g', '--graph',
-#         type=int,
-#         default=0,
-#         help='Visualize model graph.'
-#     )
-#     return parser.parse_args()
-
-# # Import needed libraries
-# # -----------------------------------------------------------------------------
-# import os
-# import sys
-# import argparse
-# import numpy as np
-# import pandas as pd
-# import prode as pro
-
-# # Configure TensorFlow
-# import tensorflow as tf
-# tf.config.threading.set_inter_op_parallelism_threads(args.threads)
-# tf.config.threading.set_intra_op_parallelism_threads(args.threads)
-
-# # Import input files
-# # -----------------------------------------------------------------------------
-# sys.path.append(args.inputs+'/..')
-# import inputs as inp
-
-# # Add paths
-# for path in inp.data.paths.values():
-#     sys.path.append(path)
-
-# from prode.utilities import utils
-
-# # Add classes for generating data
-# from data_generator import DataGenerator
-# from ode import MasterEq
-
-
+NAME = 'trainPro'
 
 import os
 import sys
@@ -90,45 +25,61 @@ import tensorflow as tf
 from prode.utilities import utils
 
 
-@utils.main_decorator
+def dir_path(path):
+    if os.path.exists(path+'/inputs'):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(
+            "'inputs' folder not found in '{}'".format(os.path.normpath(path)+'/')
+        )
+
+def get_opts():
+    parser = argparse.ArgumentParser(
+        prog=NAME,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Build a ML-based approximator for ODEs.",
+        epilog=utils.app_epilog(name=NAME)
+    )
+    parser.add_argument('-j', '--threads',
+        type=int,
+        default=16,
+        help='number of threads'
+    )
+    parser.add_argument('-d', '--dir',
+        type=dir_path,
+        default="./",
+        help='path to the working directory (with `inputs` folder)'
+    )
+    parser.add_argument('-v', '--verbose',
+        type=int,
+        default=0,
+        choices=[0,1],
+        help='verbose mode'
+    )
+    parser.add_argument('-g', '--graph',
+        type=int,
+        default=0,
+        choices=[0,1],
+        help='visualize model graph'
+    )
+    return parser.parse_args()
+
+
+@utils.app_decorator(name=NAME)
 def main():
 
     # Inizialization
     ###########################################################################
     # Define arguments --------------------------------------------------------
-    parser = argparse.ArgumentParser(
-        prog='train',
-        description="Build and train Machine-Learning-based approximator for " \
-            "Ordinary Differential Equations (ODEs)"
-    )
-    parser.add_argument('-j', '--threads',
-        type=int,
-        default=16,
-        help='Number of threads.'
-    )
-    parser.add_argument('-i', '--inputs',
-        type=str,
-        default="./inputs",
-        help='Path to the inputs folder.'
-    )
-    parser.add_argument('-v', '--verbose',
-        type=int,
-        default=0,
-        help='Verbosity turned on/off.'
-    )
-    parser.add_argument('-g', '--graph',
-        type=int,
-        default=0,
-        help='Visualize model graph.'
-    )
-    args = parser.parse_args()
+    opts = get_opts()
 
-    # Configure TensorFlow
-    tf.config.threading.set_inter_op_parallelism_threads(args.threads)
-    tf.config.threading.set_intra_op_parallelism_threads(args.threads)
+    # Configure TensorFlow ----------------------------------------------------
+    tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
+    tf.config.threading.set_intra_op_parallelism_threads(opts.threads)
+    utils.environment()
 
-    # Import input files ------------------------------------------------------
-    sys.path.append(args.inputs+'/..')
+    # Input files -------------------------------------------------------------
+    sys.path.append(opts.dir)
     import inputs as inp
 
     # Add paths
@@ -138,9 +89,6 @@ def main():
     # Add classes for generating data
     from data_generator import DataGenerator
     from ode import MasterEq
-
-    utils.main_start()
-
 
     # Data
     ###########################################################################
@@ -192,7 +140,6 @@ def main():
         **data_args
     )
 
-
     # Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
@@ -209,7 +156,6 @@ def main():
     if hasattr(inp.network, 'output_fn'):
         net.out_trans = inp.network.output_fn
 
-
     # Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
@@ -219,8 +165,8 @@ def main():
     model.build(
         input_dim=inp.network.dim['inp'],
         load_net=inp.model.flags['load'],
-        visualize_graph=args.graph,
-        verbose=args.verbose
+        visualize_graph=opts.graph,
+        verbose=opts.verbose
     )
 
     # Compile Model -----------------------------------------------------------
@@ -233,20 +179,22 @@ def main():
     # Fit Model ---------------------------------------------------------------
     if inp.model.flags['train'] > 0:
         if hasattr(inp.model, 'callbacks'):
-            if 'plotter' in inp.model.callbacks and inp.model.flags['plot'] != 2:
+            if 'plotter' in inp.model.callbacks \
+                and inp.model.flags['plot'] != 2:
                 inp.model.callbacks.pop('plotter')
         else:
             inp.model.callbacks = None
 
         model.fit(
             epochs=inp.model.epochs,
-            callbacks=inp.model.callbacks if hasattr(inp.model, 'callbacks') else None
+            callbacks=inp.model.callbacks if hasattr(
+                inp.model, 'callbacks'
+            ) else None
         )
     
     # Save Model --------------------------------------------------------------
     if inp.model.flags['save'] > 0:
         model.save()
-
 
     # Postprocessing
     ###########################################################################
@@ -267,7 +215,3 @@ def main():
                 path=model.post_dir+'/testing/test_'+str(i+1),
                 **inp.postprocessing.plot_style
             )
-
-
-if __name__ == "__main__":
-    main()
