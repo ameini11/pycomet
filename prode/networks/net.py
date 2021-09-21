@@ -41,7 +41,7 @@ class Net(tf.keras.Model):
         self.out_trans = None
 
         # NN extra features for handling ODE data types
-        self.ode_loss_weights = None
+        self.trainable_weights = None
         self.residual = None
         self.data_ids = None
         self.data_ids_valid = None
@@ -56,7 +56,7 @@ class Net(tf.keras.Model):
             'block': self.block,
             'inp_trans': self.inp_trans,
             'out_trans': self.out_trans,
-            'ode_loss_weights': self.ode_loss_weights,
+            'trainable_weights': self.trainable_weights,
             'residual': self.residual,
             'data_ids': self.data_ids,
             'data_ids_valid': self.data_ids_valid
@@ -227,12 +227,12 @@ class Net(tf.keras.Model):
         self._data_ids_valid = identifiers
 
     @property
-    def ode_loss_weights(self):
-        return self._ode_loss_weights
+    def trainable_weights(self):
+        return self._trainable_weights
 
-    @ode_loss_weights.setter
-    def ode_loss_weights(self, weights):
-        self._ode_loss_weights = weights
+    @trainable_weights.setter
+    def trainable_weights(self, weights):
+        self._trainable_weights = weights
 
 
     # # Add loss properties
@@ -249,9 +249,9 @@ class Net(tf.keras.Model):
     #     """Add a `list`/`dict` of loss functions for composite loss."""
     #     self.residual = function
 
-    # def add_loss_weights(self, ode_loss_weights):
-    #     if ode_loss_weights is not None:
-    #         self.ode_loss_weights = self.get_loss_properties(ode_loss_weights, 'ode_loss_weights')
+    # def add_loss_weights(self, trainable_weights):
+    #     if trainable_weights is not None:
+    #         self.trainable_weights = self.get_loss_properties(trainable_weights, 'trainable_weights')
 
     # def get_loss_properties(self, properties, prop_name):
     #     if isinstance(properties, dict):

@@ -26,7 +26,7 @@ def train_step(model, data):
     )
 
     # Collect metrics to return
-    if model.ode_loss_weights is None:
+    if model.trainable_weights is None:
         total_loss = tot_loss_weighted
         metric = {}
     else:
@@ -90,8 +90,8 @@ def _get_tot_loss(model, losses, reg_loss=None, training=True):
     if training and reg_loss is not None:
         total_loss = total_loss + reg_loss
     for data_id, loss in losses.items():
-        if training and model.ode_loss_weights is not None:
-            total_loss = total_loss + model.ode_loss_weights[data_id]*loss
+        if training and model.trainable_weights is not None:
+            total_loss = total_loss + model.trainable_weights[data_id]*loss
         else:
             total_loss = total_loss + loss
     return total_loss

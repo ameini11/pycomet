@@ -17,7 +17,7 @@ class ConstantWeightsAdapter(CB.Callback):
 
     def __init__(
         self,
-        ode_loss_weights=None,
+        trainable_weights=None,
         data_generator=None,
         freq=1,
         log_dir=None,
@@ -27,23 +27,23 @@ class ConstantWeightsAdapter(CB.Callback):
 
         self.name = utils.get_class_name(self)
 
-        self.ode_loss_weights = ode_loss_weights
+        self.trainable_weights = trainable_weights
 
-        # if ode_loss_weights is None:
+        # if trainable_weights is None:
         #     utils.warning("No loss weights have been provided: the default "
         #         "value of 1 will be applied.")
-        #     _ode_loss_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
-        # elif isinstance(ode_loss_weights, (list,tuple)):
-        #     _ode_loss_weights = dict(zip(self.model.data_ids, ode_loss_weights))
-        # elif isinstance(ode_loss_weights, dict):
-        #     _ode_loss_weights = ode_loss_weights
+        #     _trainable_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
+        # elif isinstance(trainable_weights, (list,tuple)):
+        #     _trainable_weights = dict(zip(self.model.data_ids, trainable_weights))
+        # elif isinstance(trainable_weights, dict):
+        #     _trainable_weights = trainable_weights
         # else:
-        #     utils.raise_value_err("`ode_loss_weights` passed into `{}` "
+        #     utils.raise_value_err("`trainable_weights` passed into `{}` "
         #         "has to be a list or a dictionary:\n"
         #         "  - 'ics': weight for initial condition pts loss;\n"
         #         "  - 'pts': weight for anchor pts loss;\n"
         #         "  - 'res': weight for residual loss.".format(self.name))
-        # self.model.ode_loss_weights = _ode_loss_weights
+        # self.model.trainable_weights = _trainable_weights
 
         self.data_generator = data_generator
         self.freq = np.clip(freq, 1, None) if freq is not None else np.inf
@@ -51,7 +51,7 @@ class ConstantWeightsAdapter(CB.Callback):
         self.log_dir = log_dir
         # if self.log_dir is not None:
         #     self.logs = { k: tf.summary.create_file_writer(self.log_dir + \
-        #         '/scalars/ode_loss_weights/' + k) for k in self.model.ode_loss_weights }
+        #         '/scalars/trainable_weights/' + k) for k in self.model.trainable_weights }
 
     def on_train_begin(self, logs={}):
         self.init_weights()
@@ -61,34 +61,34 @@ class ConstantWeightsAdapter(CB.Callback):
         self.print_weights(epoch, logs)
 
     def init_weights(self):
-        if self.ode_loss_weights is None:
-            utils.warning("No `ode_loss_weights` have been provided to `{}`: "
+        if self.trainable_weights is None:
+            utils.warning("No `trainable_weights` have been provided to `{}`: "
                 "the initial value of 1 will be applied.".format(self.name))
-            _ode_loss_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
-        elif isinstance(self.ode_loss_weights, (list,tuple)):
-            _ode_loss_weights = dict(zip(self.model.data_ids, ode_loss_weights))
-        elif isinstance(ode_loss_weights, dict):
-            _ode_loss_weights = self.ode_loss_weights
+            _trainable_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
+        elif isinstance(self.trainable_weights, (list,tuple)):
+            _trainable_weights = dict(zip(self.model.data_ids, trainable_weights))
+        elif isinstance(trainable_weights, dict):
+            _trainable_weights = self.trainable_weights
         else:
-            utils.raise_value_err("`ode_loss_weights` passed into `{}` "
+            utils.raise_value_err("`trainable_weights` passed into `{}` "
                 "has to be a list or a dictionary:\n"
                 "  - 'ics': weight for initial condition pts loss;\n"
                 "  - 'pts': weight for anchor pts loss;\n"
                 "  - 'res': weight for residual loss.".format(self.name))
-        self.model.ode_loss_weights = _ode_loss_weights
+        self.model.trainable_weights = _trainable_weights
         
         if self.log_dir is not None:
             self.logs = { k: tf.summary.create_file_writer(self.log_dir + \
-                '/scalars/ode_loss_weights/' + k) for k in self.model.ode_loss_weights }
+                '/scalars/trainable_weights/' + k) for k in self.model.trainable_weights }
 
     def print_weights(self, epoch, logs):
-        log_weights = {k+'_loss_weight': v for k,v in self.model.ode_loss_weights.items()}
+        log_weights = {k+'_loss_weight': v for k,v in self.model.trainable_weights.items()}
         logs.update(log_weights)
         if self.log_dir is not None:
             for k, log in self.logs.items():
                 with log.as_default():
                     tf.summary.scalar(name='epoch_'+k+'_loss_weight', \
-                        data=self.model.ode_loss_weights[k], step=epoch)
+                        data=self.model.trainable_weights[k], step=epoch)
 
 
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
@@ -104,7 +104,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
 
     def __init__(
         self,
-        ode_loss_weights=None,
+        trainable_weights=None,
         data_generator=None,
         freq=1000,
         alpha=0.8,
@@ -114,7 +114,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         **kwargs
     ):
         super(EmpiricalWeightsAdapter, self).__init__(
-            ode_loss_weights=ode_loss_weights,
+            trainable_weights=trainable_weights,
             data_generator=data_generator,
             freq=freq,
             log_dir=log_dir
@@ -148,16 +148,16 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.check_weights()
 
     def check_weights(self):
-        weights = self.model.ode_loss_weights.values()
+        weights = self.model.trainable_weights.values()
         if any(tf.math.is_nan(w) for w in weights) \
             or any(tf.math.is_inf(w) for w in weights):
             print("")
             utils.warning(
-                "One or multiple `ode_loss_weights` evaluated in `{}` class "
+                "One or multiple `trainable_weights` evaluated in `{}` class "
                 "are `inf` or `nan`.".format(self.name)
             )
-            utils.print_submain("Here the `ode_loss_weights` values:")
-            for k,v in self.model.ode_loss_weights.items():
+            utils.print_submain("Here the `trainable_weights` values:")
+            for k,v in self.model.trainable_weights.items():
                 utils.print_submain("  - '{}': {}".format(k,v))
             utils.print_submain("The training will be stopped.")
             self.model.stop_training = True
@@ -212,12 +212,12 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     ###########################################################################
     def update_loss_weights(self):
         new_weights = self.eval_loss_weights()
-        for data_id, loss in self.model.ode_loss_weights.items():
+        for data_id, loss in self.model.trainable_weights.items():
             if data_id == 'res':
                 continue
             weight = self.alpha * new_weights[data_id] + \
-                (1. - self.alpha) * self.model.ode_loss_weights[data_id]
-            self.model.ode_loss_weights[data_id] = weight.numpy()
+                (1. - self.alpha) * self.model.trainable_weights[data_id]
+            self.model.trainable_weights[data_id] = weight.numpy()
 
     def eval_loss_weights(self):
         # Get the maximum/mean gradient value from residual loss (see `method')
@@ -230,7 +230,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
             grads_mean = self.mean_grads(grad)
             # Update the loss weights
             new_weights[data_id] = grad_res / grads_mean \
-                * self.model.ode_loss_weights['res']
+                * self.model.trainable_weights['res']
         return new_weights
 
     def max_grads(self, grads):
@@ -240,6 +240,49 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     def mean_grads(self, grads):
         m = [ tf.reduce_mean(tf.math.abs(grad)) for grad in grads ]
         return tf.reduce_mean(m)
+
+
+@keras_export('keras.callbacks.InverseDirichletWeightsAdapter')
+class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
+    """Adaptive loss weights technique for PINNs based on Inverse-Dirichlet
+    weighting."""
+
+    def __init__(
+        self,
+        trainable_weights=None,
+        data_generator=None,
+        freq=None,
+        log_dir=None,
+        max_samples=100,
+        **kwargs
+    ):
+        super(InverseDirichletWeightsAdapter, self).__init__(
+            trainable_weights=trainable_weights,
+            data_generator=data_generator,
+            freq=freq,
+            log_dir=log_dir
+        )
+
+    # Handling loss weights
+    ###########################################################################
+    def update_loss_weights(self):
+        new_weights = self.eval_loss_weights()
+        for data_id, loss in self.model.trainable_weights.items():
+            weight = self.alpha * new_weights[data_id] + \
+                (1. - self.alpha) * self.model.trainable_weights[data_id]
+            self.model.trainable_weights[data_id] = weight.numpy()
+
+    def eval_loss_weights(self):
+        _var_grads = self.var_grads()
+        return {data_id: max(_var_grads.values()) / var \
+            for data_id, var in _var_grads.items()}
+
+    def var_grads(self):
+        _var = {}
+        for data_id, grad in self.loss_gradients.items():
+            _grad = np.concatenate([ g.numpy().flatten() for g in grad ])
+            _var[data_id] = _grad.var()
+        return _var
 
 
 @keras_export('keras.callbacks.NTKWeightsAdapter')
@@ -254,7 +297,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
 
     def __init__(
         self,
-        ode_loss_weights=None,
+        trainable_weights=None,
         data_generator=None,
         freq=None,
         log_dir=None,
@@ -262,7 +305,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         **kwargs
     ):
         super(NTKWeightsAdapter, self).__init__(
-            ode_loss_weights=ode_loss_weights,
+            trainable_weights=trainable_weights,
             data_generator=data_generator,
             freq=freq,
             log_dir=log_dir
@@ -322,7 +365,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     def update_loss_weights(self, ntk):
         normalization_grad = np.sum([ np.sum(ntk_i) for ntk_i in ntk.values()])
         for data_id in self.model.data_ids:
-            self.model.ode_loss_weights[data_id] = normalization_grad / np.sum(ntk[data_id])
+            self.model.trainable_weights[data_id] = normalization_grad / np.sum(ntk[data_id])
 
 
 # @keras_export('keras.callbacks.NTKWeightsAdapter')
@@ -417,5 +460,5 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
 #     def update_loss_weights(self, ntk):
 #         normalization_grad = tf.math.reduce_sum([ tf.math.reduce_sum(ntk_i) for ntk_i in ntk.values()])
 #         for data_id in self.model.data_ids:
-#             self.model.ode_loss_weights[data_id] = normalization_grad / tf.math.reduce_sum(ntk[data_id])
-#         print(self.model.ode_loss_weights)
+#             self.model.trainable_weights[data_id] = normalization_grad / tf.math.reduce_sum(ntk[data_id])
+#         print(self.model.trainable_weights)
