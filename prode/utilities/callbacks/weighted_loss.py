@@ -242,6 +242,49 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         return tf.reduce_mean(m)
 
 
+@keras_export('keras.callbacks.InverseDirichletWeightsAdapter')
+class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
+    """Adaptive loss weights technique for PINNs based on Inverse-Dirichlet
+    weighting."""
+
+    def __init__(
+        self,
+        ode_loss_weights=None,
+        data_generator=None,
+        freq=None,
+        log_dir=None,
+        max_samples=100,
+        **kwargs
+    ):
+        super(InverseDirichletWeightsAdapter, self).__init__(
+            ode_loss_weights=ode_loss_weights,
+            data_generator=data_generator,
+            freq=freq,
+            log_dir=log_dir
+        )
+
+    # Handling loss weights
+    ###########################################################################
+    def update_loss_weights(self):
+        new_weights = self.eval_loss_weights()
+        for data_id, loss in self.model.ode_loss_weights.items():
+            weight = self.alpha * new_weights[data_id] + \
+                (1. - self.alpha) * self.model.ode_loss_weights[data_id]
+            self.model.ode_loss_weights[data_id] = weight.numpy()
+
+    def eval_loss_weights(self):
+        _var_grads = self.var_grads()
+        return {data_id: max(_var_grads.values()) / var \
+            for data_id, var in _var_grads.items()}
+
+    def var_grads(self):
+        _var = {}
+        for data_id, grad in self.loss_gradients.items():
+            _grad = np.concatenate([ g.numpy().flatten() for g in grad ])
+            _var[data_id] = _grad.var()
+        return _var
+
+
 @keras_export('keras.callbacks.NTKWeightsAdapter')
 class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
