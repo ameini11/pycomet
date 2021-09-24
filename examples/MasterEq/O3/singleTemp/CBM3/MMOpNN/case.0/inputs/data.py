@@ -31,7 +31,7 @@ paths = {
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
 
 # *** From file
 train_file = {

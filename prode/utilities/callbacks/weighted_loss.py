@@ -103,7 +103,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.dataset = {}
         self.max_samples = max_samples
 
-        self.grads_eval = self.mean_grads if method == 'mean' else self.max_grads
+        self.grads_eval = self.mean if method == 'mean' else self.max
 
     def on_train_begin(self, logs={}):
         self.init_weights()
@@ -211,13 +211,11 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
                 * self.model.ode_loss_weights['res']
         return new_weights
 
-    def max_grads(self, grads):
-        m = [ tf.reduce_max(tf.math.abs(grad)) for grad in grads ]
-        return tf.reduce_max(m)
+    def max(self, x):
+        return tf.reduce_max([tf.reduce_max(tf.math.abs(i)) for i in x])
 
-    def mean_grads(self, grads):
-        m = [ tf.reduce_mean(tf.math.abs(grad)) for grad in grads ]
-        return tf.reduce_mean(m)
+    def mean(self, x):
+        return tf.reduce_mean([tf.reduce_mean(tf.math.abs(i)) for i in x])
 
 
 @keras_export('keras.callbacks.InverseDirichletWeightsAdapter')
@@ -233,6 +231,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
         alpha=0.8,
         log_dir=None,
         max_samples=20000,
+        method='std',
         **kwargs
     ):
         super(InverseDirichletWeightsAdapter, self).__init__(
@@ -245,6 +244,8 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
             **kwargs
         )
 
+        self.grads_eval = np.var if method == 'var' else np.std
+
     # Handling loss weights
     ###########################################################################
     def update_loss_weights(self):
@@ -255,16 +256,13 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
             self.model.ode_loss_weights[data_id] = weight.numpy()
 
     def eval_loss_weights(self):
-        _var_grads = self.var_grads()
-        return {data_id: max(_var_grads.values()) / var \
-            for data_id, var in _var_grads.items()}
-
-    def var_grads(self):
-        _var = {}
+        sigmas = {}
         for data_id, grad in self.loss_gradients.items():
-            _grad = np.concatenate([ g.numpy().flatten() for g in grad ])
-            _var[data_id] = _grad.var()
-        return _var
+            sigmas[data_id] = self.grads_eval(
+                np.concatenate([ g.numpy().flatten() for g in grad ])
+            )
+        sigma_max = max(sigmas.values())
+        return {data_id: sigma_max/sigma for data_id, sigma in sigmas.items()}
 
 
 @keras_export('keras.callbacks.NTKWeightsAdapter')

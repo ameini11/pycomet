@@ -100,7 +100,7 @@ callbacks = {
         'name':     'InverseDirichletWeightsAdapter',
         'alpha':    0.9,
         'freq':     50,
-        'method':   'mean'
+        'method':   'std'
     }
 
 }
