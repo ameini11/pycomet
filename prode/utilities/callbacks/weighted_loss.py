@@ -205,7 +205,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
             if data_id == 'res':
                 continue
             # Get the mean of the gradients for each remaining loss term
-            grads_mean = self.mean_grads(grad)
+            grads_mean = self.mean(grad)
             # Update the loss weights
             new_weights[data_id] = grad_res / grads_mean \
                 * self.model.ode_loss_weights['res']
@@ -265,6 +265,93 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
         return {data_id: sigma_max/sigma for data_id, sigma in sigmas.items()}
 
 
+# @keras_export('keras.callbacks.NTKWeightsAdapter')
+# class NTKWeightsAdapter(EmpiricalWeightsAdapter):
+#     """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
+#     (NTK) theory.
+
+#     See:
+#         Sifan Wang, Xinling Yu, Paris Perdikaris
+#         `When and why PINNs fail to train: A neural tangent kernel perspective`
+#         https://arxiv.org/abs/2007.14527"""
+
+#     def __init__(
+#         self,
+#         ode_loss_weights=None,
+#         data_generator=None,
+#         freq=None,
+#         log_dir=None,
+#         max_samples=20000,
+#         **kwargs
+#     ):
+#         super(NTKWeightsAdapter, self).__init__(
+#             ode_loss_weights=ode_loss_weights,
+#             data_generator=data_generator,
+#             freq=freq,
+#             log_dir=log_dir,
+#             max_samples=max_samples,
+#             **kwargs
+#         )
+
+#     def on_train_begin(self, logs={}):
+#         self.init_weights()
+#         self.update()
+#         self.print_weights(0, logs)
+
+#     def on_epoch_end(self, epoch, logs={}):
+#         if (epoch+1) % self.freq == 0:
+#             self.update()
+#         self.print_weights(epoch, logs)
+
+#     def update(self):
+#         self.sample_dataset()
+#         ntk = self.get_ntk()
+#         self.update_loss_weights(ntk)
+#         self.check_weights()
+
+#     # Handling loss gradients
+#     ###########################################################################
+#     def get_ntk(self):
+#         pred, losses = {}, {}
+#         with backprop.GradientTape(persistent=True) as tape:
+#             for data_id in self.model.data_ids:
+#                 pred[data_id], losses[data_id] = self.get_pred_loss( \
+#                     *self.dataset[data_id], data_id)
+#                 # Flatten prediction matrix into 1D vector
+#                 if isinstance(pred[data_id], (list,tuple)):
+#                     pred[data_id] = list(itertools.chain(
+#                         *[ tf.split(tf.reshape(p, [-1]), tf.size(p).numpy()) \
+#                             for p in pred[data_id] ])
+#                     )
+#                 else:
+#                     pred[data_id] = tf.split(tf.reshape(pred[data_id], [-1]), \
+#                         tf.size(pred[data_id]).numpy())
+#         return self.eval_diag_ntk(pred, tape)
+
+#     def eval_diag_ntk(self, pred, tape):
+#         utils.print_submain("From `NTKWeightsAdapter` callback:")
+#         ntk = {}
+#         for data_id, pred_i in pred.items():
+#             utils.print_submain("  - Evaluating Neural Tangent Kernel matrix "
+#                 "for `{}` data points.".format(data_id))
+#             ntk[data_id] = []
+#             for elem in tqdm(pred_i, file=sys.stdout):
+#                 grad = tape.gradient(elem, self.model.trainable_variables)
+#                 # Flatten all gradient matrices into one unique 1D vector
+#                 grad_vec = np.concatenate(
+#                     [ np.abs(g.numpy()).flatten() for g in grad ]
+#                 )
+#                 ntk[data_id].append(np.dot(grad_vec,grad_vec))
+#         return ntk
+
+#     # Handling loss weights
+#     ###########################################################################
+#     def update_loss_weights(self, ntk):
+#         norm_grad = np.sum([ np.sum(ntk_i) for ntk_i in ntk.values()])
+#         for data_id in self.model.data_ids:
+#             self.model.ode_loss_weights[data_id] = norm_grad / np.sum(ntk[data_id])
+
+
 @keras_export('keras.callbacks.NTKWeightsAdapter')
 class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
@@ -296,6 +383,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     def on_train_begin(self, logs={}):
         self.init_weights()
         self.update()
+        self.update()
         self.print_weights(0, logs)
 
     def on_epoch_end(self, epoch, logs={}):
@@ -309,138 +397,132 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         self.update_loss_weights(ntk)
         self.check_weights()
 
+
     # Handling loss gradients
     ###########################################################################
+    def flatten(self, x):
+        # Flatten array or list of arrays into 1D vector
+        if isinstance(x, (list,tuple)):
+            return list(itertools.chain(
+                *[tf.split(tf.reshape(i, [-1]), tf.size(i)) for i in x]
+                # *[tf.split(tf.reshape(i, [-1]), tf.size(i).numpy()) for i in x]
+            ))
+        else:
+            # return tf.split(tf.reshape(x, [-1]), tf.size(x).numpy())
+            return tf.split(tf.reshape(x, [-1]), tf.size(x))
+
+    @tf.function
     def get_ntk(self):
         pred, losses = {}, {}
         with backprop.GradientTape(persistent=True) as tape:
             for data_id in self.model.data_ids:
                 pred[data_id], losses[data_id] = self.get_pred_loss( \
                     *self.dataset[data_id], data_id)
-                # Flatten prediction matrix into 1D vector
-                if isinstance(pred[data_id], (list,tuple)):
-                    pred[data_id] = list(itertools.chain(
-                        *[ tf.split(tf.reshape(p, [-1]), tf.size(p).numpy()) \
-                            for p in pred[data_id] ])
-                    )
-                else:
-                    pred[data_id] = tf.split(tf.reshape(pred[data_id], [-1]), \
-                        tf.size(pred[data_id]).numpy())
+                pred[data_id] = self.flatten(pred[data_id])
         return self.eval_diag_ntk(pred, tape)
 
     def eval_diag_ntk(self, pred, tape):
+
         utils.print_submain("From `NTKWeightsAdapter` callback:")
         ntk = {}
         for data_id, pred_i in pred.items():
             utils.print_submain("  - Evaluating Neural Tangent Kernel matrix "
                 "for `{}` data points.".format(data_id))
-            ntk[data_id] = []
-            for elem in tqdm(pred_i, file=sys.stdout):
-                grad = tape.gradient(elem, self.model.trainable_variables)
-                # Flatten all gradient matrices into one unique 1D vector
-                grad_vec = np.concatenate([ np.abs(g.numpy()).flatten() for g in grad ])
-                ntk[data_id].append(np.dot(grad_vec,grad_vec))
+            # pred_iter = iter(pred_i)
+            # max_iter = len(pred_i)
+
+            ntk[data_id] = self.diag_ntk(iter(pred_i), len(pred_i), tape)
+
+            # # Create a tf.while_loop to iterate over `pred_i` elements
+            # j = 0
+            # elem = next(pred_iter)
+            # ntk_ta = tf.TensorArray(
+            #     dtype=K.floatx(),
+            #     size=0,
+            #     dynamic_size=True,
+            #     clear_after_read=False,
+            #     name='ntk_'+data_id
+            # )
+            # init_state = (j, elem, ntk_ta)
+
+            # def cond(j, elem, ntk_ta):
+            #     return tf.less(j, max_iter)
+
+            # def body(j, elem, ntk_ta):
+            #     grad = tape.gradient(elem, self.model.trainable_variables, \
+            #         unconnected_gradients='zero')
+            #     # Flatten all gradient matrices into one unique 1D vector
+            #     grad_vec = tf.concat(
+            #         [ tf.reshape(tf.math.abs(g),[-1]) for g in grad ], 0
+            #     )
+            #     ntk_ta = ntk_ta.write(
+            #         j, tf.experimental.numpy.dot(grad_vec,grad_vec)
+            #     )
+            #     try:
+            #         _elem = next(pred_iter)
+            #     except StopIteration:
+            #         _elem = 0.
+            #     return j+1, _elem, ntk_ta
+
+            # ntk[data_id] = tf.while_loop(
+            #     cond,
+            #     body,
+            #     loop_vars=init_state,
+            #     parallel_iterations=len(pred_i))[2].stack()
+
+
+            print(ntk[data_id])
+            input('+++++++++++++++++++++++++++++')
+
         return ntk
+
+    # @tf.function
+    def diag_ntk(self, iterable, max_iter, tape):
+        # Create a tf.while_loop to iterate over `pred_i` elements
+        j = tf.constant(0)
+        elem = next(iterable)
+        ta = tf.TensorArray(
+            dtype=K.floatx(),
+            size=0,
+            dynamic_size=True,
+            clear_after_read=False
+        )
+        init_state = (j, elem, ta)
+
+        def cond(j, elem, ta):
+            return tf.less(j, max_iter)
+
+        def body(j, elem, ta):
+            grad = tape.gradient(elem, self.model.trainable_variables,
+                unconnected_gradients='zero')
+            print(grad)
+            # Flatten all gradient matrices into one unique 1D vector
+            grad_vec = tf.concat(
+                [ tf.reshape(tf.math.abs(g),[-1]) for g in grad ], 0
+            )
+            ta = ta.write(j, tf.tensordot(grad_vec, grad_vec, 1))
+            try:
+                _elem = next(iterable)
+            except StopIteration:
+                _elem = 0.
+            return j+1, _elem, ta
+
+        result = tf.while_loop(
+            cond,
+            body,
+            loop_vars=init_state,
+            parallel_iterations=max_iter
+        )
+
+        return result[2].stack()
+
 
     # Handling loss weights
     ###########################################################################
     def update_loss_weights(self, ntk):
-        normalization_grad = np.sum([ np.sum(ntk_i) for ntk_i in ntk.values()])
+        norm_grad = tf.math.reduce_sum(
+            [tf.math.reduce_sum(ntk_i) for ntk_i in ntk.values()]
+        )
         for data_id in self.model.data_ids:
-            self.model.ode_loss_weights[data_id] = normalization_grad / np.sum(ntk[data_id])
-
-
-# @keras_export('keras.callbacks.NTKWeightsAdapter')
-# class NTKWeightsAdapter(EmpiricalWeightsAdapter):
-#     """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
-#     (NTK) theory.
-
-#     See:
-#         Sifan Wang, Xinling Yu, Paris Perdikaris
-#         `When and why PINNs fail to train: A neural tangent kernel perspective`
-#         https://arxiv.org/abs/2007.14527"""
-
-#     def __init__(
-#         self,
-#         model,
-#         data_generator=None,
-#         freq=1000,
-#         log_dir=None,
-#         max_samples=10000,
-#         name='ntk_weights_adapter',
-#         **kwargs):
-#         super(NTKWeightsAdapter, self).__init__(
-#             model=model,
-#             data_generator=data_generator,
-#             freq=freq,
-#             log_dir=log_dir,
-#             max_samples=max_samples,
-#             name=name)
-
-#     def on_train_begin(self, logs={}):
-#         self.update()
-#         self.print_weights(0, logs)
-
-#     def on_epoch_end(self, epoch, logs={}):
-#         if (epoch+1) % self.freq == 0:
-#             self.update()
-#         self.print_weights(epoch, logs)
-
-#     @tf.function()
-#     def update(self):
-#         self.sample_dataset()
-#         ntk = self.get_ntk()
-#         self.update_loss_weights(ntk)
-
-#     # Handling loss gradients
-#     ###########################################################################
-#     def get_ntk(self):
-#         pred, losses = {}, {}
-#         with backprop.GradientTape(persistent=True) as tape:
-#             for data_id in self.model.data_ids:
-#                 pred[data_id], losses[data_id] = self.get_pred_loss( \
-#                     self.dataset[data_id], data_id)
-#                 # Flatten prediction matrix into 1D vector
-#                 pred[data_id] = tf.split(tf.reshape(pred[data_id], [-1]), \
-#                     tf.size(pred[data_id]))
-#         return self.eval_diag_ntk(pred, tape)
-
-#     def eval_diag_ntk(self, pred, tape):
-
-#         utils.print_submain("From `NTKWeightsAdapter` callback:")
-#         ntk = {}
-#         for data_id, pred_i in pred.items():
-#             utils.print_submain("  - Evaluating Neural Tangent Kernel matrix "
-#                 "for `{}` data points.".format(data_id))
-#             pred_iter = iter(pred_i)
-
-#             # Create a tf.while_loop to iterate over `pred_i` elements
-#             j    = 0
-#             elem = next(pred_iter)
-#             ntk_ta = tf.TensorArray(dtype=K.floatx(), size=len(pred_i), \
-#                 name='ntk_'+data_id)
-#             init_state = (j, elem, ntk_ta)
-
-#             def cond(j, elem, ntk_ta):
-#                 return tf.less(j, len(pred_i))
-
-#             def body(j, elem, ntk_ta):
-#                 grad     = tape.gradient(elem, self.model.trainable_variables, \
-#                     unconnected_gradients='zero')
-#                 # Flatten all gradient matrices into one unique 1D vector
-#                 grad_vec = tf.concat([ tf.reshape(tf.math.abs(g),[-1]) for g in grad ], 0)
-#                 ntk_ta   = ntk_ta.write(j, tf.experimental.numpy.dot(grad_vec,grad_vec))
-#                 return j+1, next(pred_iter), ntk_ta
-
-#             ntk[data_id] = tf.while_loop(cond, body, loop_vars=init_state, \
-#                 parallel_iterations=len(pred_i))[2].stack()
-
-#         return ntk
-
-#     # Handling loss weights
-#     ###########################################################################
-#     def update_loss_weights(self, ntk):
-#         normalization_grad = tf.math.reduce_sum([ tf.math.reduce_sum(ntk_i) for ntk_i in ntk.values()])
-#         for data_id in self.model.data_ids:
-#             self.model.ode_loss_weights[data_id] = normalization_grad / tf.math.reduce_sum(ntk[data_id])
-#         print(self.model.ode_loss_weights)
+            self.model.ode_loss_weights[data_id] = \
+                norm_grad / tf.math.reduce_sum(ntk[data_id])
