@@ -45,7 +45,7 @@ class Data(object):
             return print_fn(dset, data_type, verbose) if print_fn else None
         else:
             if verbose:
-                utils.print_submain("No", data_type, "pts available.")
+                utils.print_submain("No {} pts available.".format(data_type))
             return None
 
     # Splitting Training/Validation Data

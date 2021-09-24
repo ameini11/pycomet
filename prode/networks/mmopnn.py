@@ -181,7 +181,7 @@ class MMOpNN(Net):
             G_uy = self._end_scale(G_uy)
 
         # Split if multiple output
-        if isinstance(self.out_dim, (list,tuple)):
+        if isinstance(self.out_dim, (list,tuple)) and tf.is_tensor(G_uy):
             G_uy = tf.split(G_uy, self.out_dim, axis=1)
 
         # Output transformation

@@ -16,8 +16,9 @@ NAME = 'cleanPro'
 
 import os
 import sys
-import argparse
+import glob
 import shutil
+import argparse
 
 from prode.utilities import utils
 
@@ -44,6 +45,14 @@ def get_opts():
     )
     return parser.parse_args()
 
+def rmdirs(dirs):
+    for d in dirs:
+        try:
+            shutil.rmtree(d)
+        except:
+            continue
+
+
 @utils.app_decorator(name=NAME)
 def main():
 
@@ -53,20 +62,22 @@ def main():
     # Remove directories ------------------------------------------------------
     utils.print_main("Looking for folders to remove ...", start='')
     exists = False
-    paths = [ opts.dir+'/'+ f for f in FLDS ]
-    for i, path in enumerate(paths):
-        if os.path.exists(path):
+    # paths = [ opts.dir+'/'+ f for f in FLDS ]
+    
+    for fld in FLDS:
+        dirs = glob.glob(opts.dir+'/**/'+fld, recursive=True)
+        if len(dirs) > 0:
             exists = True
-            if opts.verbose and FLDS[i] in {'data', 'saving'}:
+            if opts.verbose and fld in {'data', 'saving'}:
                 asw = utils.input_submain(
                     ">> Do you want to delete the '{}' folder? [y/n] ".format(
-                        FLDS[i]
+                        fld
                     )
                 )
                 if asw.lower().startswith('y'):
-                    shutil.rmtree(path)
+                    rmdirs(dirs)
             else:
-                shutil.rmtree(path)
+                rmdirs(dirs)
 
     # Exit --------------------------------------------------------------------
     if not exists:

@@ -102,7 +102,7 @@ class DataSet(Data):
             num_pts = utils.get_cardinality(dset)
             if verbose:
                 utils.print_submain(
-                    "Number of", data_type, "batches:  %10d" % num_pts
+                    "Number of %s batches:  %10d" % (data_type, num_pts)
                 )
             return num_pts
 

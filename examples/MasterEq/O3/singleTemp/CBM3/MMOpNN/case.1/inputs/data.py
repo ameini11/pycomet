@@ -21,8 +21,9 @@ import inputs.network as inp_net
 # Paths
 # =============================================================================
 paths = {
-    'database': os.path.normpath(os.getcwd()+'/../../../database'),
-    'utils':    os.path.normpath(os.getcwd()+'/../../utils')
+    'database': os.path.normpath(os.getcwd()+'/../../../../database'),
+    'utils':    os.path.normpath(os.getcwd()+'/../../../utils'),
+    'ode':      os.path.normpath(os.getcwd()+'/../../')
 }
 
 # Data properties
@@ -30,7 +31,7 @@ paths = {
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = True
+from_file = False
 
 # *** From file
 train_file = {

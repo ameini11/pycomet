@@ -165,7 +165,7 @@ class ODE(Data):
         def print_fn(dset, data_type, verbose):
             num_pts = {data_id: dset.n_samples[data_id] for data_id in dset.data}
             if verbose:
-                utils.print_submain("Number of", data_type, "pts:")
+                utils.print_submain("Number of {} pts:".format(data_type))
                 for k, v in num_pts.items():
                     utils.print_submain("  - '%s': %8d" % (k, v))
             return num_pts

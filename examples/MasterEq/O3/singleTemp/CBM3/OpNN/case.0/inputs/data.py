@@ -21,8 +21,9 @@ import inputs.network as inp_net
 # Paths
 # =============================================================================
 paths = {
-    'database': os.path.normpath(os.getcwd()+'/../../../database'),
-    'utils':    os.path.normpath(os.getcwd()+'/../../utils')
+    'database': os.path.normpath(os.getcwd()+'/../../../../database'),
+    'utils':    os.path.normpath(os.getcwd()+'/../../../utils'),
+    'ode':      os.path.normpath(os.getcwd()+'/../../')
 }
 
 # Data properties
@@ -67,7 +68,7 @@ def preproc_fn(x):
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 2048,    # Number of training scenarios
+    'ics': 10,#2048,    # Number of training scenarios
     'pts': 1,       # Number of total anchor pts for each scenario
     'res': 160      # Number of total collocation pts for each scenario
 }
@@ -87,7 +88,7 @@ valid_batch_size = {
 }
 
 # Testing data
-test_cases = 40         # Number of testing cases
+test_cases = 5#40         # Number of testing cases
 test_training = True    # Test training cases
 
 # ODE properties

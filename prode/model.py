@@ -63,7 +63,7 @@ class Model(object):
         load_net=0,
         visualize_graph=False
     ):
-        utils.print_main("Building '", self.net.name,"' network ...", sep="")
+        utils.print_main("Building '{}' network ...".format(self.net.name))
         
         if not self.net.built:
             if isinstance(input_dim, (list,tuple)):
@@ -146,7 +146,7 @@ class Model(object):
         decay=None,
         loss_weights=None
     ):
-        utils.print_main("Compiling '", self.net.name, "' network ...", sep="")
+        utils.print_main("Compiling '{}' network ...".format(self.net.name))
 
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)

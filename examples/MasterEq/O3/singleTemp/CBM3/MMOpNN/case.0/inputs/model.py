@@ -19,7 +19,7 @@ import inputs.postprocessing as inp_post
 
 # Architecture properties
 # =============================================================================
-name = 'MEq_OpNN'
+name = 'MEq_MMOpNN'
 
 # Execution Flags
 # =============================================================================
@@ -31,11 +31,11 @@ flags = {
     'save':  1        # Saving model        0: no, 1: yes
 }
 verbose = 0
-visualize_graph = 1
+visualize_graph = 0
 
 # Training
 # =============================================================================
-epochs = 50000
+epochs = 100#50000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -47,9 +47,18 @@ decay = ["exponential", decay_steps, decay_rate]
 # Loss & Metrics
 # =============================================================================
 loss = {
-    'ics': {'identifier': 'malpe', 'axis': 0},
-    'pts': {'identifier': 'malpe', 'axis': 0},
-    'res': {'identifier': 'mae',   'axis': 0}
+    'ics': {
+        inp_net.names[0]: {'identifier': 'mape', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'mape', 'axis': 0}
+    },
+    'pts': {
+        inp_net.names[0]: {'identifier': 'mape', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'mape', 'axis': 0}
+    },
+    'res': {
+        inp_net.names[0]: {'identifier': 'mse', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'mse', 'axis': 0}
+    }
 }
 
 # Callbacks
@@ -72,7 +81,7 @@ callbacks = {
         'monitor':           'val_tot_loss',
         'save_best_only':    True, 
         'save_weights_only': True
-    },
+    }, 
 
     'plotter': {
         **inp_post.plot_style,
@@ -88,7 +97,7 @@ callbacks = {
     },
 
     'weighted_loss': {
-        'name':     'EmpiricalWeightsAdapter',
+        'name':     'InverseDirichletWeightsAdapter',
         'alpha':    0.9,
         'freq':     50,
         'method':   'mean'

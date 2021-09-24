@@ -26,32 +26,10 @@ class ConstantWeightsAdapter(CB.Callback):
         super(ConstantWeightsAdapter, self).__init__()
 
         self.name = utils.get_class_name(self)
-
-        self.ode_loss_weights = ode_loss_weights
-
-        # if ode_loss_weights is None:
-        #     utils.warning("No loss weights have been provided: the default "
-        #         "value of 1 will be applied.")
-        #     _ode_loss_weights = dict(zip(self.model.data_ids, [1.]*len(self.model.data_ids)))
-        # elif isinstance(ode_loss_weights, (list,tuple)):
-        #     _ode_loss_weights = dict(zip(self.model.data_ids, ode_loss_weights))
-        # elif isinstance(ode_loss_weights, dict):
-        #     _ode_loss_weights = ode_loss_weights
-        # else:
-        #     utils.raise_value_err("`ode_loss_weights` passed into `{}` "
-        #         "has to be a list or a dictionary:\n"
-        #         "  - 'ics': weight for initial condition pts loss;\n"
-        #         "  - 'pts': weight for anchor pts loss;\n"
-        #         "  - 'res': weight for residual loss.".format(self.name))
-        # self.model.ode_loss_weights = _ode_loss_weights
-
         self.data_generator = data_generator
+        self.ode_loss_weights = ode_loss_weights
         self.freq = np.clip(freq, 1, None) if freq is not None else np.inf
-
         self.log_dir = log_dir
-        # if self.log_dir is not None:
-        #     self.logs = { k: tf.summary.create_file_writer(self.log_dir + \
-        #         '/scalars/ode_loss_weights/' + k) for k in self.model.ode_loss_weights }
 
     def on_train_begin(self, logs={}):
         self.init_weights()
@@ -251,16 +229,20 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
         self,
         ode_loss_weights=None,
         data_generator=None,
-        freq=None,
+        freq=1000,
+        alpha=0.8,
         log_dir=None,
-        max_samples=100,
+        max_samples=20000,
         **kwargs
     ):
         super(InverseDirichletWeightsAdapter, self).__init__(
             ode_loss_weights=ode_loss_weights,
             data_generator=data_generator,
             freq=freq,
-            log_dir=log_dir
+            alpha=alpha,
+            log_dir=log_dir,
+            max_samples=max_samples,
+            **kwargs
         )
 
     # Handling loss weights
@@ -301,14 +283,16 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         data_generator=None,
         freq=None,
         log_dir=None,
-        max_samples=100,
+        max_samples=20000,
         **kwargs
     ):
         super(NTKWeightsAdapter, self).__init__(
             ode_loss_weights=ode_loss_weights,
             data_generator=data_generator,
             freq=freq,
-            log_dir=log_dir
+            log_dir=log_dir,
+            max_samples=max_samples,
+            **kwargs
         )
 
     def on_train_begin(self, logs={}):

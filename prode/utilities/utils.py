@@ -181,10 +181,11 @@ def close_all_hdf5():
 
 # Environment setup -----------------------------------------------------------
 def environment():
-    num_threads = min(
+    num_threads = min([
+        os.cpu_count(),
         tf.config.threading.get_inter_op_parallelism_threads(),
         tf.config.threading.get_intra_op_parallelism_threads()
-        )
+    ])
     print(headers['main'] + "Environment setup\n" + "-"*98)
     print(" TensorFlow version:     {}".format(tf.__version__))
     print(" Eager execution:        {}".format(tf.executing_eagerly()))
