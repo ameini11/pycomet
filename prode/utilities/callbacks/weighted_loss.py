@@ -394,6 +394,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
     def update(self):
         self.sample_dataset()
         ntk = self.get_ntk()
+        print(ntk)
         self.update_loss_weights(ntk)
         self.check_weights()
 
@@ -404,12 +405,13 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         # Flatten array or list of arrays into 1D vector
         if isinstance(x, (list,tuple)):
             return list(itertools.chain(
-                *[tf.split(tf.reshape(i, [-1]), tf.size(i)) for i in x]
-                # *[tf.split(tf.reshape(i, [-1]), tf.size(i).numpy()) for i in x]
+                # *[tf.split(tf.reshape(i, [-1]), tf.shape(i)) for i in x]
+                *[tf.split(tf.reshape(i, [-1]), tf.size(i).numpy()) for i in x]
             ))
         else:
-            # return tf.split(tf.reshape(x, [-1]), tf.size(x).numpy())
-            return tf.split(tf.reshape(x, [-1]), tf.size(x))
+            return tf.split(tf.reshape(x, [-1]), tf.size(x).numpy())
+            # return tf.split(tf.reshape(x, [-1]), tf.size(i))
+
 
     @tf.function
     def get_ntk(self):
@@ -421,6 +423,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
                 pred[data_id] = self.flatten(pred[data_id])
         return self.eval_diag_ntk(pred, tape)
 
+
     def eval_diag_ntk(self, pred, tape):
 
         utils.print_submain("From `NTKWeightsAdapter` callback:")
@@ -431,7 +434,11 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
             # pred_iter = iter(pred_i)
             # max_iter = len(pred_i)
 
-            ntk[data_id] = self.diag_ntk(iter(pred_i), len(pred_i), tape)
+
+            # ntk[data_id] = self.diag_ntk(iter(pred_i), len(pred_i), tape)
+            ntk[data_id] = self.diag_ntk(pred_i, tape)
+            tf.print(ntk[data_id])
+            input('+++++++++++++++++++++++++++++')
 
             # # Create a tf.while_loop to iterate over `pred_i` elements
             # j = 0
@@ -470,15 +477,12 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
             #     loop_vars=init_state,
             #     parallel_iterations=len(pred_i))[2].stack()
 
-
-            print(ntk[data_id])
-            input('+++++++++++++++++++++++++++++')
-
         return ntk
 
-    # @tf.function
-    def diag_ntk(self, iterable, max_iter, tape):
+    def diag_ntk(self, pred, tape):
         # Create a tf.while_loop to iterate over `pred_i` elements
+        iterable, max_iter = iter(pred), len(pred)
+
         j = tf.constant(0)
         elem = next(iterable)
         ta = tf.TensorArray(
@@ -495,7 +499,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         def body(j, elem, ta):
             grad = tape.gradient(elem, self.model.trainable_variables,
                 unconnected_gradients='zero')
-            print(grad)
+            # print(grad)
             # Flatten all gradient matrices into one unique 1D vector
             grad_vec = tf.concat(
                 [ tf.reshape(tf.math.abs(g),[-1]) for g in grad ], 0
