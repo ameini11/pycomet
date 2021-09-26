@@ -138,7 +138,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
             for k,v in self.model.ode_loss_weights.items():
                 utils.print_submain("  - '{}': {}".format(k,v))
             utils.print_submain("The training will be stopped.")
-            self.model.stop_training = True
+            # self.model.stop_training = True
 
 
     # Sampling data
@@ -413,13 +413,15 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
             # return tf.split(tf.reshape(x, [-1]), tf.size(i))
 
 
-    @tf.function
+    # @tf.function
     def get_ntk(self):
         pred, losses = {}, {}
         with backprop.GradientTape(persistent=True) as tape:
             for data_id in self.model.data_ids:
-                pred[data_id], losses[data_id] = self.get_pred_loss( \
-                    *self.dataset[data_id], data_id)
+                pred[data_id] = self.get_pred( \
+                    self.dataset[data_id][0], data_id)
+                # pred[data_id], losses[data_id] = self.get_pred_loss( \
+                #     *self.dataset[data_id], data_id)
                 pred[data_id] = self.flatten(pred[data_id])
         return self.eval_diag_ntk(pred, tape)
 
@@ -479,6 +481,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
 
         return ntk
 
+    @tf.function
     def diag_ntk(self, pred, tape):
         # Create a tf.while_loop to iterate over `pred_i` elements
         iterable, max_iter = iter(pred), len(pred)
@@ -497,14 +500,13 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
             return tf.less(j, max_iter)
 
         def body(j, elem, ta):
-            grad = tape.gradient(elem, self.model.trainable_variables,
-                unconnected_gradients='zero')
-            # print(grad)
-            # Flatten all gradient matrices into one unique 1D vector
-            grad_vec = tf.concat(
-                [ tf.reshape(tf.math.abs(g),[-1]) for g in grad ], 0
+            grad = tape.gradient(
+                elem,
+                self.model.trainable_variables,
+                unconnected_gradients='zero'
             )
-            ta = ta.write(j, tf.tensordot(grad_vec, grad_vec, 1))
+            trace = tf.add_n([tf.reduce_sum(tf.multiply(g, g)) for g in grad])
+            ta = ta.write(j, trace)
             try:
                 _elem = next(iterable)
             except StopIteration:
@@ -530,3 +532,33 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         for data_id in self.model.data_ids:
             self.model.ode_loss_weights[data_id] = \
                 norm_grad / tf.math.reduce_sum(ntk[data_id])
+
+    def get_pred(self, x, data_id):
+        if data_id == 'res':
+            y_pred = self.model.residual(x, training=False)
+        else:
+            y_pred = self.model(x, training=False)
+        return y_pred
+
+
+
+    # #     for data_id in self.model.data_ids:
+    # #         pred[data_id], losses[data_id] = self.get_pred_loss( \
+    # #             *self.dataset[data_id], data_id)
+
+
+    # # @tf.function
+    # def res_graph(self):
+    #     x = self.model.inputs
+    #     y = self.model.residual(x)
+    #     mdl = tf.keras.Model(inputs=x, outputs=y, name=self.name)
+    #     print(mdl.outputs)
+
+        # for i in range(len(self.model.outputs)):
+        #     grad = tf.gradients(
+        #         self.model.outputs[i],
+        #         self.model.trainable_weights,
+        #         unconnected_gradients='zero'
+        #     )
+        #     trace = tf.add_n([tf.reduce_sum(tf.multiply(g, g)) for g in grad])
+        #     print(K.function(self.model.inputs, trace))
