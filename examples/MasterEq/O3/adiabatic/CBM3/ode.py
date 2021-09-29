@@ -91,7 +91,8 @@ class MasterEq(object):
 
         # Extract `mass` and `T` vectors from the `ic` tensor
         ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
-        T, mass = ic[0], ic[1]
+        # T, mass = ic[0], ic[1] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        T, mass = 1.e4 * tf.ones_like(ic[0]), ic[0]
 
         # Get Master Equations matrices
         K_e, K_d, K_r = self.get_matrices(T, params)

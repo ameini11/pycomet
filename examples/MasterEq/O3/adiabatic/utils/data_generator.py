@@ -1,6 +1,9 @@
 import re
 import os
 import sys
+import itertools
+
+
 import numpy as np
 import pandas as pd
 import joblib as jl
@@ -26,11 +29,11 @@ class DataGenerator(object):
         dim,
         train_pts,
         valid,
-        train_pts_dist,
+        distribution,
         test_cases,
         test_training,
         t_limit,
-        inp_space,
+        input_space,
         database,
         grouping,
         processes,
@@ -42,12 +45,11 @@ class DataGenerator(object):
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
 
-
         # Data Quantities -----------------------------------------------------
-        z = dim["out"]
-        if isinstance(z, (list,tuple)):
-            self.split_out = [ z[i] if i == 0 else z[i]+z[i-1] \
-                for i in range(len(z)-1) ]
+        d = dim["out"]
+        if isinstance(d, (list,tuple)):
+            self.split_out = [ d[i] if i == 0 else d[i]+d[i-1] \
+                for i in range(len(d)-1) ]
         else:
             self.split_out = None
 
@@ -66,7 +68,7 @@ class DataGenerator(object):
             if self.valid_pts[k] == 0 and self.train_pts[k] != 0:
                 self.valid_pts[k] = 1
 
-        self.train_pts_dist = train_pts_dist         # Training pts distribution
+        self.distribution = distribution         # Training pts distribution
         self.train_split = {
             'init_dyn':  0.17,
             'stiff_dyn': 0.75,
@@ -79,8 +81,8 @@ class DataGenerator(object):
         self.t0, self.t_end = t_limit                   # Time limits for testing
 
         # Input Space Variables -----------------------------------------------
-        self.inp_space = {k: np.array(v, dtype=np.float64) \
-            for k, v in inp_space.items()}
+        self.input_space = {k: np.array(v, dtype=np.float64) \
+            for k, v in input_space.items()}
 
         # Retrieving Molecular data -------------------------------------------
         self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
@@ -105,7 +107,8 @@ class DataGenerator(object):
 
         # Labeling Data -------------------------------------------------------
         self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
-        data_label_inp = ['T', 'rho'] + self.groups_label + ['Y_O', 't']
+        data_label_inp = ['rho'] + self.groups_label + ['Y_O', 't']
+        # data_label_inp = ['T', 'rho'] + self.groups_label + ['Y_O', 't'] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         data_label_out = self.groups_label + ['Y_O']
         self.data_label = data_label_inp + data_label_out
 
@@ -149,19 +152,19 @@ class DataGenerator(object):
         print('\n' + self.header + 'Generating initial conditions ...')
 
         n = self.scenarios*2 + self.test_cases    # '*2' for validation cases
-        unit_vec = np.array([[1.]*len(self.inp_space)])
+        unit_vec = np.array([[1.]*len(self.input_space)])
 
         # Contructing Design Matrix -------------------------------------------
-        X = lhs(len(self.inp_space), samples=n)
+        X = lhs(len(self.input_space), samples=n)
         X = np.hstack(tuple(map(
             lambda i,x: X[:,i:i+1] * (x[1] - x[0]) + x[0], range(4), \
-                self.inp_space.values()
+                self.input_space.values()
         )))
         # Sort wrt the norm of the projection
         norm_fn = lambda i,x: (X[:,i:i+1] - x[0])/(x[1] - x[0]) \
             if x[1] != x[0] else np.ones(X[:,i:i+1].shape)
         X_norm = np.hstack(tuple(map(
-            norm_fn, range(0,4), self.inp_space.values()
+            norm_fn, range(0,4), self.input_space.values()
         )))
         proj = (np.dot(X_norm, unit_vec.transpose()) \
             / np.dot(unit_vec, unit_vec.transpose())) * unit_vec
@@ -232,18 +235,21 @@ class DataGenerator(object):
             # Print input space
             i_0 = 0 if data_type == 'train' else 1
             pd.DataFrame(
-                self.X_train[range(i_0,i,2)], columns=self.inp_space.keys()
+                self.X_train[range(i_0,i,2)], columns=self.input_space.keys()
             ).to_csv(
                 path+"input_space.csv", index=False, float_format='{:e}'.format
             )
             
         return data['train'], data['valid']
 
-    def unpack_data(self, x):
-        for i in range(len(x)):
-            if not isinstance(x[i], (list,tuple)):
-                x[i] = [x[i]]
-        return sum(x, [])
+    def unpack_data(self, data):
+        _data = []
+        for xy in data:
+            if isinstance(xy, (list,tuple)):
+                _data.extend(xy)
+            else:
+                _data.append(xy)
+        return _data
 
     def single_train_scenario(self, i, ic_i, eval_jac, eval_f):
         # Solving the ODE
@@ -269,7 +275,8 @@ class DataGenerator(object):
         # Number of data pts
         n = np.shape(idx)[0]
         # Input data
-        u, t = np.tile(ic, (n,1)), t[idx]
+        u, t = np.tile(ic[1:], (n,1)), t[idx]
+        # u, t = np.tile(ic, (n,1)), t[idx] !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # Target data
         if y is None:
             return [[u, t]]
@@ -349,7 +356,7 @@ class DataGenerator(object):
             path = path+"input_space/"
             if not os.path.exists(path):
                 os.makedirs(path)
-            pd.DataFrame(self.X_test, columns=self.inp_space.keys(), \
+            pd.DataFrame(self.X_test, columns=self.input_space.keys(), \
                 index=list(range(1,self.test_cases*2+1))).to_csv( \
                 path+"data.csv", float_format='{:e}'.format)
             self.plot_inp_space(path)
@@ -380,7 +387,8 @@ class DataGenerator(object):
         tree     = KDTree(np.c_[t_i.ravel()])
         d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
         t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
-        u_i      = np.tile(ic_i, (t_i.shape[0],1))
+        # u_i      = np.tile(ic_i, (t_i.shape[0],1)) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        u_i      = np.tile(ic_i[1:], (t_i.shape[0],1))
 
         title = 'Tested case'
         if self.test_training and i > self.test_cases-1:
@@ -541,7 +549,7 @@ class DataGenerator(object):
         '''Get data by sampling t vector.'''
 
         t_min, t_max= t[idx_min], t[idx_max]
-        if self.train_pts_dist == 'random':
+        if self.distribution == 'random':
             _, ii = tree.query([[t_min],[t_max]], k=1)
             idx = np.sort(
                 np.random.choice(ii[1]-ii[0], pts, replace=False)
