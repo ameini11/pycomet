@@ -89,6 +89,38 @@ class MasterEq(object):
             variables of the ODEs system.
         """
 
+        # # Extract `mass` and `T` vectors from the `ic` tensor
+        # ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
+        # T, mass = ic[0], ic[1]
+
+        # # Get Master Equations matrices
+        # K_e, K_d, K_r = self.get_matrices(T, params)
+
+        # # Manipulate variables
+        # if any(isinstance(g, (list,tuple)) for g in grads):
+        #     grads = [ tf.concat(g, axis=1) for g in grads ]
+        # Y, dY = [ g * mass for g in grads ]
+
+        # # Extract atomic oxygen O mass fraction vector from model outputs
+        # _Y = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)
+        # _dY = tf.split(dY, num_or_size_splits=dY.shape[1], axis=1)
+
+        # Y = tf.concat([*_Y[0:3], _Y[-1]], axis=1)
+        # dY = tf.concat([*_dY[0:3], _dY[-1]], axis=1)
+        # Y_O, dY_O = _Y[-1], _dY[-1]
+        # dY_O2 = _dY[-2]
+        
+        # # Compute Master Equations RHS
+        # excit_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
+        # disso_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
+        # recom_term = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
+        # rhs = excit_term + disso_term + recom_term
+
+        # # Return the residual error
+        # res = tf.concat([dY-rhs, dY_O2+dY_O], axis=1)
+        # res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
+
+
         # Extract `mass` and `T` vectors from the `ic` tensor
         ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
         T, mass = ic[0], ic[1]
@@ -96,28 +128,31 @@ class MasterEq(object):
         # Get Master Equations matrices
         K_e, K_d, K_r = self.get_matrices(T, params)
 
-        # Manipulate variables
-        if any(isinstance(g, (list,tuple)) for g in grads):
-            grads = [ tf.concat(g, axis=1) for g in grads ]
-        Y, dY = [ g * mass for g in grads ]
+        # Extract 'excitation' and 'dissociation' gradients
+        Y_exc, Y_dis = grads[0]     # 0-th order derivative
+        dY_exc, dY_dis = grads[1]   # 1-st order derivative
 
-        # Extract atomic oxygen O mass fraction vector from model outputs
-        _Y = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)
-        _dY = tf.split(dY, num_or_size_splits=dY.shape[1], axis=1)
+        # Extract 'dissociation' QoI
+        Y_O2, Y_O = tf.split(Y_dis, Y_dis.shape[1], axis=1)
+        dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
 
-        Y = tf.concat([*_Y[0:3], _Y[-1]], axis=1)
-        dY = tf.concat([*_dY[0:3], _dY[-1]], axis=1)
-        Y_O, dY_O = _Y[-1], _dY[-1]
-        dY_O2 = _dY[-2]
-        
-        # Compute Master Equations RHS
-        excit_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
-        disso_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
-        recom_term = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
-        rhs = excit_term + disso_term + recom_term
+        # Construct partial densities vectors
+        Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative
+        dY = tf.concat([dY_exc, dY_O], axis=1) * mass   # 1-st order derivative
+        Y_O = Y_O * mass
+
+        # Compute omega (Master Equations RHS)
+        omega_exc = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
+        omega_dis = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
+        omega_rec = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
+        omega = omega_exc + omega_dis + omega_rec
+
+        # Compute residuals
+        res_1 = dY - omega
+        res_2 = dY_O2 + dY_O
 
         # Return the residual error
-        res = tf.concat([dY-rhs, dY_O2+dY_O], axis=1)
+        res = tf.concat([res_1, res_2], axis=1)
         res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
 
         return res

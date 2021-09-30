@@ -48,16 +48,16 @@ decay = ["exponential", decay_steps, decay_rate]
 # =============================================================================
 loss = {
     'ics': {
-        inp_net.names[0]: {'identifier': 'mape', 'axis': 0},
+        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
         inp_net.names[1]: {'identifier': 'mape', 'axis': 0}
     },
     'pts': {
         inp_net.names[0]: {'identifier': 'mape', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mape', 'axis': 0}
+        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
     },
     'res': {
-        inp_net.names[0]: {'identifier': 'mse', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mse', 'axis': 0}
+        inp_net.names[0]: {'identifier': 'mae', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'mae', 'axis': 0}
     }
 }
 
@@ -97,9 +97,16 @@ callbacks = {
     },
 
     'weighted_loss': {
-        'name':     'EmpiricalWeightsAdapter',
-        'alpha':    0.9,
-        'freq':     50
+        'name':         'EmpiricalWeightsAdapter',
+        'alpha':        0.9,
+        'freq':         50,
+        'max_samples':  20000
     }
+
+    # 'weighted_loss': {
+    #     'name':         'NTKWeightsAdapter',
+    #     'freq':         50,
+    #     'max_samples':  1000
+    # }
 
 }

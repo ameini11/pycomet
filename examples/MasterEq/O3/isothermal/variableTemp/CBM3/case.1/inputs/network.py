@@ -97,20 +97,15 @@ dropout_rate = 0
 def _branch_fn(x):
     T = inp_data.input_space['Ttr']
     T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
-    # if T[1] != T[0]:
-    #     T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
-    # else:
-    #     T_norm = x[:,0:1]/T[0]
     return tf.concat([T_norm, x[:,1:]], 1)
 
 input_fn = {
     "branch": tf_layers.Lambda(_branch_fn, name='branch_fn'),
     "trunk" : pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
-# >> Output
-output_fn = tf_layers.Lambda(
-    lambda y: [ y[0]*y[1][:,0:1], y[1] ], name='output_fn'
-)
+
+# *** Outputs
+output_fn = None
 
 # Each single DeepONet --------------------------------------------------------
 opnn_inp_trans = None

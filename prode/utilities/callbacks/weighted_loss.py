@@ -278,7 +278,7 @@ class NTKWeightsAdapter(EmpiricalWeightsAdapter):
         data_generator=None,
         freq=None,
         log_dir=None,
-        max_samples=10,
+        max_samples=1000,
         **kwargs
     ):
         super(NTKWeightsAdapter, self).__init__(

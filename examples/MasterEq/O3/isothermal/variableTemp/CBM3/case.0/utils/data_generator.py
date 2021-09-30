@@ -106,7 +106,7 @@ class DataGenerator(object):
         )
 
         # Labeling Data -------------------------------------------------------
-        self.groups_label = [ 'Y_'+str(i+1)+'/Y_O2' for i in range(self.num_bins) ]
+        self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
         data_label_inp = ['T', 'rho'] + self.groups_label + ['t']
         data_label_out = self.groups_label
         if self.split_out and self.d[-1] > 1:
@@ -291,7 +291,6 @@ class DataGenerator(object):
                 y = np.insert(y, -1, y_O2, axis=1)
             y = np.split(y[idx], self.split_out, axis=1) \
                 if self.split_out else y[idx]
-            y[0] = y[0] / np.expand_dims(y_O2[idx], 1)
             return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
@@ -422,7 +421,6 @@ class DataGenerator(object):
                 y_O2 = np.sum(y_i[:,:-1], axis=1)
                 y_i = np.insert(y_i, -1, y_O2, axis=1)
             y_i = np.split(y_i, self.split_out, axis=1)
-            y_i[0] = y_i[0] / np.expand_dims(y_O2, 1)
         data_i = [[u_i, t_i], y_i]
         if eval_f:
             data_i.append(f_rhs[ii[0]:ii[1],:])

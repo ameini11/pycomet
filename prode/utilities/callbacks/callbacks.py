@@ -41,7 +41,7 @@ def get_callback(model, identifier, args):
         )
     elif identifier == "plotter":
         return plotting.Plotter(
-            test_data=copy.deepcopy(model.data.test),
+            test_data=model.data.test,
             train_dir=model.train_dir,
             **args
         )

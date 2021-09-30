@@ -21,7 +21,7 @@ import inputs.network as inp_net
 # Paths
 # =============================================================================
 paths = {
-    'database': os.path.normpath(os.getcwd()+'/../../../database'),
+    'database': os.path.normpath(os.getcwd()+'/../../../../database'),
     'utils':    os.path.normpath(os.getcwd()+'/utils'),
     'ode':      os.path.normpath(os.getcwd()+'/')
 }
@@ -75,22 +75,22 @@ train_pts = {
     'res': 160      # Number of total collocation pts for each scenario
 }
 valid = 0.2                 # % of Validation pts
-distribution = 'uniform'  # Training pts distribution
+distribution = 'uniform'    # Training pts distribution
 
 batch_size = {
-    'ics': 128,
-    'pts': 128,
-    'res': 512
+    'ics': 256,
+    'pts': 256,
+    'res': 1024
 }
 
 valid_batch_size = {
-    'ics': 128,
-    'pts': 128,
-    'res': 128
+    'ics': 256,
+    'pts': 256,
+    'res': 256
 }
 
 # Testing data
-test_cases = 5#40         # Number of testing cases
+test_cases = 5#40      # Number of testing cases
 test_training = True    # Test training cases
 
 # ODE properties
@@ -101,8 +101,8 @@ processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
 
 # Input space (limit values)
 input_space = {
-    'Ttr':  [1.e4,   2.e4],     # Tanslational temperature [K]
-    'T0':   [1.e3,   1.e4],     # Initial temperature [K]
+    'Ttr':  [8.e3,   1.5e4],    # Tanslational temperature [K]
+    'T0':   [1.e3,   8.e3],     # Initial temperature [K]
     'P0':   [1.e3,   1.e4],     # Initial pressure [Pa]
     'XO2':  [0.05e0, 1.e0]      # Initial O2 mole fraction
 }

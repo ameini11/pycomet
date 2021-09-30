@@ -97,9 +97,16 @@ callbacks = {
     },
 
     'weighted_loss': {
-        'name':     'EmpiricalWeightsAdapter',
-        'alpha':    0.9,
-        'freq':     50
+        'name':         'EmpiricalWeightsAdapter',
+        'alpha':        0.9,
+        'freq':         50,
+        'max_samples':  20000
     }
+
+    # 'weighted_loss': {
+    #     'name':         'NTKWeightsAdapter',
+    #     'freq':         50,
+    #     'max_samples':  1000
+    # }
 
 }
