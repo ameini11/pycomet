@@ -30,25 +30,35 @@ flags = {
     'plot':  2,       # Plotting            0: no, 1: offline, 2: online
     'save':  1        # Saving model        0: no, 1: yes
 }
+verbose = 0
 visualize_graph = 0
 
 # Training
 # =============================================================================
-epochs = 30000
+epochs = 100#50000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
-lr = 1.e-4
-decay_steps = 512*600
+lr = 5.e-4
+decay_steps = 512*300
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
 # Loss & Metrics
 # =============================================================================
 loss = {
-    'ics': {'identifier': 'malpe', 'axis': 0},
-    'pts': {'identifier': 'malpe', 'axis': 0},
-    'res': {'identifier': 'mse',   'axis': 0}
+    'ics': {
+        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+    },
+    'pts': {
+        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+    },
+    'res': {
+        inp_net.names[0]: {'identifier': 'mae', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'mae', 'axis': 0}
+    }
 }
 
 # Callbacks
@@ -58,7 +68,7 @@ callbacks = {
     'early_stopping': {
        'monitor':              'val_tot_loss',
        'min_delta':            1.e-8,
-       'patience':             10000,
+       'patience':             20000,
        'restore_best_weights': True,
        'verbose':              1
     },
@@ -69,14 +79,14 @@ callbacks = {
 
     'model_ckpt': {
         'monitor':           'val_tot_loss',
-        'save_best_only':    True, 
+        'save_best_only':    True,
         'save_weights_only': True
-    },
+    }, 
 
     'plotter': {
         **inp_post.plot_style,
-        'limit_y':  inp_post.limit_y,
-        'period':   200
+        'limit_y': inp_post.limit_y,
+        'period':  500
     },
 
     'tensorboard': {
@@ -89,8 +99,7 @@ callbacks = {
     'weighted_loss': {
         'name':     'EmpiricalWeightsAdapter',
         'alpha':    0.9,
-        'freq':     50,
-        'method':   'max'
+        'freq':     50
     }
 
 }

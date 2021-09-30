@@ -19,12 +19,17 @@ import inputs.network as inp_net
 # =============================================================================
 limit_y = False
 
-# Physical quantities
+# Plotting quantities
 # =============================================================================
+# Outputs manipulation --------------------------------------------------------
+def output_ops(y):
+    return tf.concat(y, 1)
+    
 # Style -----------------------------------------------------------------------
 plot_style = {
+    'output_ops':   output_ops,
     'var_names':    [r'$O_2^{({%s})}$' % (i+1) for i in \
-                        range(inp_net.opnn_dim['O2']['out'])] + [r'$O$'],
+                        range(inp_net.opnn_dim['exc']['out'])] + [r'$O_2$', r'$O$'],
     'labels':       [r'$t\quad[s]$', r'$Y$'],
     'scales':       ['log', 'linear'],
     'log_plot':     True

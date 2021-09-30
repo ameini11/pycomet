@@ -21,9 +21,9 @@ import inputs.network as inp_net
 # Paths
 # =============================================================================
 paths = {
-    'database': os.path.normpath(os.getcwd()+'/../../../../database'),
-    'utils':    os.path.normpath(os.getcwd()+'/../../../utils'),
-    'ode':      os.path.normpath(os.getcwd()+'/../../')
+    'database': os.path.normpath(os.getcwd()+'/../../../database'),
+    'utils':    os.path.normpath(os.getcwd()+'/utils'),
+    'ode':      os.path.normpath(os.getcwd()+'/')
 }
 
 # Data properties
@@ -49,7 +49,7 @@ valid_file = {
 test_file = './data/test/ics.csv'
 
 col_x = [[0,5],[5,6]]
-col_y = [[6,9],[9,10]]
+col_y = [[6,9],[9,11]]
 
 header = 0
 
@@ -63,13 +63,14 @@ def preproc_fn(x):
         An array or list of arrays.
     """
     if x.shape[1] == col_y[1][0]:
-        x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
+        # x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
+        x[:,-1] = 1. - x[:,-2]
     return x
 
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 10,#2048,    # Number of training scenarios
+    'ics': 10,#4096,    # Number of training scenarios
     'pts': 1,       # Number of total anchor pts for each scenario
     'res': 160      # Number of total collocation pts for each scenario
 }
@@ -100,9 +101,9 @@ processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
 
 # Input space (limit values)
 input_space = {
-    'Ttr':  [1.e4,   1.e4],     # Tanslational temperature [K]
+    'Ttr':  [1.e4,   2.e4],     # Tanslational temperature [K]
     'T0':   [1.e3,   1.e4],     # Initial temperature [K]
-    'P0':   [1.e2,   1.e4],     # Initial pressure [Pa]
+    'P0':   [1.e3,   1.e4],     # Initial pressure [Pa]
     'XO2':  [0.05e0, 1.e0]      # Initial O2 mole fraction
 }
 

@@ -13,9 +13,9 @@
 
 
 import tensorflow as tf
+import inputs.data as inp_data
 
 from tensorflow.keras import layers as tf_layers
-from tensorflow.keras import activations as tf_act
 from prode.utilities.model import layers as pro_layers
 
 
@@ -25,13 +25,13 @@ architecture = 'MMOpNN'
 
 dim = {
     "inp": [5, 1],
-    "out": [3, 1],
+    "out": [3, 2],
 }
 
 end_scale = None
 
 # DeepONets characterization --------------------------------------------------
-names = ['O2', 'O']
+names = ['exc', 'dis']
 
 opnn_dim = {
     names[0]: {
@@ -40,7 +40,7 @@ opnn_dim = {
     },
     names[1]: {
         "inp": dim["inp"],
-        "out": 1
+        "out": 2
     }
 }
 
@@ -50,18 +50,18 @@ layer_size = {
         "trunk":  [opnn_dim[names[0]]['inp'][1], 128, 128, 64]
     },
     names[1]: {
-        "branch": [opnn_dim[names[1]]['inp'][0], 16, 16, 32],
-        "trunk":  [opnn_dim[names[1]]['inp'][1], 16, 16, 32]
+        "branch": [opnn_dim[names[1]]['inp'][0], 64, 64, 64],
+        "trunk":  [opnn_dim[names[1]]['inp'][1], 64, 64, 64]
     }
 }
 
 activation = {
     names[0]: {
-        "branch": 'elu',
+        "branch": 'gelu',
         "trunk":  'sigmoid'
     },
     names[1]: {
-        "branch": 'elu',
+        "branch": 'gelu',
         "trunk":  'sigmoid'
     }
 }
@@ -82,8 +82,8 @@ batch_norm = {
 
 regularization = {
     'name':       'l1+l2',                          # 'fine_tuning'
-    'l1':         1.e-4,
-    'l2':         1.e-4,
+    'l1':         1.e-3,
+    'l2':         1.e-3,
     'weights_SP': './saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
 }
 
@@ -94,18 +94,27 @@ dropout_rate = 0
 # =============================================================================
 # Global model ----------------------------------------------------------------
 # *** Inputs
+def _branch_fn(x):
+    T = inp_data.input_space['Ttr']
+    T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
+    # if T[1] != T[0]:
+    #     T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
+    # else:
+    #     T_norm = x[:,0:1]/T[0]
+    return tf.concat([T_norm, x[:,1:]], 1)
+
 input_fn = {
-    "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
+    "branch": tf_layers.Lambda(_branch_fn, name='branch_fn'),
     "trunk" : pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 # >> Output
 output_fn = tf_layers.Lambda(
-    lambda y: [ y[0]*(1.-y[1]), y[1] ], name='output_fn'
+    lambda y: [ y[0]*y[1][:,0:1], y[1] ], name='output_fn'
 )
 
 # Each single DeepONet --------------------------------------------------------
 opnn_inp_trans = None
 opnn_out_trans = {
     names[0]: tf_layers.Softmax(axis=-1, name='output_fn_'+names[0]),
-    names[1]: tf_layers.Lambda(tf_act.sigmoid, name='output_fn_'+names[1])
+    names[1]: tf_layers.Softmax(axis=-1, name='output_fn_'+names[1])
 }

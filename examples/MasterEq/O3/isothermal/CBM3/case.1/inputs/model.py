@@ -48,12 +48,12 @@ decay = ["exponential", decay_steps, decay_rate]
 # =============================================================================
 loss = {
     'ics': {
-        inp_net.names[0]: {'identifier': 'mape', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mape', 'axis': 0}
+        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
     },
     'pts': {
-        inp_net.names[0]: {'identifier': 'mape', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mape', 'axis': 0}
+        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
+        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
     },
     'res': {
         inp_net.names[0]: {'identifier': 'mae', 'axis': 0},
@@ -79,7 +79,7 @@ callbacks = {
 
     'model_ckpt': {
         'monitor':           'val_tot_loss',
-        'save_best_only':    True, 
+        'save_best_only':    True,
         'save_weights_only': True
     }, 
 
@@ -96,16 +96,10 @@ callbacks = {
         'profile_batch':  0
     },
 
-    # 'weighted_loss': {
-    #     'name':     'EmpiricalWeightsAdapter',
-    #     'alpha':    0.9,
-    #     'freq':     50
-    # }
-
     'weighted_loss': {
-        'name':         'NTKWeightsAdapter',
-        'freq':         50,
-        'max_samples':  1000
+        'name':     'EmpiricalWeightsAdapter',
+        'alpha':    0.9,
+        'freq':     50
     }
 
 }

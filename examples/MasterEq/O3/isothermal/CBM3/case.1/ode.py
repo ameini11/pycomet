@@ -96,27 +96,34 @@ class MasterEq(object):
         # Get Master Equations matrices
         K_e, K_d, K_r = self.get_matrices(T, params)
 
-        # Manipulate variables
-        if any(isinstance(g, (list,tuple)) for g in grads):
-            grads = [ tf.concat(g, axis=1) for g in grads ]
-        Y, dY_dt = [ g * mass for g in grads ]
+        # Extract 'excitation' and 'dissociation' gradients
+        Y_exc, Y_dis = grads[0]     # 0-th order derivative
+        dY_exc, dY_dis = grads[1]   # 1-st order derivative
 
-        # Extract atomic oxygen O mass fraction vector from model outputs
-        Y_O = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)[-1]
+        # Extract 'dissociation' QoI
+        Y_O2, Y_O = tf.split(Y_dis, Y_dis.shape[1], axis=1)
+        dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
 
-        # Compute Master Equations RHS
-        excit_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
-        disso_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
-        recom_term = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
-        rhs = excit_term + disso_term + recom_term
+        # Manipulate 'excitation' QoI (from distribution to mass fractions)
+        Y_exc = Y_O2 * Y_exc
+        dY_exc = Y_O2 * dY_exc + dY_O2 * Y_exc
+
+        # Construct partial densities vectors
+        Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative
+        dY = tf.concat([dY_exc, dY_O], axis=1) * mass   # 1-st order derivative
+        Y_O = Y_O * mass
+
+        # Compute omega (Master Equations RHS)
+        omega_excit = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
+        omega_disso = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
+        omega_recom = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
+        omega = omega_excit + omega_disso + omega_recom
 
         # Return the residual error
-        res = dY_dt - rhs
-        if isinstance(self.out_dim, (list,tuple)):
-            res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
+        res = tf.concat([dY-omega, dY_O2+dY_O], axis=1)
+        res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
 
         return res
-
 
 
     ###########################################################################
@@ -233,7 +240,9 @@ class MasterEq(object):
             rates = tf.math.multiply(rates, self.Keq_diss(Q_bins, T))
 
             # Rearrange rates to respect the Master Eq. system of equations
-            rates = tf.concat([rates, -tf.reduce_sum(rates, axis=1, keepdims=True)], -1)
+            rates = tf.concat(
+                [rates, -tf.reduce_sum(rates, axis=1, keepdims=True)], -1
+            )
 
             # Fill the Recombination Master Eq. matrix with rates
             K = rates
@@ -275,7 +284,9 @@ class MasterEq(object):
         for index, _ in arr.iterrows():
             reac_name, *bins_idx = index.split('_')
             if reac_name == 'exch':
-                excit_idx.append(tuple([int(bins_idx[0])-1, int(bins_idx[1])-1]))
+                excit_idx.append(
+                    tuple([int(bins_idx[0])-1, int(bins_idx[1])-1])
+                )
 
         # Extract the Arrhenius coefficient by name
         arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(
@@ -285,14 +296,16 @@ class MasterEq(object):
 
     def read_levels(self):
         '''Retrieve all the ro-vib levels.'''
-        data = pd.read_csv(self.levels_file, header=None, skiprows=15, delim_whitespace=True)
+        data = pd.read_csv(
+            self.levels_file, header=None, skiprows=15, delim_whitespace=True
+        )
         data = data.apply(pd.to_numeric, errors='coerce')
-        vqn  = np.array(data[0])                    # Vibrational Q.N.
-        jqn  = np.array(data[1])                    # Rotational  Q.N.
-        g    = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
-        EeV  = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
-        EeV  = EeV - EeV[0]
-        num  = len(vqn)
+        vqn = np.array(data[0])                    # Vibrational Q.N.
+        jqn = np.array(data[1])                    # Rotational  Q.N.
+        g = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
+        EeV = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
+        EeV = EeV - EeV[0]
+        num = len(vqn)
         g, EeV = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
             dtype=backend.floatx()), 1), [g, EeV]))
         return g, EeV, num
@@ -301,7 +314,7 @@ class MasterEq(object):
         '''Retrieve mapping of each rot-vib level to the respective bin.'''
         data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
         data = data.apply(pd.to_numeric, errors='coerce')
-        idx  = np.array(data[0])                                                                           
+        idx = np.array(data[0])                                                                           
         bins = np.array(data[1]) - 1    # Level-to-Bin
-        num  = max(bins) + 1
+        num = max(bins) + 1
         return bins, num
