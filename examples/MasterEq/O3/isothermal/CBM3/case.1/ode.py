@@ -105,8 +105,8 @@ class MasterEq(object):
         dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
 
         # Manipulate 'excitation' QoI (from distribution to mass fractions)
-        Y_exc = Y_O2 * Y_exc
         dY_exc = Y_O2 * dY_exc + dY_O2 * Y_exc
+        Y_exc = Y_O2 * Y_exc
 
         # Construct partial densities vectors
         Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative
@@ -114,13 +114,17 @@ class MasterEq(object):
         Y_O = Y_O * mass
 
         # Compute omega (Master Equations RHS)
-        omega_excit = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
-        omega_disso = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
-        omega_recom = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
-        omega = omega_excit + omega_disso + omega_recom
+        omega_exc = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
+        omega_dis = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
+        omega_rec = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
+        omega = omega_exc + omega_dis + omega_rec
+
+        # Compute residuals
+        res_1 = dY - omega
+        res_2 = dY_O2 + dY_O
 
         # Return the residual error
-        res = tf.concat([dY-omega, dY_O2+dY_O], axis=1)
+        res = tf.concat([res_1, res_2], axis=1)
         res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
 
         return res

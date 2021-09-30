@@ -213,15 +213,15 @@ class DataGenerator(object):
         for i, data_i in enumerate(data_list):
             # Define data type
             data_type = 'train' if (i % 2) == 0 else 'valid'
-            # if (i % 2) == 0:
-            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                         fillstyle='full', markersize=2)
-            #     plt.xscale('log')
-            #     plt.yscale('log')
-            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style)
-            #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
-            #     plt.grid()
-            #     plt.show()
+            if (i % 2) == 0:
+                marker_style = dict(marker='o', lw=0.5, ls='none', \
+                                    fillstyle='full', markersize=2)
+                plt.xscale('log')
+                plt.yscale('log')
+                plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style)
+                plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
+                plt.grid()
+                plt.show()
             data = self.stack_data(data, data_i, data_type)
 
         # Save data in a `.csv` file
@@ -310,7 +310,7 @@ class DataGenerator(object):
                             idx, idx_k = self.stratified_sampling(idx, n)
                     elif k == 'res':
                         idx_k = idx
-                        y = None
+                        # y = None
                     else:
                         raise KeyError(self.header + "Wrong `data_id` "
                             "key in sampling training data.")

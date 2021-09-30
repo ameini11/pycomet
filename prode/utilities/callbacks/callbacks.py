@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import copy
 import tensorflow.keras.callbacks as cb
 
 from tensorflow.python.util.tf_export import keras_export
@@ -40,7 +41,9 @@ def get_callback(model, identifier, args):
         )
     elif identifier == "plotter":
         return plotting.Plotter(
-            test_data=model.data.test, train_dir=model.train_dir, **args
+            test_data=copy.deepcopy(model.data.test),
+            train_dir=model.train_dir,
+            **args
         )
     elif identifier == "variable":
         return variable.VariableValue(**args)
