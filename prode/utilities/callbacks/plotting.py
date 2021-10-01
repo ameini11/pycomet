@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import tensorflow.keras.callbacks as CB
 
+from tqdm import tqdm
 from tensorflow.python.util.tf_export import keras_export
 from prode.postprocessing import testing_plots
 from prode.postprocessing import training_plots
@@ -84,7 +85,7 @@ class Plotter(CB.Callback):
 
     def testing(self):
         utils.print_submain(" - Plotting test cases ...")
-        for i, test_i in enumerate(copy.deepcopy(self.test_data)):
+        for i, test_i in enumerate(tqdm(copy.deepcopy(self.test_data))):
             # x, y_true = self.unpack_test_data(test_i)
             x, y_true = test_i
             y_pred = self.model.predict(x)

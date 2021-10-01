@@ -22,6 +22,7 @@ import pandas as pd
 import prode as pro
 import tensorflow as tf
 
+from tqdm import tqdm
 from prode.utilities import utils
 
 
@@ -208,7 +209,7 @@ def main():
     # Testing phase -----------------------------------------------------------
     utils.print_main("Postprocessing physical quantities ...")
     if inp.data.test_cases > 0 and inp.model.flags['test'] > 0:
-        for i, test_i in enumerate(data.test):
+        for i, test_i in enumerate(tqdm(data.test)):
             model.predict(
                 data=test_i,
                 plotting=inp.model.flags['plot'],
