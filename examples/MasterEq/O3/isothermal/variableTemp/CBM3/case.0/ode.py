@@ -88,39 +88,6 @@ class MasterEq(object):
             A `Tensor` with shape (batch_size, var), with `var` the number of
             variables of the ODEs system.
         """
-
-        # # Extract `mass` and `T` vectors from the `ic` tensor
-        # ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
-        # T, mass = ic[0], ic[1]
-
-        # # Get Master Equations matrices
-        # K_e, K_d, K_r = self.get_matrices(T, params)
-
-        # # Manipulate variables
-        # if any(isinstance(g, (list,tuple)) for g in grads):
-        #     grads = [ tf.concat(g, axis=1) for g in grads ]
-        # Y, dY = [ g * mass for g in grads ]
-
-        # # Extract atomic oxygen O mass fraction vector from model outputs
-        # _Y = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)
-        # _dY = tf.split(dY, num_or_size_splits=dY.shape[1], axis=1)
-
-        # Y = tf.concat([*_Y[0:3], _Y[-1]], axis=1)
-        # dY = tf.concat([*_dY[0:3], _dY[-1]], axis=1)
-        # Y_O, dY_O = _Y[-1], _dY[-1]
-        # dY_O2 = _dY[-2]
-        
-        # # Compute Master Equations RHS
-        # excit_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_e, Y), Y_O)
-        # disso_term = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
-        # recom_term = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
-        # rhs = excit_term + disso_term + recom_term
-
-        # # Return the residual error
-        # res = tf.concat([dY-rhs, dY_O2+dY_O], axis=1)
-        # res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
-
-
         # Extract `mass` and `T` vectors from the `ic` tensor
         ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
         T, mass = ic[0], ic[1]
@@ -149,7 +116,7 @@ class MasterEq(object):
 
         # Compute residuals
         res_1 = dY - omega
-        res_2 = dY_O2 + dY_O
+        res_2 = (dY_O2 + dY_O) * mass
 
         # Return the residual error
         res = tf.concat([res_1, res_2], axis=1)

@@ -88,7 +88,6 @@ class MasterEq(object):
             A `Tensor` with shape (batch_size, var), with `var` the number of
             variables of the ODEs system.
         """
-
         # Extract `mass` and `T` vectors from the `ic` tensor
         ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
         T, mass = ic[0], ic[1]
