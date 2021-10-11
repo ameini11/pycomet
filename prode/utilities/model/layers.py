@@ -607,6 +607,32 @@ class Scaling(tf_layers.Layer):
 
 
 # =========================================================================== #
+# Scaling Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='LinearNorm')
+class LinearNorm(Scaling):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        mn=0.,
+        mx=1.,
+        trans_fn=None,
+        name='linear_norm',
+        **kwargs
+    ):
+        slope = 1. / (mx-mn)
+        offset = - mn * slope
+        super(LinearNorm, self).__init__(
+            slope=slope,
+            offset=offset,
+            name='scaling',
+            **kwargs
+        )
+
+
+# =========================================================================== #
 # Bias Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='BiasLay')

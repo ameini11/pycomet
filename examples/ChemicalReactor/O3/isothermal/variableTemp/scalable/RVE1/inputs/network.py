@@ -23,54 +23,64 @@ from prode.utilities.model import layers as pro_layers
 # =============================================================================
 architecture = 'MMOpNN'
 
-dim = {
-    "inp": [5, 1],
-    "out": [3, 2],
+groups_graph = {
+    0: {
+        0: [0,1,2],
+        1: [3,4,5],
+        2: [6,7,8]
+    }
 }
 
-end_scale = None
+dim = {
+    "inp": [11, 1],
+    "out": [2, 3, 9]
+}
 
 # DeepONets characterization --------------------------------------------------
-names = ['exc', 'dis']
+names = ['TS0', 'TS1', 'TS2']
 
 opnn_dim = {
     names[0]: {
-        "inp": dim["inp"],
-        "out": 3
+        "inp": 2+1,
+        "out": 2
     },
     names[1]: {
-        "inp": dim["inp"],
-        "out": 2
+        "inp": 2+3,
+        "out": 3
+    },
+    names[3]: {
+        "inp": 2+9,
+        "out": [3,3,3]
     }
 }
 
 layer_size = {
     names[0]: {
         "branch": [opnn_dim[names[0]]['inp'][0], 64, 64, 64],
-        "trunk":  [opnn_dim[names[0]]['inp'][1], 128, 128, 64]
+        "trunk":  [opnn_dim[names[0]]['inp'][1], 64, 64, 64]
     },
     names[1]: {
         "branch": [opnn_dim[names[1]]['inp'][0], 64, 64, 64],
-        "trunk":  [opnn_dim[names[1]]['inp'][1], 64, 64, 64]
+        "trunk":  [opnn_dim[names[1]]['inp'][1], 128, 128, 64]
+    },
+    names[2]: {
+        "branch": [opnn_dim[names[2]]['inp'][0], 64, 64, 64],
+        "trunk":  [opnn_dim[names[2]]['inp'][1], 128, 128, 64]
     }
 }
 
-activation = {
-    names[0]: {
-        "branch": 'tanh',
-        "trunk":  'sigmoid'
-    },
-    names[1]: {
-        "branch": 'tanh',
-        "trunk":  'sigmoid'
-    }
+
+act_baseline = {
+    "branch": 'tanh',
+    "trunk":  'sigmoid'
 }
+activation = {name: act_baseline for name in names}
 
 kernel_initializer = 'GlorotNormal'
 
 block = 'ResPIBlock'
 
-opnn_end_scale = 'dense'
+opnn_end_scale = None #'dense'
 
 stacked = True
 
@@ -114,4 +124,20 @@ opnn_inp_trans = None
 opnn_out_trans = {
     names[0]: tf_layers.Softmax(axis=-1, name='output_fn_'+names[0]),
     names[1]: tf_layers.Softmax(axis=-1, name='output_fn_'+names[1])
+}
+
+
+
+graph = [0]
+
+graph = {
+    0: [0,1,2]
+}
+
+graph = {
+    0: {
+        0: [0,1,2],
+        1: [3,4,5],
+        2: [6,7,8]
+    }
 }

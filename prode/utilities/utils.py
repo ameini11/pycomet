@@ -164,6 +164,12 @@ def get_args_values(module, args):
             _args.update({arg: getattr(module, arg)})
     return _args
 
+def depth(d):
+    if isinstance(d, dict):
+        return 1 + (max(map(depth, d.values())) if d else 0)
+    return 0
+
+
 # Others
 ###############################################################################
 def kill_process():

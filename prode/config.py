@@ -19,7 +19,7 @@ headers = {
 # TensorFlow ------------------------------------------------------------------
 tf_setup = {
     'EPSILON':              1.e-15,
-    'DTYPE':                'float64',
+    'DTYPE':                'float32',
     'NUM_THREADS':          16,
     'TF_CPP_MIN_LOG_LEVEL': '3'
 }

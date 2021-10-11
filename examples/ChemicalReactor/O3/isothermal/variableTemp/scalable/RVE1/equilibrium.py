@@ -2,10 +2,7 @@ import tensorflow as tf
 import tensorflow.keras.layers as tf_layers
 
 from prode.utilities import utils
-
-import inputs.data as inp_data
-sys.path.append(inp_data.paths['utils'])
-from const import const
+from prode.utilities import const
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='Equilibrium')
@@ -59,15 +56,15 @@ class Equilibrium(tf_layers.Subtract):
             utils.raise_value_err(
                 "The inputs of the `{}` layer have to be a `list` "
                 "or a `tuple`: [x, T]".format(self.name))
-        E_bins = self.energy_bins(T) * tf.math.reciprocal(T) / const.UKb
-        return super(Equilibrium, self).call([x, E_bins])
+        e = self.energy_bins(T) * tf.math.reciprocal(T) / const.UKB
+        return super(Equilibrium, self).call([x, e])
 
     def energy_bins(self, T):
         '''Compute bins partition function.'''
         T_rec = tf.math.reciprocal(tf.transpose(T))
         q = tf.math.multiply(
             self.g, tf.math.exp(
-                - tf.tensordot(self.E, T_rec, 1) / const.UKb
+                - tf.tensordot(self.E, T_rec, 1) / const.UKB
             )
         )
         E_bins = []
@@ -91,8 +88,8 @@ class Equilibrium(tf_layers.Subtract):
         vqn = np.array(data[0])                     # Vibrational Q.N.
         jqn = np.array(data[1])                     # Rotational  Q.N.
         g = 1.5*(2.0*jqn+1.0)                       # Degeneracy
-        EeV = np.array(data[2]) * const.Eh_to_eV    # Energy in eV
-        E = (EeV - EeV[0]) * const.Ue
+        E = np.array(data[2]) * const.EH_to_J       # Energy in J
+        E = E - E[0]
         num = len(vqn)
         g, E = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
             dtype=backend.floatx()), 1), [g, E]))
