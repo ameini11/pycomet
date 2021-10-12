@@ -19,7 +19,7 @@ import inputs.postprocessing as inp_post
 
 # Architecture properties
 # =============================================================================
-name = 'MEq_MMOpNN'
+name = 'IsoTChemicalReactor'
 
 # Execution Flags
 # =============================================================================
@@ -48,16 +48,13 @@ decay = ["exponential", decay_steps, decay_rate]
 # =============================================================================
 loss = {
     'ics': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+        name: {'identifier': 'malpe', 'axis': 0} for name in inp_net.names
     },
     'pts': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+        name: {'identifier': 'malpe', 'axis': 0} for name in inp_net.names
     },
     'res': {
-        inp_net.names[0]: {'identifier': 'mae', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mae', 'axis': 0}
+        name: {'identifier': 'mae', 'axis': 0} for name in inp_net.names
     }
 }
 

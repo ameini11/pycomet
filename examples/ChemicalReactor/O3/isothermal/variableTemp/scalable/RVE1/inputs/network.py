@@ -14,6 +14,7 @@
 
 import tensorflow as tf
 import inputs.data as inp_data
+import inputs.model as inp_mdl
 
 from tensorflow.keras import layers as tf_layers
 from prode.utilities.model import layers as pro_layers
@@ -21,7 +22,13 @@ from prode.utilities.model import layers as pro_layers
 
 # Architecture properties
 # =============================================================================
-architecture = 'MMOpNN'
+architecture = 'IsoTChemicalReactor'
+
+# groups_graph = [0]
+
+# groups_graph = {
+#     0: [0,1,2]
+# }
 
 groups_graph = {
     0: {
@@ -39,17 +46,17 @@ dim = {
 # DeepONets characterization --------------------------------------------------
 names = ['TS0', 'TS1', 'TS2']
 
-opnn_dim = {
+ts_layer_dim = {
     names[0]: {
-        "inp": 2+1,
+        "inp": dim['inp'],
         "out": 2
     },
     names[1]: {
-        "inp": 2+3,
+        "inp": dim['inp'],
         "out": 3
     },
     names[3]: {
-        "inp": 2+9,
+        "inp": dim['inp'],
         "out": [3,3,3]
     }
 }
@@ -69,7 +76,6 @@ layer_size = {
     }
 }
 
-
 act_baseline = {
     "branch": 'tanh',
     "trunk":  'sigmoid'
@@ -80,7 +86,7 @@ kernel_initializer = 'GlorotNormal'
 
 block = 'ResPIBlock'
 
-opnn_end_scale = None #'dense'
+opnn_end_scale = 'dense'
 
 stacked = True
 
@@ -94,7 +100,7 @@ regularization = {
     'name':       'l1+l2',                          # 'fine_tuning'
     'l1':         1.e-3,
     'l2':         1.e-3,
-    'weights_SP': './saving/MEq_OpNN_weights.h5'    # Path to for `FineTuningRegularizer`
+    'weights_SP': './saving/'+inp_mdl.name+'_weights.h5'    # Path to for `FineTuningRegularizer`
 }
 
 dropout_rate = 0
@@ -104,40 +110,7 @@ dropout_rate = 0
 # =============================================================================
 # Global model ----------------------------------------------------------------
 # *** Inputs
-def _branch_fn(x):
-    T = inp_data.input_space['Ttr']
-    T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
-    return tf.concat([T_norm, x[:,1:]], 1)
-
 input_fn = {
-    "branch": tf_layers.Lambda(_branch_fn, name='branch_fn'),
+    "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
     "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
-}
-
-# *** Outputs
-output_fn = tf_layers.Lambda(
-    lambda y: [ y[0]*y[1][:,0:1], y[1] ], name='output_fn'
-)
-
-# Each single DeepONet --------------------------------------------------------
-opnn_inp_trans = None
-opnn_out_trans = {
-    names[0]: tf_layers.Softmax(axis=-1, name='output_fn_'+names[0]),
-    names[1]: tf_layers.Softmax(axis=-1, name='output_fn_'+names[1])
-}
-
-
-
-graph = [0]
-
-graph = {
-    0: [0,1,2]
-}
-
-graph = {
-    0: {
-        0: [0,1,2],
-        1: [3,4,5],
-        2: [6,7,8]
-    }
 }
