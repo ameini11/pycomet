@@ -29,7 +29,10 @@ class DataGenerator(object):
 
         # Retrieving Rates coefficients ---------------------------------------
         self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + inputs.grouping + '/'
-        self.react_file = {'diss': 'Diss_Corrected.dat', 'exch': 'Exch_Type1.dat', 'inel': 'Inel.dat'}
+        self.react_file = {'diss': 'Diss_Corrected.dat'}
+        if inputs.num_bins > 1:
+            self.react_file.update({'exch': 'Exch_Type1.dat', 'inel': 'Inel.dat'})
+        self.file_version = inputs.file_version
 
         # Building Master Equation matrices -----------------------------------
         self.num_exc    = int((self.num_bins-1)*self.num_bins/2)
@@ -89,9 +92,15 @@ class DataGenerator(object):
         infile = open(file, 'r')
         names = []
         for i, line in enumerate(infile):
-            reac_eqn, rate_str = line.split(':')
-            rate = float(rate_str.split(',')[0]) * 1.e-6
-            bins_idx = re.findall(r"\((.*?)\)",reac_eqn)
+            if self.file_version == 'old':
+                reac_eqn, rate_str = line.split(':')
+                rate = float(rate_str.split(',')[0]) * 1.e-6
+                bins_idx = re.findall(r"\((.*?)\)",reac_eqn)
+            else:
+                if i == 0:
+                    continue
+                *bins_idx, rate = line.split(',')
+                i -= 1
 
             if reac_name == 'diss':
                 rates[0,int(bins_idx[0])-1] = rate
@@ -110,21 +119,23 @@ class DataGenerator(object):
     ###########################################################################
     def read_levels(self):
         '''Retrieve all the ro-vib levels.'''
-        data = pd.read_csv(self.levels_file, header=None, skiprows=15, delim_whitespace=True)
+        data = pd.read_csv(
+            self.levels_file, header=None, skiprows=15, delim_whitespace=True
+        )
         data = data.apply(pd.to_numeric, errors='coerce')
-        vqn  = np.array(data[0])                    # Vibrational Q.N.
-        jqn  = np.array(data[1])                    # Rotational  Q.N.
-        g    = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
-        EeV  = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
-        EeV  = EeV - EeV[0]
-        num  = len(vqn)
+        vqn = np.array(data[0])                    # Vibrational Q.N.
+        jqn = np.array(data[1])                    # Rotational  Q.N.
+        g = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
+        EeV = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
+        EeV = EeV - EeV[0]
+        num = len(vqn)
         return g, EeV, num
 
     def read_groups(self):
         '''Retrieve mapping of each rot-vib level to the respective bin.'''
         data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
         data = data.apply(pd.to_numeric, errors='coerce')
-        idx  = np.array(data[0])                                                                           
+        idx = np.array(data[0])                                                                           
         bins = np.array(data[1]) - 1    # Level-to-Bin
-        num  = max(bins) + 1
+        num = max(bins) + 1
         return bins, num

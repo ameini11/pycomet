@@ -91,7 +91,9 @@ class IsoTChemicalReactor(Net):
         for ts, ts_name in enumerate(self.names):
             self.opnns[ts_name] = [
                 OpNN(
-                    self.opnn_dim[ts_name],
+
+
+                    self.tsnn_dim[ts_name],
                     self.layer_size[ts_name],
                     self.activation[ts_name],
                     self.kernel_initializer,
@@ -103,6 +105,28 @@ class IsoTChemicalReactor(Net):
                     weight_norm=self.weight_norm,
                     block=self.block,
                     name='opnn_'+ts_name+str(ts_i)
+
+                    self,
+                    dim,
+                    groups_idx,
+                    temp_limits,
+                    database,
+                    grouping,
+                    layer_size,
+                    activation,
+                    kernel_initializer,
+                    regularization=None,
+                    dropout_rate=0,
+                    batch_norm=None,
+                    weight_norm=False,
+                    opnn_end_scale='bias',
+                    stacked=True,
+                    block='FFBlock',
+                    name='mmopnn',
+                    *args,
+                    **kwargs
+
+                    
                 ) for ts_i in range(len(self.group_idx[ts]))
             ]
 

@@ -1,11 +1,15 @@
-from prode.networks.net import Net
 from prode.networks.ffnn import FFNN
+from prode.networks.isotchemreacnn import IsoThermChemReacNN
 from prode.networks.mmopnn import MMOpNN
+from prode.networks.net import Net
 from prode.networks.opnn import OpNN
+from prode.networks.tsnn import TimeScaleNN
 
 __all__ = [
-    "Net",
     "FFNN",
+    "IsoThermChemReacNN",
     "MMOpNN",
-    "OpNN"
+    "Net",
+    "OpNN",
+    "TimeScaleNN"
 ]

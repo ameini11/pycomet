@@ -66,21 +66,16 @@ def plot_rates(
         delta = np.amax(y_true)*0.1
         plt.ylim([np.amin(y_true)-delta, np.amax(y_true)+delta])
 
-    # Plotting
-    lin = ['-', '--']
-    col = ['k', 'r', 'g', 'b', 'tab:purple', 'tab:brown', 'tab:pink', \
-           'tab:blue', 'tab:red', 'tab:green', 'tab:orange']
-
     # Solution
     for d in range(y_true.shape[1]):
 
         name = 'True ' + var_name[d]
-        marker_style = dict(c=col[d], marker='x', lw=0.5, \
+        marker_style = dict(marker='x', lw=0.5, \
                             linestyle='none', fillstyle='none', markersize=5)
         plt.plot(x_true, y_true[:,d], **marker_style, label=name)
 
         name = 'Pred ' + var_name[d]
-        plt.plot(x_pred, y_pred[:,d], c=col[d], ls=lin[1], lw=1, label=name)
+        plt.plot(x_pred, y_pred[:,d], c=plt.gca().lines[-1].get_color(), ls='--', lw=1, label=name)
 
     plt.legend(fontsize='x-small')
     fig.savefig(fig_name)
@@ -106,10 +101,10 @@ def main():
             p0=[1,1,1.e4], method='trf')
         param_j[0] = np.exp(param_j[0])
         if j == 0:
-            param = np.array(param_j)
+            param = np.expand_dims(np.array(param_j), axis=0)
         else:
             param = np.vstack((param, np.array(param_j)))
-
+    
     arr_coeff = pd.DataFrame(param, columns=['A', 'n', 'Ea'], index=dataGen.rates_names)
     arr_coeff.index.name = 'reaction'
     arr_coeff.to_csv(dataGen.data_dir+'arrhenius_coeff.csv', float_format='{:e}'.format)

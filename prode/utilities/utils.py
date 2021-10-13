@@ -169,6 +169,8 @@ def depth(d):
         return 1 + (max(map(depth, d.values())) if d else 0)
     return 0
 
+def value_to_dict(value, keys):
+    return value if isinstance(value, dict) else {k: value for k in keys}
 
 # Others
 ###############################################################################

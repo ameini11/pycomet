@@ -19,8 +19,15 @@ class MasterEq(object):
         dim,
         database,
         grouping,
-        processes
+        processes,
+        groups_graph=None,
+        *args,
+        **kwargs
     ):
+        # Timescales connectivity ---------------------------------------------
+        if groups_graph:
+            self.ts_ts_conn = self.ts_to_ts_connectivity(groups_graph)          # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
+
         # Retrieving Molecular data -------------------------------------------
         self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
         self.binMap_file = database + '/grouping/O3_UMN/O2/LevelsMap_' \
@@ -89,23 +96,19 @@ class MasterEq(object):
             variables of the ODEs system.
         """
         # Extract `mass` and `T` vectors from the `ic` tensor
-        ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
+        ic = tf.split(ic, self.ic_dim, axis=1)
         T, mass = ic[0], ic[1]
 
         # Get Master Equations matrices
         K_e, K_d, K_r = self.get_matrices(T, params)
 
-        # Extract 'excitation' and 'dissociation' gradients
-        Y_exc, Y_dis = grads[0]     # 0-th order derivative
-        dY_exc, dY_dis = grads[1]   # 1-st order derivative
-
-        # Extract 'dissociation' QoI
-        Y_O2, Y_O = tf.split(Y_dis, Y_dis.shape[1], axis=1)
-        dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
+        # Extract 0-th & 1-st order derivative for the 'dissociation' process
+        Y_O, Y_O2 = tf.split(grads[0][0], grads[0][0].shape[1], axis=1)
+        dY_O, dY_O2 = tf.split(grads[1][0], grads[1][0].shape[1], axis=1)
 
         # Construct partial densities vectors
-        Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative
-        dY = tf.concat([dY_exc, dY_O], axis=1) * mass   # 1-st order derivative
+        Y = tf.concat([grads[0][-1], Y_O], axis=1) * mass       # 0-th order derivative
+        dY = tf.concat([grads[1][-1], dY_O], axis=1) * mass     # 1-st order derivative
         Y_O = Y_O * mass
 
         # Compute omega (Master Equations RHS)
@@ -115,12 +118,26 @@ class MasterEq(object):
         omega = omega_exc + omega_dis + omega_rec
 
         # Compute residuals
-        res_1 = dY - omega
-        res_2 = (dY_O2 + dY_O) * mass
-
-        # Return the residual error
-        res = tf.concat([res_1, res_2], axis=1)
-        res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
+        res = []
+        for ts, indeces in self.ts_ts_conn.items():
+            if indeces:
+                dY_fast = tf.concat(
+                    [
+                        tf.math.reduce_sum(
+                            tf.gather(grads[1][ts+1], idx, axis=1), axis=1, keepdims=True
+                        ) for idx in indeces
+                    ], axis=1
+                )
+                dY_slow = grads[1][ts]
+                if dY_slow.shape[1] != dY_fast.shape[1]:
+                    dY_slow = tf.split(
+                        dY_slow, dY_slow.shape[1], axis=1
+                    )[-dY_fast.shape[1]:]
+                _res = (dY_fast - dY_slow) * mass
+                if ts == 0:
+                    _res = tf.concat([(dY_O2+dY_O)*mass, _res], axis=1)
+                res.append(_res)
+        res.append(dY - omega)
 
         return res
 
@@ -317,3 +334,25 @@ class MasterEq(object):
         bins = np.array(data[1]) - 1    # Level-to-Bin
         num = max(bins) + 1
         return bins, num
+
+
+    ###########################################################################
+    ### Groups connectivity/indexing
+    ###########################################################################
+    def ts_to_ts_connectivity(self, graph, level=0, conn={}):
+        d = {}
+        conn[level] = []
+        if isinstance(graph, dict):
+            for g in graph.values():
+                if hasattr(g, 'keys'):
+                    l = list(g.keys())
+                    d = {**d, **g}
+                else:
+                    l = d = g
+                conn[level].append(l)
+        else:
+            conn[level] = None
+        if d != {}:
+            return self.ts_to_ts_connectivity(d, level=level+1, conn=conn)
+        else:
+            return conn

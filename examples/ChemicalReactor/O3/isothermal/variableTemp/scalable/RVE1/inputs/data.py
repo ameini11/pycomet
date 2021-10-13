@@ -48,8 +48,8 @@ valid_file = {
 
 test_file = './data/test/ics.csv'
 
-col_x = [[0,5],[5,6]]
-col_y = [[6,9],[9,11]]
+col_x = [[0,11],[11,12]]
+col_y = [[12,14],[14,17],[17,26]]
 
 header = 0
 
@@ -62,9 +62,8 @@ def preproc_fn(x):
     Returns:
         An array or list of arrays.
     """
-    if x.shape[1] == col_y[1][0]:
-        # x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
-        x[:,-1] = 1. - x[:,-2]
+    if x.shape[1] == col_y[2][1]:
+        x[:,col_y[0][1]] = 1. - x[:,col_y[0][1]]
     return x
 
 # *** From arrays
@@ -96,7 +95,7 @@ test_training = True    # Test training cases
 # ODE properties
 # =============================================================================
 ode_order = 1
-grouping = 'RVE1'                                   # ROM: ['CBM3', 'DPM10']
+grouping = 'RVE9'                                   # ROM: ['CBM3', 'DPM10']
 processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
 
 # Input space (limit values)

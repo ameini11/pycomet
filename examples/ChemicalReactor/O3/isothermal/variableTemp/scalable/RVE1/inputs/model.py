@@ -19,7 +19,7 @@ import inputs.postprocessing as inp_post
 
 # Architecture properties
 # =============================================================================
-name = 'IsoTChemicalReactor'
+name = 'IsoThermalChemicalReactor'
 
 # Execution Flags
 # =============================================================================

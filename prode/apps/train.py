@@ -122,7 +122,10 @@ def main():
         dim=inp.network.dim,
         database=inp.data.paths['database'],
         grouping=inp.data.grouping,
-        processes=inp.data.processes
+        processes=inp.data.processes,
+        groups_graph=inp.data.groups_graph if hasattr(
+            inp.data, 'groups_graph'
+        ) else None
     )
 
     data_cls = utils.get_class(pro.data, inp.data.data_type)

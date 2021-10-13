@@ -105,7 +105,7 @@ class OpNN(Net):
         )
 
         if self.end_scale == 'bias':
-            self._end_scale = layers.BiasLay(name='end_scale')
+            self._end_scale = layers.Bias(name='end_scale')
         elif self.end_scale == 'dense':
             self._end_scale = tf_layers.Dense(
                 units=self.out_dim,
@@ -139,7 +139,7 @@ class OpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None):
+    def call(self, x, training=None, mask=None):
 
         # Inputs
         if isinstance(x, (list, tuple)):

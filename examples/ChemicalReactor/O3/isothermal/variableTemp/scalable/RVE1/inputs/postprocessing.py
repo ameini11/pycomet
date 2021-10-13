@@ -26,10 +26,13 @@ def output_ops(y):
     return tf.concat(y, 1)
     
 # Style -----------------------------------------------------------------------
+var_names = [r'$O$', r'$O_2$']
+var_names += [r'$O_2^{(1,{%s})}$' % (i+1) for i in range(inp_net.dim['out'][1])]
+var_names += [r'$O_2^{(2,{%s})}$' % (i+1) for i in range(inp_net.dim['out'][2])]
+
 plot_style = {
     'output_ops':   output_ops,
-    'var_names':    [r'$O_2^{({%s})}$' % (i+1) for i in \
-                        range(inp_net.opnn_dim['exc']['out'])] + [r'$O_2$', r'$O$'],
+    'var_names':    var_names,
     'labels':       [r'$t\quad[s]$', r'$Y$'],
     'scales':       ['log', 'linear'],
     'log_plot':     True

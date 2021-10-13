@@ -312,7 +312,7 @@ class OpNNLayer(lay.Layer):
             name='Trunk_0'
         )
 
-        self.end_bias = layers.BiasLay(name='EndBias') if self.use_end_bias else None
+        self.end_bias = layers.Bias(name='EndBias') if self.use_end_bias else None
 
     @property
     def inp_trans(self):

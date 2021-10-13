@@ -22,10 +22,10 @@ class MasterEq(object):
         processes
     ):
         # Retrieving Molecular data -------------------------------------------
-        self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = database + '/grouping/O3_UMN/O2/LevelsMap_' \
+        self.levels = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
+        self.lev_bin_map = database + '/grouping/O3_UMN/O2/LevelsMap_' \
             + grouping + '.csv'
-        self.g, self.EeV, self.num_lev = self.read_levels()
+        self.g, self.E, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
         # Retrieve Arrhenius coefficients -------------------------------------
@@ -49,14 +49,14 @@ class MasterEq(object):
         }
         # Number of reactions for each process
         num_reac = {
-            'exch': int((self.num_bins-1) * self.num_bins / 2),
-            'inel': int((self.num_bins-1) * self.num_bins / 2),
+            'exch': int((self.num_bins - 1) * self.num_bins / 2),
+            'inel': int((self.num_bins - 1) * self.num_bins / 2),
             'diss': int(self.num_bins)
         }
         # Rates matrix splitted between different processes
-        self.split_proc = [ v for k,v in num_reac.items() ]
+        self.split_proc = [ v for k, v in num_reac.items() ]
         # Reactions flags activator (masking)
-        self.me_mask = list(processes.values())
+        self.reac_mask = list(processes.values())
 
         # IC input dimension --------------------------------------------------
         self.ic_dim = dim["inp"][0]
@@ -133,11 +133,11 @@ class MasterEq(object):
         Q_bins = self.partition_func(T)
 
         K_e = self.excitation_mat( \
-            self.me_mask[0], rates_excit, Q_bins) / const.mO
+            self.reac_mask[0], rates_excit, Q_bins) / const.mO
         K_d = self.dissociation_mat( \
-            self.me_mask[1], rates_diss) / const.mO
+            self.reac_mask[1], rates_diss) / const.mO
         K_r = self.recombination_mat( \
-            self.me_mask[2], rates_diss, Q_bins, T) / const.mO**2 * 2
+            self.reac_mask[2], rates_diss, Q_bins, T) / const.mO**2 * 2
         return K_e, K_d, K_r
 
     def modified_arrhenius(self, T, A, n, Ea):
@@ -158,7 +158,7 @@ class MasterEq(object):
         '''Compute bins partition function.'''
         T_rec = tf.math.reciprocal(tf.transpose(T))
         q = tf.math.multiply(self.g, \
-            tf.math.exp(-tf.tensordot(self.EeV*const.Ue, T_rec, 1)/const.UKb))
+            tf.math.exp(-tf.tensordot(self.E, T_rec, 1)/const.UKb))
         Q_bins = []
         for bin_i in range(self.num_bins):
             Q_bins.append(
@@ -296,24 +296,23 @@ class MasterEq(object):
     def read_levels(self):
         '''Retrieve all the ro-vib levels.'''
         data = pd.read_csv(
-            self.levels_file, header=None, skiprows=15, delim_whitespace=True
+            self.levels, header=None, skiprows=15, delim_whitespace=True
         )
         data = data.apply(pd.to_numeric, errors='coerce')
-        vqn = np.array(data[0])                    # Vibrational Q.N.
-        jqn = np.array(data[1])                    # Rotational  Q.N.
-        g = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
-        EeV = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
-        EeV = EeV - EeV[0]
+        vqn = np.array(data[0])                     # Vibrational Q.N.
+        jqn = np.array(data[1])                     # Rotational  Q.N.
+        g = 1.5*(2.0*jqn+1.0)                       # Degeneracy
+        E = np.array(data[2]) * const.EH_to_J       # Energy in J
+        g, E = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
+            dtype=backend.floatx()), 1), [g, E-E[0]]))
         num = len(vqn)
-        g, EeV = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
-            dtype=backend.floatx()), 1), [g, EeV]))
-        return g, EeV, num
+        return g, E, num
 
     def read_groups(self):
         '''Retrieve mapping of each rot-vib level to the respective bin.'''
-        data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
+        data = pd.read_csv(self.lev_bin_map, header=None, skiprows=1)
         data = data.apply(pd.to_numeric, errors='coerce')
-        idx = np.array(data[0])                                                                           
-        bins = np.array(data[1]) - 1    # Level-to-Bin
-        num = max(bins) + 1
-        return bins, num
+        idx = np.array(data[0])
+        lev_to_bin = np.array(data[1]) - 1    # Level-to-Bin
+        num = max(lev_to_bin) + 1
+        return lev_to_bin, num
