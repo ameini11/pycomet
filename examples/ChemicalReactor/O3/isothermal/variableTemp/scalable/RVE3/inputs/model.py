@@ -12,14 +12,13 @@
 # --------------------------------------------------------------------------- #
 
 
-import inputs.data as inp_data
 import inputs.network as inp_net
 import inputs.postprocessing as inp_post
 
 
 # Architecture properties
 # =============================================================================
-name = 'MEq_MMOpNN'
+name = 'IsoThermalChemicalReactor'
 
 # Execution Flags
 # =============================================================================
@@ -35,12 +34,12 @@ visualize_graph = 0
 
 # Training
 # =============================================================================
-epochs = 100#50000
+epochs = 50000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 512*300
+decay_steps = 512*600
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -48,16 +47,13 @@ decay = ["exponential", decay_steps, decay_rate]
 # =============================================================================
 loss = {
     'ics': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+        name: {'identifier': 'malpe', 'axis': 0} for name in inp_net.names
     },
     'pts': {
-        inp_net.names[0]: {'identifier': 'malpe', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'malpe', 'axis': 0}
+        name: {'identifier': 'malpe', 'axis': 0} for name in inp_net.names
     },
     'res': {
-        inp_net.names[0]: {'identifier': 'mae', 'axis': 0},
-        inp_net.names[1]: {'identifier': 'mae', 'axis': 0}
+        name: {'identifier': 'mae', 'axis': 0} for name in inp_net.names
     }
 }
 
@@ -81,7 +77,7 @@ callbacks = {
         'monitor':           'val_tot_loss',
         'save_best_only':    True,
         'save_weights_only': True
-    }, 
+    },
 
     'plotter': {
         **inp_post.plot_style,
@@ -108,5 +104,4 @@ callbacks = {
     #     'freq':         50,
     #     'max_samples':  1000
     # }
-
 }

@@ -19,13 +19,20 @@ class MasterEq(object):
         dim,
         database,
         grouping,
-        processes
+        processes,
+        groups_graph=None,
+        *args,
+        **kwargs
     ):
+        # Timescales connectivity ---------------------------------------------
+        if groups_graph:
+            self.ts_ts_conn = self.ts_to_ts_connectivity(groups_graph)          # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
+
         # Retrieving Molecular data -------------------------------------------
-        self.levels = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.lev_bin_map = database + '/grouping/O3_UMN/O2/LevelsMap_' \
+        self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
+        self.binMap_file = database + '/grouping/O3_UMN/O2/LevelsMap_' \
             + grouping + '.csv'
-        self.g, self.E, self.num_lev = self.read_levels()
+        self.g, self.EeV, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
         # Retrieve Arrhenius coefficients -------------------------------------
@@ -49,14 +56,14 @@ class MasterEq(object):
         }
         # Number of reactions for each process
         num_reac = {
-            'exch': int((self.num_bins - 1) * self.num_bins / 2),
-            'inel': int((self.num_bins - 1) * self.num_bins / 2),
+            'exch': int((self.num_bins-1) * self.num_bins / 2),
+            'inel': int((self.num_bins-1) * self.num_bins / 2),
             'diss': int(self.num_bins)
         }
         # Rates matrix splitted between different processes
-        self.split_proc = [ v for k, v in num_reac.items() ]
+        self.split_proc = [ v for k,v in num_reac.items() ]
         # Reactions flags activator (masking)
-        self.reac_mask = list(processes.values())
+        self.me_mask = list(processes.values())
 
         # IC input dimension --------------------------------------------------
         self.ic_dim = dim["inp"][0]
@@ -89,23 +96,19 @@ class MasterEq(object):
             variables of the ODEs system.
         """
         # Extract `mass` and `T` vectors from the `ic` tensor
-        ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
+        ic = tf.split(ic, self.ic_dim, axis=1)
         T, mass = ic[0], ic[1]
 
         # Get Master Equations matrices
         K_e, K_d, K_r = self.get_matrices(T, params)
 
-        # Extract 'excitation' and 'dissociation' gradients
-        Y_exc, Y_dis = grads[0]     # 0-th order derivative
-        dY_exc, dY_dis = grads[1]   # 1-st order derivative
-
-        # Extract 'dissociation' QoI
-        Y_O2, Y_O = tf.split(Y_dis, Y_dis.shape[1], axis=1)
-        dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
+        # Extract 0-th & 1-st order derivative for the 'dissociation' process
+        Y_O, Y_O2 = tf.split(grads[0][0], grads[0][0].shape[1], axis=1)
+        dY_O, dY_O2 = tf.split(grads[1][0], grads[1][0].shape[1], axis=1)
 
         # Construct partial densities vectors
-        Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative
-        dY = tf.concat([dY_exc, dY_O], axis=1) * mass   # 1-st order derivative
+        Y = tf.concat([grads[0][-1], Y_O], axis=1) * mass       # 0-th order derivative
+        dY = tf.concat([grads[1][-1], dY_O], axis=1) * mass     # 1-st order derivative
         Y_O = Y_O * mass
 
         # Compute omega (Master Equations RHS)
@@ -115,12 +118,26 @@ class MasterEq(object):
         omega = omega_exc + omega_dis + omega_rec
 
         # Compute residuals
-        res_1 = dY - omega
-        res_2 = (dY_O2 + dY_O) * mass
-
-        # Return the residual error
-        res = tf.concat([res_1, res_2], axis=1)
-        res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
+        res = []
+        for ts, indeces in self.ts_ts_conn.items():
+            if indeces:
+                dY_fast = tf.concat(
+                    [
+                        tf.math.reduce_sum(
+                            tf.gather(grads[1][ts+1], idx, axis=1), axis=1, keepdims=True
+                        ) for idx in indeces
+                    ], axis=1
+                )
+                dY_slow = grads[1][ts]
+                if dY_slow.shape[1] != dY_fast.shape[1]:
+                    dY_slow = tf.split(
+                        dY_slow, dY_slow.shape[1], axis=1
+                    )[-dY_fast.shape[1]:]
+                _res = (dY_fast - dY_slow) * mass
+                if ts == 0:
+                    _res = tf.concat([(dY_O2+dY_O)*mass, _res], axis=1)
+                res.append(_res)
+        res.append(dY - omega)
 
         return res
 
@@ -133,11 +150,11 @@ class MasterEq(object):
         Q_bins = self.partition_func(T)
 
         K_e = self.excitation_mat( \
-            self.reac_mask[0], rates_excit, Q_bins) / const.mO
+            self.me_mask[0], rates_excit, Q_bins) / const.mO
         K_d = self.dissociation_mat( \
-            self.reac_mask[1], rates_diss) / const.mO
+            self.me_mask[1], rates_diss) / const.mO
         K_r = self.recombination_mat( \
-            self.reac_mask[2], rates_diss, Q_bins, T) / const.mO**2 * 2
+            self.me_mask[2], rates_diss, Q_bins, T) / const.mO**2 * 2
         return K_e, K_d, K_r
 
     def modified_arrhenius(self, T, A, n, Ea):
@@ -158,7 +175,7 @@ class MasterEq(object):
         '''Compute bins partition function.'''
         T_rec = tf.math.reciprocal(tf.transpose(T))
         q = tf.math.multiply(self.g, \
-            tf.math.exp(-tf.tensordot(self.E, T_rec, 1)/const.UKb))
+            tf.math.exp(-tf.tensordot(self.EeV*const.Ue, T_rec, 1)/const.UKb))
         Q_bins = []
         for bin_i in range(self.num_bins):
             Q_bins.append(
@@ -296,23 +313,46 @@ class MasterEq(object):
     def read_levels(self):
         '''Retrieve all the ro-vib levels.'''
         data = pd.read_csv(
-            self.levels, header=None, skiprows=15, delim_whitespace=True
+            self.levels_file, header=None, skiprows=15, delim_whitespace=True
         )
         data = data.apply(pd.to_numeric, errors='coerce')
-        vqn = np.array(data[0])                     # Vibrational Q.N.
-        jqn = np.array(data[1])                     # Rotational  Q.N.
-        g = 1.5*(2.0*jqn+1.0)                       # Degeneracy
-        E = np.array(data[2]) * const.EH_to_J       # Energy in J
-        g, E = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
-            dtype=backend.floatx()), 1), [g, E-E[0]]))
+        vqn = np.array(data[0])                    # Vibrational Q.N.
+        jqn = np.array(data[1])                    # Rotational  Q.N.
+        g = 1.5*(2.0*jqn+1.0)                    # Degeneracy (Including Electronic One)
+        EeV = np.array(data[2]) * const.Eh_to_eV   # Energy in eV
+        EeV = EeV - EeV[0]
         num = len(vqn)
-        return g, E, num
+        g, EeV = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
+            dtype=backend.floatx()), 1), [g, EeV]))
+        return g, EeV, num
 
     def read_groups(self):
         '''Retrieve mapping of each rot-vib level to the respective bin.'''
-        data = pd.read_csv(self.lev_bin_map, header=None, skiprows=1)
+        data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
         data = data.apply(pd.to_numeric, errors='coerce')
-        idx = np.array(data[0])
-        lev_to_bin = np.array(data[1]) - 1    # Level-to-Bin
-        num = max(lev_to_bin) + 1
-        return lev_to_bin, num
+        idx = np.array(data[0])                                                                           
+        bins = np.array(data[1]) - 1    # Level-to-Bin
+        num = max(bins) + 1
+        return bins, num
+
+
+    ###########################################################################
+    ### Groups connectivity/indexing
+    ###########################################################################
+    def ts_to_ts_connectivity(self, graph, level=0, conn={}):
+        d = {}
+        conn[level] = []
+        if isinstance(graph, dict):
+            for g in graph.values():
+                if hasattr(g, 'keys'):
+                    l = list(g.keys())
+                    d = {**d, **g}
+                else:
+                    l = d = g
+                conn[level].append(l)
+        else:
+            conn[level] = None
+        if d != {}:
+            return self.ts_to_ts_connectivity(d, level=level+1, conn=conn)
+        else:
+            return conn

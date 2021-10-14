@@ -18,6 +18,8 @@ from pyDOE import lhs
 from ode_solver import ODESolver
 from const import const
 
+from prode.utilities import utils
+
 
 class DataGenerator(object):
 
@@ -32,11 +34,12 @@ class DataGenerator(object):
         distribution,
         test_cases,
         test_training,
-        t_limit,
+        time_limit,
         input_space,
         database,
         grouping,
         processes,
+        groups_graph=None,
         *args,
         **kwargs
     ):
@@ -45,7 +48,7 @@ class DataGenerator(object):
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
 
-        # Data Quantities -----------------------------------------------------
+        # Dimensionality ------------------------------------------------------
         self.d = dim["out"]
         if isinstance(self.d, (list,tuple)):
             self.split_out = [ self.d[i] if i == 0 else self.d[i]+self.d[i-1] \
@@ -78,7 +81,7 @@ class DataGenerator(object):
         # Testing scenarios
         self.test_cases = test_cases            # Number of testing cases
         self.test_training = test_training      # Test training case [Bool]
-        self.t0, self.t_end = t_limit           # Time limits for testing
+        self.t0, self.t_end = time_limit           # Time limits for testing
 
         # Input Space Variables -----------------------------------------------
         self.input_space = {k: np.array(v, dtype=np.float64) \
@@ -91,13 +94,13 @@ class DataGenerator(object):
         self.g, self.EeV, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
+        # Timescales connectivity ---------------------------------------------
+        if groups_graph:
+            self.ts_fast_conn = self.ts_to_fastest_connectivity(groups_graph)  # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
+
         # Retrieving Rates coefficients ---------------------------------------
         self.rates_path = database + '/kinetics/O3_UMN_' + grouping + '/'
-        self.reac_file = {
-            'diss': 'Diss_Corrected.dat',
-            'exch': 'Exch_Type1.dat',
-            'inel': 'Inel.dat'
-        }
+        self.reac_names = {'diss', 'exch', 'inel'}
 
         # Building Master Equation matrices -----------------------------------
         self.ODE_sol = ODESolver(processes)
@@ -124,7 +127,7 @@ class DataGenerator(object):
     def get_rates(self, T):
         '''Retrieve rates coefficients from dataframe.'''
         rates_coeff = dict()
-        for reac_name in self.reac_file:
+        for reac_name in self.reac_names:
             shape = (self.num_bins,) if reac_name == 'diss' \
                 else (self.num_bins, self.num_bins)
             rates_coeff[reac_name] = np.zeros(shape, dtype=np.float64)
@@ -213,15 +216,17 @@ class DataGenerator(object):
         for i, data_i in enumerate(data_list):
             # Define data type
             data_type = 'train' if (i % 2) == 0 else 'valid'
-            # if (i % 2) == 0:
-            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                         fillstyle='full', markersize=2)
-            #     plt.xscale('log')
-            #     plt.yscale('log')
-            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style)
-            #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
-            #     plt.grid()
-            #     plt.show()
+
+            if (i % 2) == 0:
+                marker_style = dict(marker='o', lw=0.5, ls='none', \
+                                    fillstyle='full', markersize=2)
+                plt.xscale('log')
+                plt.yscale('log')
+                plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style)
+                plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
+                plt.grid()
+                plt.show()
+
             data = self.stack_data(data, data_i, data_type)
 
         # Save data in a `.csv` file
@@ -286,11 +291,18 @@ class DataGenerator(object):
         if y is None:
             return [[u, t]]
         else:
-            if self.split_out and self.d[-1] > 1:
-                y_O2 = np.sum(y[:,:-1], axis=1)
-                y = np.insert(y, -1, y_O2, axis=1)
-            y = np.split(y[idx], self.split_out, axis=1) \
-                if self.split_out else y[idx]
+            y_O2, y_O = np.hsplit(y[idx], [-1])
+            y = []
+            for ts, indeces in self.ts_fast_conn.items():
+                if indeces:
+                    y_slow = np.hstack(
+                        [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) for i in indeces]
+                    )
+                else:
+                    y_slow = y_O2
+                if ts == 0:
+                    y_slow = np.hstack([y_O, y_slow])
+                y.append(y_slow)
             return [[u, t], y]
 
     def get_data(self, ic, t, y, pts, idx):
@@ -310,7 +322,7 @@ class DataGenerator(object):
                             idx, idx_k = self.stratified_sampling(idx, n)
                     elif k == 'res':
                         idx_k = idx
-                        y = None
+                        # y = None
                     else:
                         raise KeyError(self.header + "Wrong `data_id` "
                             "key in sampling training data.")
@@ -493,6 +505,45 @@ class DataGenerator(object):
             return u, y
         else:
             return u
+
+    # -------------------------------------------------------------------------
+    # Groups connectivity/indexing
+    # -------------------------------------------------------------------------
+    def ts_to_fastest_connectivity(self, graph, ts={}):
+        conn = self.graph_to_nested_list(graph)
+        TS = utils.depth(graph)
+        for l in range(-1, TS):
+            ts[l+1] = self.merge(conn, it_max=l+1)
+        return ts
+
+    def graph_to_nested_list(self, graph):
+        if isinstance(graph, dict):
+            ls = []
+            for k, v in graph.items():
+                ls.append(self.graph_to_nested_list(v))
+            return ls
+        else:
+            if isinstance(graph, (list, tuple, set)):
+                return list(graph)
+            else:
+                utils.raise_value_err(
+                    "The last level of the groups graph has to be a list."
+                )
+
+    def merge(self, ls, it=0, it_max=1):
+        if any(isinstance(l, list) for l in ls):
+            if it < it_max:
+                ls = list(itertools.chain.from_iterable(ls))
+                return self.merge(ls, it=it+1, it_max=it_max)
+            else:
+                return self.join(ls)
+
+    def join(self, ls):
+        try:
+            ls = [list(itertools.chain.from_iterable(l)) for l in ls]
+            return self.join(ls)
+        except:
+            return ls
 
     # -------------------------------------------------------------------------
     # Sampling methods

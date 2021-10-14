@@ -14,17 +14,8 @@
 
 import os
 import numpy as np
+import inputs.general as inp_gen
 
-import inputs.network as inp_net
-
-
-# Paths
-# =============================================================================
-paths = {
-    'database': os.path.normpath(os.getcwd()+'/../../../../database'),
-    'utils':    os.path.normpath(os.getcwd()+'/utils'),
-    'ode':      os.path.normpath(os.getcwd()+'/')
-}
 
 # Data properties
 # =============================================================================
@@ -49,7 +40,7 @@ valid_file = {
 test_file = './data/test/ics.csv'
 
 col_x = [[0,5],[5,6]]
-col_y = [[6,9],[9,11]]
+col_y = [[6,8],[8,11]]
 
 header = 0
 
@@ -62,9 +53,8 @@ def preproc_fn(x):
     Returns:
         An array or list of arrays.
     """
-    if x.shape[1] == col_y[1][0]:
-        # x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
-        x[:,-1] = 1. - x[:,-2]
+    if x.shape[1] == col_y[-1][-1]:
+        x[:,col_y[0][0]] = 1. - x[:,col_y[0][0]+1]
     return x
 
 # *** From arrays
@@ -75,7 +65,7 @@ train_pts = {
     'res': 160      # Number of total collocation pts for each scenario
 }
 valid = 0.2                 # % of Validation pts
-distribution = 'uniform'    # Training pts distribution
+distribution = 'random' #'uniform'    # Training pts distribution
 
 batch_size = {
     'ics': 256,
@@ -96,16 +86,13 @@ test_training = True    # Test training cases
 # ODE properties
 # =============================================================================
 ode_order = 1
-grouping = 'RVE1'                                   # ROM: ['CBM3', 'DPM10']
-processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
+grouping = inp_gen.grouping[-1]                     # ROM: ['CBM3', 'DPM10']
+processes = {'excit': 1, 'diss': 0, 'recomb': 0}    # Reactive processes
+# processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
+groups_graph = inp_gen.groups_graph
 
 # Input space (limit values)
-input_space = {
-    'Ttr':  [5.e3,   1.5e4],    # Tanslational temperature [K]
-    'T0':   [1.e3,   5.e3],     # Initial temperature [K]
-    'P0':   [1.e3,   1.e4],     # Initial pressure [Pa]
-    'XO2':  [0.05e0, 1.e0]      # Initial O2 mole fraction
-}
+input_space = inp_gen.input_space
 
 # Time limits for testing
-t_limit = [1.e-14, 1.e-3]
+time_limit = inp_gen.time_limit

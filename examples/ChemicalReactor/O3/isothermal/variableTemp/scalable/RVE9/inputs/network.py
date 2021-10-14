@@ -13,8 +13,7 @@
 
 
 import tensorflow as tf
-import inputs.data as inp_data
-import inputs.model as inp_mdl
+import inputs.general as inp_gen
 
 from tensorflow.keras import layers as tf_layers
 from prode.utilities.model import layers as pro_layers
@@ -22,12 +21,9 @@ from prode.utilities.model import layers as pro_layers
 
 # Architecture properties
 # =============================================================================
-architecture = 'IsoThermChemReacNN'
+architecture = inp_gen.architecture
 
-dim = {
-    "inp": [11, 1],
-    "out": [2, 3, 9]
-}
+dim = inp_gen.dim
 
 # TimeScaleNNs characterization -----------------------------------------------
 names = ['TS0', 'TS1', 'TS2']
@@ -41,7 +37,7 @@ tsnn_dim = {
         "inp": [2+3, 1],
         "out": 3
     },
-    names[3]: {
+    names[2]: {
         "inp": [2+9, 1],
         "out": [3,3,3]
     }
@@ -87,11 +83,10 @@ regularization = {
     'name':       'l1+l2',                                  # 'fine_tuning'
     'l1':         1.e-3,
     'l2':         1.e-3,
-    'weights_SP': './saving/'+inp_mdl.name+'_weights.h5'    # Path to for `FineTuningRegularizer`
+    'weights_SP': './saving/IsoThermalChemicalReactor_weights.h5'    # Path to for `FineTuningRegularizer`
 }
 
 dropout_rate = 0
-
 
 # I/O Transformations
 # =============================================================================
@@ -102,30 +97,17 @@ input_fn = {
     "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 
-
 # Physical quantities
 # =============================================================================
-# groups_graph = [0]
+groups_graph = inp_gen.groups_graph
 
-# groups_graph = {
-#     0: [0,1,2]
-# }
+temp_limits = inp_gen.input_space['Ttr']
 
-groups_graph = {
-    0: {
-        0: [0,1,2],
-        1: [3,4,5],
-        2: [6,7,8]
-    }
-}
+grouping = {k: v for k, v in zip(names, inp_gen.grouping)}
 
-temp_limits = inp_data.input_space['Ttr']
-
-grouping = {k: v for k, v in zip(names, [None, 'RVE3', 'RVE9'])}
-
-levels = inp_data.paths['database']+'/levels/O3_UMN/O2/FromUMN_Sorted.inp'
+levels = inp_gen.paths['database']+'/levels/O3_UMN/O2/FromUMN_Sorted.inp'
 
 lev_bin_map = {
-    n: inp_data.paths['database']+'/grouping/O3_UMN/O2/LevelsMap_'+g+'.csv' \
+    n: inp_gen.paths['database']+'/grouping/O3_UMN/O2/LevelsMap_'+g+'.csv' \
         if g != None else g for n, g in grouping.items()
 }

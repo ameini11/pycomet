@@ -62,9 +62,8 @@ def preproc_fn(x):
     Returns:
         An array or list of arrays.
     """
-    if x.shape[1] == col_y[1][0]:
-        # x[:,-1] = 1. - np.sum(x[:,col_y[0][0]:col_y[0][1]-1], axis=1)
-        x[:,-1] = 1. - x[:,-2]
+    if x.shape[1] == col_y[-1][-1]:
+        x[:,col_y[-1][0]+1] = 1. - x[:,col_y[-1][0]]
     return x
 
 # *** From arrays
@@ -78,19 +77,19 @@ valid = 0.2                 # % of Validation pts
 distribution = 'uniform'    # Training pts distribution
 
 batch_size = {
-    'ics': 256,
-    'pts': 256,
-    'res': 1024
+    'ics': 128,
+    'pts': 128,
+    'res': 512
 }
 
 valid_batch_size = {
-    'ics': 256,
-    'pts': 256,
-    'res': 256
+    'ics': 128,
+    'pts': 128,
+    'res': 128
 }
 
 # Testing data
-test_cases = 5#40      # Number of testing cases
+test_cases = 5#50       # Number of testing cases
 test_training = True    # Test training cases
 
 # ODE properties

@@ -56,14 +56,10 @@ layer_size = {
 }
 
 activation = {
-    names[0]: {
-        "branch": 'gelu',
+    name: {
+        "branch": 'tanh', # elu/gelu
         "trunk":  'sigmoid'
-    },
-    names[1]: {
-        "branch": 'gelu',
-        "trunk":  'sigmoid'
-    }
+    } for name in names
 }
 
 kernel_initializer = 'GlorotNormal'

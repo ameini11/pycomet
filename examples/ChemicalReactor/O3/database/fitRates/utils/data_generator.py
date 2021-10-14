@@ -100,6 +100,7 @@ class DataGenerator(object):
                 if i == 0:
                     continue
                 *bins_idx, rate = line.split(',')
+                rate = float(rate) * 1.e-6
                 i -= 1
 
             if reac_name == 'diss':

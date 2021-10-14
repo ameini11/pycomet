@@ -104,6 +104,7 @@ def main():
         **dataGen_args
     )
 
+    test_data = None
     if not inp.data.from_file:
         ic = dataGen.initial_cond()
         train_data, valid_data = dataGen.training_data(ic[0])
@@ -122,10 +123,7 @@ def main():
         dim=inp.network.dim,
         database=inp.data.paths['database'],
         grouping=inp.data.grouping,
-        processes=inp.data.processes,
-        groups_graph=inp.data.groups_graph if hasattr(
-            inp.data, 'groups_graph'
-        ) else None
+        processes=inp.data.processes
     )
 
     data_cls = utils.get_class(pro.data, inp.data.data_type)

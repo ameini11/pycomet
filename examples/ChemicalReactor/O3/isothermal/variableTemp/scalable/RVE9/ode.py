@@ -4,8 +4,8 @@ import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras import backend
-import inputs.data as inp_data
-sys.path.append(inp_data.paths['utils'])
+import inputs.general as inp_gen
+sys.path.append(inp_gen.paths['utils'])
 from const import const
 
 
@@ -56,12 +56,13 @@ class MasterEq(object):
         }
         # Number of reactions for each process
         num_reac = {
+            'diss': int(self.num_bins),
             'exch': int((self.num_bins-1) * self.num_bins / 2),
-            'inel': int((self.num_bins-1) * self.num_bins / 2),
-            'diss': int(self.num_bins)
+            'inel': int((self.num_bins-1) * self.num_bins / 2)
         }
+
         # Rates matrix splitted between different processes
-        self.split_proc = [ v for k,v in num_reac.items() ]
+        self.split_proc = [ v for k, v in num_reac.items() ]
         # Reactions flags activator (masking)
         self.me_mask = list(processes.values())
 
@@ -96,7 +97,7 @@ class MasterEq(object):
             variables of the ODEs system.
         """
         # Extract `mass` and `T` vectors from the `ic` tensor
-        ic = tf.split(ic, self.ic_dim, axis=1)
+        ic = tf.split(ic, num_or_size_splits=self.ic_dim, axis=1)
         T, mass = ic[0], ic[1]
 
         # Get Master Equations matrices

@@ -19,7 +19,7 @@ class TimeScaleNN(Net):
     def __init__(
         self,
         dim,
-        groups_idx,
+        ts_fast_conn,
         temp_limits,
         # database,
         eq_layer,
@@ -50,7 +50,7 @@ class TimeScaleNN(Net):
 
         ### Dimensionality ----------------------------------------------------
         # Inputs
-        self.groups_idx = groups_idx
+        self.ts_fast_conn = ts_fast_conn
 
         # Outputs
         if not isinstance(self.out_dim, (list,tuple)):
@@ -114,7 +114,7 @@ class TimeScaleNN(Net):
     ###########################################################################
     def get_config(self):
         config = {
-            'groups_idx': self.groups_idx,
+            'ts_fast_conn': self.ts_fast_conn,
             'temp_limits': self.temp_limits,
             'layer_size': self.layer_size,
             'activation': self.activation,
@@ -154,9 +154,9 @@ class TimeScaleNN(Net):
         T_norm = self.temperature_norm(T)
 
         # Compose new inputs
-        if self.groups_idx != None:
+        if self.ts_fast_conn != None:
             _Y = []
-            for indeces in self.groups_idx:
+            for indeces in self.ts_fast_conn:
                 _Y.append(
                     tf.math.reduce_sum(
                         tf.gather(Y, indeces, axis=1), axis=1, keepdims=True

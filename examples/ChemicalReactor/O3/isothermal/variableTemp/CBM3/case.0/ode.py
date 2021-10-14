@@ -49,12 +49,13 @@ class MasterEq(object):
         }
         # Number of reactions for each process
         num_reac = {
+            'diss': int(self.num_bins),
             'exch': int((self.num_bins-1) * self.num_bins / 2),
-            'inel': int((self.num_bins-1) * self.num_bins / 2),
-            'diss': int(self.num_bins)
+            'inel': int((self.num_bins-1) * self.num_bins / 2)
         }
+
         # Rates matrix splitted between different processes
-        self.split_proc = [ v for k,v in num_reac.items() ]
+        self.split_proc = [ v for k, v in num_reac.items() ]
         # Reactions flags activator (masking)
         self.me_mask = list(processes.values())
 
@@ -102,6 +103,10 @@ class MasterEq(object):
         # Extract 'dissociation' QoI
         Y_O2, Y_O = tf.split(Y_dis, Y_dis.shape[1], axis=1)
         dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
+
+        # Manipulate 'excitation' QoI (from distribution to mass fractions)
+        dY_exc = Y_O2 * dY_exc + dY_O2 * Y_exc
+        Y_exc = Y_O2 * Y_exc
 
         # Construct partial densities vectors
         Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative

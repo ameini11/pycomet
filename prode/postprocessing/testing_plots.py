@@ -44,9 +44,6 @@ def plot_test(
         plt.ylim([np.amin(y_true)-delta, np.amax(y_true)+delta])
 
     # Plotting
-    lin = ['-', '--']
-    col = ['k', 'r', 'g', 'b', 'tab:purple', 'tab:brown', 'tab:pink', \
-           'tab:blue', 'tab:red', 'tab:green', 'tab:orange']
     marker_style = dict(
         marker='^',
         fillstyle='none',
@@ -61,11 +58,11 @@ def plot_test(
     for d in range(y_true.shape[1]):
 
         name = 'True ' + var_names[d]
-        plt.plot(x, y_true[:, d], c=col[d], ls=lin[0], lw=1, label=name)
+        plt.plot(x, y_true[:, d], lw=1, label=name)
 
         name = 'Pred ' + var_names[d]
-        plt.plot(x, y_pred[:, d], c=col[d], ls=lin[1], lw=1, label=name, \
-            **marker_style)
+        plt.plot(x, y_pred[:, d], c=plt.gca().lines[-1].get_color(), \
+            ls='--', lw=1, label=name, **marker_style)
 
     plt.legend(fontsize='x-small')
     name = y_scale if fig_name == None else fig_name + '_' + y_scale

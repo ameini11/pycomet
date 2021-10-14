@@ -126,7 +126,7 @@ class IsoThermChemReacNN(Net):
             'regularization': self.regularization,
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
-            'weight_norm': self.weight_norm
+            'weight_norm': self.weight_norm,
             'opnn_end_scale': self.opnn_end_scale,
             'stacked': self.stacked
         }
@@ -166,7 +166,7 @@ class IsoThermChemReacNN(Net):
 
             # Concatenate outputs
             y = [ tf_layers.Concatenate()(y_i) \
-                for y_i in y if isinstance(y_i, (list,tuple)) else y_i ]
+                if isinstance(y_i, (list,tuple)) else y_i for y_i in y]
 
             # Multiply time scales
             for ts, indeces in self.ts_ts_conn.items():

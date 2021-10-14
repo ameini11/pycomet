@@ -30,7 +30,7 @@ class InputData(object):
     ]
 
     # Other properties --------------------------------------------------------
-    method = 'RVE' # 'RVE1' 'CBM3' 'DPM10'
+    method = 'RVE' # 'RVE' 'CBM' 'DPM'
     num_bins = 9
     grouping = method + str(num_bins)
     file_version = 'new'
