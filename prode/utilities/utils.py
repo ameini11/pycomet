@@ -156,12 +156,16 @@ def get_args(obj):
 
     return args
 
-def get_args_values(module, args):
+def get_args_values(modules, args):
     """Get the number of arguments of a Python function."""
+    if not isinstance(modules, list):
+        modules = [modules]
     _args = {}
     for arg in args:
-        if hasattr(module, arg):
-            _args.update({arg: getattr(module, arg)})
+        for module in modules:
+            if hasattr(module, arg):
+                _args.update({arg: getattr(module, arg)})
+                break
     return _args
 
 def depth(d):

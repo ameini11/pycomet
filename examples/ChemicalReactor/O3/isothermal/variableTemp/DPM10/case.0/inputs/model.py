@@ -83,7 +83,7 @@ callbacks = {
     'plotter': {
         **inp_post.plot_style,
         'limit_y': inp_post.limit_y,
-        'period':  500
+        'freq':  500
     },
 
     'tensorboard': {

@@ -27,7 +27,7 @@ class Plotter(CB.Callback):
         scales=None,
         limit_y=False,
         log_plot=False,
-        period=100
+        freq=100
     ):
         super(Plotter, self).__init__()
 
@@ -52,14 +52,15 @@ class Plotter(CB.Callback):
         self.log_plot = log_plot
         self.limit_y = limit_y
         
-        self.period = period
+        self.freq = freq
         self.fig_name = fig_name
 
     def on_epoch_end(self, epoch, logs=None):
-        if epoch % self.period == 0:
+        if epoch % self.freq == 0:
             utils.print_main(">> `Plotter` callback:")
             self.training(limit_y=self.limit_y)
-            self.testing()
+            if self.test_data is not None:
+                self.testing()
             print("")
 
     def training(self, scale='log', limit_y=False):
@@ -148,7 +149,7 @@ class Plotter(CB.Callback):
 #         x1,
 #         x2,
 #         num_points=100,
-#         period=1,
+#         freq=1,
 #         component=0,
 #         save_spectrum=False,
 #         y_reference=None,
@@ -158,7 +159,7 @@ class Plotter(CB.Callback):
 #         x1 = np.array(x1)
 #         x2 = np.array(x2)
 #         self.x = x1 + (x2 - x1) / (num_points - 1) * np.arange(num_points)[:, None]
-#         self.period = period
+#         self.freq = freq
 #         self.component = component
 #         self.save_spectrum = save_spectrum
 #         self.y_reference = y_reference
@@ -179,7 +180,7 @@ class Plotter(CB.Callback):
 
 #     def on_epoch_end(self):
 #         self.epochs_since_last_save += 1
-#         if self.epochs_since_last_save >= self.period:
+#         if self.epochs_since_last_save >= self.freq:
 #             self.epochs_since_last_save = 0
 #             self.on_train_begin()
 
