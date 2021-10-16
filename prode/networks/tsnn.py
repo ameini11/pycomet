@@ -22,7 +22,6 @@ class TimeScaleNN(Net):
         ts_fast_conn,
         temp_limits,
         # database,
-        eq_layer,
         grouping,
         levels,
         lev_bin_map,

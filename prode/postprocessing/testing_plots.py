@@ -55,7 +55,8 @@ def plot_test(
     if len(y_true.shape) < 2:
         y_true = np.expand_dims(y_true, 1)
 
-    for d in range(y_true.shape[1]):
+    n = y_true.shape[1]
+    for d in range(n):
 
         name = 'True ' + var_names[d]
         plt.plot(x, y_true[:, d], lw=1, label=name)
@@ -64,7 +65,11 @@ def plot_test(
         plt.plot(x, y_pred[:, d], c=plt.gca().lines[-1].get_color(), \
             ls='--', lw=1, label=name, **marker_style)
 
-    plt.legend(fontsize='x-small')
+    fontsize = 'x-small'
+    if n*2 > 12:
+        fontsize = 'xx-small'
+    plt.legend(fontsize=fontsize, ncol=int(n*2/6))
+
     name = y_scale if fig_name == None else fig_name + '_' + y_scale
     fig_path = path + '/' + name + '.pdf'
     fig.savefig(fig_path)

@@ -108,15 +108,23 @@ def main():
     dataGen = DataGenerator(
         **dataGen_args
     )
+    dataGen.data_dir = opts.dir + "/data/"
+    if not os.path.exists(dataGen.data_dir):
+        os.makedirs(dataGen.data_dir)
 
     if not inp.data.from_file:
+        utils.print_main("Generating initial conditions ...")
         ic = dataGen.initial_cond()
+        utils.print_main("Generating training/validation pts ...")
         train_data, valid_data = dataGen.training_data(ic[0])
         if inp.general.flags['test'] > 0 and inp.data.test_cases > 0:
+            utils.print_main('Generating testing pts ...')
             test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
     else:
+        utils.print_main("Extracting training/validation pts from file ...")
         train_data, valid_data = inp.data.train_file, inp.data.valid_file
         if inp.general.flags['test'] > 0 and inp.data.test_cases > 0:
+            utils.print_main('Generating testing pts ...')
             test_data = dataGen.testing_data(
                 inp.data.test_file,
                 header=inp.data.header
@@ -182,6 +190,8 @@ def main():
         modules=inp.engine
     )
     model.compile(**compile_args)
+
+    input('+++++++++++++++++++++++++++++++++')
 
     # Fit Model ---------------------------------------------------------------
     if inp.general.flags['train'] > 0:

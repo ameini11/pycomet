@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import tensorflow as tf
 import tensorflow_addons.layers as tfa_layers
 import tensorflow.keras.layers as tf_layers
@@ -579,7 +581,7 @@ class Equilibrium(tf_layers.Subtract):
         g = 1.5*(2.0*jqn+1.0)                       # Degeneracy
         E = np.array(data[2]) * const.EH_to_J       # Energy in J
         g, E = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
-            dtype=backend.floatx()), 1), [g, E-E[0]]))
+            dtype=K.floatx()), 1), [g, E-E[0]]))
         num = len(vqn)
         return g, E, num
 

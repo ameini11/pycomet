@@ -21,7 +21,6 @@ class ODE(Data):
         training=True,
         ode_func=None,
         ode_order=0,
-        # ode_params=None,
         time_idx=-1,
         train_data=None,
         valid_data=None,
@@ -96,7 +95,6 @@ class ODE(Data):
 
         self.ode_order = ode_order
         self.ode_func = ode_func
-        # self.ode_params = ode_params
         self.grad_fn = gradients.get_grad_fn(self.ode_order)
 
     # Handling Data
@@ -209,7 +207,6 @@ class ODE(Data):
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads)
-            # res_pred = self.ode_func(ic, t, grads, params=self.ode_params)
 
             return res_pred
         
