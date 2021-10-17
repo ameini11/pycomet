@@ -6,7 +6,8 @@ from prode.utilities import utils
 from prode.physics.general import const
 
 import prode.physics.database as db
-thermo = db.__file__ + '/air/thermo/'
+thermo_db = db.__file__ + '/air/thermo/'
+grouping_db = db.__file__ + '/air/grouping/'
 
 
 class Specie(object):
@@ -16,7 +17,7 @@ class Specie(object):
     def __init__(
         self,
         name,
-        rv_levels=None
+        rovib=None
     ):
         # Read specie properties ==============================================
         self.properties = {
@@ -43,17 +44,51 @@ class Specie(object):
             'THETA_ROT': [float, 'theta_r'],    # Characteristic rotational temperature [K]
             'THETA_VIB': [float, 'theta_v']     # Characteristic vibrational temperature(s) [K]
         }
-        self.read_properties(thermo + name)
+        self.read_properties(thermo_db + name)
 
         # Read specie electronic levels =======================================
-        self.el_lev, self.g_e = self.read_elec_levels(thermo + name)
+        self.el_lev, self.g_e = self.read_elec_levels(thermo_db + name)
 
         # Read specie ro-vibrational levels ===================================
         if self.n_at > 1:
-            self.rv_lev = self.read_rovib_levels(rv_levels)
+            self.rovib = rovib
+            path = grouping_db+rovib['system']+'_'+rovib['PES']+'/'+name+'/'
+            file = path+rovib['grouping']+'/LevelsMap_'+rovib['grouping']+'.csv'
+            self.rv_lev = self.read_rovib_levels(path+'/levels.inp')
             self.lev_to_bin, self.n_bins = self.read_grouping(
-                grouping[name]['path']['lev_to_bin'], grouping[name]['name']
+                file, self.rovib['grouping']
             )
+
+    # Methods
+    ###########################################################################
+    # Thermodynamic properties ================================================
+    @property
+    def Y(self):
+        return self._Y
+    @Y.setter
+    def Y(self, value):
+        self._Y = value
+
+    @property
+    def X(self):
+        return self._X
+    @X.setter
+    def X(self, value):
+        self._X = value
+
+    @property
+    def n(self):
+        return self._n
+    @n.setter
+    def n(self, value):
+        self._n = value
+
+    @property
+    def rho(self):
+        return self._rho
+    @rho.setter
+    def rho(self, value):
+        self._rho = value
 
     # Reading methods
     ###########################################################################
@@ -137,26 +172,3 @@ class Specie(object):
             lev_to_bin = np.zeros(self.rv_lev['num'], dtype=np.int32)
             n_bins = 1
         return lev_to_bin, n_bins
-
-    # Partition Functions =====================================================
-    def intPF(self, T, lev_to_bin):
-        if self.specie.n_at > 1:
-            T_rec = tf.math.reciprocal(tf.transpose(T))
-            q = tf.math.multiply(
-                self.g, tf.math.exp(
-                    - tf.tensordot(self.E, T_rec, 1) / const.UKB
-                )
-            )
-            Q_bins = []
-            for bin_i in range(self.num_bins):
-                mask = lev_to_bin == bin_i
-                Q_bins.append(
-                    tf.math.reduce_sum(q[mask], axis=0, keepdims=True)
-                )
-            return tf.transpose(tf.concat(Q_bins, 0))
-        else:
-            return self.specie.g_e
-
-    def transPF(self, T):
-        basis = 2.*np.pi*const.UKB*self.specie.m/const.UH**2
-        return tf.math.pow(self.basis * T, 3./2.)

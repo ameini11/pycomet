@@ -3,8 +3,7 @@ import tensorflow as tf
 
 from prode.utilities import utils
 from prode.physics.general import const
-from prode.physics.thermochemistry.specie import specie as specie_module
-from prode.physics.thermochemistry.specie import thermo as thermo_module
+from prode.physics.thermochemistry.specie import thermo as thermo_mod
 
 
 class MultiComponent(object):
@@ -15,42 +14,20 @@ class MultiComponent(object):
         self,
         mixture,
         thermo,
-        *args,
-        **kwargs
+        species
     ):
-        self.mixture = {}
-        for sp in mixture:
-            self.mixture[sp] = utils.get_class(thermo_module, thermo)(
-                specie_module.Specie(sp, *args, **kwargs)
-            )
-        
-
-    mix = utils.get_class(mixture_module, inp_case.mixture['name'])
-    (
-        inp_case.mixture['species'], inp_case.thermo, **inp_case.specie
-    )
-
-
-    specie = {
-        'thermo_path': databases + 'air/thermo/',
-        'grouping': {
-            'O2': {
-                'name': 'CBM3',
-                'path': {
-                    'rovib_levels': databases + 'grouping/O2/levels/O3_UMN/O2/FromUMN_Sorted.inp',
-                    'lev_to_bin': databases + 'grouping/O2/grouping/O3_UMN/O2/LevelsMap_' + grouping + '.csv'
-                }
-            }
+        self.species = species
+        self.mixture = {
+            sp: utils.get_class(thermo_mod, thermo)(self.species[sp]) \
+                for sp in mixture
         }
-    }
-
 
     # Methods
     ###########################################################################
     # Mixture mass fractions ==================================================
     def update(self, mixture, var='Y'):
-        for name, value in mixture.items():
-            setattr(self.mixture[name].specie, var, utils.convert_to_array(value))
+        for sp, value in mixture.items():
+            setattr(self.mixture[sp].specie, var, value)
         self.m_(var=var)
         if var == 'Y':
             self.X_i()
@@ -67,7 +44,7 @@ class MultiComponent(object):
         # [J/kg]
         return self.mix_quantity('h', T)
 
-    # Internal Energy =========================================================
+    # Energy ==================================================================
     def cv(self, T):
         # [J/(kg K)]
         return self.mix_quantity('cv', T)
@@ -79,18 +56,18 @@ class MultiComponent(object):
     # Energy of formation -----------------------------------------------------
     def e_f(self):
         # [J/kg]
-        return self.mix_quantity('e_f', T)
+        return self.mix_quantity('e_f')
 
-    # Translational Internal Energy -------------------------------------------
-    def cv_tr(self, T):
+    # Translational Energy ----------------------------------------------------
+    def cv_tr(self):
         # [J/(kg K)]
-        return self.mix_quantity('cv_tr', T)
+        return self.mix_quantity('cv_tr')
 
     def e_tr(self, T):
         # [J/kg]
         return self.mix_quantity('e_tr', T)
 
-    # Ro-Vibrational Internal Energy ------------------------------------------
+    # Ro-vibrational Energy ---------------------------------------------------
     def cv_int(self, T):
         # [J/(kg K)]
         return self.mix_quantity('cv_int', T)
@@ -102,21 +79,23 @@ class MultiComponent(object):
     # Mixture properties ======================================================
     def m_(self, var='Y'):
         # [kg/mol]
-        m_ = []
+        m = []
         if var == 'Y':
-            for specie, thermo in self.mixture.items():
-                m_.append(thermo.specie.Y / thermo.specie.m)
-            self.m = 1./np.sum(np.concatenate(tuple(m_)))
+            for thermo in self.mixture.values():
+                sp = thermo.specie
+                m.append(sp.Y / sp.m)
+            self.m = 1./tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
         elif var == 'X':
-            for specie, thermo in self.mixture.items():
-                m_.append(thermo.specie.X * thermo.specie.m)
-            self.m = np.sum(np.concatenate(tuple(m_)))
+            for thermo in self.mixture.values():
+                sp = thermo.specie
+                m.append(sp.X * sp.m)
+            self.m = tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
 
     def R_(self):
         # [J/(kg K)]
         self.R = self.mix_quantity(const.URG)
 
-    def p(self, rho, T):
+    def p_(self, rho, T):
         return rho*self.R()*T
 
     def rho_(self, p, T):
@@ -124,46 +103,39 @@ class MultiComponent(object):
 
     # Species properties ======================================================
     def Y_i(self):
-        for specie, thermo in self.mixture.items():
-            thermo.specie.Y = np.clip(
-                thermo.specie.X * thermo.specie.m / self.m, a_min=0., a_max=1.
-            )
+        for thermo in self.mixture.values():
+            sp = thermo.specie
+            sp.Y = sp.X * sp.m / self.m
 
     def X_i(self):
-        for specie, thermo in self.mixture.items():
-            thermo.specie.X = np.clip(
-                thermo.specie.Y * self.m / thermo.specie.m, a_min=0., a_max=1.
-            )
+        for thermo in self.mixture.values():
+            sp = thermo.specie
+            sp.X = sp.Y * self.m / sp.m
 
     def n_i(self, rho=None, n=None, var='Y'):
-        for specie, thermo in self.mixture.items():
+        for thermo in self.mixture.values():
+            sp = thermo.specie
             if var == 'Y':
-                thermo.specie.n = np.clip(
-                    thermo.specie.Y * rho / thermo.specie.m * const.UNA, a_min=0., a_max=None
-                )
+                sp.n = sp.Y * rho / sp.m * const.UNA
             elif var == 'X':
-                thermo.specie.n = np.clip(
-                    thermo.specie.X * n, a_min=0.
-                )
+                sp.n = sp.X * n
 
     def rho_i(self, rho=None, n=None, var='Y'):
-        for specie, thermo in self.mixture.items():
+        for thermo in self.mixture.values():
+            sp = thermo.specie
             if var == 'Y':
-                thermo.specie.rho = np.clip(
-                    thermo.specie.Y * rho, a_min=0., a_max=None
-                )
+                sp.rho = sp.Y * rho
             elif var == 'X':
-                thermo.specie.rho = np.clip(
-                    thermo.specie.X * n * thermo.specie.m / const.UNA, a_min=0., a_max=None
-                )
+                sp.rho = sp.X * n * sp.m / const.UNA
 
     # Utils ===================================================================
-    def mix_quantity(self, quantity, T=None):
+    def mix_quantity(self, quantity, *args):
         var = []
-        for specie, thermo in self.mixture.items():
+        for thermo in self.mixture.values():
+            sp = thermo.specie
             if isinstance(quantity, str):
-                var_ = getattr(thermo, quantity)(T)
+                var_ = getattr(thermo, quantity)(*args)
             else:
                 var_ = quantity
-            var.append(thermo.specie.Y / thermo.specie.m * var_)
-        return np.sum(np.concatenate(tuple(var)))
+            var.append(sp.Y / sp.m * var_)
+        return tf.reduce_sum(tf.concat(var, 1), axis=1, keepdims=True)

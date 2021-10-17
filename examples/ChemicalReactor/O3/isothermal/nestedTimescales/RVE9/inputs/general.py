@@ -80,6 +80,19 @@ species = {
 }
 
 
+species = {
+    'O2': {
+        'rovib': {
+            'system': 'O3',
+            'PES': 'UMN',
+            'grouping': 'CBM3'
+        }
+    }
+}
+
+
+
+
 # Grouping
 grouping = [None, 'RVE3', 'RVE9']    # Each timescale
 

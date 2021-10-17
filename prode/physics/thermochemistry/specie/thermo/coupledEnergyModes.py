@@ -22,6 +22,15 @@ class CoupledEnergyModes(object):
     # Methods
     ###########################################################################
     # Enthalpy ================================================================
+    def cp(self, T):
+        # [J/(mol K)]
+        return self.cv(T) + const.URG
+
+    def h(self, T):
+        # [J/mol]
+        return self.e(T) + const.URG*T
+
+    # Energy ==================================================================
     def cv(self, T):
         # [J/(mol K)]
         return self.cv_tr() + self.cv_int(T)

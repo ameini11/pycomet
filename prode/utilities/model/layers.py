@@ -13,8 +13,8 @@ from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
+from prode.physics.general import const
 from prode.utilities import utils
-from prode.utilities import const
 
 
 # =========================================================================== #

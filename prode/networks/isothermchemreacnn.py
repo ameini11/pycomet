@@ -7,7 +7,7 @@ from prode.utilities.model import initializers
 from prode.utilities.model import regularizers
 from prode.utilities.model import layers
 from prode.utilities import utils
-from prode.utilities import const
+from prode.physics.general import const
 from prode.networks.tsnn import TimeScaleNN
 from prode.networks.net import Net
 
