@@ -26,6 +26,7 @@ from prode import apps
 from prode import config
 from prode import data
 from prode import networks
+from prode import physics
 from prode.model import Model
 from prode import postprocessing
 
@@ -34,6 +35,7 @@ __all__ = [
     "config",
     "data",
     "networks",
+    "physics",
     "Model",
     "postprocessing"
 ]

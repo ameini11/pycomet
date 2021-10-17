@@ -32,7 +32,7 @@ class DataGenerator(object):
         input_space,
         database,
         grouping,
-        processes,
+        processes_mask,
         groups_graph=None
     ):
         # Dimensionality ------------------------------------------------------
@@ -91,7 +91,7 @@ class DataGenerator(object):
         self.reac_names = {'diss', 'exch', 'inel'}
 
         # Building Master Equation matrices -----------------------------------
-        self.ODE_sol = ODESolver(processes)
+        self.ODE_sol = ODESolver(processes_mask)
         self.arrhenius_coeff = pd.read_csv(
             self.rates_path+'arrhenius_coeff.csv', index_col=0
         )

@@ -15,7 +15,7 @@ class PhysicalModel(object):
         dim,
         database,
         grouping,
-        processes,
+        processes_mask,
         groups_graph=None
     ):
         # Timescales connectivity ---------------------------------------------
@@ -59,7 +59,7 @@ class PhysicalModel(object):
         # Rates matrix splitted between different processes
         self.split_proc = [ v for k, v in num_reac.items() ]
         # Reactions flags activator (masking)
-        self.me_mask = list(processes.values())
+        self.me_mask = list(processes_mask.values())
 
         # IC input dimension --------------------------------------------------
         self.ic_dim = dim["inp"][0]

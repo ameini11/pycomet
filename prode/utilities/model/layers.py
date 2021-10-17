@@ -486,13 +486,12 @@ class Bias(tf_layers.Layer):
 # Equilibrium Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='Equilibrium')
-class Equilibrium(tf_layers.Subtract):
+class Equilibrium(tf_layers.Add):
 
     # Initialization
     ###########################################################################
     def __init__(
         self,
-        # database,
         grouping,
         levels,
         lev_bin_map,
@@ -510,9 +509,6 @@ class Equilibrium(tf_layers.Subtract):
         # Paths to databases
         self.levels = levels
         self.lev_bin_map = lev_bin_map
-        # self.levels = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        # self.lev_bin_map = database + '/grouping/O3_UMN/O2/LevelsMap_' \
-        #     + self.grouping + '.csv'
 
         # Retrieve Molecular data
         self.g, self.E, self.num_lev = self.read_levels()
@@ -550,7 +546,7 @@ class Equilibrium(tf_layers.Subtract):
         e = self.energy_bins(T) * tf.math.reciprocal(T) / const.UKB
         return super(Equilibrium, self).call([x, e])
 
-    def energy_bins(self, T):
+    def intPF(self, T):
         '''Compute bins partition function.'''
         T_rec = tf.math.reciprocal(tf.transpose(T))
         q = tf.math.multiply(
@@ -558,15 +554,59 @@ class Equilibrium(tf_layers.Subtract):
                 - tf.tensordot(self.E, T_rec, 1) / const.UKB
             )
         )
-        E_bins = []
+        Q_bins = []
         for bin_i in range(self.num_bins):
             mask = self.lev_to_bin == bin_i
-            Q_bin_i = tf.math.reduce_sum(q[mask], axis=0, keepdims=True)
-            E_bin_i = self.E[mask] * q[mask] * tf.math.reciprocal(Q_bin_i)
-            E_bins.append(
-                tf.math.reduce_sum(E_bin_i, axis=0, keepdims=True)
+            Q_bins.append(
+                tf.math.reduce_sum(q[mask], axis=0, keepdims=True)
             )
-        return tf.transpose(tf.concat(E_bins, 0))
+        return tf.transpose(tf.concat(Q_bins, 0))
+
+    def transPF(self, T):
+        '''Compute bins partition function.'''
+        T_rec = tf.math.reciprocal(tf.transpose(T))
+        q = tf.math.multiply(
+            self.g, tf.math.exp(
+                - tf.tensordot(self.E, T_rec, 1) / const.UKB
+            )
+        )
+        Q_bins = []
+        for bin_i in range(self.num_bins):
+            mask = self.lev_to_bin == bin_i
+            Q_bins.append(
+                tf.math.reduce_sum(q[mask], axis=0, keepdims=True)
+            )
+        return tf.transpose(tf.concat(Q_bins, 0))
+
+    # # Calling
+    # ###########################################################################
+    # def call(self, inputs):
+    #     if isinstance(inputs, (list, tuple)):
+    #         x, T = inputs
+    #     else:
+    #         utils.raise_value_err(
+    #             "The inputs of the `{}` layer have to be a `list` "
+    #             "or a `tuple`: [x, T]".format(self.name))
+    #     e = self.energy_bins(T) * tf.math.reciprocal(T) / const.UKB
+    #     return super(Equilibrium, self).call([x, e])
+
+    # def energy_bins(self, T):
+    #     '''Compute bins partition function.'''
+    #     T_rec = tf.math.reciprocal(tf.transpose(T))
+    #     q = tf.math.multiply(
+    #         self.g, tf.math.exp(
+    #             - tf.tensordot(self.E, T_rec, 1) / const.UKB
+    #         )
+    #     )
+    #     E_bins = []
+    #     for bin_i in range(self.num_bins):
+    #         mask = self.lev_to_bin == bin_i
+    #         Q_bin_i = tf.math.reduce_sum(q[mask], axis=0, keepdims=True)
+    #         E_bin_i = self.E[mask] * q[mask] * tf.math.reciprocal(Q_bin_i)
+    #         E_bins.append(
+    #             tf.math.reduce_sum(E_bin_i, axis=0, keepdims=True)
+    #         )
+    #     return tf.transpose(tf.concat(E_bins, 0))
 
     # Util Functions
     ###########################################################################

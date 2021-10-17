@@ -159,29 +159,30 @@ class IsoThermChemReacNN(Net):
                 x_u = self.inp_trans(x_u)
                 x_y = self.inp_trans(x_y)
 
-        # Kernel - TimeScales -------------------------------------------------
+        # Kernel - Timescales NN ----------------------------------------------
         y = [ ts([x_u, x_y], training, mask) for ts in self.timescales ]
 
         # Outputs manipulation ------------------------------------------------
         if len(y) > 1:
-
-            # Concatenate outputs
+            # Concatenate Timescales NN outputs
             y = [ tf_layers.Concatenate()(y_i) \
-                if isinstance(y_i, (list,tuple)) else y_i for y_i in y]
-
-            # Multiply time scales
+                if isinstance(y_i, (list,tuple)) else y_i for y_i in y ]
+            # 
             for ts, indeces in self.ts_ts_conn.items():
                 if indeces:
+                    # Split the slower timescale
                     y_slow = tf.split(
                         y[ts], num_or_size_splits=y[ts].shape[1], axis=1
                     )
-                    y_fast = [ tf.gather(y[ts+1], idx, axis=1) for idx in indeces ]
-                    if len(y_slow) != len(y_fast):
-                        y_slow = y_slow[-len(y_fast):]
+                    # Gather the faster timescale by indeces
+                    y_fast = [ tf.gather(y[ts+1], idx, axis=1) \
+                        for idx in indeces ]
+                    # Multiply slower and faster timescales
                     y_mul = [ tf_layers.Multiply()([ys, yf]) \
                         for ys, yf in zip(y_slow, y_fast) ]
                     y[ts+1] = tf_layers.Concatenate()(y_mul) \
                         if len(y_mul) > 1 else y_mul[-1]
+            return y
         else:
             return y[-1]
 

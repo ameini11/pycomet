@@ -176,6 +176,18 @@ def depth(d):
 def value_to_dict(value, keys):
     return value if isinstance(value, dict) else {k: value for k in keys}
 
+def search_string(file, string):
+    with open(file, 'r') as f:
+        for i, line in enumerate(f):
+            if string+' ' in line:
+                return i, line
+
+def check_format(data_type, string):
+    if data_type == float and 'd' in string:
+        return string.replace("d", "e")
+    else:
+        return string
+
 # Others
 ###############################################################################
 def kill_process():

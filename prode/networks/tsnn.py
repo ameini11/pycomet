@@ -171,7 +171,7 @@ class TimeScaleNN(Net):
         # Equilibrium layer
         if self.equilibrium is not None:
             y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-            y = self.equilibrium(y, T)
+            y = self.equilibrium([y, T])
             y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
 
         # Softmax layer

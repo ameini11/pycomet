@@ -10,7 +10,7 @@ class ODESolver(object):
     ###########################################################################
     def __init__(
         self,
-        processes
+        processes_mask
     ):
         # Initial/Final time
         self.t0     = 0.
@@ -22,7 +22,7 @@ class ODESolver(object):
         self.dt_max = 1.e-4
 
         # Reactive processes
-        self.processes = processes
+        self.processes_mask = processes_mask
 
     # Solve ODE
     ###########################################################################
@@ -123,13 +123,13 @@ class ODESolver(object):
     def get_matrices(self, rates_coeff, Q_bins, T):
         '''Get all the rates matrices for the ODE.'''
         K_e = self.excit(
-            self.processes['excit'], rates_coeff, Q_bins
+            self.processes_mask['excit'], rates_coeff, Q_bins
         ) / const.mass['O']
         K_d = self.disso(
-            self.processes['diss'], rates_coeff
+            self.processes_mask['diss'], rates_coeff
         ) / const.mass['O']
         K_r = self.recom(
-            self.processes['recomb'], rates_coeff, Q_bins, T
+            self.processes_mask['recomb'], rates_coeff, Q_bins, T
         ) / const.mass['O']**2 * 2
         return K_e, K_d, K_r
 

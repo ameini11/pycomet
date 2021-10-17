@@ -36,13 +36,6 @@ flags = {
 
 # Physical model
 # =============================================================================
-ode_order = 1
-processes = {                       # Reactive processes
-    'excit':  1,
-    'diss':   1,
-    'recomb': 1
-}
-
 # Input space (limit values)
 input_space = {
     'Ttr':  [5.e3,   1.5e4],        # Tanslational temperature [K]
@@ -55,7 +48,39 @@ temp_limits = input_space['Ttr']
 # Time (limit values)
 time_limit = [1.e-14, 1.e-3]
 
-# Grouping --------------------------------------------------------------------
+# Thermochemistry -------------------------------------------------------------
+processes_mask = {       # Reactive processes
+    'excit':  1,
+    'diss':   1,
+    'recomb': 1
+}
+
+# Database
+database = os.path.normpath(os.getcwd()+'/../../../database')
+
+# Thermo
+thermo = database + '/air/thermo/'
+species = {
+    'O': None,
+    'O2': {
+        'rovib_levels': database + '/grouping/O2/levels/O3_UMN/O2/FromUMN_Sorted.inp',
+        'grouping': [None, 'RVE3', 'RVE9'],
+        'graph': {
+            0: {
+                0: [0,1,2],
+                1: [3,4,5],
+                2: [6,7,8]
+            }
+        },
+        'lev_bin_map' = [
+            database + '/grouping/O3_UMN/O2/LevelsMap_' + g + '.csv' \
+                if g != None else g for g in grouping
+        ]
+    }
+}
+
+
+# Grouping
 grouping = [None, 'RVE3', 'RVE9']    # Each timescale
 
 groups_graph = {
@@ -65,11 +90,6 @@ groups_graph = {
         2: [6,7,8]
     }
 }
-
-# Database --------------------------------------------------------------------
-database = os.path.normpath(os.getcwd()+'/../../../database')
-
-levels = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
 
 lev_bin_map = [
     database + '/grouping/O3_UMN/O2/LevelsMap_' + g + '.csv' \
