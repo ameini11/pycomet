@@ -84,14 +84,11 @@ dropout_rate = 0
 # =============================================================================
 # Global model ----------------------------------------------------------------
 # *** Inputs
-def _branch_fn(x):
-    T = inp_gen.input_space['Ttr']
-    T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
-    return tf.concat([T_norm, x[:,1:]], 1)
-
 input_fn = {
-    "branch": tf_layers.Lambda(_branch_fn, name='branch_fn'),
-    "trunk": pro_layers.Scaling(slope=1.e6, name='trunk_fn', trainable=False)
+    "branch": pro_layers.LinearNorm(
+        *inp_gen.input_space['Ttr'], name='trunk_fn', trainable=False
+    ),
+    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 
 # *** Outputs

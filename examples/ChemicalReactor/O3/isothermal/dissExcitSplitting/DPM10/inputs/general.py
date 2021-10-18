@@ -46,13 +46,18 @@ processes = {                   # Reactive processes
 database = os.path.normpath(os.getcwd()+'/../../../database')
 
 # Input space (limit values)
+# input_space = {
+#     'Ttr':  [5.e3,   1.5e4],    # Tanslational temperature [K]
+#     'T0':   [1.e3,   5.e3],     # Initial temperature [K]
+#     'P0':   [1.e3,   1.e4],     # Initial pressure [Pa]
+#     'XO2':  [0.05e0, 1.e0]      # Initial O2 mole fraction
+# }
 input_space = {
-    'Ttr':  [5.e3,   1.5e4],    # Tanslational temperature [K]
-    'T0':   [1.e3,   5.e3],     # Initial temperature [K]
-    'P0':   [1.e3,   1.e4],     # Initial pressure [Pa]
-    'XO2':  [0.05e0, 1.e0]      # Initial O2 mole fraction
+    'Ttr':  [1.e4,   1.e4],    # Tanslational temperature [K]
+    'T0':   [5.e3,   5.e3],     # Initial temperature [K]
+    'P0':   [1.e4,   1.e4],     # Initial pressure [Pa]
+    'XO2':  [0.5e0,  0.5e0]      # Initial O2 mole fraction
 }
 
 # Time limits for testing
 time_limit = [1.e-14, 1.e-3]
-

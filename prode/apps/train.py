@@ -203,20 +203,6 @@ def main():
     )
     model.compile(**compile_args)
 
-
-    # Testing phase -----------------------------------------------------------
-    utils.print_main("Postprocessing physical quantities ...")
-    if inp.data.test_cases > 0 and inp.general.flags['test'] > 0:
-        for i, test_i in enumerate(tqdm(data.test)):
-            model.predict(
-                data=test_i,
-                plotting=inp.general.flags['plot'],
-                path=model.post_dir+'/testing/test_'+str(i+1),
-                **inp.postprocessing.plot_style
-            )
-
-    input('+++')
-
     # Fit Model ---------------------------------------------------------------
     if inp.general.flags['train'] > 0:
         if hasattr(inp.engine, 'callbacks'):
