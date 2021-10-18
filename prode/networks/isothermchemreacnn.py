@@ -20,14 +20,12 @@ class IsoThermChemReacNN(Net):
     ###########################################################################
     def __init__(
         self,
+        ts_thermochem,
+        groups_graph,
+        temp_limits,
         dim,
         tsnn_dim,
-        groups_graph,
         names,
-        temp_limits,
-        grouping,
-        levels,
-        lev_bin_map,
         layer_size,
         activation,
         kernel_initializer,
@@ -68,10 +66,8 @@ class IsoThermChemReacNN(Net):
         # Temperature
         self.temp_limits = temp_limits
 
-        # Levels & grouping
-        self.grouping = grouping
-        self.levels = levels
-        self.lev_bin_map = lev_bin_map
+        # Timescales thermochemistry
+        self.ts_thermochem = ts_thermochem
 
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size = utils.value_to_dict(layer_size, self.names)
@@ -90,15 +86,13 @@ class IsoThermChemReacNN(Net):
         self.stacked = stacked
         self.timescales = [
             TimeScaleNN(
-                self.tsnn_dim[name],
-                self.ts_fast_conn[i],
-                self.temp_limits,
-                self.grouping[i],
-                self.levels,
-                self.lev_bin_map[i],
-                self.layer_size[name],
-                self.activation[name],
-                self.kernel_initializer[name],
+                **self.ts_thermochem[name],
+                temp_limits=self.temp_limits,
+                dim=self.tsnn_dim[name],
+                ts_fast_conn=self.ts_fast_conn[i],
+                layer_size=self.layer_size[name],
+                activation=self.activation[name],
+                kernel_initializer=self.kernel_initializer[name],
                 regularization=self.regularization,
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
@@ -114,13 +108,11 @@ class IsoThermChemReacNN(Net):
     ###########################################################################
     def get_config(self):
         config = {
+            'ts_thermochem': self.ts_thermochem,
             'groups_graph': self.groups_graph,
-            'names': self.names,
             'temp_limits': self.temp_limits,
-            'grouping': self.grouping,
-            'levels': self.levels,
-            'lev_bin_map': self.lev_bin_map,
             'tsnn_dim': self.tsnn_dim,
+            'names': self.names,
             'layer_size': self.layer_size,
             'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
@@ -177,6 +169,8 @@ class IsoThermChemReacNN(Net):
                     # Gather the faster timescale by indeces
                     y_fast = [ tf.gather(y[ts+1], idx, axis=1) \
                         for idx in indeces ]
+                    if len(y_slow) != len(y_fast):
+                        y_slow = y_slow[-len(y_fast):]
                     # Multiply slower and faster timescales
                     y_mul = [ tf_layers.Multiply()([ys, yf]) \
                         for ys, yf in zip(y_slow, y_fast) ]
@@ -213,21 +207,6 @@ class IsoThermChemReacNN(Net):
             return self.ts_to_ts_connectivity(d, level=level+1, conn=conn)
         else:
             return conn
-
-    # def ts_to_ts_connectivity(self, graph, level=0, conn={}):
-    #     d = {}
-    #     conn[level] = []
-    #     for g in graph.values():
-    #         if hasattr(g, 'keys'):
-    #             l = list(g.keys())
-    #             d = {**d, **g}
-    #         else:
-    #             l = g
-    #         conn[level].append(l)
-    #     if d != {}:
-    #         return self.ts_to_ts_connectivity(d, level=level+1, conn=conn)
-    #     else:
-    #         return conn
 
     def ts_to_fastest_connectivity(self, graph, ts={}):
         conn = self.graph_to_nested_list(graph)

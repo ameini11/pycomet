@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.integrate import ode
 
-from prode.utilities import const
+from prode.physics.general import const
 
 
 class ODESolver(object):
@@ -93,7 +93,7 @@ class ODESolver(object):
 
         return out
 
-    def equilibrium(self, rho):
+    def equilibrium(self, rho, T, Q_bins):
         '''ODE Final Equilibrium Condition.'''
 
         # Translatiional partition functions

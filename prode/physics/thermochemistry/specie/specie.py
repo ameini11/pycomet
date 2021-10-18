@@ -1,13 +1,15 @@
+import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from tensorflow.python.keras import backend
 from prode.utilities import utils
 from prode.physics.general import const
 
 import prode.physics.database as db
-thermo_db = db.__file__ + '/air/thermo/'
-grouping_db = db.__file__ + '/air/grouping/'
+thermo_db = os.path.dirname(db.__file__) + '/air/thermo/'
+grouping_db = os.path.dirname(db.__file__) + '/air/grouping/'
 
 
 class Specie(object):
@@ -17,7 +19,9 @@ class Specie(object):
     def __init__(
         self,
         name,
-        rovib=None
+        rovib=None,
+        *args,
+        **kwargs
     ):
         # Read specie properties ==============================================
         self.properties = {
@@ -50,13 +54,17 @@ class Specie(object):
         self.el_lev, self.g_e = self.read_elec_levels(thermo_db + name)
 
         # Read specie ro-vibrational levels ===================================
-        if self.n_at > 1:
-            self.rovib = rovib
-            path = grouping_db+rovib['system']+'_'+rovib['PES']+'/'+name+'/'
-            file = path+rovib['grouping']+'/LevelsMap_'+rovib['grouping']+'.csv'
-            self.rv_lev = self.read_rovib_levels(path+'/levels.inp')
+        self.rovib = rovib
+        if self.n_at > 1 and self.rovib is not None:
+            path = grouping_db + self.rovib['system'] + '_' \
+                + self.rovib['PES'] + '/' + name + '/'
+            # Retrieve ro-vib levels
+            self.rv_lev = self.read_rovib_levels(path + '/levels.inp')
+            # Retrieve ro-vib level to bin mapping
+            map_file = path + '/LevelsMap_' + rovib['grouping'] + '.csv' \
+                if self.rovib['grouping'] else None
             self.lev_to_bin, self.n_bins = self.read_grouping(
-                file, self.rovib['grouping']
+                map_file, self.rovib['grouping']
             )
 
     # Methods
@@ -138,10 +146,13 @@ class Specie(object):
                 g, E = l.strip().split("  ")
                 deg.append(float(g))
                 en.append(float(E) * const.EH_to_J)
-        db['g'] = deg
-        db['E'] = en
         g_e = deg[0]
-
+        deg, en = list(map(
+            lambda x: tf.expand_dims(
+                tf.convert_to_tensor(x, dtype=backend.floatx()), 1
+            ), [deg, en]
+        ))
+        db['g'], db['E'] = deg, en-en[0]
         return db, g_e
 
     # Molecular ro-vibrational levels =========================================
@@ -156,9 +167,14 @@ class Specie(object):
         vqn = np.array(data[0])                     # Vibrational Q.N.
         jqn = np.array(data[1])                     # Rotational  Q.N.
         db['num'] = len(vqn)
-        db['g'] = self.g_e/2.0*(2.0*jqn+1.0)        # Degeneracies
+        g = self.g_e/2.0*(2.0*jqn+1.0)              # Degeneracies
         E = np.array(data[2]) * const.EH_to_J       # Energy [J]
-        db['E'] = E
+        g, E = list(map(
+            lambda x: tf.expand_dims(
+                tf.convert_to_tensor(x, dtype=backend.floatx()), 1
+            ), [g, E-E[0]]
+        ))
+        db['g'], db['E'] = g, E
         return db
 
     # Grouping ================================================================

@@ -76,7 +76,7 @@ class CoupledEnergyModes(object):
                 )
             return tf.concat(cv_int_, 1) * const.UNA
         else:
-            return 0.
+            return tf.zeros_like(T, dtype=backend.floatx())
 
     def e_int(self, T):
         # [J/mol]
@@ -93,4 +93,4 @@ class CoupledEnergyModes(object):
                 )
             return tf.concat(e_int_, 1) / Q * const.UNA
         else:
-            return 0.
+            return tf.zeros_like(T, dtype=backend.floatx())

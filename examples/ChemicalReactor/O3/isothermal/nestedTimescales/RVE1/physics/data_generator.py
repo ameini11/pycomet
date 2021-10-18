@@ -1,4 +1,5 @@
 import os
+import itertools
 import numpy as np
 import pandas as pd
 import joblib as jl
@@ -11,13 +12,17 @@ from scipy.spatial import KDTree
 from pyDOE import lhs
 
 from physics.ode_solver import ODESolver
-from prode.utilities import const
+from prode.utilities import utils
+from prode.physics.general import const
+
+import prode.physics.database as db
+kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
+grouping_db = os.path.dirname(db.__file__) + '/air/grouping/'
 
 
 class DataGenerator(object):
 
-    ###########################################################################
-    ### Initialization
+    # Initialization
     ###########################################################################
     def __init__(
         self,
@@ -29,18 +34,10 @@ class DataGenerator(object):
         test_training,
         time_limit,
         input_space,
-        database,
-        grouping,
-        processes
+        species,
+        processes_mask,
+        groups_graph=None
     ):
-        # Data Quantities -----------------------------------------------------
-        self.d = dim["out"]
-        if isinstance(self.d, (list,tuple)):
-            self.split_out = [ self.d[i] if i == 0 else self.d[i]+self.d[i-1] \
-                for i in range(len(self.d)-1) ]
-        else:
-            self.split_out = None
-
         # Data Quantities -----------------------------------------------------
         # Training/Validation pts
         self.scenarios = train_pts['ics']
@@ -73,34 +70,28 @@ class DataGenerator(object):
             for k, v in input_space.items()}
 
         # Retrieving Molecular data -------------------------------------------
-        self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = database + \
-            '/grouping/O3_UMN/O2/LevelsMap_' + grouping + '.csv'
+        rovib = species['O2']['rovib']
+        path = grouping_db + rovib['system'] + '_' + rovib['PES'] + '/O2/'
+        self.levels_file = path + '/levels.inp'
+        self.binMap_file = path + '/LevelsMap_' + rovib['grouping'] + '.csv'
         self.g, self.E, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
         # Retrieving Rates coefficients ---------------------------------------
-        self.rates_path = database + '/kinetics/O3_UMN_' + grouping + '/'
-        self.reac_file = {
-            'diss': 'Diss_Corrected.dat',
-            'exch': 'Exch_Type1.dat',
-            'inel': 'Inel.dat'
-        }
+        self.rates_path = kinetic_db + '/O3_UMN/' + rovib['grouping'] + '/'
+        self.reac_names = {'diss'}
 
         # Building Master Equation matrices -----------------------------------
-        self.ODE_sol = ODESolver(processes)
+        self.ODE_sol = ODESolver(processes_mask)
         self.arrhenius_coeff = pd.read_csv(
             self.rates_path+'arrhenius_coeff.csv', index_col=0
         )
 
         # Labeling Data -------------------------------------------------------
-        self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
-        data_label_inp = ['T', 'rho'] + self.groups_label + ['t']
-        data_label_out = self.groups_label
-        if self.split_out and self.d[-1] > 1:
-            data_label_out = data_label_out + ['Y_O2']
-        data_label_out = data_label_out + ['Y_O']
-        self.data_label = data_label_inp + data_label_out
+        self.groups_label = ['Y_O2']
+        self.data_label_inp = ['T', 'rho'] + self.groups_label + ['t']
+        self.data_label_out = ['Y_O', 'Y_O2']
+        self.data_label = self.data_label_inp + self.data_label_out
 
     # Master Equation matrices
     ###########################################################################
@@ -110,7 +101,7 @@ class DataGenerator(object):
     def get_rates(self, T):
         '''Retrieve rates coefficients from dataframe.'''
         rates_coeff = dict()
-        for reac_name in self.reac_file:
+        for reac_name in self.reac_names:
             shape = (self.num_bins,) if reac_name == 'diss' \
                 else (self.num_bins, self.num_bins)
             rates_coeff[reac_name] = np.zeros(shape, dtype=np.float64)
@@ -127,7 +118,7 @@ class DataGenerator(object):
 
     def build_matrices(self, T):
         '''Build Master Equation matrices.'''
-        Q_bins = self.compute_partition_func(T)
+        Q_bins = self.partition_func(T)
         rates_coeff = self.get_rates(T)
         return self.ODE_sol.get_matrices(rates_coeff, Q_bins, T)
 
@@ -161,7 +152,7 @@ class DataGenerator(object):
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
             XO = 1. - XO2
             nd = P0 / (const.UKB * T0)
-            Q_bins = self.compute_partition_func(T0)
+            Q_bins = self.partition_func(T0)
             rho_s[i,:-1] = XO2 * Q_bins / sum(Q_bins) * 2.0 * const.mass['O'] * nd
             rho_s[i, -1] = XO  * const.mass['O'] * nd
         Ttr, rho = X[:,0:1], np.sum(rho_s, axis=1, keepdims=True)
@@ -197,8 +188,9 @@ class DataGenerator(object):
             #                         fillstyle='full', markersize=2)
             #     plt.xscale('log')
             #     plt.yscale('log')
-            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style)
+            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style, label=self.data_label_out)
             #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
+            #     plt.legend()
             #     plt.grid()
             #     plt.show()
             data = self.stack_data(data, data_i, data_type)
@@ -224,7 +216,7 @@ class DataGenerator(object):
             ).to_csv(
                 path+"input_space.csv", index=False, float_format='{:e}'.format
             )
-            
+
         return data['train'], data['valid']
 
     def unpack_data(self, data):
@@ -265,12 +257,8 @@ class DataGenerator(object):
         if y is None:
             return [[u, t]]
         else:
-            if self.split_out and self.d[-1] > 1:
-                y_O2 = np.sum(y[:,:-1], axis=1)
-                y = np.insert(y, -1, y_O2, axis=1)
-            y = np.split(y[idx], self.split_out, axis=1) \
-                if self.split_out else y[idx]
-            return [[u, t], y]
+            y_O2, y_O = np.hsplit(y[idx], [-1])
+            return [[u, t], np.hstack([y_O, y_O2])]
 
     def get_data(self, ic, t, y, pts, idx):
         data = {}
@@ -312,9 +300,7 @@ class DataGenerator(object):
                     data[data_type][data_id][i] = xy
         return data
 
-
-    ###########################################################################
-    ### Testing Data
+    # Testing Data
     ###########################################################################
     def testing_data(
         self,
@@ -385,12 +371,11 @@ class DataGenerator(object):
         t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
         u_i      = np.tile(ic_i[:-1], (t_i.shape[0],1))
 
+        # Extract data values
+        y_O2, y_O = np.hsplit(y_i, [-1])
+        y_i = np.hstack([y_O, y_O2])
+
         # Collect data values
-        if self.split_out:
-            if self.d[-1] > 1:
-                y_O2 = np.sum(y_i[:,:-1], axis=1)
-                y_i = np.insert(y_i, -1, y_O2, axis=1)
-            y_i = np.split(y_i, self.split_out, axis=1)
         data_i = [[u_i, t_i], y_i]
         if eval_f:
             data_i.append(f_rhs[ii[0]:ii[1],:])
@@ -420,7 +405,7 @@ class DataGenerator(object):
     ###########################################################################
     # Chemical Kinetics
     # -------------------------------------------------------------------------
-    def compute_partition_func(self, T):
+    def partition_func(self, T):
         '''Compute bins partition function.'''
         q = self.g * np.exp( - self.E / (T * const.UKB) )
         Q_bins = np.zeros(self.num_bins)

@@ -18,13 +18,11 @@ class TimeScaleNN(Net):
     ###########################################################################
     def __init__(
         self,
+        species,
+        reaction,
+        temp_limits,
         dim,
         ts_fast_conn,
-        temp_limits,
-        # database,
-        grouping,
-        levels,
-        lev_bin_map,
         layer_size,
         activation,
         kernel_initializer,
@@ -97,17 +95,11 @@ class TimeScaleNN(Net):
         ]
 
         ### Equilibrium Layer -------------------------------------------------
-        # self.database = database
-        self.grouping = grouping
-        self.levels = levels
-        self.lev_bin_map = lev_bin_map
-        if self.grouping:
-            self.equilibrium = layers.Equilibrium(
-                self.grouping, self.levels, self.lev_bin_map
-            )
-        else:
-            self.equilibrium = None
-        # self.equilibrium = layers.Equilibrium(self.database, self.grouping)
+        self.reaction = reaction
+        self.species = species
+        self.equilibrium = layers.Equilibrium(
+            self.out_dim, self.reaction, self.species
+        )
 
     # Configuration update
     ###########################################################################
@@ -124,10 +116,8 @@ class TimeScaleNN(Net):
             'weight_norm': self.weight_norm,
             'opnn_end_scale': self.opnn_end_scale,
             'stacked': self.stacked,
-            # 'database': self.database,
-            'grouping': self.grouping,
-            'levels': self.levels,
-            'lev_bin_map': self.lev_bin_map
+            'reaction': self.reaction,
+            'species': self.species
         }
         base_config = super(TimeScaleNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -140,7 +130,6 @@ class TimeScaleNN(Net):
     ###########################################################################
     def call(self, x, training=None, mask=None):
 
-        # Extract inputs
         ic, t = x
 
         # Inputs manipulation -------------------------------------------------
@@ -167,17 +156,12 @@ class TimeScaleNN(Net):
         # Kernel - OpNNs ------------------------------------------------------
         y = [ g_uy([ic, t], training, mask) for g_uy in self.opnns ]
 
-        # Outputs manipulation ------------------------------------------------
-        # Equilibrium layer
-        if self.equilibrium is not None:
-            y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-            y = self.equilibrium([y, T])
-            y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
+        # Equilibrium layer ---------------------------------------------------
+        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        y = tf_layers.Softmax(axis=-1)(y)
+        # y = self.equilibrium([y, T, rho])
 
-        # Softmax layer
-        y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
-
-        return y if len(y) > 1 else y[-1]
+        return y
 
     # Graph
     ###########################################################################

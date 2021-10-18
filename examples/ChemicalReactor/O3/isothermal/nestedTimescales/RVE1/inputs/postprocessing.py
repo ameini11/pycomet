@@ -21,14 +21,9 @@ limit_y = False
 
 # Plotting quantities
 # =============================================================================
-# Outputs manipulation --------------------------------------------------------
-def output_ops(y):
-    return tf.concat(y, 1)
-    
 # Style -----------------------------------------------------------------------
 plot_style = {
-    'output_ops':   output_ops,
-    'var_names':    inp_gen.var_names,
+    'var_names':    [r'$O$', r'$O_2$'],
     'labels':       [r'$t\quad[s]$', r'$Y$'],
     'scales':       ['log', 'linear'],
     'log_plot':     True

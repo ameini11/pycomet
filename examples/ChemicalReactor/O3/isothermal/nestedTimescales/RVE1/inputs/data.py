@@ -12,22 +12,11 @@
 # --------------------------------------------------------------------------- #
 
 
-import os
-import numpy as np
-import inputs.general as inp_gen
-
-
-# Paths
-# =============================================================================
-paths = {
-    'database': os.path.normpath(os.getcwd()+'/../../../../database'),
-    'utils':    os.path.normpath(os.getcwd()+'/utils'),
-    'ode':      os.path.normpath(os.getcwd()+'/')
-}
-
 # Data properties
 # =============================================================================
 data_type = 'ODE'
+
+ode_order = 1
 
 # Data source -----------------------------------------------------------------
 from_file = False
@@ -47,8 +36,8 @@ valid_file = {
 
 test_file = './data/test/ics.csv'
 
-col_x = [[0,11],[11,12]]
-col_y = [[12,14],[14,17],[17,26]]
+col_x = [[0,3],[3,4]]
+col_y = [4,6]
 
 header = 0
 
@@ -61,45 +50,33 @@ def preproc_fn(x):
     Returns:
         An array or list of arrays.
     """
-    if x.shape[1] == col_y[2][1]:
-        x[:,col_y[0][0]] = 1. - x[:,col_y[0][0]+1]
+    if x.shape[1] == col_y[1]:
+        x[:,col_y[0]+1] = 1. - x[:,col_y[0]]
     return x
 
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 10,#4096,    # Number of training scenarios
-    'pts': 1,       # Number of total anchor pts for each scenario
-    'res': 160      # Number of total collocation pts for each scenario
+    'ics': 4096,        # Number of training scenarios
+    'pts': 1,               # Number of total anchor pts for each scenario
+    'res': 160              # Number of total collocation pts for each scenario
 }
 valid = 0.2                 # % of Validation pts
-distribution = 'random' #'uniform'    # Training pts distribution
+distribution = 'uniform'    # Training pts distribution
 
+# Testing data
+test_cases = 50           # Number of testing cases
+test_training = True        # Test training cases
+
+# Batching --------------------------------------------------------------------
 batch_size = {
-    'ics': 256,
-    'pts': 256,
-    'res': 1024
+    'ics': 128,
+    'pts': 128,
+    'res': 512
 }
 
 valid_batch_size = {
-    'ics': 256,
-    'pts': 256,
+    'ics': 128,
+    'pts': 128,
     'res': 256
 }
-
-# Testing data
-test_cases = 5#40      # Number of testing cases
-test_training = True    # Test training cases
-
-# ODE properties
-# =============================================================================
-ode_order = 1
-grouping = inp_gen.grouping[-1]                     # ROM: ['CBM3', 'DPM10']
-processes = {'excit': 1, 'diss': 1, 'recomb': 1}    # Reactive processes
-groups_graph = inp_gen.groups_graph
-
-# Input space (limit values)
-input_space = inp_gen.input_space
-
-# Time limits for testing
-time_limit = inp_gen.time_limit

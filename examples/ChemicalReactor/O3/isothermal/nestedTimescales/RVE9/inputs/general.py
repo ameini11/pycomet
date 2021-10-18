@@ -48,53 +48,49 @@ temp_limits = input_space['Ttr']
 # Time (limit values)
 time_limit = [1.e-14, 1.e-3]
 
-# Thermochemistry -------------------------------------------------------------
-processes_mask = {       # Reactive processes
-    'excit':  1,
-    'diss':   1,
-    'recomb': 1
-}
+# Timescales thermochemistry --------------------------------------------------
+ts_thermochem = {
 
-# Database
-database = os.path.normpath(os.getcwd()+'/../../../database')
-
-# Thermo
-thermo = database + '/air/thermo/'
-species = {
-    'O': None,
-    'O2': {
-        'rovib_levels': database + '/grouping/O2/levels/O3_UMN/O2/FromUMN_Sorted.inp',
-        'grouping': [None, 'RVE3', 'RVE9'],
-        'graph': {
-            0: {
-                0: [0,1,2],
-                1: [3,4,5],
-                2: [6,7,8]
+    'TS0': {
+        'species': {
+            'O': None,
+            'O2': {
+                'rovib': {
+                    'system': 'O3',
+                    'PES': 'UMN',
+                    'grouping': None
+                }
             }
         },
-        'lev_bin_map' = [
-            database + '/grouping/O3_UMN/O2/LevelsMap_' + g + '.csv' \
-                if g != None else g for g in grouping
-        ]
+        'reaction': 'diss'
+    },
+
+    'TS1': {
+        'species': {
+            'O2': {
+                'rovib': {
+                    'system': 'O3',
+                    'PES': 'UMN',
+                    'grouping': 'RVE3'
+                }
+            }
+        },
+        'reaction': 'excit'
+    },
+
+    'TS2': {
+        'species': {
+            'O2': {
+                'rovib': {
+                    'system': 'O3',
+                    'PES': 'UMN',
+                    'grouping': 'RVE9'
+                }
+            }
+        },
+        'reaction': 'excit'
     }
 }
-
-
-species = {
-    'O2': {
-        'rovib': {
-            'system': 'O3',
-            'PES': 'UMN',
-            'grouping': 'CBM3'
-        }
-    }
-}
-
-
-
-
-# Grouping
-grouping = [None, 'RVE3', 'RVE9']    # Each timescale
 
 groups_graph = {
     0: {
@@ -104,7 +100,30 @@ groups_graph = {
     }
 }
 
-lev_bin_map = [
-    database + '/grouping/O3_UMN/O2/LevelsMap_' + g + '.csv' \
-        if g != None else g for g in grouping
-]
+# Thermochemistry -------------------------------------------------------------
+processes_mask = {      # Reactive processes
+    'excit':  1,
+    'diss':   1,
+    'recomb': 1
+}
+
+# *** Thermo
+mixture = {
+    'var': 'Y',
+    'type': 'MultiComponent',
+    'species': ['O', 'O2']
+}
+
+thermo = 'CoupledEnergyModes'
+
+# *** Species
+species = {
+    'O': None,
+    'O2': {
+        'rovib': {
+            'system': 'O3',
+            'PES': 'UMN',
+            'grouping': 'RVE9'
+        }
+    }
+}

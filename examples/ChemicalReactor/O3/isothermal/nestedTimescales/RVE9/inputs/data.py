@@ -19,7 +19,7 @@ data_type = 'ODE'
 ode_order = 1
 
 # Data source -----------------------------------------------------------------
-from_file = True
+from_file = False
 
 # *** From file
 train_file = {

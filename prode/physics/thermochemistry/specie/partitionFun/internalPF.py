@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from tensorflow.python.keras import backend
 from prode.physics.general import const
 from prode.physics.thermochemistry.specie.partitionFun.basicPF import PartitionFun
 
@@ -19,7 +20,7 @@ class Internal(PartitionFun):
     # Internal partition functions --------------------------------------------
     def z(self, T):
         return - tf.linalg.matmul(
-            1/(T*const.UKB), self.specie.rv_lev['E'], transpose_b=True
+            1./(T*const.UKB), self.specie.rv_lev['E'], transpose_b=True
         )
 
     def dz_dT(self, T):
@@ -44,7 +45,7 @@ class Internal(PartitionFun):
                 )
             return tf.concat(Q_, 1)
         else:
-            return self.specie.g_e
+            return self.specie.g_e * tf.ones_like(T, dtype=backend.floatx())
 
     def dQ_dT(self, T):
         if self.specie.n_at > 1:
@@ -59,4 +60,4 @@ class Internal(PartitionFun):
                 )
             return tf.concat(dQ_dT_, 1)
         else:
-            return 0.
+            return tf.zeros_like(T, dtype=backend.floatx())

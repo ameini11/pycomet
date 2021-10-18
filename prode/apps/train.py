@@ -191,8 +191,6 @@ def main():
     )
     model.compile(**compile_args)
 
-    input('+++++++++++++++++++++++++++++++++')
-
     # Fit Model ---------------------------------------------------------------
     if inp.general.flags['train'] > 0:
         if hasattr(inp.engine, 'callbacks'):

@@ -18,7 +18,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 100#50000
+epochs = 50000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -30,15 +30,9 @@ decay = ["exponential", decay_steps, decay_rate]
 # Loss & Metrics
 # =============================================================================
 loss = {
-    'ics': {
-        name: {'identifier': 'malpe', 'axis': 0} for name in inp_net.names
-    },
-    'pts': {
-        name: {'identifier': 'malpe', 'axis': 0} for name in inp_net.names
-    },
-    'res': {
-        name: {'identifier': 'mae', 'axis': 0} for name in inp_net.names
-    }
+    'ics': {'identifier': 'malpe', 'axis': 0},
+    'pts': {'identifier': 'malpe', 'axis': 0},
+    'res': {'identifier': 'mae', 'axis': 0}
 }
 
 # Callbacks
@@ -61,7 +55,7 @@ callbacks = {
         'monitor':           'val_tot_loss',
         'save_best_only':    True,
         'save_weights_only': True
-    }, 
+    },
 
     'plotter': {
         **inp_post.plot_style,

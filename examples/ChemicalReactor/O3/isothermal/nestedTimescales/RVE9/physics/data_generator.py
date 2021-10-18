@@ -12,8 +12,12 @@ from scipy.spatial import KDTree
 from pyDOE import lhs
 
 from physics.ode_solver import ODESolver
-from prode.utilities import const
 from prode.utilities import utils
+from prode.physics.general import const
+
+import prode.physics.database as db
+kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
+grouping_db = os.path.dirname(db.__file__) + '/air/grouping/'
 
 
 class DataGenerator(object):
@@ -30,8 +34,7 @@ class DataGenerator(object):
         test_training,
         time_limit,
         input_space,
-        database,
-        grouping,
+        species,
         processes_mask,
         groups_graph=None
     ):
@@ -75,10 +78,10 @@ class DataGenerator(object):
             for k, v in input_space.items()}
 
         # Retrieving Molecular data -------------------------------------------
-        grouping = grouping[-1]
-        self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = database + \
-            '/grouping/O3_UMN/O2/LevelsMap_' + grouping + '.csv'
+        rovib = species['O2']['rovib']
+        path = grouping_db + rovib['system'] + '_' + rovib['PES'] + '/O2/'
+        self.levels_file = path + '/levels.inp'
+        self.binMap_file = path + '/LevelsMap_' + rovib['grouping'] + '.csv'
         self.g, self.E, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
@@ -87,7 +90,7 @@ class DataGenerator(object):
             self.ts_fast_conn = self.ts_to_fastest_connectivity(groups_graph)  # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
 
         # Retrieving Rates coefficients ---------------------------------------
-        self.rates_path = database + '/kinetics/O3_UMN_' + grouping + '/'
+        self.rates_path = kinetic_db + '/O3_UMN/' + rovib['grouping'] + '/'
         self.reac_names = {'diss', 'exch', 'inel'}
 
         # Building Master Equation matrices -----------------------------------
@@ -402,12 +405,20 @@ class DataGenerator(object):
         t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
         u_i      = np.tile(ic_i[:-1], (t_i.shape[0],1))
 
+        y_O2, y_O = np.hsplit(y_i, [-1])
+        y_i = []
+        for ts, indeces in self.ts_fast_conn.items():
+            if indeces:
+                y_slow = np.hstack(
+                    [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) for i in indeces]
+                )
+            else:
+                y_slow = y_O2
+            if ts == 0:
+                y_slow = np.hstack([y_O, y_slow])
+            y_i.append(y_slow)
+
         # Collect data values
-        if self.split_out:
-            if self.d[-1] > 1:
-                y_O2 = np.sum(y_i[:,:-1], axis=1)
-                y_i = np.insert(y_i, -1, y_O2, axis=1)
-            y_i = np.split(y_i, self.split_out, axis=1)
         data_i = [[u_i, t_i], y_i]
         if eval_f:
             data_i.append(f_rhs[ii[0]:ii[1],:])

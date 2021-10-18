@@ -68,7 +68,7 @@ def plot_test(
     fontsize = 'x-small'
     if n*2 > 12:
         fontsize = 'xx-small'
-    plt.legend(fontsize=fontsize, ncol=int(n*2/6))
+    plt.legend(fontsize=fontsize, ncol=int(np.ceil(n*2/6)))
 
     name = y_scale if fig_name == None else fig_name + '_' + y_scale
     fig_path = path + '/' + name + '.pdf'

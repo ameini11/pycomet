@@ -62,7 +62,7 @@ activation = {
     } for name in names
 }
 
-kernel_initializer = 'GlorotNormal'
+kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
 
 block = 'ResPIBlock'
 
