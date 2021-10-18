@@ -11,7 +11,7 @@ from scipy.spatial import KDTree
 from pyDOE import lhs
 
 from physics.ode_solver import ODESolver
-from prode.utilities import const
+from prode.physics.general import const
 
 
 class DataGenerator(object):

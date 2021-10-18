@@ -26,7 +26,7 @@ class Specie(object):
         # Read specie properties ==============================================
         self.properties = {
             'NAME': [str, 'name'],              # Specie name
-            'MOLAR_MASS': [float, 'm'],         # Molecular mass [kg/mol]
+            'MOLAR_MASS': [float, 'M'],         # Molecular mass [kg/mol]
             'NB_ATOMS': [int, 'n_at'],          # Number of atoms
             'ELEM_NAME': [str, 'elem_name'],    # Chemical elements (symbols)
             'ELEM_QUANT': [int, 'elem_num'],    # Chemical elements (quantities)
@@ -107,7 +107,10 @@ class Specie(object):
             setattr(self, var, val)
 
         # Specific gas constant R [J/(kg K)]
-        self.R = const.URG / self.m
+        self.R = const.URG / self.M
+
+        # Mass [kg]
+        self.m = self.M / const.UNA
 
         # Conversions ---------------------------------------------------------
         if self.D:

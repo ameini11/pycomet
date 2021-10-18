@@ -90,7 +90,7 @@ class DataGenerator(object):
         # Labeling Data -------------------------------------------------------
         self.groups_label = ['Y_O2']
         self.data_label_inp = ['T', 'rho'] + self.groups_label + ['t']
-        self.data_label_out = ['Y_O', 'Y_O2']
+        self.data_label_out = ['Y_O2', 'Y_O']
         self.data_label = self.data_label_inp + self.data_label_out
 
     # Master Equation matrices
@@ -188,8 +188,8 @@ class DataGenerator(object):
             #                         fillstyle='full', markersize=2)
             #     plt.xscale('log')
             #     plt.yscale('log')
-            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style, label=self.data_label_out)
-            #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
+            #     plt.plot(data_i['res'][0][1], data_i['res'][1], **marker_style, label=self.data_label_out)
+            #     plt.plot(data_i['pts'][0][1], data_i['pts'][1], c='k', **marker_style)
             #     plt.legend()
             #     plt.grid()
             #     plt.show()
@@ -257,8 +257,7 @@ class DataGenerator(object):
         if y is None:
             return [[u, t]]
         else:
-            y_O2, y_O = np.hsplit(y[idx], [-1])
-            return [[u, t], np.hstack([y_O, y_O2])]
+            return [[u, t], y[idx]]
 
     def get_data(self, ic, t, y, pts, idx):
         data = {}
@@ -370,10 +369,6 @@ class DataGenerator(object):
         d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
         t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
         u_i      = np.tile(ic_i[:-1], (t_i.shape[0],1))
-
-        # Extract data values
-        y_O2, y_O = np.hsplit(y_i, [-1])
-        y_i = np.hstack([y_O, y_O2])
 
         # Collect data values
         data_i = [[u_i, t_i], y_i]

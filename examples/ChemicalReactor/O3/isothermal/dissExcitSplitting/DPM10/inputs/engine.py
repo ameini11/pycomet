@@ -61,7 +61,7 @@ callbacks = {
         'monitor':           'val_tot_loss',
         'save_best_only':    True,
         'save_weights_only': True
-    }, 
+    },
 
     'plotter': {
         **inp_post.plot_style,

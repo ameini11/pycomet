@@ -94,14 +94,11 @@ class PhysicalModel(object):
         # Get Master Equations matrices
         K_d, K_r = self.get_matrices(T)
 
-        # Extract 0-th & 1-st order derivative for the 'dissociation' process
-        Y_O, Y_O2 = tf.split(grads[0], grads[0].shape[1], axis=1)
-        dY_O, dY_O2 = tf.split(grads[1], grads[1].shape[1], axis=1)
+        # Manipulate variables
+        Y, dY = [ g * mass for g in grads ]
 
-        # Construct partial densities vectors
-        Y = tf.concat([Y_O2, Y_O], axis=1) * mass       # 0-th order derivative
-        dY = tf.concat([dY_O2, dY_O], axis=1) * mass     # 1-st order derivative
-        Y_O = Y_O * mass
+        # Extract atomic oxygen O mass fraction vector from model outputs
+        Y_O = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)[-1]
 
         # Compute omega (Master Equations RHS)
         omega_dis = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
@@ -170,7 +167,7 @@ class PhysicalModel(object):
 
         if mask:
             # Obtain recombination rates from dissociation ones
-            rates = tf.math.multiply(rates, self.Keq_diss(Q_bins, T))
+            rates = rates / self.Keq_diss(Q_bins, T)
 
             # Rearrange rates to respect the Master Eq. system of equations
             rates = tf.concat(
@@ -189,17 +186,16 @@ class PhysicalModel(object):
         '''Diss.-Recomb. equilibrium constants matrix'''
 
         # Calculate equilibrium constants
-        num = tf.math.multiply(
-            self.intPF['O2'].Q(T), self.transPF['O2'].Q(T)
-        )
-        den = tf.math.pow(
+        num = tf.math.pow(
             tf.math.multiply(
                 self.intPF['O'].Q(T), self.transPF['O'].Q(T)
             ), 2
         )
-        Keq = tf.divide(num, den)
+        den = tf.math.multiply(
+            self.intPF['O2'].Q(T), self.transPF['O2'].Q(T)
+        )
 
-        return Keq
+        return num / den
 
     # Util Functions
     ###########################################################################

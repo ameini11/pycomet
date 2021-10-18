@@ -51,13 +51,13 @@ def preproc_fn(x):
         An array or list of arrays.
     """
     if x.shape[1] == col_y[1]:
-        x[:,col_y[0]+1] = 1. - x[:,col_y[0]]
+        x[:,col_y[0]] = 1. - x[:,col_y[0]+1]
     return x
 
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 4096,        # Number of training scenarios
+    'ics': 4096,            # Number of training scenarios
     'pts': 1,               # Number of total anchor pts for each scenario
     'res': 160              # Number of total collocation pts for each scenario
 }
@@ -78,5 +78,5 @@ batch_size = {
 valid_batch_size = {
     'ics': 128,
     'pts': 128,
-    'res': 256
+    'res': 128
 }

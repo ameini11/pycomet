@@ -392,8 +392,13 @@ class LinearNorm(Scaling):
         name='linear_norm',
         **kwargs
     ):
-        slope = 1. / (mx-mn)
-        offset = - mn * slope
+        if mx != mn:
+            slope = 1. / (mx-mn)
+            offset = - mn * slope
+        else:
+            slope = 1. / mx
+            offset = 0.
+
         super(LinearNorm, self).__init__(
             slope=slope,
             offset=offset,
@@ -542,6 +547,31 @@ class Equilibrium(tf_layers.Layer):
     def from_config(cls, config):
         return cls(**config)
 
+    # # Calling
+    # ###########################################################################
+    # def call(self, inputs):
+    #     if isinstance(inputs, (list, tuple)):
+    #         x, T, rho = inputs
+    #     else:
+    #         utils.raise_value_err(
+    #             "The inputs of the `{}` layer have to be a `list` "
+    #             "or a `tuple`: [x, T]".format(self.name))
+
+    #     if self.reaction == 'diss':
+    #         y = tf.split(x, num_or_size_splits=self.out_dim, axis=1)
+    #         y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
+    #     else:
+    #         # Partition function
+    #         Q_int = [ pf.Q(T) for pf in self.intPF.values() ]
+    #         Q = tf_layers.Concatenate()(Q_int) if len(Q_int) > 1 else Q_int[-1]
+
+    #         # Simil Softmax layer
+    #         y = tf_layers.Multiply()([tf.math.exp(x), Q])
+    #         y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
+    #         y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
+
+    #     return y if len(y) > 1 else y[-1]
+
     # Calling
     ###########################################################################
     def call(self, inputs):
@@ -556,14 +586,13 @@ class Equilibrium(tf_layers.Layer):
         if self.reaction == 'diss':
             Q = self.eq_diss(rho, T)
         else:
-            # Q_int = [ pf.Q(T) for pf in self.intPF.values() ]
-            # Q = tf_layers.Concatenate()(Q_int) if len(Q_int) > 1 else Q_int[-1]
-            Q = tf.ones_like(x)
+            Q_int = [ pf.Q(T) for pf in self.intPF.values() ]
+            Q = tf_layers.Concatenate()(Q_int) if len(Q_int) > 1 else Q_int[-1]
 
-        # Simil Softmax layer -------------------------------------------------
+        # Simil Softmax layer
         y = tf_layers.Multiply()([tf.math.exp(x), Q])
         y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
-        y = [ y_i / tf.reduce_sum(y_i, axis=1, keepdims=True) for y_i in y ]
+        y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
 
         return y if len(y) > 1 else y[-1]
 
@@ -577,7 +606,6 @@ class Equilibrium(tf_layers.Layer):
         den = tf.math.multiply(
             self.intPF['O2'].Q(T), self.transPF['O2'].Q(T)
         )
-
         return num / den
 
     def eq_diss(self, rho, T):
@@ -594,112 +622,4 @@ class Equilibrium(tf_layers.Layer):
         Y_O = (- B + tf.math.sqrt(B**2. - 4.*A*C)) / (2.*A)
         Y_O2 = 1. - Y_O
 
-        return tf.concat([Y_O, Y_O2], 1)
-
-# # =========================================================================== #
-# # Equilibrium Layer
-# # =========================================================================== #
-# @tf.keras.utils.register_keras_serializable(package='PrODE', name='Equilibrium')
-# class Equilibrium(tf_layers.Add):
-
-#     # Initialization
-#     ###########################################################################
-#     def __init__(
-#         self,
-#         grouping,
-#         levels,
-#         lev_bin_map,
-#         name='equilibrium',
-#         *args,
-#         **kwargs
-#     ):
-#         super(Equilibrium, self).__init__(
-#             name=name,
-#             *args,
-#             **kwargs)
-
-#         self.grouping = grouping
-
-#         # Paths to databases
-#         self.levels = levels
-#         self.lev_bin_map = lev_bin_map
-
-#         # Retrieve Molecular data
-#         self.g, self.E, self.num_lev = self.read_levels()
-#         self.lev_to_bin, self.num_bins = self.read_groups()
-
-#     # Configuration update
-#     ###########################################################################
-#     def get_config(self):
-#         config = {
-#             'grouping': self.grouping,
-#             'levels': self.levels,
-#             'lev_bin_map': self.lev_bin_map,
-#             'g': self.g,
-#             'E': self.E,
-#             'num_lev': self.num_lev,
-#             'lev_to_bin': self.lev_to_bin,
-#             'num_bins': self.num_bins
-#         }
-#         base_config = super(Equilibrium, self).get_config()
-#         return dict(list(base_config.items()) + list(config.items()))
-
-#     @classmethod
-#     def from_config(cls, config):
-#         return cls(**config)
-
-#     # Calling
-#     ###########################################################################
-#     def call(self, inputs):
-#         if isinstance(inputs, (list, tuple)):
-#             x, T = inputs
-#         else:
-#             utils.raise_value_err(
-#                 "The inputs of the `{}` layer have to be a `list` "
-#                 "or a `tuple`: [x, T]".format(self.name))
-#         e = self.energy_bins(T) * tf.math.reciprocal(T) / const.UKB
-#         return super(Equilibrium, self).call([x, e])
-
-#     def energy_bins(self, T):
-#         '''Compute bins partition function.'''
-#         T_rec = tf.math.reciprocal(tf.transpose(T))
-#         q = tf.math.multiply(
-#             self.g, tf.math.exp(
-#                 - tf.tensordot(self.E, T_rec, 1) / const.UKB
-#             )
-#         )
-#         E_bins = []
-#         for bin_i in range(self.num_bins):
-#             mask = self.lev_to_bin == bin_i
-#             Q_bin_i = tf.math.reduce_sum(q[mask], axis=0, keepdims=True)
-#             E_bin_i = self.E[mask] * q[mask] * tf.math.reciprocal(Q_bin_i)
-#             E_bins.append(
-#                 tf.math.reduce_sum(E_bin_i, axis=0, keepdims=True)
-#             )
-#         return tf.transpose(tf.concat(E_bins, 0))
-
-#     # Util Functions
-#     ###########################################################################
-#     def read_levels(self):
-#         '''Retrieve all the ro-vib levels.'''
-#         data = pd.read_csv(
-#             self.levels, header=None, skiprows=15, delim_whitespace=True
-#         )
-#         data = data.apply(pd.to_numeric, errors='coerce')
-#         vqn = np.array(data[0])                     # Vibrational Q.N.
-#         jqn = np.array(data[1])                     # Rotational  Q.N.
-#         g = 1.5*(2.0*jqn+1.0)                       # Degeneracy
-#         E = np.array(data[2]) * const.EH_to_J       # Energy in J
-#         g, E = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
-#             dtype=K.floatx()), 1), [g, E-E[0]]))
-#         num = len(vqn)
-#         return g, E, num
-
-#     def read_groups(self):
-#         '''Retrieve mapping of each rot-vib level to the respective bin.'''
-#         data = pd.read_csv(self.lev_bin_map, header=None, skiprows=1)
-#         data = data.apply(pd.to_numeric, errors='coerce')
-#         idx = np.array(data[0])
-#         lev_to_bin = np.array(data[1]) - 1    # Level-to-Bin
-#         num = max(lev_to_bin) + 1
-#         return lev_to_bin, num
+        return tf.concat([Y_O2, Y_O], 1)

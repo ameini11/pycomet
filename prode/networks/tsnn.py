@@ -158,8 +158,7 @@ class TimeScaleNN(Net):
 
         # Equilibrium layer ---------------------------------------------------
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-        y = tf_layers.Softmax(axis=-1)(y)
-        # y = self.equilibrium([y, T, rho])
+        y = self.equilibrium([y, T, rho])
 
         return y
 

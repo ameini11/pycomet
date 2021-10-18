@@ -26,7 +26,7 @@ def output_ops(y):
     return tf.concat(y, 1)
 
 # Style -----------------------------------------------------------------------
-var_names = [r'$O$', r'$O_2$'] \
+var_names = [r'$O_2$', r'$O$'] \
     + [r'$O_2^{(1,{%s})}$' % (i+1) for i in range(inp_gen.dim['out'][1])] \
     + [r'$O_2^{(2,{%s})}$' % (i+1) for i in range(inp_gen.dim['out'][2])]
 

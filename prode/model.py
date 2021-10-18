@@ -63,8 +63,6 @@ class Model(object):
         load_net=0,
         visualize_graph=False
     ):
-        utils.print_main("Building '{}' network ...".format(self.net.name))
-        
         if not self.net.built:
             if isinstance(input_dim, (list,tuple)):
                 inputs_shape = [tuple([1,dim_i]) for dim_i in input_dim]
@@ -146,8 +144,6 @@ class Model(object):
         decay=None,
         loss_weights=None
     ):
-        utils.print_main("Compiling '{}' network ...".format(self.net.name))
-
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 

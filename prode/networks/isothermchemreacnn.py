@@ -170,7 +170,7 @@ class IsoThermChemReacNN(Net):
                     y_fast = [ tf.gather(y[ts+1], idx, axis=1) \
                         for idx in indeces ]
                     if len(y_slow) != len(y_fast):
-                        y_slow = y_slow[-len(y_fast):]
+                        y_slow = y_slow[:len(y_fast)]
                     # Multiply slower and faster timescales
                     y_mul = [ tf_layers.Multiply()([ys, yf]) \
                         for ys, yf in zip(y_slow, y_fast) ]

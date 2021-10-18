@@ -53,14 +53,14 @@ ts_thermochem = {
 
     'TS0': {
         'species': {
-            'O': None,
             'O2': {
                 'rovib': {
                     'system': 'O3',
                     'PES': 'UMN',
                     'grouping': None
                 }
-            }
+            },
+            'O': None
         },
         'reaction': 'diss'
     },
@@ -111,19 +111,19 @@ processes_mask = {      # Reactive processes
 mixture = {
     'var': 'Y',
     'type': 'MultiComponent',
-    'species': ['O', 'O2']
+    'species': ['O2', 'O']
 }
 
 thermo = 'CoupledEnergyModes'
 
 # *** Species
 species = {
-    'O': None,
     'O2': {
         'rovib': {
             'system': 'O3',
             'PES': 'UMN',
             'grouping': 'RVE9'
         }
-    }
+    },
+    'O': None
 }

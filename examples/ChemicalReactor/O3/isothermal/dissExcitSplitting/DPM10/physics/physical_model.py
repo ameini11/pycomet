@@ -3,7 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras import backend
-from prode.utilities import const
+from prode.physics.general import const
 
 
 class PhysicalModel(object):

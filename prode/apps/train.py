@@ -132,6 +132,9 @@ def main():
 
     # Initialize Data Class ---------------------------------------------------
     data_cls = utils.get_class(pro.data, inp.data.data_type)
+    utils.print_main(
+        "Initializing '{}' data ...".format(inp.data.data_type)
+    )
     data_args = utils.get_args_values(
         args=utils.get_args(data_cls.__init__),
         modules=[inp.data, inp.general]
@@ -159,6 +162,9 @@ def main():
     ###########################################################################
     # Initialize Network ------------------------------------------------------
     net_cls = utils.get_class(pro.networks, inp.network.architecture)
+    utils.print_main(
+        "Initializing '{}' network ...".format(inp.network.architecture)
+    )
     net_args = utils.get_args_values(
         args=utils.get_args(net_cls.__init__),
         modules=[inp.network, inp.general]
@@ -177,6 +183,9 @@ def main():
     model = pro.model.Model(data, net, inp.general.model_name)
 
     # Build Model -------------------------------------------------------------
+    utils.print_main(
+        "Building '{}' network ...".format(inp.network.architecture)
+    )
     model.build(
         input_dim=inp.general.dim['inp'],
         load_net=inp.general.flags['load'],
@@ -185,11 +194,28 @@ def main():
     )
 
     # Compile Model -----------------------------------------------------------
+    utils.print_main(
+        "Compiling '{}' network ...".format(inp.network.architecture)
+    )
     compile_args = utils.get_args_values(
         args=utils.get_args(model.compile),
         modules=inp.engine
     )
     model.compile(**compile_args)
+
+
+    # Testing phase -----------------------------------------------------------
+    utils.print_main("Postprocessing physical quantities ...")
+    if inp.data.test_cases > 0 and inp.general.flags['test'] > 0:
+        for i, test_i in enumerate(tqdm(data.test)):
+            model.predict(
+                data=test_i,
+                plotting=inp.general.flags['plot'],
+                path=model.post_dir+'/testing/test_'+str(i+1),
+                **inp.postprocessing.plot_style
+            )
+
+    input('+++')
 
     # Fit Model ---------------------------------------------------------------
     if inp.general.flags['train'] > 0:

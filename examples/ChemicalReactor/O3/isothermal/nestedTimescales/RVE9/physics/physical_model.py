@@ -111,8 +111,8 @@ class PhysicalModel(object):
         K_e, K_d, K_r = self.get_matrices(T)
 
         # Extract 0-th & 1-st order derivative for the 'dissociation' process
-        Y_O, Y_O2 = tf.split(grads[0][0], grads[0][0].shape[1], axis=1)
-        dY_O, dY_O2 = tf.split(grads[1][0], grads[1][0].shape[1], axis=1)
+        Y_O2, Y_O = tf.split(grads[0][0], grads[0][0].shape[1], axis=1)
+        dY_O2, dY_O = tf.split(grads[1][0], grads[1][0].shape[1], axis=1)
 
         # Construct partial densities vectors
         Y = tf.concat([grads[0][-1], Y_O], axis=1) * mass       # 0-th order derivative
@@ -125,38 +125,38 @@ class PhysicalModel(object):
         omega_rec = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
         omega = omega_exc + omega_dis + omega_rec
 
+        # Compute residual (Master Equations)
         me_res = dY - omega
 
         # Compute residuals
         res = []
         for ts, indeces in self.ts_ts_conn.items():
             if indeces:
-                dY_fast = tf.concat(
-                    [
-                        tf.math.reduce_sum(
-                            tf.gather(grads[1][ts+1], idx, axis=1), axis=1, keepdims=True
-                        ) for idx in indeces
-                    ], axis=1
-                )
+                # Extract faster timescale indeces
+                dY_fast = tf.concat([
+                    tf.math.reduce_sum(
+                        tf.gather(grads[1][ts+1], idx, axis=1), axis=1, keepdims=True
+                    ) for idx in indeces
+                ], axis=1)
+                # Extract slower timescale
                 dY_slow = grads[1][ts]
                 if dY_slow.shape[1] != dY_fast.shape[1]:
-                    dY_slow = tf.concat(
-                        tf.split(
-                            dY_slow, dY_slow.shape[1], axis=1
-                        )[-dY_fast.shape[1]:], axis=1
-                    )
+                    dY_slow = tf.gather(dY_slow, range(dY_fast.shape[1]), axis=1)
+                # Calculate residual
                 _res = (dY_fast - dY_slow) * mass
+                # Check for 'dissociation' process
                 if ts == 0:
-                    _res = tf.math.reduce_sum(
-                        tf.concat([(dY_O2+dY_O)*mass, _res], axis=1), axis=1, keepdims=True
-                    )
-                    _res = tf.concat(
-                        [tf.gather(me_res, [me_res.shape[1]-1], axis=1), _res], axis=1
-                    )
+                    dY_O_res = tf.gather(me_res, [me_res.shape[1]-1], axis=1)
+                    _res = tf.concat([dY_O_res, _res], axis=1)
+                    # _res = tf.concat([dY_O_res, (dY_O2+dY_O)*mass], axis=1)
                 res.append(_res)
 
-        res.append(tf.gather(me_res, range(self.out_dim[-1]), axis=1))
+        # Extract fastest timescale residual
+        res.append(
+            tf.gather(me_res, range(self.out_dim[-1]), axis=1)
+        )
 
+        # Return all the timescales residuals
         return res if len(res) > 1 else res[-1]
 
     # Build Matrices
@@ -261,7 +261,7 @@ class PhysicalModel(object):
 
         if mask:
             # Obtain recombination rates from dissociation ones
-            rates = tf.math.multiply(rates, self.Keq_diss(Q_bins, T))
+            rates = rates / self.Keq_diss(Q_bins, T)
 
             # Rearrange rates to respect the Master Eq. system of equations
             rates = tf.concat(
@@ -280,24 +280,24 @@ class PhysicalModel(object):
         '''Diss.-Recomb. equilibrium constants matrix'''
 
         # Calculate equilibrium constants
-        num = tf.math.multiply(
-            self.intPF['O2'].Q(T), self.transPF['O2'].Q(T)
-        )
-        den = tf.math.pow(
+        num = tf.math.pow(
             tf.math.multiply(
                 self.intPF['O'].Q(T), self.transPF['O'].Q(T)
             ), 2
         )
-        Keq = tf.divide(num, den)
+        den = tf.math.multiply(
+            self.intPF['O2'].Q(T), self.transPF['O2'].Q(T)
+        )
 
-        return Keq
+        return num / den
 
     # Util Functions
     ###########################################################################
     def get_arrhenius(self):
         # Read the Arrhenius coefficients table as a dataframe
-        arr = pd.read_csv(self.rates_path + 'arrhenius_coeff.csv', \
-            index_col=0)
+        arr = pd.read_csv(
+            self.rates_path + 'arrhenius_coeff.csv', index_col=0
+        )
 
         # Read the reaction bins index
         excit_idx = []
@@ -309,8 +309,9 @@ class PhysicalModel(object):
                 )
 
         # Extract the Arrhenius coefficient by name
-        arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(
-            arr[x], dtype=backend.floatx()), 1), self.arrhenius_name))
+        arr_coeff = list(map(lambda x: tf.expand_dims(
+            tf.convert_to_tensor(arr[x], dtype=backend.floatx()), 1
+        ), self.arrhenius_name))
 
         return arr_coeff, excit_idx
 

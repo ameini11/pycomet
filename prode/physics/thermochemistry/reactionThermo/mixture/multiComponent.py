@@ -83,13 +83,13 @@ class MultiComponent(object):
         if var == 'Y':
             for thermo in self.mixture.values():
                 sp = thermo.specie
-                m.append(sp.Y / sp.m)
-            self.m = 1./tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
+                m.append(sp.Y / sp.M)
+            self.M = 1./tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
         elif var == 'X':
             for thermo in self.mixture.values():
                 sp = thermo.specie
-                m.append(sp.X * sp.m)
-            self.m = tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
+                m.append(sp.X * sp.M)
+            self.M = tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
 
     def R_(self):
         # [J/(kg K)]
@@ -105,18 +105,18 @@ class MultiComponent(object):
     def Y_i(self):
         for thermo in self.mixture.values():
             sp = thermo.specie
-            sp.Y = sp.X * sp.m / self.m
+            sp.Y = sp.X * sp.M / self.M
 
     def X_i(self):
         for thermo in self.mixture.values():
             sp = thermo.specie
-            sp.X = sp.Y * self.m / sp.m
+            sp.X = sp.Y * self.M / sp.M
 
     def n_i(self, rho=None, n=None, var='Y'):
         for thermo in self.mixture.values():
             sp = thermo.specie
             if var == 'Y':
-                sp.n = sp.Y * rho / sp.m * const.UNA
+                sp.n = sp.Y * rho / sp.M * const.UNA
             elif var == 'X':
                 sp.n = sp.X * n
 
@@ -126,7 +126,7 @@ class MultiComponent(object):
             if var == 'Y':
                 sp.rho = sp.Y * rho
             elif var == 'X':
-                sp.rho = sp.X * n * sp.m / const.UNA
+                sp.rho = sp.X * n * sp.M / const.UNA
 
     # Utils ===================================================================
     def mix_quantity(self, quantity, *args):
@@ -137,5 +137,5 @@ class MultiComponent(object):
                 var_ = getattr(thermo, quantity)(*args)
             else:
                 var_ = quantity
-            var.append(sp.Y / sp.m * var_)
+            var.append(sp.Y / sp.M * var_)
         return tf.reduce_sum(tf.concat(var, 1), axis=1, keepdims=True)

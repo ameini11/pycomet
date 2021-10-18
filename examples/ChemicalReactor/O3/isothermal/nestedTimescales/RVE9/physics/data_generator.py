@@ -38,14 +38,6 @@ class DataGenerator(object):
         processes_mask,
         groups_graph=None
     ):
-        # Dimensionality ------------------------------------------------------
-        self.d = dim["out"]
-        if isinstance(self.d, (list,tuple)):
-            self.split_out = [ self.d[i] if i == 0 else self.d[i]+self.d[i-1] \
-                for i in range(len(self.d)-1) ]
-        else:
-            self.split_out = None
-
         # Data Quantities -----------------------------------------------------
         # Training/Validation pts
         self.scenarios = train_pts['ics']
@@ -105,7 +97,7 @@ class DataGenerator(object):
         self.data_label_out = []
         for ts, indeces in self.ts_fast_conn.items():
             if ts == 0:
-                self.data_label_out += ['Y_O', 'Y_O2']
+                self.data_label_out += ['Y_O2', 'Y_O']
             elif indeces is None:
                 self.data_label_out += [
                     'Y_'+str(ts)+str(i+1) for i in range(self.num_bins)
@@ -290,7 +282,7 @@ class DataGenerator(object):
                 else:
                     y_slow = y_O2
                 if ts == 0:
-                    y_slow = np.hstack([y_O, y_slow])
+                    y_slow = np.hstack([y_slow, y_O])
                 y.append(y_slow)
             return [[u, t], y]
 
@@ -415,7 +407,7 @@ class DataGenerator(object):
             else:
                 y_slow = y_O2
             if ts == 0:
-                y_slow = np.hstack([y_O, y_slow])
+                y_slow = np.hstack([y_slow, y_O])
             y_i.append(y_slow)
 
         # Collect data values
