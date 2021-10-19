@@ -201,8 +201,9 @@ class PhysicalModel(object):
     ###########################################################################
     def get_arrhenius(self):
         # Read the Arrhenius coefficients table as a dataframe
-        arr = pd.read_csv(self.rates_path + 'arrhenius_coeff.csv', \
-            index_col=0)
+        arr = pd.read_csv(
+            self.rates_path + 'arrhenius_coeff.csv', index_col=0
+        )
 
         # Read the reaction bins index
         excit_idx = []
@@ -214,7 +215,8 @@ class PhysicalModel(object):
                 )
 
         # Extract the Arrhenius coefficient by name
-        arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(
-            arr[x], dtype=backend.floatx()), 1), self.arrhenius_name))
+        arr_coeff = list(map(lambda x: tf.expand_dims(
+            tf.convert_to_tensor(arr[x], dtype=backend.floatx()), 1
+        ), self.arrhenius_name))
 
         return arr_coeff, excit_idx

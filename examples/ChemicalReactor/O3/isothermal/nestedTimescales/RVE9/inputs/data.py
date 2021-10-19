@@ -51,7 +51,7 @@ def preproc_fn(x):
         An array or list of arrays.
     """
     if x.shape[1] == col_y[2][1]:
-        x[:,col_y[0][0]] = 1. - x[:,col_y[0][0]+1]
+        x[:,col_y[0][0]+1] = 1. - x[:,col_y[0][0]]
     return x
 
 # *** From arrays
@@ -78,5 +78,5 @@ batch_size = {
 valid_batch_size = {
     'ics': 128,
     'pts': 128,
-    'res': 256
+    'res': 128
 }

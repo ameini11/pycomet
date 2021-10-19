@@ -98,7 +98,7 @@ class TimeScaleNN(Net):
         self.reaction = reaction
         self.species = species
         self.equilibrium = layers.Equilibrium(
-            self.out_dim, self.reaction, self.species
+            self.out_dim, self.species, reaction=self.reaction
         )
 
     # Configuration update

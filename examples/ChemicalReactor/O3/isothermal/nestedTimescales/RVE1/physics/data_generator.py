@@ -473,7 +473,7 @@ class DataGenerator(object):
         # Sampling ------------------------------------------------------------
         idx = []
         margin = 5
-        max_val = tree.query([ min(t[idx_max][0]*1.e1, 1.e-2) ], k=1)[1]
+        max_val = tree.query([ min(t[idx_max][0]*1.e2, 1.e-2) ], k=1)[1]
 
         # Initial dynamic region
         if margin > idx_min:

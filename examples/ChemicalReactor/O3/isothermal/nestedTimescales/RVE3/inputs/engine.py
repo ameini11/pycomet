@@ -18,12 +18,12 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 100#50000
+epochs = 50000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 512*600
+decay_steps = 512*300
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -61,7 +61,7 @@ callbacks = {
         'monitor':           'val_tot_loss',
         'save_best_only':    True,
         'save_weights_only': True
-    }, 
+    },
 
     'plotter': {
         **inp_post.plot_style,

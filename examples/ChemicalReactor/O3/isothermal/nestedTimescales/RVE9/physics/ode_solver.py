@@ -62,7 +62,9 @@ class ODESolver(object):
         r = ode(self.f, self.jac).set_integrator(
             'vode', method='bdf', with_jacobian=True, atol=1.e-20
         )
-        r.set_initial_value(rho_0, self.t0).set_f_params(params).set_jac_params(params)
+        r.set_initial_value(rho_0, self.t0)
+        r.set_f_params(params)
+        r.set_jac_params(params)
 
         # Appending Data
         t = np.array([[self.t0]])

@@ -43,15 +43,15 @@ tsnn_dim = {
 layer_size = {
     names[0]: {
         "branch": [2+1, 32, 32, 32],
-        "trunk":  [1, 32, 32, 32]
+        "trunk":  [1, 64, 64, 32]
     },
     names[1]: {
         "branch": [2+3, 64, 64, 64],
-        "trunk":  [1, 64, 64, 64]
+        "trunk":  [1, 128, 128, 64]
     },
     names[2]: {
         "branch": [2+9, 64, 64, 64],
-        "trunk":  [1, 128, 128, 64]
+        "trunk":  [1, 256, 256, 64]
     }
 }
 
@@ -91,5 +91,5 @@ dropout_rate = 0
 # *** Inputs
 input_fn = {
     "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
-    "trunk": pro_layers.Scaling(slope=1.e6, name='trunk_fn', trainable=False)
+    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }

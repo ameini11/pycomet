@@ -500,8 +500,8 @@ class Equilibrium(tf_layers.Layer):
     def __init__(
         self,
         out_dim,
-        reaction,
         species,
+        reaction=None,
         name='equilibrium',
         *args,
         **kwargs
@@ -522,15 +522,16 @@ class Equilibrium(tf_layers.Layer):
         }
     
         # Partition functions -------------------------------------------------
-        self.intPF = {
-            name: partitionFun.internalPF.Internal(specie) \
-                for name, specie in self.species.items()
-        }
-        if self.reaction == 'diss':
-            self.transPF = {
-                name: partitionFun.translationalPF.Translational(specie) \
+        if self.reaction is not None:
+            self.intPF = {
+                name: partitionFun.internalPF.Internal(specie) \
                     for name, specie in self.species.items()
             }
+            if self.reaction == 'diss':
+                self.transPF = {
+                    name: partitionFun.translationalPF.Translational(specie) \
+                        for name, specie in self.species.items()
+                }
 
     # Configuration update
     ###########################################################################
@@ -547,31 +548,6 @@ class Equilibrium(tf_layers.Layer):
     def from_config(cls, config):
         return cls(**config)
 
-    # # Calling
-    # ###########################################################################
-    # def call(self, inputs):
-    #     if isinstance(inputs, (list, tuple)):
-    #         x, T, rho = inputs
-    #     else:
-    #         utils.raise_value_err(
-    #             "The inputs of the `{}` layer have to be a `list` "
-    #             "or a `tuple`: [x, T]".format(self.name))
-
-    #     if self.reaction == 'diss':
-    #         y = tf.split(x, num_or_size_splits=self.out_dim, axis=1)
-    #         y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
-    #     else:
-    #         # Partition function
-    #         Q_int = [ pf.Q(T) for pf in self.intPF.values() ]
-    #         Q = tf_layers.Concatenate()(Q_int) if len(Q_int) > 1 else Q_int[-1]
-
-    #         # Simil Softmax layer
-    #         y = tf_layers.Multiply()([tf.math.exp(x), Q])
-    #         y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
-    #         y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
-
-    #     return y if len(y) > 1 else y[-1]
-
     # Calling
     ###########################################################################
     def call(self, inputs):
@@ -582,17 +558,20 @@ class Equilibrium(tf_layers.Layer):
                 "The inputs of the `{}` layer have to be a `list` "
                 "or a `tuple`: [x, T]".format(self.name))
 
-        # Partition functions -------------------------------------------------
-        if self.reaction == 'diss':
-            Q = self.eq_diss(rho, T)
+        if self.reaction is None:
+            y = tf.split(x, num_or_size_splits=self.out_dim, axis=1)
+            y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
         else:
-            Q_int = [ pf.Q(T) for pf in self.intPF.values() ]
-            Q = tf_layers.Concatenate()(Q_int) if len(Q_int) > 1 else Q_int[-1]
-
-        # Simil Softmax layer
-        y = tf_layers.Multiply()([tf.math.exp(x), Q])
-        y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
-        y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
+            # Partition functions
+            if self.reaction == 'diss':
+                Q = self.eq_diss(rho, T)
+            elif self.reaction == 'excit':
+                Q_int = [ pf.Q(T) for pf in self.intPF.values() ]
+                Q = tf_layers.Concatenate()(Q_int) if len(Q_int) > 1 else Q_int[-1]
+            # Simil-Softmax layer
+            y = tf_layers.Multiply()([tf.math.exp(x), Q])
+            y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
+            y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
 
         return y if len(y) > 1 else y[-1]
 

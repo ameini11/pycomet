@@ -1,9 +1,15 @@
+import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras import backend
-from prode.utilities import const
+from prode.physics.thermochemistry.specie import partitionFun
+from prode.physics.thermochemistry.specie import specie
+from prode.physics.general import const
+
+import prode.physics.database as db
+kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
 
 
 class PhysicalModel(object):
@@ -13,47 +19,62 @@ class PhysicalModel(object):
     def __init__(
         self,
         dim,
-        database,
-        grouping,
-        processes
+        species,
+        processes_mask,
+        groups_graph=None
     ):
-        # Retrieving Molecular data -------------------------------------------
-        self.levels_file = database + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = database + '/grouping/O3_UMN/O2/LevelsMap_' \
-            + grouping + '.csv'
-        self.g, self.E, self.num_lev = self.read_levels()
-        self.bins, self.num_bins = self.read_groups()
+        # Timescales connectivity ---------------------------------------------
+        if groups_graph:
+            self.ts_ts_conn = self.ts_to_ts_connectivity(groups_graph)          # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
+
+        # Species -------------------------------------------------------------
+        self.species = {
+            sp: specie.Specie(sp, **info) if info != None else specie.Specie(sp) \
+                for sp, info in species.items()
+        }
+    
+        # Partition functions -------------------------------------------------
+        self.intPF = {
+            name: partitionFun.internalPF.Internal(specie) \
+                for name, specie in self.species.items()
+        }
+        self.transPF = {
+            name: partitionFun.translationalPF.Translational(specie) \
+                for name, specie in self.species.items()
+        }
 
         # Retrieve Arrhenius coefficients -------------------------------------
-        self.rates_path = database + '/kinetics/O3_UMN_' + grouping + '/'
+        grouping = self.species['O2'].rovib['grouping']
+        self.rates_path = kinetic_db + '/O3_UMN/' + grouping + '/'
         self.arrhenius_name = ['A', 'n', 'Ea']
         self.arrhenius_coeff, self.excit_bins = self.get_arrhenius()
 
         # Master Equation matrices --------------------------------------------
         # Dimension
-        self.species = self.num_bins + 1
+        n_bins = self.species['O2'].n_bins
+        self.n_species = n_bins + 1
         # Non-zero elements positions (flatten)
         self.indices = {
             'excit': tf.constant(
-                [ [i * self.species + j] for (i,j) in self.excit_bins ] + \
-                [ [j * self.species + i] for (i,j) in self.excit_bins ]
+                [ [i * self.n_species + j] for (i,j) in self.excit_bins ] + \
+                [ [j * self.n_species + i] for (i,j) in self.excit_bins ]
             ),
             'diss': tf.constant(
-                [ [i * (self.species + 1)] for i in range(self.num_bins) ] + \
-                [ [i + (self.species * self.num_bins)] for i in range(self.num_bins) ]
+                [ [i * (self.n_species + 1)] for i in range(n_bins) ] + \
+                [ [i + (self.n_species * n_bins)] for i in range(n_bins) ]
             )
         }
         # Number of reactions for each process
         num_reac = {
-            'diss': int(self.num_bins),
-            'exch': int((self.num_bins-1) * self.num_bins / 2),
-            'inel': int((self.num_bins-1) * self.num_bins / 2)
+            'diss': int(n_bins),
+            'exch': int((n_bins-1) * n_bins / 2),
+            'inel': int((n_bins-1) * n_bins / 2)
         }
 
         # Rates matrix splitted between different processes
         self.split_proc = [ v for k, v in num_reac.items() ]
         # Reactions flags activator (masking)
-        self.me_mask = list(processes.values())
+        self.me_mask = list(processes_mask.values())
 
         # IC input dimension --------------------------------------------------
         self.ic_dim = dim["inp"][0]
@@ -89,21 +110,13 @@ class PhysicalModel(object):
         # Get Master Equations matrices
         K_e, K_d, K_r = self.get_matrices(T)
 
-        # Extract 'excitation' and 'dissociation' gradients
-        Y_exc, Y_dis = grads[0]     # 0-th order derivative
-        dY_exc, dY_dis = grads[1]   # 1-st order derivative
-
-        # Extract 'dissociation' QoI
-        Y_O2, Y_O = tf.split(Y_dis, Y_dis.shape[1], axis=1)
-        dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
-
-        # Manipulate 'excitation' QoI (from distribution to mass fractions)
-        dY_exc = Y_O2 * dY_exc + dY_O2 * Y_exc
-        Y_exc = Y_O2 * Y_exc
+        # Extract 0-th & 1-st order derivative for the 'dissociation' process
+        Y_O2, Y_O = tf.split(grads[0][0], grads[0][0].shape[1], axis=1)
+        dY_O2, dY_O = tf.split(grads[1][0], grads[1][0].shape[1], axis=1)
 
         # Construct partial densities vectors
-        Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative
-        dY = tf.concat([dY_exc, dY_O], axis=1) * mass   # 1-st order derivative
+        Y = tf.concat([grads[0][-1], Y_O], axis=1) * mass       # 0-th order derivative
+        dY = tf.concat([grads[1][-1], dY_O], axis=1) * mass     # 1-st order derivative
         Y_O = Y_O * mass
 
         # Compute omega (Master Equations RHS)
@@ -112,15 +125,39 @@ class PhysicalModel(object):
         omega_rec = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
         omega = omega_exc + omega_dis + omega_rec
 
+        # Compute residual (Master Equations)
+        me_res = dY - omega
+
         # Compute residuals
-        res_1 = dY - omega
-        res_2 = (dY_O2 + dY_O) * mass
+        res = []
+        for ts, indeces in self.ts_ts_conn.items():
+            if indeces:
+                # Extract faster timescale indeces
+                dY_fast = tf.concat([
+                    tf.math.reduce_sum(
+                        tf.gather(grads[1][ts+1], idx, axis=1), axis=1, keepdims=True
+                    ) for idx in indeces
+                ], axis=1)
+                # Extract slower timescale
+                dY_slow = grads[1][ts]
+                if dY_slow.shape[1] != dY_fast.shape[1]:
+                    dY_slow = tf.gather(dY_slow, range(dY_fast.shape[1]), axis=1)
+                # Calculate residual
+                _res = (dY_fast - dY_slow) * mass
+                # Check for 'dissociation' process
+                if ts == 0:
+                    dY_O_res = tf.gather(me_res, [me_res.shape[1]-1], axis=1)
+                    _res = tf.concat([dY_O_res, _res], axis=1)
+                    # _res = tf.concat([dY_O_res, (dY_O2+dY_O)*mass], axis=1)
+                res.append(_res)
 
-        # Return the residual error
-        res = tf.concat([res_1, res_2], axis=1)
-        res = tf.split(res, num_or_size_splits=self.out_dim, axis=1)
+        # Extract fastest timescale residual
+        res.append(
+            tf.gather(me_res, range(self.out_dim[-1]), axis=1)
+        )
 
-        return res
+        # Return all the timescales residuals
+        return res if len(res) > 1 else res[-1]
 
     # Build Matrices
     ###########################################################################
@@ -128,14 +165,17 @@ class PhysicalModel(object):
         rates_diss, rates_excit = self.modified_arrhenius(
             T, *self.arrhenius_coeff
         )
-        Q_bins = self.partition_func(T)
+        Q_bins = self.intPF['O2'].Q(T)
 
-        K_e = self.excitation_mat( \
-            self.me_mask[0], rates_excit, Q_bins) / const.mass['O']
-        K_d = self.dissociation_mat( \
-            self.me_mask[1], rates_diss) / const.mass['O']
-        K_r = self.recombination_mat( \
-            self.me_mask[2], rates_diss, Q_bins, T) / const.mass['O']**2 * 2
+        K_e = self.excitation_mat(
+            self.me_mask[0], rates_excit, Q_bins
+        ) / self.species['O'].m
+        K_d = self.dissociation_mat(
+            self.me_mask[1], rates_diss
+        ) / self.species['O'].m
+        K_r = self.recombination_mat(
+            self.me_mask[2], rates_diss, Q_bins, T
+        ) / self.species['O'].m**2 * 2
         return K_e, K_d, K_r
 
     def modified_arrhenius(self, T, A, n, Ea):
@@ -152,26 +192,13 @@ class PhysicalModel(object):
         rates_diss, rates_excit = rates[0], rates[1] + rates[2]
         return rates_diss, rates_excit
 
-    def partition_func(self, T):
-        '''Compute bins partition function.'''
-        T_rec = tf.math.reciprocal(tf.transpose(T))
-        q = tf.math.multiply(self.g, \
-            tf.math.exp(-tf.tensordot(self.E, T_rec, 1)/const.UKB))
-        Q_bins = []
-        for bin_i in range(self.num_bins):
-            Q_bins.append(
-                tf.math.reduce_sum(q[self.bins==bin_i], axis=0, keepdims=True)
-            )
-        Q_bins = tf.transpose(tf.concat(Q_bins, 0))
-        return Q_bins
-
     # Excitation processes ----------------------------------------------------
     def excitation_mat(self, mask, rates, Q_bins):
         '''Excit. & Relax. rates matrix'''\
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.species**2])
+        K = tf.tile(placeholder, [1,self.n_species**2])
 
         if mask:
             # Reverse Reaction rates
@@ -191,7 +218,7 @@ class PhysicalModel(object):
             )
 
         # Reshape the Excit. & Relax. Master Eq. matrix
-        K = tf.reshape(K, [-1,self.species,self.species])
+        K = tf.reshape(K, [-1,self.n_species,self.n_species])
 
         if mask:
             # Rearrange the Excit. & Relax. Master Eq. matrix to respect the
@@ -206,7 +233,7 @@ class PhysicalModel(object):
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.species**2])
+        K = tf.tile(placeholder, [1,self.n_species**2])
 
         if mask:
             # Rearrange rates to respect the Master Eq. system of equations
@@ -220,7 +247,7 @@ class PhysicalModel(object):
             )
 
         # Reshape the Dissociation Master Eq. matrix
-        K = tf.reshape(K, [-1,self.species,self.species])
+        K = tf.reshape(K, [-1,self.n_species,self.n_species])
 
         return K
 
@@ -230,11 +257,11 @@ class PhysicalModel(object):
 
         # Create a `zeros` 2D tensor: shape=[n,d] (flatten dimensions)
         placeholder = tf.zeros_like(rates[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.species])
+        K = tf.tile(placeholder, [1,self.n_species])
 
         if mask:
             # Obtain recombination rates from dissociation ones
-            rates = tf.math.multiply(rates, self.Keq_diss(Q_bins, T))
+            rates = rates / self.Keq_diss(Q_bins, T)
 
             # Rearrange rates to respect the Master Eq. system of equations
             rates = tf.concat(
@@ -245,34 +272,32 @@ class PhysicalModel(object):
             K = rates
 
         # Reshape the Recombination Master Eq. matrix
-        K = tf.reshape(K, [-1,self.species,1])
+        K = tf.reshape(K, [-1,self.n_species,1])
 
         return K
 
     def Keq_diss(self, Q_bins, T):
         '''Diss.-Recomb. equilibrium constants matrix'''
 
-        # Calculate translational partition functions
-        Qtr_O = tf.math.pow(2*np.pi*const.UKB*T*const.mass['O'] / const.UH**2, 3./2.)
-        Qtr_O2 = tf.cast(tf.math.pow(2., 3./2.), backend.floatx()) * Qtr_O
-
-        # Calculate internal partition functions
-        Q_O = 9
-        Q_O2 = Q_bins
-
         # Calculate equilibrium constants
-        num = tf.math.multiply(Q_O2, Qtr_O2)
-        den = tf.math.pow(Q_O * Qtr_O, 2)
-        Keq = tf.divide(num, den)
+        num = tf.math.pow(
+            tf.math.multiply(
+                self.intPF['O'].Q(T), self.transPF['O'].Q(T)
+            ), 2
+        )
+        den = tf.math.multiply(
+            self.intPF['O2'].Q(T), self.transPF['O2'].Q(T)
+        )
 
-        return Keq
+        return num / den
 
     # Util Functions
     ###########################################################################
     def get_arrhenius(self):
         # Read the Arrhenius coefficients table as a dataframe
-        arr = pd.read_csv(self.rates_path + 'arrhenius_coeff.csv', \
-            index_col=0)
+        arr = pd.read_csv(
+            self.rates_path + 'arrhenius_coeff.csv', index_col=0
+        )
 
         # Read the reaction bins index
         excit_idx = []
@@ -284,31 +309,28 @@ class PhysicalModel(object):
                 )
 
         # Extract the Arrhenius coefficient by name
-        arr_coeff = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(
-            arr[x], dtype=backend.floatx()), 1), self.arrhenius_name))
+        arr_coeff = list(map(lambda x: tf.expand_dims(
+            tf.convert_to_tensor(arr[x], dtype=backend.floatx()), 1
+        ), self.arrhenius_name))
 
         return arr_coeff, excit_idx
 
-    def read_levels(self):
-        '''Retrieve all the ro-vib levels.'''
-        data = pd.read_csv(
-            self.levels_file, header=None, skiprows=15, delim_whitespace=True
-        )
-        data = data.apply(pd.to_numeric, errors='coerce')
-        vqn = np.array(data[0])                 # Vibrational Q.N.
-        jqn = np.array(data[1])                 # Rotational  Q.N.
-        g = 1.5*(2.0*jqn+1.0)                   # Degeneracies
-        E = np.array(data[2]) * const.EH_to_J   # Energy in J
-        num = len(vqn)
-        g, E = list(map(lambda x: tf.expand_dims(tf.convert_to_tensor(x, \
-            dtype=backend.floatx()), 1), [g, E - E[0]]))
-        return g, E, num
-
-    def read_groups(self):
-        '''Retrieve mapping of each rot-vib level to the respective bin.'''
-        data = pd.read_csv(self.binMap_file, header=None, skiprows=1)
-        data = data.apply(pd.to_numeric, errors='coerce')
-        idx = np.array(data[0])                                                                           
-        bins = np.array(data[1]) - 1    # Level-to-Bin
-        num = max(bins) + 1
-        return bins, num
+    # Groups connectivity/indexing
+    ###########################################################################
+    def ts_to_ts_connectivity(self, graph, level=0, conn={}):
+        d = {}
+        conn[level] = []
+        if isinstance(graph, dict):
+            for g in graph.values():
+                if hasattr(g, 'keys'):
+                    l = list(g.keys())
+                    d = {**d, **g}
+                else:
+                    l = d = g
+                conn[level].append(l)
+        else:
+            conn[level] = None
+        if d != {}:
+            return self.ts_to_ts_connectivity(d, level=level+1, conn=conn)
+        else:
+            return conn

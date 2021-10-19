@@ -489,7 +489,7 @@ class DataGenerator(object):
         # Sampling ------------------------------------------------------------
         idx = []
         margin = 5
-        max_val = tree.query([ min(t[idx_max][0]*1.e1, 1.e-2) ], k=1)[1]
+        max_val = tree.query([ min(t[idx_max][0]*1.e2, 1.e-2) ], k=1)[1]
 
         # Initial dynamic region
         if margin > idx_min:
@@ -528,32 +528,32 @@ class DataGenerator(object):
 
         return idx
 
-        # # Sampling indices
-        # idx = []
+    #     # Sampling indices
+    #     idx = []
 
-        # # Sampling the equilibrium region
-        # if idx_max+2+pts_dist[2] <= QoI.shape[0]:
-        #     idx.append(self.sampling(
-        #         idx_max+2, min(idx_max+500, QoI.shape[0]), t, tree, pts_dist[2]
-        #         ))
-        # else:
-        #     pts_dist[1] = pts_dist[1] + pts_dist[2]
+    #     # Sampling the equilibrium region
+    #     if idx_max+2+pts_dist[2] <= QoI.shape[0]:
+    #         idx.append(self.sampling(
+    #             idx_max+2, min(idx_max+500, QoI.shape[0]), t, tree, pts_dist[2]
+    #             ))
+    #     else:
+    #         pts_dist[1] = pts_dist[1] + pts_dist[2]
 
-        # # Sampling the initial dynamics region
-        # if idx_min-2 >= 5+pts_dist[1]:
-        #     idx.append(self.sampling(5, idx_min-2, t, tree, pts_dist[0]))
-        # else:
-        #     pts_dist[1] = pts_dist[1] + pts_dist[0]
+    #     # Sampling the initial dynamics region
+    #     if idx_min-2 >= 5+pts_dist[1]:
+    #         idx.append(self.sampling(5, idx_min-2, t, tree, pts_dist[0]))
+    #     else:
+    #         pts_dist[1] = pts_dist[1] + pts_dist[0]
 
-        # # Sampling inside the strongest nonequilibrium region
-        # idx.append(self.sampling(idx_min, idx_max, t, tree, pts_dist[1]))
+    #     # Sampling inside the strongest nonequilibrium region
+    #     idx.append(self.sampling(idx_min, idx_max, t, tree, pts_dist[1]))
 
-        # # Merging indices
-        # idx = np.sort(np.concatenate(idx))
-        # _, counts = np.unique(idx, return_counts=True)
-        # assert pts == np.sum(counts)
+    #     # Merging indices
+    #     idx = np.sort(np.concatenate(idx))
+    #     _, counts = np.unique(idx, return_counts=True)
+    #     assert pts == np.sum(counts)
 
-        # return idx
+    #     return idx
 
     # def sampling(self, idx_min, idx_max, t, tree, pts):
     #     '''Get data by sampling t vector.'''

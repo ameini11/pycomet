@@ -51,13 +51,13 @@ def preproc_fn(x):
         An array or list of arrays.
     """
     if x.shape[1] == col_y[1]:
-        x[:,col_y[0]] = 1. - x[:,col_y[0]+1]
+        x[:,col_y[0]+1] = 1. - x[:,col_y[0]]
     return x
 
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 4096,            # Number of training scenarios
+    'ics': 10,#2048,            # Number of training scenarios
     'pts': 1,               # Number of total anchor pts for each scenario
     'res': 160              # Number of total collocation pts for each scenario
 }
@@ -65,7 +65,7 @@ valid = 0.2                 # % of Validation pts
 distribution = 'uniform'    # Training pts distribution
 
 # Testing data
-test_cases = 50           # Number of testing cases
+test_cases = 1#50             # Number of testing cases
 test_training = True        # Test training cases
 
 # Batching --------------------------------------------------------------------
