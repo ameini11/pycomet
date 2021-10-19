@@ -3,7 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras import backend
-from prode.utilities import const
+from prode.physics.general import const
 
 
 class PhysicalModel(object):
@@ -96,10 +96,6 @@ class PhysicalModel(object):
         # Extract 'dissociation' QoI
         Y_O2, Y_O = tf.split(Y_dis, Y_dis.shape[1], axis=1)
         dY_O2, dY_O = tf.split(dY_dis, dY_dis.shape[1], axis=1)
-
-        # Manipulate 'excitation' QoI (from distribution to mass fractions)
-        dY_exc = Y_O2 * dY_exc + dY_O2 * Y_exc
-        Y_exc = Y_O2 * Y_exc
 
         # Construct partial densities vectors
         Y = tf.concat([Y_exc, Y_O], axis=1) * mass      # 0-th order derivative

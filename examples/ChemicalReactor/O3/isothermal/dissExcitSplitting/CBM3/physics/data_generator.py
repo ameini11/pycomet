@@ -11,7 +11,7 @@ from scipy.spatial import KDTree
 from pyDOE import lhs
 
 from physics.ode_solver import ODESolver
-from prode.utilities import const
+from prode.physics.general import const
 
 
 class DataGenerator(object):
@@ -527,6 +527,52 @@ class DataGenerator(object):
         assert pts == len(counts)
 
         return idx
+
+        # # Sampling indices
+        # idx = []
+
+        # # Sampling the equilibrium region
+        # if idx_max+2+pts_dist[2] <= QoI.shape[0]:
+        #     idx.append(self.sampling(
+        #         idx_max+2, min(idx_max+500, QoI.shape[0]), t, tree, pts_dist[2]
+        #         ))
+        # else:
+        #     pts_dist[1] = pts_dist[1] + pts_dist[2]
+
+        # # Sampling the initial dynamics region
+        # if idx_min-2 >= 5+pts_dist[1]:
+        #     idx.append(self.sampling(5, idx_min-2, t, tree, pts_dist[0]))
+        # else:
+        #     pts_dist[1] = pts_dist[1] + pts_dist[0]
+
+        # # Sampling inside the strongest nonequilibrium region
+        # idx.append(self.sampling(idx_min, idx_max, t, tree, pts_dist[1]))
+
+        # # Merging indices
+        # idx = np.sort(np.concatenate(idx))
+        # _, counts = np.unique(idx, return_counts=True)
+        # assert pts == np.sum(counts)
+
+        # return idx
+
+    # def sampling(self, idx_min, idx_max, t, tree, pts):
+    #     '''Get data by sampling t vector.'''
+
+    #     t_min, t_max= t[idx_min], t[idx_max]
+    #     if self.distribution == 'random':
+    #         _, ii = tree.query([[t_min],[t_max]], k=1)
+    #         idx = np.sort(
+    #             np.random.choice(ii[1]-ii[0], pts, replace=False)
+    #         ) + ii[0]
+    #     else:
+    #         t_vec = np.linspace(
+    #             np.log10(t_min), np.log10(t_max), pts, dtype=np.float64
+    #         )
+    #         h = (t_vec[1,0]-t_vec[0,0])*0.9
+    #         dlt = np.vstack(([[0.]], (np.random.rand(pts-2,1)-0.5)*h, [[0.]]))
+    #         t_unif = np.power(10, t_vec + dlt)
+    #         _, idx = tree.query(t_unif, k=1)
+    #     return idx
 
     def sampling(self, idx_min, idx_max, pts):
         '''Get data by sampling t vector.'''

@@ -42,7 +42,7 @@ opnn_dim = {
 layer_size = {
     names[0]: {
         "branch": [opnn_dim[names[0]]['inp'][0], 64, 64, 64],
-        "trunk":  [opnn_dim[names[0]]['inp'][1], 128, 128, 64]
+        "trunk":  [opnn_dim[names[0]]['inp'][1], 256, 256, 64]
     },
     names[1]: {
         "branch": [opnn_dim[names[1]]['inp'][0], 64, 64, 64],
@@ -84,10 +84,16 @@ dropout_rate = 0
 # =============================================================================
 # Global model ----------------------------------------------------------------
 # *** Inputs
+def _branch_fn(x):
+    T = inp_gen.input_space['Ttr']
+    if T[1] != T[0]:
+        T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
+    else:
+        T_norm = x[:,0:1] / T[1]
+    return tf.concat([T_norm, x[:,1:]], 1)
+
 input_fn = {
-    "branch": pro_layers.LinearNorm(
-        *inp_gen.input_space['Ttr'], name='trunk_fn', trainable=False
-    ),
+    "branch": tf_layers.Lambda(_branch_fn, name='branch_fn'),
     "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 

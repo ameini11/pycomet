@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.integrate import ode
 
-from prode.utilities import const
+from prode.physics.general import const
 
 
 class ODESolver(object):

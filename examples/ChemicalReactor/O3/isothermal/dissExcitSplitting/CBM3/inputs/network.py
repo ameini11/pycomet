@@ -86,12 +86,15 @@ dropout_rate = 0
 # *** Inputs
 def _branch_fn(x):
     T = inp_gen.input_space['Ttr']
-    T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
+    if T[1] != T[0]:
+        T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
+    else:
+        T_norm = x[:,0:1] / T[1]
     return tf.concat([T_norm, x[:,1:]], 1)
 
 input_fn = {
     "branch": tf_layers.Lambda(_branch_fn, name='branch_fn'),
-    "trunk": pro_layers.Scaling(slope=1.e6, name='trunk_fn', trainable=False)
+    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }
 
 # *** Outputs

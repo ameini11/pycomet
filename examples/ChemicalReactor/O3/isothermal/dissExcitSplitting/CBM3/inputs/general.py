@@ -37,7 +37,7 @@ flags = {
 # Physical model
 # =============================================================================
 ode_order = 1
-grouping = 'CBM3'              # ROM: ['CBM3', 'DPM10']
+grouping = 'CBM3'               # ROM: ['CBM3', 'DPM10']
 processes = {                   # Reactive processes
     'excit':  1,
     'diss':   1,
@@ -47,8 +47,8 @@ database = os.path.normpath(os.getcwd()+'/../../../database')
 
 # Input space (limit values)
 input_space = {
-    'Ttr':  [5.e3,   1.5e4],    # Tanslational temperature [K]
-    'T0':   [1.e3,   5.e3],     # Initial temperature [K]
+    'Ttr':  [8.e3,   1.5e4],    # Tanslational temperature [K]
+    'T0':   [1.e3,   8.e3],     # Initial temperature [K]
     'P0':   [1.e3,   1.e4],     # Initial pressure [Pa]
     'XO2':  [0.05e0, 1.e0]      # Initial O2 mole fraction
 }

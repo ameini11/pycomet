@@ -18,7 +18,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 100#50000
+epochs = 50000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -61,7 +61,7 @@ callbacks = {
         'monitor':           'val_tot_loss',
         'save_best_only':    True,
         'save_weights_only': True
-    }, 
+    },
 
     'plotter': {
         **inp_post.plot_style,
