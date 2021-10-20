@@ -61,4 +61,3 @@ class VariableValue(CB.Callback):
     def get_value(self):
         """Return the variable values."""
         return self.values
-

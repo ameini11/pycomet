@@ -30,7 +30,6 @@ class Data(object):
         self.data_ids = None
         self.data_ids_valid = None
 
-
     # Util functions
     ###########################################################################
     def get_num_pts(self, data_type='training', verbose=1, print_fn=None):
@@ -39,8 +38,10 @@ class Data(object):
         elif data_type == 'validation':
             dset = self.valid
         else:
-            utils.raise_value_err("`data_type` passed into `{}.get_num_pts` method "
-                "must be equal to 'training' or 'validation'.".format(self.name))
+            utils.raise_value_err(
+                "`data_type` passed into `{}.get_num_pts` "
+                "method must be equal to 'training' or "
+                "'validation'.".format(self.name))
         if dset:
             return print_fn(dset, data_type, verbose) if print_fn else None
         else:
@@ -90,7 +91,8 @@ class Data(object):
             return df[:, col[0]:col[1]]
 
     def check_data_consistency(self, data):
-        msg = "Inconsistency between data and network I/O dimensions (see `dim`)."
+        msg = "Inconsistency between data and " \
+            "network I/O dimensions (see `dim`)."
         dim = list(self.dim.values())
         for i, xy in enumerate(data):
             if isinstance(xy, (list,tuple)):
@@ -108,7 +110,8 @@ class Data(object):
                         utils.raise_value_err(msg)
 
     def check_size(self, data):
-        msg = "Inconsistency between data and network I/O dimensions (see `dim`)."
+        msg = "Inconsistency between data and " \
+            "network I/O dimensions (see `dim`)."
         dim = list(self.dim.values())
         for i, xy in enumerate(data):
             if isinstance(xy, (list,tuple)):

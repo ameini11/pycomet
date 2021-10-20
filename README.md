@@ -29,7 +29,7 @@ To install PrODE simply type the following commands in your Unix shell:
 ```
 $ git clone https://github.com/ivanZanardi/prode.git
 $ cd prode
-$ ./installation/install.sh
+$ ./install -a install
 ```
 
 - Dependencies

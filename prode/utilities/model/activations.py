@@ -19,7 +19,9 @@ def layer_wise_locally_adaptive(activation, n=1):
 
     References: `Jagtap et al., 2019 <https://arxiv.org/abs/1909.12228>`_.
     """
-    a = tf.Variable(1./n, trainable=True, name='act_scaling', dtype=K.floatx())
+    a = tf.Variable(
+        1./n, trainable=True, name='act_scaling', dtype=K.floatx()
+        )
     return lambda x: activation(n * a * x)
 
 def get(identifier):

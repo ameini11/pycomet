@@ -23,7 +23,7 @@ import argparse
 from prode.utilities import utils
 
 
-FLDS = ['data', 'training', 'saving', 'postprocessing', '__pycache__']
+FOLDERS = ['data', 'training', 'saving', 'postprocessing', '__pycache__']
 
 def get_opts():
     parser = argparse.ArgumentParser(
@@ -62,9 +62,9 @@ def main():
     # Remove directories ------------------------------------------------------
     utils.print_main("Looking for folders to remove ...", start='')
     exists = False
-    # paths = [ opts.dir+'/'+ f for f in FLDS ]
+    # paths = [ opts.dir+'/'+ f for f in FOLDERS ]
     
-    for fld in FLDS:
+    for fld in FOLDERS:
         dirs = glob.glob(opts.dir+'/**/'+fld, recursive=True)
         if len(dirs) > 0:
             exists = True
@@ -89,4 +89,3 @@ def main():
                 os.path.normpath(opts.dir)+'/'
             )
     utils.print_main(exit_str, start='')
-

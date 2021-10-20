@@ -37,20 +37,6 @@ def train_step(model, data):
 
     return {**metric, **_get_metrics(total_loss, losses, reg_loss=reg_loss)}
 
-    # m1 = {**metric, **_get_metrics(total_loss, losses, reg_loss=reg_loss)}
-
-    # return_metrics = {}
-    # for metric in model.metrics:
-    #   result = metric.result()
-    #   if isinstance(result, dict):
-    #     return_metrics.update(result)
-    #   else:
-    #     return_metrics[metric.name] = result
-
-    # return { k: v for k,v in return_metrics.items() if k.startswith('res') }
-    # return {**return_metrics, **m1}
-
-
 def test_step(model, data):
     """Custom test step."""
 
@@ -66,16 +52,11 @@ def test_step(model, data):
     # Collect metrics to return
     return _get_metrics(total_loss, losses)
 
-
 # Util functions
 ###############################################################################
 def _get_loss(x, y, model, data_id, training=True):
     if data_id == 'res':
         y_pred = model.residual(x, training=training)
-        # if isinstance(y_pred, (list,tuple)):
-        #     y = [ tf.zeros_like(y_pred_i) for y_pred_i in y_pred ]
-        # else:
-        #     y = tf.zeros_like(y_pred)
     else:
         y_pred = model(x, training=training)
     return model.compiled_loss[data_id](y, y_pred)

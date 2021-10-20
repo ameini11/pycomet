@@ -69,7 +69,6 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         """
         return max(list(self.steps.values()))
 
-
     # Handling batches during each epoch
     ###########################################################################
     @tf.function
@@ -82,7 +81,6 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         """
         x, y = [ xy for xy in zip(*self.sequence[index]) ]
         return x, y
-
 
     # Handling data at the end of each epoch
     ###########################################################################

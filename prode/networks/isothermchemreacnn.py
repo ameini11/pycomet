@@ -180,14 +180,6 @@ class IsoThermChemReacNN(Net):
         else:
             return y[-1]
 
-    # Graph
-    ###########################################################################
-    def get_graph(self):
-        x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
-              tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
-        y = self.call(x)
-        return tf.keras.Model(inputs=x, outputs=y, name=self.name)
-
     # Groups connectivity/indexing
     ###########################################################################
     def ts_to_ts_connectivity(self, graph, level=0, conn={}):
@@ -242,3 +234,11 @@ class IsoThermChemReacNN(Net):
             return self.join(ls)
         except:
             return ls
+
+    # Graph
+    ###########################################################################
+    def get_graph(self):
+        x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
+              tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
+        y = self.call(x)
+        return tf.keras.Model(inputs=x, outputs=y, name=self.name)

@@ -3,11 +3,10 @@ import copy
 import numpy as np
 import pandas as pd
 import tensorflow.keras.callbacks as CB
+import prode.postprocessing as post
 
 from tqdm import tqdm
 from tensorflow.python.util.tf_export import keras_export
-from prode.postprocessing import testing_plots
-from prode.postprocessing import training_plots
 from prode.utilities import utils
 
 
@@ -68,20 +67,28 @@ class Plotter(CB.Callback):
         history = pd.DataFrame.from_dict(self.model.history.history)
         path = self.path['train']
         # Learning rate
-        training_plots.plot_lr(self.train_dir+'/lr.csv', path)
+        post.training.plot_lr(self.train_dir+'/lr.csv', path)
         # Losses
         if 'loss' in history:
-            training_plots.plot_loss(history, path, scale=scale, limit_y=limit_y)
+            post.training.plot_loss(
+                history, path, scale=scale, limit_y=limit_y
+            )
         elif 'tot_loss' in history:
-            training_plots.plot_composite_loss(history, path, scale=scale, limit_y=limit_y)
+            post.training.plot_composite_loss(
+                history, path, scale=scale, limit_y=limit_y
+            )
             if any([ c.endswith('weight') for c in history ]):
-                training_plots.plot_loss_weights(history, path)
+                post.training.plot_loss_weights(history, path)
         # Metrics
         if self.model.compiled_metrics:
             for metric in self.model.compiled_metrics.metrics:
                 if metric.name in history:
-                    training_plots.plot_metric(
-                        history, path, metric.name, scale=scale, limit_y=limit_y
+                    post.training.plot_metric(
+                        history,
+                        path,
+                        metric.name,
+                        scale=scale,
+                        limit_y=limit_y
                     )
 
     def testing(self):
@@ -98,7 +105,9 @@ class Plotter(CB.Callback):
                 os.makedirs(path)
             if isinstance(y_pred, (list,tuple)):
                 if self.fig_name == None:
-                    self.fig_name = [ 'fig'+str(i) for i in range(1,len(y_true)+1)]
+                    self.fig_name = [
+                        'fig'+str(i) for i in range(1,len(y_true)+1)
+                    ]
                 for y_i in range(len(y_pred)):
                     kwargs = dict(
                         y_true=y_true[y_i],
@@ -123,10 +132,10 @@ class Plotter(CB.Callback):
                 self.testing_plot_fn(path, x, kwargs)
 
     def testing_plot_fn(self, path, x, kwargs):
-        testing_plots.plot_test(path, x, **kwargs)
+        post.testing.plot_test(path, x, **kwargs)
         if self.log_plot:
             kwargs['scales'] = ['log','log']
-            testing_plots.plot_test(path, x,**kwargs)
+            post.testing.plot_test(path, x,**kwargs)
 
     # def unpack_test_data(self, test_data):
     #     elif len(test_data) == 2:

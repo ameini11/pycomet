@@ -59,7 +59,6 @@ class FFNN(Net):
             weight_norm=self.weight_norm
         )
 
-
     # Configuration update
     ###########################################################################
     def get_config(self):
@@ -80,7 +79,6 @@ class FFNN(Net):
     def from_config(cls, config):
         return cls(**config)
 
-
     # Calling
     ###########################################################################
     def call(self, x, training=None):
@@ -98,7 +96,6 @@ class FFNN(Net):
             y = self.out_trans(y)
 
         return y
-
 
     # Graph
     ###########################################################################

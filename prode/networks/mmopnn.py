@@ -147,7 +147,6 @@ class MMOpNN(Net):
     def from_config(cls, config):
         return cls(**config)
 
-
     # Calling
     ###########################################################################
     def call(self, x, training=None, mask=None):

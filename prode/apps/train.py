@@ -31,7 +31,9 @@ def dir_path(path):
         return path
     else:
         raise argparse.ArgumentTypeError(
-            "'inputs' folder not found in '{}'".format(os.path.normpath(path)+'/')
+            "'inputs' folder not found in '{}'".format(
+                os.path.normpath(path)+'/'
+            )
         )
 
 def get_opts():

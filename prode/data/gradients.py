@@ -4,45 +4,8 @@ import tensorflow as tf
 def get_grad_fn(ode_order=0):
     return order_0 if ode_order == 0 else order_n
 
-# def get_grad_fn(ode_order):
-#     return {
-#         0: zero,
-#         1: first,
-#         2: second
-#     }[ode_order]
-
-
 # Gradient evaluation
 ###############################################################################
-# def zero(ode_cls, model, ic, t, training):
-#     if ode_cls.time_idx == 0:
-#         t = [t, ic]
-#     else:
-#         t = [ic, t]
-#     if not ode_cls.input_is_list:
-#         x = tf.concat(x, axis=1)
-#     grads = [ model(x, training=training) ]
-#     return grads
-
-# def first(ode_cls, model, ic, t, training):
-#     with tf.GradientTape(persistent=True) as tape:
-#         tape.watch(t)
-#         grads = zero(ode_cls, model, ic, t, training)
-#         y = split_grad(grads[-1])
-#     dy_dt = eval_concat_grad(y, tape)
-#     grads.append(dy_dt)
-#     return grads
-
-# def second(ode_cls, model, ic, t, training):
-#     with tf.GradientTape(persistent=True) as tape:
-#         tape.watch(t)
-#         grads = first(ode_cls, model, ic, t, training)
-#         dy_dt = split_grad(grads[-1])
-#     d2y_dt2 = eval_concat_grad(dy_dt, tape)
-#     grads.append(d2y_dt2)
-#     return grads
-
-
 def order_0(ode_cls, order, model, ic, t, training):
     assert order == 0
     if ode_cls.time_idx == 0:
@@ -66,7 +29,6 @@ def order_n(ode_cls, order, model, ic, t, training):
     dy = _eval_concat(y, t, tape)
     grads.append(dy)
     return grads
-
 
 # Gradient arrays ops
 ###############################################################################

@@ -136,7 +136,6 @@ class OpNN(Net):
     def from_config(cls, config):
         return cls(**config)
 
-
     # Calling
     ###########################################################################
     def call(self, x, training=None, mask=None):
@@ -168,8 +167,9 @@ class OpNN(Net):
         if self.stacked:
             G_uy = [ tf_layers.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]
         else:
-            G_uy = tf.split(tf_layers.Multiply()([*G_u, G_y]), self.out_dim, axis=1)
-            # G_uy = tf.split(tf.math.multiply(*G_u, G_y), self.out_dim, axis=1)
+            G_uy = tf.split(
+                tf_layers.Multiply()([*G_u, G_y]), self.out_dim, axis=1
+            )
             G_uy = [tf.math.reduce_sum(g, axis=1, keepdims=True) for g in G_uy]
 
         # Output layer - Concatenation
@@ -182,7 +182,6 @@ class OpNN(Net):
             G_uy = self.out_trans(G_uy)
         
         return G_uy
-
 
     # Graph
     ###########################################################################

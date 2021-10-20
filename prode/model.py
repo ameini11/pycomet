@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.callbacks as CB
+import prode.postprocessing as post
 
 from prode.utilities.callbacks import callbacks as callbacks_module
 from prode.utilities.training import losses as losses_module
 from prode.utilities.training import metrics as metrics_module
 from prode.utilities.training.optimizers import get_train_opt
-from prode.postprocessing import training_plots, testing_plots
 from prode.utilities import utils
 
 
@@ -51,7 +51,6 @@ class Model(object):
         self.save_path = self.save_dir + name
         if self.save_format == 'h5':
             self.save_path = self.save_path + '.h5'
-
 
     # Building Model
     ###########################################################################
@@ -108,21 +107,27 @@ class Model(object):
         elif load_net in [1,2]:
             if load_net == 1:
                 path = self.save_path
-                utils.print_submain("Restoring network from file", path)
+                utils.print_submain(
+                    "Restoring network from file '{}'".format(
+                        os.path.normpath(path)
+                    )
+                )
             elif load_net == 2:
                 ckpts = [ self.ckpt_dir + "/" + name \
                     for name in os.listdir(self.ckpt_dir) ]
                 if ckpts:
                     path = max(ckpts, key=os.path.getctime)
                     utils.print_submain(
-                        "Restoring network from checkpoint", path
+                        "Restoring network from checkpoint '{}'".format(
+                            os.path.normpath(path)
+                        )
                     )
                 else:
                     utils.print_submain(
                         "No checkpoints available: making a new network"
                     )
                     return
-            self.net.load_weights(path)
+            self.net.load_weights(path, by_name=True, skip_mismatch=True)
         else:
             utils.raise_value_err(
                 "In `model.compile` you should pass as `load_net` argument "
@@ -130,7 +135,6 @@ class Model(object):
                 "   >> 0: making new network;\n"
                 "   >> 1: restoring network from saved one (with same name);\n"
                 "   >> 2: restoring network from last checkpoint.")
-
 
     # Compiling Model
     ###########################################################################
@@ -165,8 +169,13 @@ class Model(object):
             self.metrics = [ metrics_module.get(m) for m in metrics ]
 
         # Compiling
-        self.net.compile(self.data, optimizer=self.optimizer, loss=self.loss, \
-            loss_weights=self.loss_weights, metrics=self.metrics)
+        self.net.compile(
+            self.data,
+            optimizer=self.optimizer,
+            loss=self.loss,
+            loss_weights=self.loss_weights,
+            metrics=self.metrics
+        )
 
     def get_loss(self, loss):
         if self.data.name == 'ODE':
@@ -192,7 +201,6 @@ class Model(object):
             else:
                 loss_wg = list(wg.values()) if isinstance(wg, dict) else wg
             return loss_wg
-
 
     # Training Model
     ###########################################################################
@@ -238,7 +246,6 @@ class Model(object):
         # Save `history.history` in a file
         pd.DataFrame.from_dict(self.net.history.history).to_csv( \
             path_or_buf=self.train_dir+'/history.csv', index=False)
-
 
     # Predicting phase
     ###########################################################################
@@ -298,11 +305,10 @@ class Model(object):
             return data, None
 
     def testing_plot_fn(self, path, x, log_plot, kwargs):
-        testing_plots.plot_test(path, x, **kwargs)
+        post.testing.plot_test(path, x, **kwargs)
         if log_plot:
             kwargs['scales'] = ['log','log']
-            testing_plots.plot_test(path, x,**kwargs)
-
+            post.testing.plot_test(path, x,**kwargs)
 
     # Saving Model
     ###########################################################################
@@ -323,7 +329,6 @@ class Model(object):
             dset.create_dataset(w.name, data=w.numpy())
         dset.close()
 
-
     # Postprocessing
     ###########################################################################
     def visualize_training(
@@ -342,24 +347,28 @@ class Model(object):
             os.makedirs(path)
 
         # Learning Rate
-        training_plots.plot_lr(self.train_dir+'/lr.csv', path)
+        post.training.plot_lr(self.train_dir+'/lr.csv', path)
         # Losses
         if 'loss' in history:
-            training_plots.plot_loss(
+            post.training.plot_loss(
                 history, path, scale=scale, limit_y=limit_y
             )
         elif 'tot_loss' in history:
-            training_plots.plot_composite_loss(
+            post.training.plot_composite_loss(
                 history, path, scale=scale, limit_y=limit_y
             )
             if any([ c.endswith('weight') for c in history.columns ]):
-                training_plots.plot_loss_weights(history, path)
+                post.training.plot_loss_weights(history, path)
         # Metrics
         if self.net.compiled_metrics:
             for metric in self.net.compiled_metrics.metrics:
                 if metric.name in history:
-                    training_plots.plot_metric(
-                        history, path, metric.name, scale=scale, limit_y=limit_y
+                    post.training.plot_metric(
+                        history,
+                        path,
+                        metric.name,
+                        scale=scale,
+                        limit_y=limit_y
                     )
 
     def get_history(self, history):

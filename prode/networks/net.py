@@ -27,15 +27,18 @@ class Net(tf.keras.Model):
 
         if not isinstance(dim, dict):
             utils.raise_value_err(
-                "`dim` passed into `{}` network has to be a `dict` of length 2:\n"
+                "`dim` passed into `{}` network has "
+                "to be a `dict` of length 2:\n"
                 "  - 'inp': `int` (or list of `int`);\n"
                 "  - 'out': `int` (or list of `int`).\n"
-                "It represents the dimensions of the feature space.".format(self.name)
+                "It represents the dimensions of the "
+                "feature space.".format(self.name)
             )
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
 
-        self.block = block if callable(block) else utils.get_class(layers, block)
+        self.block = block if callable(block) \
+            else utils.get_class(layers, block)
 
         self.inp_trans = None
         self.out_trans = None
@@ -45,7 +48,6 @@ class Net(tf.keras.Model):
         self.residual = None
         self.data_ids = None
         self.data_ids_valid = None
-
 
     # Configuration update
     ###########################################################################
@@ -105,18 +107,24 @@ class Net(tf.keras.Model):
             self.compiled_loss = {}
             for data_id in self.data_ids:
                 if self.output_names:
-                    _output_names = [ data_id + '_' + name for name in self.output_names ]
+                    _output_names = [
+                        data_id + '_' + name for name in self.output_names
+                    ]
                 else:
                     _output_names = data_id
                 _loss = loss[data_id] if loss else None
                 _loss_weights = loss_weights[data_id] if loss_weights else None
                 self.compiled_loss[data_id] = compile_utils.LossesContainer(
                     _loss, _loss_weights, output_names=_output_names)
-                self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(name=data_id + '_loss')
+                self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(
+                    name=data_id + '_loss'
+                )
 
             # Defining metrics container
             if metrics is not None:
-                utils.warning("With `data.ode`, metrics evaluation is not available.")
+                utils.warning(
+                    "With `data.ode`, metrics evaluation is not available."
+                )
             self.compiled_metrics = None
 
             self._configure_steps_per_execution(steps_per_execution or 1)
@@ -160,7 +168,6 @@ class Net(tf.keras.Model):
                 metrics += self.compiled_metrics.metrics
         return metrics
 
-
     # Steps
     ###########################################################################
     # Training Step
@@ -177,8 +184,7 @@ class Net(tf.keras.Model):
         else:
             return super(Net, self).test_step(data)
 
-
-    # Apply I/O Transformation
+    # Input/Output transformations
     ###########################################################################
     @property
     def inp_trans(self):
@@ -195,18 +201,6 @@ class Net(tf.keras.Model):
     @out_trans.setter
     def out_trans(self, function):
         self._out_trans = function
-
-
-    # def apply_input_transform(self, transform):
-    #     """Compute the features by appling a transform to the network inputs, i.e.,
-    #     features = transform(inputs). Then, outputs = network(features)."""
-    #     self.inp_trans = transform
-
-    # def apply_output_transform(self, transform):
-    #     """Apply a transform to the network outputs, i.e.,
-    #     outputs = transform(inputs, outputs)."""
-    #     self.out_trans = transform
-
 
     # Data identities
     ###########################################################################
@@ -226,6 +220,8 @@ class Net(tf.keras.Model):
     def data_ids_valid(self, identifiers):
         self._data_ids_valid = identifiers
 
+    # Losses properties
+    # ###########################################################################
     @property
     def ode_loss_weights(self):
         return self._ode_loss_weights
@@ -234,9 +230,7 @@ class Net(tf.keras.Model):
     def ode_loss_weights(self, weights):
         self._ode_loss_weights = weights
 
-
-    # # Add loss properties
-    # ###########################################################################
+    # Residual loss
     @property
     def residual(self):
         return self._residual
@@ -244,31 +238,3 @@ class Net(tf.keras.Model):
     @residual.setter
     def residual(self, function):
         self._residual = function
-
-    # def add_residual(self, function):
-    #     """Add a `list`/`dict` of loss functions for composite loss."""
-    #     self.residual = function
-
-    # def add_loss_weights(self, ode_loss_weights):
-    #     if ode_loss_weights is not None:
-    #         self.ode_loss_weights = self.get_loss_properties(ode_loss_weights, 'ode_loss_weights')
-
-    # def get_loss_properties(self, properties, prop_name):
-    #     if isinstance(properties, dict):
-    #         return properties
-    #     elif isinstance(properties, (list,tuple)):
-    #         if isinstance(self.data_ids, (list,tuple,dict)):
-    #             if len(properties) == len(self.data_ids):
-    #                 return {data_id: properties[i] for i, data_id in enumerate(self.data_ids)}
-    #             else:
-    #                 utils.raise_value_err(
-    #                     "`{}` and `data.data_ids` passed into `{}.get_loss_properties` "
-    #                     "method have to be of the same length.".format(prop_name, self.name))
-    #         else:
-    #             utils.raise_value_err(
-    #                 "`data.data_ids` passed into `{}.get_loss_properties` method has "
-    #                 "to be a `dict` or a `list`/`tuple`.".format(self.name))
-    #     else:
-    #         utils.raise_value_err(
-    #             "`{}` passed into `{}.get_loss_properties` method has "
-    #             "to be a `dict` or a `list`/`tuple`.".format(prop_name, self.name))

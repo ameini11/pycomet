@@ -58,7 +58,6 @@ class FineTuningRegularizer(reg.L1L2):
             )
             self.weights_SP = None
 
-
     # Configuration update
     ###########################################################################
     def get_config(self):
@@ -68,7 +67,6 @@ class FineTuningRegularizer(reg.L1L2):
         }
         base_config = super(FineTuningRegularizer, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
 
     # Calling
     ###########################################################################

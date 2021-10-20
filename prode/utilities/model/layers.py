@@ -22,7 +22,9 @@ from prode.utilities import utils
 # =========================================================================== #
 # MultiLayerBlock Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MultiLayerBlock')
+@tf.keras.utils.register_keras_serializable(
+    package='PrODE', name='MultiLayerBlock'
+)
 class MultiLayerBlock(tf_layers.Layer):
     """Multi Layer Block."""
 

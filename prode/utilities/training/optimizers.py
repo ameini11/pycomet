@@ -13,10 +13,16 @@ def _get_learning_rate(lr, decay):
     if decay is None:
         return lr
     return {
-        "exponential":  opt.schedules.ExponentialDecay(lr, decay[1], decay[2], staircase=True),
-        "inverse_time": opt.schedules.InverseTimeDecay(lr, decay[1], decay[2], staircase=True),
-        "polynomial":   opt.schedules.PolynomialDecay(lr, decay[1], end_learning_rate=1.e-2*lr)
-        }[decay[0]]
+        "exponential":  opt.schedules.ExponentialDecay(
+            lr, decay[1], decay[2], staircase=True
+        ),
+        "inverse_time": opt.schedules.InverseTimeDecay(
+            lr, decay[1], decay[2], staircase=True
+        ),
+        "polynomial":   opt.schedules.PolynomialDecay(
+            lr, decay[1], end_learning_rate=1.e-2*lr
+        )
+    }[decay[0]]
 
 
 def _get_optimizer(name, lr):
