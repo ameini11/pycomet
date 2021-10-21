@@ -185,6 +185,10 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
     def get_pred_loss(self, x, y, data_id):
         if data_id == 'res':
             y_pred = self.model.residual(x, training=False)
+            if isinstance(y_pred, (list,tuple)):
+                y = [ tf.zeros_like(y_pred_i) for y_pred_i in y_pred ]
+            else:
+                y = tf.zeros_like(y_pred)
         else:
             y_pred = self.model(x, training=False)
         loss = self.model.compiled_loss[data_id](y, y_pred)

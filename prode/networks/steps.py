@@ -57,6 +57,10 @@ def test_step(model, data):
 def _get_loss(x, y, model, data_id, training=True):
     if data_id == 'res':
         y_pred = model.residual(x, training=training)
+        if isinstance(y_pred, (list,tuple)):
+            y = [ tf.zeros_like(y_pred_i) for y_pred_i in y_pred ]
+        else:
+            y = tf.zeros_like(y_pred)
     else:
         y_pred = model(x, training=training)
     return model.compiled_loss[data_id](y, y_pred)

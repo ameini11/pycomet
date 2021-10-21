@@ -106,16 +106,10 @@ class Net(tf.keras.Model):
             # Defining loss containers
             self.compiled_loss = {}
             for data_id in self.data_ids:
-                if self.output_names:
-                    _output_names = [
-                        data_id + '_' + name for name in self.output_names
-                    ]
-                else:
-                    _output_names = data_id
                 _loss = loss[data_id] if loss else None
                 _loss_weights = loss_weights[data_id] if loss_weights else None
                 self.compiled_loss[data_id] = compile_utils.LossesContainer(
-                    _loss, _loss_weights, output_names=_output_names)
+                    _loss, _loss_weights)
                 self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(
                     name=data_id + '_loss'
                 )

@@ -114,7 +114,7 @@ class ODE(Data):
             )
 
     def data_as_dict(self, data):
-        data = list(map(lambda i: self.get_data(data[i], i), self.data_ids))
+        data = [ self.get_data(data[i], i) for i in self.data_ids ]
         return {self.data_ids[i]: data[i] for i in range(len(self.data_ids))}
 
     def get_data(self, data, data_id):
@@ -140,7 +140,7 @@ class ODE(Data):
                     "extracted from file '{}'.".format(data))
             if any(i.size == 0 for i in y):
                 if data_id == 'res':
-                    y = self.zeros_array(utils.get_cardinality(x), 'out')
+                    y = self.y_fake(x)
                 else:
                     utils.raise_value_err("No target data (see `col_y`) can be "
                         "extracted from file '{}'.".format(data))
@@ -150,9 +150,7 @@ class ODE(Data):
             if isinstance(data, (list,tuple)):
                 self.check_data_consistency(data)
                 if data_id == 'res':
-                    data = data[0], self.zeros_array(
-                        utils.get_cardinality(data[0]), 'out'
-                    )
+                    data = data[0], self.y_fake(data[0])
                 return data
             else:
                 utils.raise_value_err("Data passed into `{}` has to be a "
@@ -172,12 +170,8 @@ class ODE(Data):
             data_type=data_type, verbose=verbose, print_fn=print_fn
         )
 
-    def zeros_array(self, n_samples, identifier):
-        d = self.dim[identifier]
-        d = [d] if isinstance(d, int) else d
-        x = [ np.zeros((n_samples,d_i)) for d_i in d ]
-        return x if len(d) > 1 else x[0]
-
+    def y_fake(self, x):
+        return np.zeros((utils.get_cardinality(x),1))
 
     # Splitting Training/Validation Data
     ###########################################################################
