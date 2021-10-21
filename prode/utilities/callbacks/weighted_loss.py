@@ -47,7 +47,7 @@ class ConstantWeightsAdapter(CB.Callback):
             )
         elif isinstance(self.ode_loss_weights, (list,tuple)):
             _ode_loss_weights = dict(
-                zip(self.model.data_ids, ode_loss_weights)
+                zip(self.model.data_ids, self.ode_loss_weights)
             )
         elif isinstance(ode_loss_weights, dict):
             _ode_loss_weights = self.ode_loss_weights

@@ -574,6 +574,10 @@ class Equilibrium(tf_layers.Layer):
             y = tf_layers.Multiply()([tf.math.exp(x), Q])
             y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
             y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
+            # y = tf_layers.Multiply()(
+            #     [tf.math.exp(-x), Q / tf.reduce_sum(Q, axis=-1, keepdims=True)]
+            # )
+            # y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
 
         return y if len(y) > 1 else y[-1]
 
