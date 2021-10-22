@@ -79,17 +79,17 @@ class MultiComponent(object):
     # Mixture properties ======================================================
     def m_(self, var='Y'):
         # [kg/mol]
-        m = []
+        M_ = []
         if var == 'Y':
             for thermo in self.mixture.values():
                 sp = thermo.specie
-                m.append(sp.Y / sp.M)
-            self.M = 1./tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
+                M_.append(sp.Y / sp.M)
+            self.M = 1./tf.reduce_sum(tf.concat(M_, 1), axis=1, keepdims=True)
         elif var == 'X':
             for thermo in self.mixture.values():
                 sp = thermo.specie
-                m.append(sp.X * sp.M)
-            self.M = tf.reduce_sum(tf.concat(m, 1), axis=1, keepdims=True)
+                M_.append(sp.X * sp.M)
+            self.M = tf.reduce_sum(tf.concat(M_, 1), axis=1, keepdims=True)
 
     def R_(self):
         # [J/(kg K)]
