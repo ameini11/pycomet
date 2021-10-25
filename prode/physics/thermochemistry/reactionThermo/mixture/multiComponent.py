@@ -18,22 +18,6 @@ class MultiComponent(Basic):
     ):
         super(MultiComponent, self).__init__(specieThermos)
 
-    # Properties
-    ###########################################################################
-    @property
-    def M(self):
-        return self._M
-    @M.setter
-    def M(self, value):
-        self._M = value
-
-    @property
-    def R(self):
-        return self._R
-    @R.setter
-    def R(self, value):
-        self._R = value
-
     # Methods
     ###########################################################################
     # Update ------------------------------------------------------------------

@@ -17,6 +17,22 @@ class Basic(object):
         # Species
         self.nSpecies, self.specieIndices = self.species()
 
+    # Properties
+    ###########################################################################
+    @property
+    def M(self):
+        return self._M
+    @M.setter
+    def M(self, value):
+        self._M = value
+
+    @property
+    def R(self):
+        return self._R
+    @R.setter
+    def R(self, value):
+        self._R = value
+
     # Methods
     ###########################################################################
     # Species details ---------------------------------------------------------
@@ -33,37 +49,37 @@ class Basic(object):
 
     # Mixture mass fractions --------------------------------------------------
     @abc.abstractmethod
-    def update(self, mixture, var='Y', *args, **kwargs):
+    def update(self, T, XY, var='Y', *args, **kwargs):
         pass
 
     # Enthalpy ----------------------------------------------------------------
     @abc.abstractmethod
-    def cp(self, T, *args, **kwargs):
+    def cp(self, *args, **kwargs):
         # [J/(kg K)]
         pass
 
     @abc.abstractmethod
-    def h(self, T, *args, **kwargs):
-        # [J/kg]
-        pass
-
-    @abc.abstractmethod
-    def dhdt(self, T, dY, *args, **kwargs):
+    def h(self, *args, **kwargs):
         # [J/kg]
         pass
 
     # Energy ------------------------------------------------------------------
     @abc.abstractmethod
-    def cv(self, T, *args, **kwargs):
+    def cv(self, *args, **kwargs):
         # [J/(kg K)]
         pass
 
     @abc.abstractmethod
-    def e(self, T, *args, **kwargs):
+    def e(self, *args, **kwargs):
         # [J/kg]
         pass
 
+    # Mixture properties ------------------------------------------------------
     @abc.abstractmethod
-    def dedt(self, T, dY, *args, **kwargs):
-        # [J/kg]
+    def M_(self, var='Y')
+        # [kg/kg]
+        pass
+
+    @abc.abstractmethod
+    def R_(self):
         pass
