@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow.python.keras import backend
 from prode.physics.thermochemistry.specie import partitionFun
 from prode.physics.thermochemistry.specie import specie
+from prode.physics.thermochemistry.specie import thermo
 from prode.physics.general import const
 
 import prode.physics.database as db
@@ -42,6 +43,12 @@ class PhysicalModel(object):
             name: partitionFun.translationalPF.Translational(specie) \
                 for name, specie in self.species.items()
         }
+    
+        # Thermo --------------------------------------------------------------
+        self.thermos = {
+            name: thermo.coupledEnergyModes.CoupledEnergyModes(specie) \
+                for name, specie in self.species.items()
+        }
 
         # Retrieve Arrhenius coefficients -------------------------------------
         grouping = self.species['O2'].rovib['grouping']
@@ -53,6 +60,7 @@ class PhysicalModel(object):
         # Dimension
         n_bins = self.species['O2'].n_bins
         self.n_species = n_bins + 1
+        self.sp_indices = [n_bins, 1]
         # Non-zero elements positions (flatten)
         self.indices = {
             'excit': tf.constant(
@@ -126,38 +134,58 @@ class PhysicalModel(object):
         omega = omega_exc + omega_dis + omega_rec
 
         # Compute residual (Master Equations)
-        me_res = dY - omega
+        res_k = dY - omega
 
-        # Compute residuals
-        res = []
-        for ts, indeces in self.ts_ts_conn.items():
-            if indeces:
-                # Extract faster timescale indeces
-                dY_fast = tf.concat([
-                    tf.math.reduce_sum(
-                        tf.gather(grads[1][ts+1], idx, axis=1), axis=1, keepdims=True
-                    ) for idx in indeces
-                ], axis=1)
-                # Extract slower timescale
-                dY_slow = grads[1][ts]
-                if dY_slow.shape[1] != dY_fast.shape[1]:
-                    dY_slow = tf.gather(dY_slow, range(dY_fast.shape[1]), axis=1)
-                # Calculate residual
-                _res = (dY_fast - dY_slow) * mass
-                # Check for 'dissociation' process
-                if ts == 0:
-                    dY_O_res = tf.gather(me_res, [me_res.shape[1]-1], axis=1)
-                    _res = tf.concat([dY_O_res, _res], axis=1)
-                    # _res = tf.concat([dY_O_res, (dY_O2+dY_O)*mass], axis=1)
-                res.append(_res)
+        # # Compute residuals
+        # res = []
+        # for ts, indeces in self.ts_ts_conn.items():
+        #     if indeces:
+        #         # Extract faster timescale indeces
+        #         dY_fast = tf.concat([
+        #             tf.math.reduce_sum(
+        #                 tf.gather(grads[1][ts+1], idx, axis=1), axis=1, keepdims=True
+        #             ) for idx in indeces
+        #         ], axis=1)
+        #         # Extract slower timescale
+        #         dY_slow = grads[1][ts]
+        #         if dY_slow.shape[1] != dY_fast.shape[1]:
+        #             dY_slow = tf.gather(dY_slow, range(dY_fast.shape[1]), axis=1)
+        #         # Calculate residual
+        #         _res = (dY_fast - dY_slow) * mass
+        #         # Check for 'dissociation' process
+        #         if ts == 0:
+        #             dY_O_res = tf.gather(me_res, [me_res.shape[1]-1], axis=1)
+        #             _res = tf.concat([dY_O_res, _res], axis=1)
+        #             # _res = tf.concat([dY_O_res, (dY_O2+dY_O)*mass], axis=1)
+        #         res.append(_res)
 
-        # Extract fastest timescale residual
-        res.append(
-            tf.gather(me_res, range(self.out_dim[-1]), axis=1)
+        # # Extract fastest timescale residual
+        # res.append(
+        #     tf.gather(me_res, range(self.out_dim[-1]), axis=1)
+        # )
+
+        # # Return all the timescales residuals
+        # return res if len(res) > 1 else res[-1]
+
+        # Compute mass residual
+        res_m = tf.reduce_sum(dY, axis=1, keepdims=True)
+
+        # Compute energy residual
+        res_e = tf.nn.relu(-self.res_energy(T, dY))
+
+        return res_k, res_m, res_e
+
+    # Calculate energy
+    ###########################################################################
+    def res_energy(self, T, dY):
+        dY_O2, dY_O = tf.split(dY, num_or_size_splits=self.sp_indices, axis=1)
+        e = {name: th.e(T) for name, th in self.thermos.items()}
+
+        res_e = tf.reduce_sum(
+            e['O2'] * dY_O2 + e['O'] * dY_O, axis=1, keepdims=True
         )
 
-        # Return all the timescales residuals
-        return res if len(res) > 1 else res[-1]
+        return res_e
 
     # Build Matrices
     ###########################################################################

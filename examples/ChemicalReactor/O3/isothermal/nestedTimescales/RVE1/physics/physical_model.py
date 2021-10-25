@@ -6,6 +6,7 @@ import tensorflow as tf
 from tensorflow.python.keras import backend
 from prode.physics.thermochemistry.specie import partitionFun
 from prode.physics.thermochemistry.specie import specie
+from prode.physics.thermochemistry.specie import thermo
 from prode.physics.general import const
 
 import prode.physics.database as db
@@ -38,6 +39,12 @@ class PhysicalModel(object):
             name: partitionFun.translationalPF.Translational(specie) \
                 for name, specie in self.species.items()
         }
+    
+        # Thermo --------------------------------------------------------------
+        self.thermos = {
+            name: thermo.coupledEnergyModes.CoupledEnergyModes(specie) \
+                for name, specie in self.species.items()
+        }
 
         # Retrieve Arrhenius coefficients -------------------------------------
         grouping = self.species['O2'].rovib['grouping']
@@ -49,6 +56,7 @@ class PhysicalModel(object):
         # Dimension
         n_bins = self.species['O2'].n_bins
         self.n_species = n_bins + 1
+        self.sp_indices = [n_bins, 1]
         # Non-zero elements positions (flatten)
         self.indices = {
             'diss': tf.constant(
@@ -98,14 +106,33 @@ class PhysicalModel(object):
         Y, dY = [ g * mass for g in grads ]
 
         # Extract atomic oxygen O mass fraction vector from model outputs
-        Y_O = tf.split(Y, num_or_size_splits=Y.shape[1], axis=1)[-1]
+        Y_O = tf.split(Y, num_or_size_splits=self.sp_indices, axis=1)[-1]
 
-        # Compute omega (Master Equations RHS)
+        # Compute kinetic residual
         omega_dis = tf.math.multiply(tf.einsum('nij,nj->ni', K_d, Y), Y_O)
         omega_rec = tf.einsum('nij,nj->ni', K_r, tf.math.pow(Y_O, 3))
         omega = omega_dis + omega_rec
+        res_k = dY - omega
 
-        return dY - omega
+        # Compute mass residual
+        res_m = tf.reduce_sum(dY, axis=1, keepdims=True)
+
+        # Compute energy residual
+        res_e = tf.nn.relu(-self.res_energy(T, dY))
+
+        return res_k, res_m, res_e
+
+    # Calculate energy
+    ###########################################################################
+    def res_energy(self, T, dY):
+        dY_O2, dY_O = tf.split(dY, num_or_size_splits=self.sp_indices, axis=1)
+        e = {name: th.e(T) for name, th in self.thermos.items()}
+
+        res_e = tf.reduce_sum(
+            e['O2'] * dY_O2 + e['O'] * dY_O, axis=1, keepdims=True
+        )
+
+        return res_e
 
     # Build Matrices
     ###########################################################################

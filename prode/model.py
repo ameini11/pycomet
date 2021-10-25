@@ -180,13 +180,20 @@ class Model(object):
     def get_loss(self, loss):
         if self.data.name == 'ODE':
             loss_fn = {}
-            for data_id in loss.keys():
-                if len(self.net.outputs) > 1:
-                    _loss = list(loss[data_id].values()) \
-                        if isinstance(loss[data_id], dict) else loss[data_id]
-                    loss_fn[data_id] = losses_module.get(_loss)
-                else:
-                    loss_fn[data_id] = losses_module.get(loss[data_id])
+            for data_id, loss_id in loss.items():
+                # if len(losses_id) > 1:
+                if isinstance(loss_id, dict) and 'identifier' in loss_id.keys():
+                    loss_fn[data_id] = losses_module.get(loss_id)
+                elif isinstance(loss_id, dict):
+                    loss_fn[data_id] = losses_module.get(list(loss_id.values()))
+                elif isinstance(loss_id, (set,list,tuple)):
+                    loss_fn = losses_module.get(loss_id)
+                # if len(self.net.outputs) > 1:
+                #     _loss = list(loss_id.values()) \
+                #         if isinstance(loss_id, dict) else loss_id
+                #     loss_fn[data_id] = losses_module.get(_loss)
+                # else:
+                #     loss_fn[data_id] = losses_module.get(loss_id)
         else:
             loss_fn = losses_module.get(loss)
         return loss_fn

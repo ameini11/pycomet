@@ -32,7 +32,11 @@ decay = ["exponential", decay_steps, decay_rate]
 loss = {
     'ics': {'identifier': 'malpe', 'axis': 0},
     'pts': {'identifier': 'malpe', 'axis': 0},
-    'res': {'identifier': 'mae', 'axis': 0}
+    'res': {
+        'mass': {'identifier': 'mae', 'axis': 0},
+        'energy': {'identifier': 'mae', 'axis': 0},
+        'kinetic': {'identifier': 'mae', 'axis': 0}
+    }
 }
 
 # Callbacks

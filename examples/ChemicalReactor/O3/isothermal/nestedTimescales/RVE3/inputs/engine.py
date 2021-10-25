@@ -37,7 +37,9 @@ loss = {
         name: {'identifier': 'malpe', 'axis': 0} for name in inp_net.names
     },
     'res': {
-        name: {'identifier': 'mae', 'axis': 0} for name in inp_net.names
+        'mass': {'identifier': 'mae', 'axis': 0},
+        'energy': {'identifier': 'mae', 'axis': 0},
+        'kinetic': {'identifier': 'mae', 'axis': 0}
     }
 }
 

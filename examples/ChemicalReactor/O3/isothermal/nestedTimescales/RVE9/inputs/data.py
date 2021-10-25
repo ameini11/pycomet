@@ -57,7 +57,7 @@ def preproc_fn(x):
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 1,#4096,            # Number of training scenarios
+    'ics': 10,#4096,            # Number of training scenarios
     'pts': 1,               # Number of total anchor pts for each scenario
     'res': 160              # Number of total collocation pts for each scenario
 }

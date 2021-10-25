@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.python.keras import backend
 from prode.physics.general import const
 from prode.physics.thermochemistry.specie.partitionFun.internalPF import Internal
 
