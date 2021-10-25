@@ -3,95 +3,98 @@ import tensorflow as tf
 
 from tensorflow.python.keras import backend
 from prode.physics.general import const
-from prode.physics.thermochemistry.specie.partitionFun.internalPF import Internal
+from prode.physics.thermochemistry.specie.thermo import Basic
 
 
-class CoupledEnergyModes(object):
+class CoupledEnergyModes(Basic):
 
     # Initialization
     ###########################################################################
     def __init__(
         self,
         specie,
+        internalPF,
         *args,
         **kwargs
     ):
-        # Specie Properties ===================================================
-        self.specie = specie
-        self.intPF = Internal(specie)
+        super(CoupledEnergyModes, self).__init__(specie)
+        self.intPF = internalPF
+
+        # Evaluate constant values
+        self.cv_tr = self.cv_tr_()
 
     # Methods
     ###########################################################################
-    # Enthalpy ================================================================
-    def cp(self, T):
-        # [J/(mol K)]
-        return self.cv(T) + const.URG
+    # Update ------------------------------------------------------------------
+    def update(self, T, constVP='V'):
+        self.e_tr = self.e_tr_(T)
+        self.e_int = self.e_int_(T)
+        self.cv_int = self.cv_int_(T)
+        super(CoupledEnergyModes, self).update(T, constVP='V')
 
-    def h(self, T):
-        # [J/mol]
-        return self.e(T) + const.URG*T
+    # Energy ------------------------------------------------------------------
+    def e_(self, T):
+        # [J/kg]
+        return self.e_tr + self.e_int + self.e_f_()
 
-    # Energy ==================================================================
-    def cv(self, T):
-        # [J/(mol K)]
-        return self.cv_tr() + self.cv_int(T)
+    def cv_(self, T):
+        # [J/(kg K)]
+        return self.cv_tr + self.cv_int
 
-    def e(self, T):
-        # [J/mol]
-        return self.e_tr(T) + self.e_int(T) + self.e_f()
+    # Translational
+    def e_tr_(self, T):
+        # [J/kg]
+        return 3./2. * self.specie.R * T
 
-    # Energy of formation -----------------------------------------------------
-    def e_f(self):
-        # [J/mol]
-        return self.specie.Ef
+    def cv_tr_(self):
+        # [J/(kg K)]
+        return 3./2. * self.specie.R
 
-    # Translational Energy ----------------------------------------------------
-    def cv_tr(self):
-        # [J/(mol K)]
-        return 3./2.*const.URG
-
-    def e_tr(self, T):
-        # [J/mol]
-        return 3./2.*const.URG*T
-
-    # Ro-vibrational Energy ---------------------------------------------------
-    def cv_int(self, T):
-        # [J/(mol K)]
+    # Ro-vibrational
+    def e_int_(self, T):
+        # [J/kg]
         if self.specie.n_at > 1:
-            q, dq_dT = self.intPF.q(T), self.intPF.dq_dT(T)
-            Q = tf.split(
-                self.intPF.Q(T), num_or_size_splits=self.specie.n_bins, axis=1
-            )
-            dQ_dT = tf.split(
-                self.intPF.dQ_dT(T), num_or_size_splits=self.specie.n_bins, axis=1
-            )
-            cv_int_ = []
-            for bin_i in range(self.specie.n_bins):
-                mask = self.specie.lev_to_bin == bin_i
-                f1 = self.specie.rv_lev['E'] / Q[bin_i]
-                f2 = dq_dT - q * dQ_dT[bin_i] / Q[bin_i]
-                cv_int_.append(
-                    tf.math.reduce_sum(
-                        tf.boolean_mask(f1*f2, mask, axis=1), axis=1, keepdims=True
-                    )
-                )
-            return tf.concat(cv_int_, 1) * const.UNA
-        else:
-            return tf.zeros_like(T, dtype=backend.floatx())
-
-    def e_int(self, T):
-        # [J/mol]
-        if self.specie.n_at > 1:
-            q, Q = self.intPF.q(T), self.intPF.Q(T)
+            # Get partition functions
+            q, Q = self.intPF.q, self.intPF.Q
+            # Get energy of the levels
             E = tf.transpose(self.specie.rv_lev['E'])
-            e_int_ = []
+            # Evaluate internal energy [J]
+            e_int = []
             for bin_i in range(self.specie.n_bins):
                 mask = self.specie.lev_to_bin == bin_i
-                e_int_.append(
+                e_int.append(
                     tf.math.reduce_sum(
                         tf.boolean_mask(E*q, mask, axis=1), axis=1, keepdims=True
                     )
                 )
-            return tf.concat(e_int_, 1) / Q * const.UNA
+            e_int = tf.concat(e_int, 1) / Q
+            # Return the specific internal energy per unit mass [J/kg]
+            return e_int / self.specie.m
+        else:
+            return tf.zeros_like(T, dtype=backend.floatx())
+
+    def cv_int_(self, T):
+        # [J/(kg K)]
+        if self.specie.n_at > 1:
+            # Get internal energy value [J]
+            e_int = self.e_int * self.specie.m
+            # Get partition functions
+            Q = self.intPF.Q
+            dqdT, dQdT = self.intPF.dqdT, self.intPF.dQdT
+            # Get energy of the levels
+            E = tf.transpose(self.specie.rv_lev['E'])
+            # Evaluate internal heat capacities [J/K]
+            cv_int = np.zeros(self.specie.n_bins)
+            for bin_i in range(self.specie.n_bins):
+                mask = self.specie.lev_to_bin == bin_i
+                cv_int.append(
+                    tf.math.reduce_sum(
+                        tf.boolean_mask(E*dqdT, mask, axis=1), axis=1, keepdims=True
+                    )
+                )
+            cv_int = tf.concat(cv_int, 1)
+            cv_int = (cv_int - e_int * dQdT) / Q
+            # Return the specific internal heat capacities per unit mass [J/kg]
+            return cv_int / self.specie.m
         else:
             return tf.zeros_like(T, dtype=backend.floatx())

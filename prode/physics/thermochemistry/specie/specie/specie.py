@@ -67,9 +67,8 @@ class Specie(object):
                 map_file, self.rovib['grouping']
             )
 
-    # Methods
+    # Properties
     ###########################################################################
-    # Thermodynamic properties ================================================
     @property
     def Y(self):
         return self._Y
@@ -98,7 +97,7 @@ class Specie(object):
     def rho(self, value):
         self._rho = value
 
-    # Reading methods
+    # Methods
     ###########################################################################
     # Global properties =======================================================
     def read_properties(self, file):

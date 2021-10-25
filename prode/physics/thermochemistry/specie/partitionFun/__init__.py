@@ -1,9 +1,9 @@
-from prode.physics.thermochemistry.specie.partitionFun import basicPF
-from prode.physics.thermochemistry.specie.partitionFun import internalPF
-from prode.physics.thermochemistry.specie.partitionFun import translationalPF
+from prode.physics.thermochemistry.specie.partitionFun.basic import Basic
+from prode.physics.thermochemistry.specie.partitionFun.internal import Internal
+from prode.physics.thermochemistry.specie.partitionFun.translational import Translational
 
 __all__ = [
-    "basicPF",
-    "internalPF",
-    "translationalPF"
+    "Basic",
+    "Internal",
+    "Translational"
 ]

@@ -3,139 +3,109 @@ import tensorflow as tf
 
 from prode.utilities import utils
 from prode.physics.general import const
-from prode.physics.thermochemistry.specie import thermo as thermo_mod
+from prode.physics.thermochemistry.reactionThermo.mixture import Basic
 
 
-class MultiComponent(object):
+class MultiComponent(Basic):
 
     # Initialization
     ###########################################################################
     def __init__(
         self,
-        mixture,
-        thermo,
-        species
+        specieThermos,
+        *args,
+        **kwargs
     ):
-        self.species = species
-        self.mixture = {
-            sp: utils.get_class(thermo_mod, thermo)(self.species[sp]) \
-                for sp in mixture
-        }
+        super(MultiComponent, self).__init__(specieThermos)
+
+    # Properties
+    ###########################################################################
+    @property
+    def M(self):
+        return self._M
+    @M.setter
+    def M(self, value):
+        self._M = value
+
+    @property
+    def R(self):
+        return self._R
+    @R.setter
+    def R(self, value):
+        self._R = value
 
     # Methods
     ###########################################################################
-    # Mixture mass fractions ==================================================
-    def update(self, mixture, var='Y'):
-        for sp, value in mixture.items():
-            setattr(self.mixture[sp].specie, var, value)
-        self.m_(var=var)
+    # Update ------------------------------------------------------------------
+    def update(self, T, XY, var='Y'):
+        # Update mass/molar fractions
+        XY = {
+            name: tf.gather(XY, idx, axis=1) \
+                for name, idx in self.specieIndices.items()
+        }
+        for name, XY_ in XY.items():
+            setattr(self.spTh[name].specie, var, XY_)
+        # Update mixture/species properties
+        self.M = self.M_(var=var)
         if var == 'Y':
-            self.X_i()
+            self.Xi_()
         elif var == 'X':
-            self.Y_i()
-        self.R_()
+            self.Yi_()
+        self.R = self.R_()
+        # Update specie thermos
+        for spTh_ in self.spTh.values():
+            spTh_.update(T)
 
-    # Enthalpy ================================================================
-    def cp(self, T):
+    # Enthalpy ----------------------------------------------------------------
+    def cp(self):
         # [J/(kg K)]
-        return self.mix_quantity('cp', T)
+        return self.mix_('cp')
 
-    def h(self, T):
+    def h(self):
         # [J/kg]
-        return self.mix_quantity('h', T)
+        return self.mix_('h')
 
-    # Energy ==================================================================
-    def cv(self, T):
+    # Energy ------------------------------------------------------------------
+    def cv(self):
         # [J/(kg K)]
-        return self.mix_quantity('cv', T)
+        return self.mix_('cv')
 
-    def e(self, T):
+    def e(self):
         # [J/kg]
-        return self.mix_quantity('e', T)
+        return self.mix_('e')
 
-    # Energy of formation -----------------------------------------------------
-    def e_f(self):
-        # [J/kg]
-        return self.mix_quantity('e_f')
-
-    # Translational Energy ----------------------------------------------------
-    def cv_tr(self):
-        # [J/(kg K)]
-        return self.mix_quantity('cv_tr')
-
-    def e_tr(self, T):
-        # [J/kg]
-        return self.mix_quantity('e_tr', T)
-
-    # Ro-vibrational Energy ---------------------------------------------------
-    def cv_int(self, T):
-        # [J/(kg K)]
-        return self.mix_quantity('cv_int', T)
-
-    def e_int(self, T):
-        # [J/kg]
-        return self.mix_quantity('e_int', T)
-
-    # Mixture properties ======================================================
-    def m_(self, var='Y'):
+    # Mixture properties ------------------------------------------------------
+    def M_(self, var='Y')
         # [kg/mol]
-        M_ = []
+        _M = []
         if var == 'Y':
-            for thermo in self.mixture.values():
-                sp = thermo.specie
-                M_.append(sp.Y / sp.M)
-            self.M = 1./tf.reduce_sum(tf.concat(M_, 1), axis=1, keepdims=True)
+            for spTh_ in self.spTh.values():
+                _M.append(spTh_.specie.Y / spTh_.specie.M)
+            return 1./tf.reduce_sum(tf.concat(_M, 1), axis=1, keepdims=True)
         elif var == 'X':
-            for thermo in self.mixture.values():
-                sp = thermo.specie
-                M_.append(sp.X * sp.M)
-            self.M = tf.reduce_sum(tf.concat(M_, 1), axis=1, keepdims=True)
+            for spTh_ in self.spTh.values():
+                _M.append(spTh_.specie.X * spTh_.specie.M)
+            return tf.reduce_sum(tf.concat(_M, 1), axis=1, keepdims=True)
 
     def R_(self):
-        # [J/(kg K)]
-        self.R = self.mix_quantity(const.URG)
+        _R = [spTh_.specie.Y * spTh_.specie.R for spTh_ in self.spTh.values()]
+        return tf.reduce_sum(tf.concat(_R, 1), axis=1, keepdims=True)
 
-    def p_(self, rho, T):
-        return rho*self.R()*T
-
-    def rho_(self, p, T):
-        return p/(self.R()*T)
-
-    # Species properties ======================================================
-    def Y_i(self):
-        for thermo in self.mixture.values():
-            sp = thermo.specie
+    # Species properties ------------------------------------------------------
+    def Y_(self):
+        for spTh_ in self.spTh.values():
+            sp = spTh_.specie
             sp.Y = sp.X * sp.M / self.M
 
-    def X_i(self):
-        for thermo in self.mixture.values():
-            sp = thermo.specie
+    def X_(self):
+        for spTh_ in self.spTh.values():
+            sp = spTh_.specie
             sp.X = sp.Y * self.M / sp.M
 
-    def n_i(self, rho=None, n=None, var='Y'):
-        for thermo in self.mixture.values():
-            sp = thermo.specie
-            if var == 'Y':
-                sp.n = sp.Y * rho / sp.M * const.UNA
-            elif var == 'X':
-                sp.n = sp.X * n
-
-    def rho_i(self, rho=None, n=None, var='Y'):
-        for thermo in self.mixture.values():
-            sp = thermo.specie
-            if var == 'Y':
-                sp.rho = sp.Y * rho
-            elif var == 'X':
-                sp.rho = sp.X * n * sp.M / const.UNA
-
-    # Utils ===================================================================
-    def mix_quantity(self, quantity, *args):
-        var = []
-        for thermo in self.mixture.values():
-            sp = thermo.specie
-            if isinstance(quantity, str):
-                var_ = getattr(thermo, quantity)(*args)
-            else:
-                var_ = quantity
-            var.append(sp.Y / sp.M * var_)
-        return tf.reduce_sum(tf.concat(var, 1), axis=1, keepdims=True)
+    # Utils -------------------------------------------------------------------
+    def mix_(self, y_str):
+        y = [
+            spTh_.specie.Y * getattr(spTh_.thermo, y_str) \
+                for spTh_ in self.spTh.values()
+        ]
+        return tf.reduce_sum(tf.concat(y, 1), axis=1, keepdims=True)

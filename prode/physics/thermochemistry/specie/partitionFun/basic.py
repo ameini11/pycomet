@@ -1,7 +1,7 @@
 import abc
 
 
-class PartitionFun(object):
+class Basic(object):
 
     # Initialization
     ###########################################################################
@@ -11,14 +11,21 @@ class PartitionFun(object):
         *args,
         **kwargs
     ):
-        # Specie Properties ===================================================
+        # Specie Properties
         self.specie = specie
+
+    # Methods
+    ###########################################################################
+    # Update ------------------------------------------------------------------
+    def update(self, T):
+        self.Q = self.Q_(T)
+        self.dQdT = self.dQdT_(T)
 
     # Partition functions -----------------------------------------------------
     @abc.abstractmethod
-    def Q(self, T):
+    def Q_(self, T):
         pass
 
     @abc.abstractmethod
-    def dQ_dT(self, T):
+    def dQdT_(self, T):
         pass
