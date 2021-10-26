@@ -19,10 +19,10 @@ class Basic(object):
 
         # Constant pressure/volume process
         self.constVP = constVP
-        if constPV == 'P':
+        if self.constVP == 'P':
             self.cpv_ = self.cp_
             self.he_ = self.h_
-        elif constPV == 'V':
+        elif self.constVP == 'V':
             self.cpv_ = self.cv_
             self.he_ = self.e_
 

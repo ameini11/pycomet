@@ -28,9 +28,9 @@ class MultiComponent(Basic):
         # Update mixture/species properties
         self.M = self.M_(var=var)
         if var == 'Y':
-            self.Xi_()
+            self.X_()
         elif var == 'X':
-            self.Yi_()
+            self.Y_()
         self.R = self.R_()
 
     # Enthalpy/Energy ---------------------------------------------------------

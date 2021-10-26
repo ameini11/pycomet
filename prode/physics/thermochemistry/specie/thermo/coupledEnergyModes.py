@@ -83,7 +83,7 @@ class CoupledEnergyModes(Basic):
             # Get energy of the levels
             E = tf.transpose(self.specie.rv_lev['E'])
             # Evaluate internal heat capacities [J/K]
-            cv_int = np.zeros(self.specie.n_bins)
+            cv_int = []
             for bin_i in range(self.specie.n_bins):
                 mask = self.specie.lev_to_bin == bin_i
                 cv_int.append(

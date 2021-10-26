@@ -522,16 +522,22 @@ class Equilibrium(tf_layers.Layer):
             sp: specie.Specie(sp, **info) if info != None else specie.Specie(sp) \
                 for sp, info in species.items()
         }
-    
+
+        for name, sp_ in self.species.items():
+            if sp_.n_at > 1:
+                self.molecule = name
+            else:
+                self.atom = name
+
         # Partition functions -------------------------------------------------
         if self.reaction is not None:
             self.intPF = {
-                name: partitionFun.internalPF.Internal(specie) \
+                name: partitionFun.internal.Internal(specie) \
                     for name, specie in self.species.items()
             }
             if self.reaction == 'diss':
                 self.transPF = {
-                    name: partitionFun.translationalPF.Translational(specie) \
+                    name: partitionFun.translational.Translational(specie) \
                         for name, specie in self.species.items()
                 }
 
@@ -565,11 +571,12 @@ class Equilibrium(tf_layers.Layer):
             y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
         else:
             # Partition functions
+            self.updatePF(T)
             if self.reaction == 'diss':
-                Q = self.eq_diss(rho, T)
+                Q = self.eq_diss(rho)
             elif self.reaction == 'excit':
-                Q_int = [ pf.Q(T) for pf in self.intPF.values() ]
-                Q = tf_layers.Concatenate()(Q_int) if len(Q_int) > 1 else Q_int[-1]
+                Q = [ pf.Q for pf in self.intPF.values() ]
+                Q = tf_layers.Concatenate()(Q) if len(Q) > 1 else Q[-1]
             # Simil-Softmax layer
             y = tf_layers.Multiply()([tf.math.exp(x), Q])
             y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
@@ -581,30 +588,34 @@ class Equilibrium(tf_layers.Layer):
 
         return y if len(y) > 1 else y[-1]
 
-    def Keq_diss(self, T):
+    def Keq(self):
         '''Diss.-Recomb. equilibrium constants matrix'''
-        num = tf.math.pow(
-            tf.math.multiply(
-                self.intPF['O'].Q(T), self.transPF['O'].Q(T)
-            ), 2.
-        )
-        den = tf.math.multiply(
-            self.intPF['O2'].Q(T), self.transPF['O2'].Q(T)
-        )
-        return num / den
+        PFdot = {
+            name: self.intPF[name].Q * self.transPF[name].Q \
+                for name in self.species.keys()
+        }
+        return PFdot[self.atom]**2 / PFdot[self.molecule]
 
-    def eq_diss(self, rho, T):
+    def eq_diss(self, rho):
         '''Diss.-Recomb. equilibrium constants matrix'''
 
         # Calculate equilibrium constant
-        K = self.Keq_diss(T)
+        K = self.Keq()
 
         # Calculate mass fractions
-        A = tf.math.pow(rho / self.species['O'].m, 2.)
-        B = K * rho / self.species['O2'].m
+        A = tf.math.pow(rho / self.species[self.atom].m, 2.)
+        B = K * rho / self.species[self.molecule].m
         C = - B
 
         Y_O = (- B + tf.math.sqrt(B**2. - 4.*A*C)) / (2.*A)
         Y_O2 = 1. - Y_O
 
         return tf.concat([Y_O2, Y_O], 1)
+
+    def updatePF(self, T):
+        # Update partition functions
+        for intPF_ in self.intPF.values():
+            intPF_.update(T)
+        if self.reaction == 'diss':
+            for transPF_ in self.transPF.values():
+                transPF_.update(T)

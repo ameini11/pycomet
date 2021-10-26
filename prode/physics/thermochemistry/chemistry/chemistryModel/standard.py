@@ -1,5 +1,7 @@
 import numpy as np
+import tensorflow as tf
 
+from tensorflow.python.keras import backend
 from prode.physics.thermochemistry.chemistry.chemistryModel import Basic
 
 
@@ -47,7 +49,7 @@ class Standard(Basic):
     def K_(self, Kf):
         Kf = {
             name: tf.gather(Kf, idx, axis=1) \
-                for name, idx in self.reactions.processSplit
+                for name, idx in self.reactions.processSplit.items()
         }
 
         Ke = self.Ke_(self.processFlags['excit'], Kf['exch']+Kf['inel']) / self.m

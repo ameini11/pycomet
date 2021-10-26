@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from prode.physics.thermochemistry.chemistry.reactions.reactionRate import Basic
 
@@ -27,6 +28,6 @@ class Arrhenius(Basic):
     # Forward reaction rates --------------------------------------------------
     def k_(self, T):
         k = self.A
-        k = k * tf.pow(T, beta)
+        k = k * tf.pow(T, self.beta)
         k = k * tf.math.exp(-tf.linalg.matmul(1./T, self.Ta))
         return k

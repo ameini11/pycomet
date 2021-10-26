@@ -2,6 +2,7 @@ from prode.physics.thermochemistry.specie import specie as specieMdl
 from prode.physics.thermochemistry.specie import partitionFun as PFMdl
 from prode.physics.thermochemistry.specie import thermo as thermoMdl
 from prode.physics.thermochemistry.specie import equationOfState as EOSMdl
+from prode.utilities import utils
 
 
 class SpecieThermos(object):
@@ -33,7 +34,7 @@ class SpecieThermos(object):
     # Methods
     ###########################################################################
     # Update ------------------------------------------------------------------
-    def update(self, T, constVP):
+    def update(self, T):
         self.intPF.update(T)
         self.transPF.update(T)
         self.thermo.update(T)

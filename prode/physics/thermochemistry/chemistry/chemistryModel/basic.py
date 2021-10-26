@@ -22,7 +22,7 @@ class Basic(object):
     ):
         # Thermodynamic specie properties
         self.spTh = specieThermos
-        for name, spTh_ in self.spTh.values():
+        for name, spTh_ in self.spTh.items():
             if spTh_.specie.n_at > 1:
                 self.molecule = name
             else:
@@ -33,14 +33,14 @@ class Basic(object):
 
         # Reactions
         if reactionsList is None:
-            rovib_ = self.spTh[self.molecule].rovib
+            rovib_ = self.spTh[self.molecule].specie.rovib
             self.reactionsList = kinetic_db + '/' + rovib_['system'] + '_' \
                 + rovib_['PES'] + '/' + rovib_['grouping'] + '/reactions.csv'
             utils.warning("No specific `reactionsList` have been provided to "
                 "the chemistry model.")
-            utils.print_submain("The following one will be taken:")
+            utils.print_submain(">> The following one will be taken:")
             utils.print_submain(
-                "`{}`".format(os.path.normpath(self.reactionsList))
+                ">> `{}`".format(os.path.normpath(self.reactionsList))
             )
         else:
             self.reactionsList = reactionsList

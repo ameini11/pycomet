@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from prode.utilities import utils
+from prode.physics.thermochemistry.chemistry import chemistryModel as chemMod
 
 
 class ChemistrySolver(object):
@@ -12,9 +13,10 @@ class ChemistrySolver(object):
         self,
         mixture,
         specieThermos,
-        chemistryModel,
+        chemistryModel='Standard',
         reactionsList=None,
         processFlags=None,
+        boxCase='isothermal',
         *args,
         **kwargs
     ):
@@ -25,7 +27,7 @@ class ChemistrySolver(object):
         self.spTh = specieThermos
 
         # Chemistry model
-        self.chemModel = utils.get_class(chemMdl, chemistryModel)(
+        self.chemModel = utils.get_class(chemMod, chemistryModel)(
             self.spTh,
             processFlags,
             reactionsList=reactionsList,
@@ -35,6 +37,9 @@ class ChemistrySolver(object):
 
         # Species
         self.nSpecies, self.specieIndices = self.species()
+
+        # 0D box case
+        self.boxCase = boxCase
 
     # Methods
     ###########################################################################
@@ -58,7 +63,7 @@ class ChemistrySolver(object):
         }
         # Update specie thermos
         for spTh_ in self.spTh.values():
-            spTh_.update(T, self.constVP)
+            spTh_.update(T)
         # Update chemistry model
         self.chemModel.update(T)
         # Update mixture
@@ -66,20 +71,18 @@ class ChemistrySolver(object):
         
     # Source terms ------------------------------------------------------------
     def dr(self, Y, mass):
-        # Get mass fractions
-        Y = {
-            name: tf.gather(XY, idx, axis=1)*mass \
-                for name, idx in self.specieIndices.items()
-        }
+        # Get partial densities
+        r = Y * mass
+        r_atom = tf.gather(r, self.specieIndices[self.chemModel.atom], axis=1)
         # Get Master Equation matrices
         Ke, Kd, Kr = self.chemModel.K
         # Evaluate contributions from each process
-        dr_ = tf.math.multiply(tf.einsum('nij,nj->ni', Ke, r), r[-1])
-        dr_ = dr_ + tf.math.multiply(tf.einsum('nij,nj->ni', Kd, r), r[-1])
-        dr_ = dr_ + tf.einsum('nij,nj->ni', Kr, tf.math.pow(r[-1], 3))
+        dr_ = tf.math.multiply(tf.einsum('nij,nj->ni', Ke, r), r_atom)
+        dr_ = dr_ + tf.math.multiply(tf.einsum('nij,nj->ni', Kd, r), r_atom)
+        dr_ = dr_ + tf.einsum('nij,nj->ni', Kr, tf.math.pow(r_atom, 3))
         return dr_
 
-    def dhe(self, dT, dY):
+    def dhe(self, dY, dT=0.):
         # Get mass fractions derivative
         dY = {
             name: tf.gather(dY, idx, axis=1) \
@@ -89,7 +92,8 @@ class ChemistrySolver(object):
         dehdY = [
             spTh_.thermo.he * dY[name] for name, spTh_ in self.spTh.items()
         ]
-        deh = tf.reduce_sum(tf.concat(dehdY, 1), axis=1, keepdims=True)
-        deh = deh + self.mixture.cpv_() * dT
-
-        return deh
+        dhe_ = tf.reduce_sum(tf.concat(dehdY, 1), axis=1, keepdims=True)
+        if self.boxCase == 'isothermal':
+            return tf.nn.relu(-dhe_)
+        else:
+            return dhe_ + self.mixture.cpv_() * dT

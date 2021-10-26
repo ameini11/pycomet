@@ -143,9 +143,10 @@ def main():
     )
 
     if physics_informed and inp.data.data_type == 'ODE':
+        utils.print_main("Initializing physical model ...")
         PhysicalModel_args = utils.get_args_values(
             args=utils.get_args(PhysicalModel.__init__),
-            modules=[inp.data, inp.general]
+            modules=inp.general
         )
         physicalMdl = PhysicalModel(
             **PhysicalModel_args

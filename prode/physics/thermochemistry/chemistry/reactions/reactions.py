@@ -36,13 +36,11 @@ class Reactions(object):
         self.spProcessIdx = {}
         self.n_reac = 0
         for name, idx in self.processIndices.items():
-            processDB = self.reacDB.loc[
-                self.reacDB['reacIndex'] == self.processIndices['diss']
-            ]
+            processDB = self.reacDB.loc[self.reacDB['reacIndex'] == idx]
             n = processDB.shape[0]
-            self.processSplit[name] = list(range(n_reac, n_reac+n))
-            self.spProcessIdx[name] = processDB['indices']
-            n_reac += n
+            self.processSplit[name] = list(range(self.n_reac, self.n_reac+n))
+            self.spProcessIdx[name] = processDB['indices'].values
+            self.n_reac += n
 
         # Reaction rates
         # reactRate = 'Arrhenius' if 'Arrhenius' in self.reacDB['description']
