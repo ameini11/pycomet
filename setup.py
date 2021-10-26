@@ -22,7 +22,8 @@ setup(
     entry_points ={
         'console_scripts': [
             'cleanPro = prode.apps.clean:main',
-            'trainPro = prode.apps.train:main'
+            'trainPro = prode.apps.train:main',
+            'fitRatesPro = prode.apps.fitRates.main:main'
         ]
     },
     classifiers=[
