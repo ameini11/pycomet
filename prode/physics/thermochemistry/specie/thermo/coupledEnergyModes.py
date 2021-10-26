@@ -14,23 +14,22 @@ class CoupledEnergyModes(Basic):
         self,
         specie,
         internalPF,
+        constVP='V',
         *args,
         **kwargs
     ):
-        super(CoupledEnergyModes, self).__init__(specie)
+        super(CoupledEnergyModes, self).__init__(specie, constVP=constVP)
         self.intPF = internalPF
-
-        # Evaluate constant values
-        self.cv_tr = self.cv_tr_()
 
     # Methods
     ###########################################################################
     # Update ------------------------------------------------------------------
-    def update(self, T, constVP='V'):
+    def update(self, T):
         self.e_tr = self.e_tr_(T)
+        self.cv_tr = self.cv_tr_()
         self.e_int = self.e_int_(T)
         self.cv_int = self.cv_int_(T)
-        super(CoupledEnergyModes, self).update(T, constVP='V')
+        super(CoupledEnergyModes, self).update(T)
 
     # Energy ------------------------------------------------------------------
     def e_(self, T):

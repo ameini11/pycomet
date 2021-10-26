@@ -14,9 +14,6 @@ class Basic(object):
         # Thermodynamic specie properties
         self.spTh = specieThermos
 
-        # Species
-        self.nSpecies, self.specieIndices = self.species()
-
     # Properties
     ###########################################################################
     @property
@@ -35,51 +32,28 @@ class Basic(object):
 
     # Methods
     ###########################################################################
-    # Species details ---------------------------------------------------------
-    def species(self):
-        nSpecies, specieIndices = 0, {}
-        for name, spTh_ in self.spTh.items():
-            if spTh_.specie.n_at > 1:
-                n = spTh_.specie.n_bins
-            else:
-                n = 1
-            specieIndices[name] = list(range(nSpecies, nSpecies+n))
-            nSpecies += n
-        return nSpecies, specieIndices
-
-    # Mixture mass fractions --------------------------------------------------
+    # Update ------------------------------------------------------------------
     @abc.abstractmethod
-    def update(self, T, XY, var='Y', *args, **kwargs):
+    def update(self, *args, **kwargs):
         pass
 
-    # Enthalpy ----------------------------------------------------------------
+    # Enthalpy/Energy ---------------------------------------------------------
     @abc.abstractmethod
-    def cp(self, *args, **kwargs):
+    def cpv_(self, *args, **kwargs):
         # [J/(kg K)]
         pass
 
     @abc.abstractmethod
-    def h(self, *args, **kwargs):
-        # [J/kg]
-        pass
-
-    # Energy ------------------------------------------------------------------
-    @abc.abstractmethod
-    def cv(self, *args, **kwargs):
-        # [J/(kg K)]
-        pass
-
-    @abc.abstractmethod
-    def e(self, *args, **kwargs):
+    def he_(self, *args, **kwargs):
         # [J/kg]
         pass
 
     # Mixture properties ------------------------------------------------------
     @abc.abstractmethod
-    def M_(self, var='Y')
-        # [kg/kg]
+    def M_(self, *args, **kwargs):
+        # [kg/mol]
         pass
 
     @abc.abstractmethod
-    def R_(self):
+    def R_(self, *args, **kwargs):
         pass

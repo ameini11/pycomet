@@ -3,9 +3,8 @@ import numpy as np
 import pandas as pd
 
 from hypernet.src.general import const
-from hypernet.src.general import utils
-from hypernet.src.thermophysicalModels.chemistry.reactions import reactionRate as reacRateMdl
-from hypernet.src.thermophysicalModels.chemistry.reactions import reactionType as reacTypeMdl
+from prode.utilities import utils
+from prode.physics.thermochemistry.chemistry.reactions import reactionRate as reacRateMdl
 
 
 class Reactions(object):
@@ -16,12 +15,15 @@ class Reactions(object):
         self,
         specieThermos,
         reactList,
-        processIndices,
         *args,
         **kwargs
     ):
         # Processes indices
-        self.processIndices = processIndices
+        self.processIndices = {
+            'diss': 2,
+            'exch': 5,
+            'inel': 6
+        }
 
         # Species thermos
         self.spTh = specieThermos
@@ -29,38 +31,25 @@ class Reactions(object):
         # Reactions database
         self.reacDB = self.get_reacDB(pd.read_csv(reactList))
 
-        # Reaction rates
-        reactRate = 'Arrhenius' #if 'Arrhenius' in self.reacDB['description']
-        self.reacRate = utils.get_class(reacRateMdl, reactRate)(self.reacDB)
+        # Number of reactions for each process
+        self.processSplit = {}
+        self.spProcessIdx = {}
+        self.n_reac = 0
+        for name, idx in self.processIndices.items():
+            processDB = self.reacDB.loc[
+                self.reacDB['reacIndex'] == self.processIndices['diss']
+            ]
+            n = processDB.shape[0]
+            self.processSplit[name] = list(range(n_reac, n_reac+n))
+            self.spProcessIdx[name] = processDB['indices']
+            n_reac += n
 
-        # Reaction types
-        reacType = 'MicroReversible' #if 'MicroReversible' in self.reacDB['description']
-        self.reacType = utils.get_class(reacTypeMdl, reacType)(
-            self.spTh, self.reacRate, self.processIndices
-        )
+        # Reaction rates
+        # reactRate = 'Arrhenius' if 'Arrhenius' in self.reacDB['description']
+        self.reacRate = utils.get_class(reacRateMdl, 'Arrhenius')(self.reacDB)
 
     # Methods
     ###########################################################################
-    # Update method -----------------------------------------------------------
-    def update(self, T):
-        self.reacType.update(T)
-        K = dict(
-            kf=self.reacType.kf, dkfdT=self.reacType.dkfdT, kr=[], dkrdT=[]
-        )
-        for i, row in self.reacDB.iterrows():
-            K['kr'].append(
-                self.reacType.kr_(
-                    K['kf'][i], row['reacIndex'], row['indices']
-                )
-            )
-            K['dkrdT'].append(
-                self.reacType.dkrdT_(
-                    K['kr'][i], K['dkfdT'][i], row['reacIndex'], row['indices']
-                )
-            )
-        K = {k: np.array(v) for k, v in K.items()}
-        return pd.concat([self.reacDB, pd.DataFrame.from_dict(K)], axis=1)
-
     # Manipulate reactions database -------------------------------------------
     def get_reacDB(self, reacDB):
         indices = []

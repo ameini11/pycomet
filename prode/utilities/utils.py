@@ -18,11 +18,13 @@ from prode.config import headers
 
 # Printing functions
 ###############################################################################
-def print_main(text, start='\n', *args, **kwargs):
-    print(start + headers['main'] + text, *args, **kwargs)
+def print_main(text, start='\n', verbose=True, *args, **kwargs):
+    if verbose:
+        print(start + headers['main'] + text, *args, **kwargs)
 
-def print_submain(text, start='', *args, **kwargs):
-    print(start + headers['main'] + '  ' + text, *args, **kwargs)
+def print_submain(text, start='', verbose=True, *args, **kwargs):
+    if verbose:
+        print(start + headers['main'] + '  ' + text, *args, **kwargs)
 
 def input_main(text, start='', *args, **kwargs):
     return input(start + headers['main'] + text, *args, **kwargs)

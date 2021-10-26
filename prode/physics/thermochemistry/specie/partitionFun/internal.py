@@ -25,7 +25,7 @@ class Internal(Basic):
         self.dzdT = self.dzdT_(T)
         self.q = self.q_(T)
         self.dqdT = self.dqdT_(T)
-        super(Internal, self).update(specie)
+        super(Internal, self).update(T)
 
     # Internal partition functions --------------------------------------------
     def z_(self, T):

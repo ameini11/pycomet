@@ -1,5 +1,5 @@
-from hypernet.src.thermophysicalModels.chemistry.chemistryModel.basic import Basic
-from hypernet.src.thermophysicalModels.chemistry.chemistryModel.standard import Standard
+from prode.physics.thermochemistry.chemistry.chemistryModel.basic import Basic
+from prode.physics.thermochemistry.chemistry.chemistryModel.standard import Standard
 
 __all__ = [
     "Basic",

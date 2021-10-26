@@ -1,6 +1,6 @@
-from hypernet.src.thermophysicalModels.chemistry import chemistryModel
-from hypernet.src.thermophysicalModels.chemistry import chemistrySolver
-from hypernet.src.thermophysicalModels.chemistry import reactions
+from prode.physics.thermochemistry.chemistry import chemistryModel
+from prode.physics.thermochemistry.chemistry import chemistrySolver
+from prode.physics.thermochemistry.chemistry import reactions
 
 __all__ = [
     "chemistryModel",

@@ -11,23 +11,18 @@ sys.path.append(inp.utils_path)
 from data_generator import DataGenerator
 
 
-# Constants
-###############################################################################
-R = 8.31446261815324
-eps = 1.e-40
-
 # Arrhenius Functions
 ###############################################################################
 def modified_arrhenius(T, a, b, c):
-    return a * np.power(T,b) * np.exp(-c/(R*T))
+    return a * np.power(T,b) * np.exp(-c/T)
 
 def modified_arrhenius_lin(T, a_log, b, c):
     # a_log = np.log(a)
-    return a_log + b*np.log(T) - c/(R*T)
+    return a_log + b*np.log(T) - c/T
 
 def modified_arrhenius_inv(T_inv, a, b, c):
     # T_inv = 1/T
-    return a * np.power(1/T_inv,b) * np.exp(-c/R*T_inv)
+    return a * np.power(1/T_inv,b) * np.exp(-c*T_inv)
 
 # Plot function
 ###############################################################################
@@ -105,7 +100,7 @@ def main():
         else:
             param = np.vstack((param, np.array(param_j)))
     
-    arr_coeff = pd.DataFrame(param, columns=['A', 'n', 'Ea'], index=dataGen.rates_names)
+    arr_coeff = pd.DataFrame(param, columns=['A', 'n', 'Ta'], index=dataGen.rates_names)
     arr_coeff.index.name = 'reaction'
     arr_coeff.to_csv(dataGen.data_dir+'arrhenius_coeff.csv', float_format='{:e}'.format)
     arr_coeff.to_csv(dataGen.rates_path+'arrhenius_coeff.csv', float_format='{:e}'.format)

@@ -21,14 +21,10 @@ class MultiComponent(Basic):
     # Methods
     ###########################################################################
     # Update ------------------------------------------------------------------
-    def update(self, T, XY, var='Y'):
+    def update(self, XY, var='Y'):
         # Update mass/molar fractions
-        XY = {
-            name: tf.gather(XY, idx, axis=1) \
-                for name, idx in self.specieIndices.items()
-        }
-        for name, XY_ in XY.items():
-            setattr(self.spTh[name].specie, var, XY_)
+        for name, value in XY.items():
+            setattr(self.spTh[name].specie, var, value)
         # Update mixture/species properties
         self.M = self.M_(var=var)
         if var == 'Y':
@@ -36,30 +32,24 @@ class MultiComponent(Basic):
         elif var == 'X':
             self.Yi_()
         self.R = self.R_()
-        # Update specie thermos
-        for spTh_ in self.spTh.values():
-            spTh_.update(T)
 
-    # Enthalpy ----------------------------------------------------------------
-    def cp(self):
+    # Enthalpy/Energy ---------------------------------------------------------
+    def cpv_(self):
         # [J/(kg K)]
-        return self.mix_('cp')
+        cpv = [
+            spTh_.specie.Y * spTh_.thermo.cpv for spTh_ in self.spTh.values()
+        ]
+        return tf.reduce_sum(tf.concat(cpv, 1), axis=1, keepdims=True)
 
-    def h(self):
+    def he_(self):
         # [J/kg]
-        return self.mix_('h')
-
-    # Energy ------------------------------------------------------------------
-    def cv(self):
-        # [J/(kg K)]
-        return self.mix_('cv')
-
-    def e(self):
-        # [J/kg]
-        return self.mix_('e')
+        he = [
+            spTh_.specie.Y * spTh_.thermo.he for spTh_ in self.spTh.values()
+        ]
+        return tf.reduce_sum(tf.concat(he, 1), axis=1, keepdims=True)
 
     # Mixture properties ------------------------------------------------------
-    def M_(self, var='Y')
+    def M_(self, var='Y'):
         # [kg/mol]
         _M = []
         if var == 'Y':
@@ -85,11 +75,3 @@ class MultiComponent(Basic):
         for spTh_ in self.spTh.values():
             sp = spTh_.specie
             sp.X = sp.Y * self.M / sp.M
-
-    # Utils -------------------------------------------------------------------
-    def mix_(self, y_str):
-        y = [
-            spTh_.specie.Y * getattr(spTh_.thermo, y_str) \
-                for spTh_ in self.spTh.values()
-        ]
-        return tf.reduce_sum(tf.concat(y, 1), axis=1, keepdims=True)

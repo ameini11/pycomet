@@ -1,6 +1,6 @@
 import abc
 
-from hypernet.src.general import const
+from prode.physics.general import const
 
 
 class Basic(object):
@@ -10,30 +10,37 @@ class Basic(object):
     def __init__(
         self,
         specie,
+        constVP='V',
         *args,
         **kwargs
     ):
         # Specie Properties
         self.specie = specie
 
+        # Constant pressure/volume process
+        self.constVP = constVP
+        if constPV == 'P':
+            self.cpv_ = self.cp_
+            self.he_ = self.h_
+        elif constPV == 'V':
+            self.cpv_ = self.cv_
+            self.he_ = self.e_
+
     # Methods
     ###########################################################################
     # Update ------------------------------------------------------------------
-    def update(self, T, constVP='V'):
-        self.e = self.e_(T)
-        self.cv = self.cv_(T)
-        if constVP == 'P':
-            self.h = self.h_(T)
-            self.cp = self.cp_()
+    def update(self, T):
+        self.he = self.he_(T)
+        self.cpv = self.cpv_(T)
 
     # Enthalpy ----------------------------------------------------------------
     def h_(self, T):
         # [J/kg]
-        return self.e + self.specie.R * T
+        return self.e_(T) + self.specie.R * T
 
     def cp_(self):
         # [J/(kg K)]
-        return self.cv + self.specie.R
+        return self.cv_(T) + self.specie.R
 
     # Energy ------------------------------------------------------------------
     @abc.abstractmethod

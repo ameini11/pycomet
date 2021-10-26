@@ -23,7 +23,7 @@ import argparse
 from prode.utilities import utils
 
 
-FOLDERS = ['data', 'training', 'saving', 'postprocessing', '__pycache__']
+FOLDERS = ['data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots']
 
 def get_opts():
     parser = argparse.ArgumentParser(
