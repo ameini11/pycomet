@@ -17,5 +17,5 @@ class Basic(object):
     ###########################################################################
     # Forward reaction rates --------------------------------------------------
     @abc.abstractmethod
-    def k_(self, *args, *kwargs):
+    def k_(self, *args, **kwargs):
         pass

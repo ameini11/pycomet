@@ -2,7 +2,7 @@ import re
 import numpy as np
 import pandas as pd
 
-from hypernet.src.general import const
+from prode.physics.general import const
 from prode.utilities import utils
 from prode.physics.thermochemistry.chemistry.reactions import reactionRate as reacRateMdl
 

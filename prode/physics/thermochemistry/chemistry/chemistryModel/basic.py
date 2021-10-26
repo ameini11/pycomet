@@ -4,7 +4,7 @@ import abc
 from prode.utilities import utils
 from prode.physics.thermochemistry.chemistry.reactions.reactions import Reactions
 
-import hypernet.database as db
+import prode.physics.database as db
 kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
 
 
