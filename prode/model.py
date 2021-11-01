@@ -113,10 +113,12 @@ class Model(object):
                     )
                 )
             elif load_net == 2:
-                ckpts = [ self.ckpt_dir + "/" + name \
-                    for name in os.listdir(self.ckpt_dir) ]
-                if ckpts:
-                    path = max(ckpts, key=os.path.getctime)
+                last = max(
+                    os.listdir(self.ckpt_dir),
+                    key=lambda x: int(x.split('_')[1].split('.')[0])
+                )
+                if last:
+                    path = self.ckpt_dir + "/" + last
                     utils.print_submain(
                         "Restoring network from checkpoint '{}'".format(
                             os.path.normpath(path)

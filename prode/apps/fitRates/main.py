@@ -90,7 +90,7 @@ def plot_rates(
     var_name,
     title,
     labels=[None, None],
-    scales=['log', 'linear']):
+    scales=['log', 'log']):
     """Variable plotting."""
 
     fig = plt.figure()
@@ -117,32 +117,61 @@ def plot_rates(
         plt.ylim([np.amin(y_true)-delta, np.amax(y_true)+delta])
 
     # Solution
-    for d in range(y_true.shape[1]):
+    # >> Define styles
+    true_style = dict(
+        marker='x', lw=0.5, linestyle='none', fillstyle='none', markersize=5
+    )
+    pred_style = dict(lw=1)
+    # >> Define parameters
+    colors = []
+    n = y_true.shape[1]
+    for d in range(n):
 
-        name = 'True ' + var_name[d]
-        marker_style = dict(
-            marker='x', lw=0.5, linestyle='none', fillstyle='none', markersize=5
-        )
+        # >> Plot true values
         plt.plot(
             x_true,
             y_true[:,d],
-            **marker_style,
-            label=name
+            **true_style
         )
+        colors.append(plt.gca().lines[-1].get_color())
 
-        name = 'Pred ' + var_name[d]
+        # >> Plot predicted values
         plt.plot(
             x_pred,
             y_pred[:,d],
-            c=plt.gca().lines[-1].get_color(),
-            ls='--',
-            lw=1,
-            label=name
+            **pred_style,
+            label=var_name[d],
+            c=colors[-1]
         )
 
-    plt.legend(fontsize='x-small')
+    # >> Plot legends
+    fontsize = 'x-small'
+    if n > 6:
+        fontsize = 'xx-small'
+
+    legend = plt.legend(
+        [plt.plot([], [], c=colors[i])[0] for i in range(len(var_name))],
+        var_name,
+        fontsize=fontsize,
+        loc=3,
+        ncol=int(np.ceil(n/8))
+    )
+
+    plt.legend(
+        [
+            plt.plot([], [], c="k", **true_style)[0],
+            plt.plot([], [], c="k", **pred_style)[0]
+        ],
+        ["True", "Pred"],
+        fontsize=fontsize,
+        loc=1
+    )
+    plt.gca().add_artist(legend)
+
+    # >> Save figure
     fig.savefig(fig_name)
     plt.close()
+
 
 # Main
 ###############################################################################
@@ -191,11 +220,18 @@ def main():
             param = np.array(param_j)
         else:
             param = np.vstack((param, np.array(param_j)))
+    if len(param.shape) == 1:
+        param = np.expand_dims(param, 0)
 
     # Write coefficient =======================================================
+    utils.print_main('Write coefficients ...', verbose=opts.verbose)
     paramDB = pd.DataFrame(param, columns=['A', 'beta', 'Ta'])
     reactions = pd.concat([dataGen.reacDB, paramDB], axis=1)
     path = kinetic_db + inp_gen.reacReader['path']+'/reactions.csv'
+    utils.print_submain(
+        'Saving coefficients at `{}`.'.format(os.path.normpath(path)),
+        verbose=opts.verbose
+    )
     reactions.to_csv(path, float_format='{:e}'.format, index=False)
 
     # Plot fitted rates
@@ -221,6 +257,9 @@ def main():
         start = 0
         end = dataGen.n_diss
         if y_pred.shape[1] >= end:
+            utils.print_submain(
+                'Plotting dissociation rates ...', verbose=opts.verbose
+            )
             y_true_diss = y_true[:,start:end]
             y_pred_diss = y_pred[:,start:end]
             fig_name = path + 'dissociation.pdf'
@@ -236,40 +275,47 @@ def main():
                 scales=inp_post.scales
             )
 
-        # Exchange
-        start = dataGen.n_diss
-        end = dataGen.n_diss + dataGen.n_excit
-        if y_pred.shape[1] >= end:
-            y_true_exch = y_true[:,start:end]
-            y_pred_exch = y_pred[:,start:end]
-            fig_name = path + 'exchange.pdf'
-            plot_rates(
-                fig_name,
-                x_true,
-                x_pred,
-                y_true_exch,
-                y_pred_exch,
-                inp_post.var_names['excit'],
-                'Exchange Rates',
-                labels=inp_post.labels,
-                scales=inp_post.scales
-            )
+        if dataGen.n_excit > 0:
+            # Exchange
+            start = dataGen.n_diss
+            end = dataGen.n_diss + dataGen.n_excit
+            if y_pred.shape[1] > end:
+                utils.print_submain(
+                    'Plotting exchange rates ...', verbose=opts.verbose
+                )
+                y_true_exch = y_true[:,start:end]
+                y_pred_exch = y_pred[:,start:end]
+                fig_name = path + 'exchange.pdf'
+                plot_rates(
+                    fig_name,
+                    x_true,
+                    x_pred,
+                    y_true_exch,
+                    y_pred_exch,
+                    inp_post.var_names['excit'],
+                    'Exchange Rates',
+                    labels=inp_post.labels,
+                    scales=inp_post.scales
+                )
 
-        # Inelastic
-        start = dataGen.n_diss + dataGen.n_excit
-        end = dataGen.n_diss + dataGen.n_excit * 2
-        if y_pred.shape[1] >= end:
-            y_true_inel = y_true[:,start:end]
-            y_pred_inel = y_pred[:,start:end]
-            fig_name = path + 'inelastic.pdf'
-            plot_rates(
-                fig_name,
-                x_true,
-                x_pred,
-                y_true_inel,
-                y_pred_inel,
-                inp_post.var_names['excit'],
-                'Inelastic Rates',
-                labels=inp_post.labels,
-                scales=inp_post.scales
-            )
+            # Inelastic
+            start = dataGen.n_diss + dataGen.n_excit
+            end = dataGen.n_diss + dataGen.n_excit * 2
+            if y_pred.shape[1] >= end:
+                utils.print_submain(
+                    'Plotting inelastic rates ...', verbose=opts.verbose
+                )
+                y_true_inel = y_true[:,start:end]
+                y_pred_inel = y_pred[:,start:end]
+                fig_name = path + 'inelastic.pdf'
+                plot_rates(
+                    fig_name,
+                    x_true,
+                    x_pred,
+                    y_true_inel,
+                    y_pred_inel,
+                    inp_post.var_names['excit'],
+                    'Inelastic Rates',
+                    labels=inp_post.labels,
+                    scales=inp_post.scales
+                )

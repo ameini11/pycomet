@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.python.keras import backend
 from prode.utilities import utils
 from prode.physics.thermochemistry.chemistry import chemistryModel as chemMod
 
@@ -27,9 +28,10 @@ class ChemistrySolver(object):
         self.spTh = specieThermos
 
         # Chemistry model
+        self.processFlags = processFlags
         self.chemModel = utils.get_class(chemMod, chemistryModel)(
             self.spTh,
-            processFlags,
+            self.processFlags,
             reactionsList=reactionsList,
             *args,
             **kwargs
@@ -77,9 +79,12 @@ class ChemistrySolver(object):
         # Get Master Equation matrices
         Ke, Kd, Kr = self.chemModel.K
         # Evaluate contributions from each process
-        dr_ = tf.math.multiply(tf.einsum('nij,nj->ni', Ke, r), r_atom)
-        dr_ = dr_ + tf.math.multiply(tf.einsum('nij,nj->ni', Kd, r), r_atom)
-        dr_ = dr_ + tf.einsum('nij,nj->ni', Kr, tf.math.pow(r_atom, 3))
+        dr_ = tf.zeros_like(r, dtype=backend.floatx())
+        if self.processFlags['excit']:
+            dr_ = dr_ + tf.math.multiply(tf.einsum('nij,nj->ni', Ke, r), r_atom)
+        if self.processFlags['diss']:
+            dr_ = dr_ + tf.math.multiply(tf.einsum('nij,nj->ni', Kd, r), r_atom)
+            dr_ = dr_ + tf.einsum('nij,nj->ni', Kr, tf.math.pow(r_atom, 3))
         return dr_
 
     def dhe(self, dY, dT=0.):

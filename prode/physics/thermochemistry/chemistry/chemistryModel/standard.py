@@ -45,75 +45,82 @@ class Standard(Basic):
 
     # Methods
     ###########################################################################
+    # Update method -----------------------------------------------------------
+    def update(self, T):
+        Kf = self.reactions.reacRate.k_(T)
+        self.K = self.K_(Kf, T)
+        
     # Rates matrices ----------------------------------------------------------
-    def K_(self, Kf):
+    def K_(self, Kf, T):
+        placeholder = tf.zeros_like(T, dtype=backend.floatx())
+
         Kf = {
-            name: tf.gather(Kf, idx, axis=1) \
+            name: tf.gather(Kf, idx, axis=1) if idx else None \
                 for name, idx in self.reactions.processSplit.items()
         }
 
-        Ke = self.Ke_(self.processFlags['excit'], Kf['exch']+Kf['inel']) / self.m
-        Kd = self.Kd_(self.processFlags['diss'], Kf['diss']) / self.m
-        Kr = self.Kr_(self.processFlags['diss'], Kf['diss']) / self.m**2*2
+        Ke = self.Ke_(placeholder, Kf['exch'] + Kf['inel']) / self.m \
+            if self.processFlags['excit'] else None
+        Kd = self.Kd_(placeholder, Kf['diss']) / self.m \
+            if self.processFlags['diss'] else None
+        Kr = self.Kr_(placeholder, Kf['diss']) / self.m**2*2 \
+            if self.processFlags['diss'] else None
+
         return Ke, Kd, Kr
 
     # Porcesses matrices ------------------------------------------------------
     # Excitation
-    def Ke_(self, mask, Kf):
+    def Ke_(self, placeholder, Kf):
         '''Excit. & Relax. rates matrix'''
+
+        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
+        K = tf.tile(placeholder, [1,self.n_species**2])
 
         # Get molecule internal partition function
         Q = self.spTh[self.molecule].intPF.Q
 
-        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
-        placeholder = tf.zeros_like(Kf[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.n_species**2])
+        # Reverse Reaction rates
+        Kr = tf.concat(
+            [ tf.expand_dims(Kf[:,k] * Q[:,i] / Q[:,j], 1) \
+                for k, (i,j) in enumerate(self.spExcitIdx) ], -1
+        )
 
-        if mask:
-            # Reverse Reaction rates
-            Kr = tf.concat(
-                [ tf.expand_dims(Kf[:,k] * Q[:,i] / Q[:,j], 1) \
-                    for k, (i,j) in enumerate(self.spExcitIdx) ], -1
+        # Concatenate forward and reverse reaction rates: shape=(n,num_reac)
+        Kfr = tf.concat([Kf, Kr], -1)
+
+        # Fill the Excit. & Relax. Master Eq. matrix with rates
+        K = tf.transpose(
+            tf.tensor_scatter_nd_update(
+                tf.transpose(K), self.K_indices['excit'], tf.transpose(Kfr)
             )
-
-            # Concatenate forward and reverse reaction rates: shape=(n,num_reac)
-            Kfr = tf.concat([Kf, Kr], -1)
-
-            # Fill the Excit. & Relax. Master Eq. matrix with rates
-            K = tf.transpose(
-                tf.tensor_scatter_nd_update(
-                    tf.transpose(K), self.K_indices['excit'], tf.transpose(Kfr)
-                )
-            )
+        )
 
         # Reshape the Excit. & Relax. Master Eq. matrix
         K = tf.reshape(K, [-1,self.n_species,self.n_species])
 
-        if mask:
-            # Rearrange the Excit. & Relax. Master Eq. matrix to respect the
-            # system of equations
-            K = - tf.linalg.diag(tf.reduce_sum(K, axis=2)) \
-                + tf.transpose(K, perm=[0, 2, 1])
+        # Rearrange the Excit. & Relax. Master Eq. matrix to respect the
+        # system of equations
+        K = - tf.linalg.diag(tf.reduce_sum(K, axis=2)) \
+            + tf.transpose(K, perm=[0, 2, 1])
+
         return K
 
     # Dissociation
-    def Kd_(self, mask, Kf):
+    def Kd_(self, placeholder, Kf):
         '''Dissociation rates matrix'''
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
-        placeholder = tf.zeros_like(Kf[:,0:1], dtype=backend.floatx())
         K = tf.tile(placeholder, [1, self.n_species**2])
 
-        if mask:
-            # Rearrange rates to respect the Master Eq. system of equations
-            Kf = tf.concat([-Kf, Kf], -1)
+        # Rearrange rates to respect the Master Eq. system of equations
+        Kf = tf.concat([-Kf, Kf], -1)
 
-            # Fill the Dissociation Master Eq. matrix with rearranged rates
-            K = tf.transpose(
-                tf.tensor_scatter_nd_update(
-                    tf.transpose(K), self.K_indices['diss'], tf.transpose(Kf)
-                )
+        # Fill the Dissociation Master Eq. matrix with rearranged rates
+        K = tf.transpose(
+            tf.tensor_scatter_nd_update(
+                tf.transpose(K), self.K_indices['diss'], tf.transpose(Kf)
             )
+        )
 
         # Reshape the Dissociation Master Eq. matrix
         K = tf.reshape(K, [-1,self.n_species,self.n_species])
@@ -121,21 +128,16 @@ class Standard(Basic):
         return K
 
     # Recombination
-    def Kr_(self, mask, Kf):
+    def Kr_(self, placeholder, Kf):
         '''Recombination rates matrix'''
 
-        # Create a `zeros` 2D tensor: shape=[n,d] (flatten dimensions)
-        placeholder = tf.zeros_like(Kf[:,0:1], dtype=backend.floatx())
-        K = tf.tile(placeholder, [1,self.n_species])
+        # Obtain recombination rates from dissociation ones
+        Kr = Kf / self.Keq_()
 
-        if mask:
-            # Obtain recombination rates from dissociation ones
-            Kr = Kf / self.Keq_()
-
-            # Rearrange rates to respect the Master Eq. system of equations
-            Kr = tf.concat(
-                [Kr, -tf.reduce_sum(Kr, axis=1, keepdims=True)], -1
-            )
+        # Rearrange rates to respect the Master Eq. system of equations
+        Kr = tf.concat(
+            [Kr, -tf.reduce_sum(Kr, axis=1, keepdims=True)], -1
+        )
 
         # Reshape the Recombination Master Eq. matrix
         K = tf.reshape(Kr, [-1,self.n_species,1])
@@ -151,3 +153,110 @@ class Standard(Basic):
         }
 
         return PFdot[self.atom]**2 / PFdot[self.molecule]
+
+
+
+    # def K_(self, Kf):
+    #     Kf = {
+    #         name: tf.gather(Kf, idx, axis=1) if idx else None \
+    #             for name, idx in self.reactions.processSplit.items()
+    #     }
+
+    #     Ke = self.Ke_(self.processFlags['excit'], Kf['exch']+Kf['inel']) / self.m
+    #     Kd = self.Kd_(self.processFlags['diss'], Kf['diss']) / self.m
+    #     Kr = self.Kr_(self.processFlags['diss'], Kf['diss']) / self.m**2*2
+    #     return Ke, Kd, Kr
+
+    # # Porcesses matrices ------------------------------------------------------
+    # # Excitation
+    # def Ke_(self, placeholder, mask, Kf):
+    #     '''Excit. & Relax. rates matrix'''
+
+    #     # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
+    #     placeholder = tf.zeros_like(Kf[:,0:1], dtype=backend.floatx())
+    #     K = tf.tile(placeholder, [1,self.n_species**2])
+
+    #     if mask:
+    #         # Get molecule internal partition function
+    #         Q = self.spTh[self.molecule].intPF.Q
+
+    #         # Reverse Reaction rates
+    #         Kr = tf.concat(
+    #             [ tf.expand_dims(Kf[:,k] * Q[:,i] / Q[:,j], 1) \
+    #                 for k, (i,j) in enumerate(self.spExcitIdx) ], -1
+    #         )
+
+    #         # Concatenate forward and reverse reaction rates: shape=(n,num_reac)
+    #         Kfr = tf.concat([Kf, Kr], -1)
+
+    #         # Fill the Excit. & Relax. Master Eq. matrix with rates
+    #         K = tf.transpose(
+    #             tf.tensor_scatter_nd_update(
+    #                 tf.transpose(K), self.K_indices['excit'], tf.transpose(Kfr)
+    #             )
+    #         )
+
+    #     # Reshape the Excit. & Relax. Master Eq. matrix
+    #     K = tf.reshape(K, [-1,self.n_species,self.n_species])
+
+    #     if mask:
+    #         # Rearrange the Excit. & Relax. Master Eq. matrix to respect the
+    #         # system of equations
+    #         K = - tf.linalg.diag(tf.reduce_sum(K, axis=2)) \
+    #             + tf.transpose(K, perm=[0, 2, 1])
+    #     return K
+
+    # # Dissociation
+    # def Kd_(self, placeholder, mask, Kf):
+    #     '''Dissociation rates matrix'''
+
+    #     # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
+    #     K = tf.tile(placeholder, [1, self.n_species**2])
+
+    #     if mask:
+    #         # Rearrange rates to respect the Master Eq. system of equations
+    #         Kf = tf.concat([-Kf, Kf], -1)
+
+    #         # Fill the Dissociation Master Eq. matrix with rearranged rates
+    #         K = tf.transpose(
+    #             tf.tensor_scatter_nd_update(
+    #                 tf.transpose(K), self.K_indices['diss'], tf.transpose(Kf)
+    #             )
+    #         )
+
+    #     # Reshape the Dissociation Master Eq. matrix
+    #     K = tf.reshape(K, [-1,self.n_species,self.n_species])
+
+    #     return K
+
+    # # Recombination
+    # def Kr_(self, placeholder, mask, Kf):
+    #     '''Recombination rates matrix'''
+
+    #     # Create a `zeros` 2D tensor: shape=[n,d] (flatten dimensions)
+    #     placeholder = tf.zeros_like(Kf[:,0:1], dtype=backend.floatx())
+    #     K = tf.tile(placeholder, [1,self.n_species])
+
+    #     if mask:
+    #         # Obtain recombination rates from dissociation ones
+    #         Kr = Kf / self.Keq_()
+
+    #         # Rearrange rates to respect the Master Eq. system of equations
+    #         Kr = tf.concat(
+    #             [Kr, -tf.reduce_sum(Kr, axis=1, keepdims=True)], -1
+    #         )
+
+    #     # Reshape the Recombination Master Eq. matrix
+    #     K = tf.reshape(Kr, [-1,self.n_species,1])
+
+    #     return K
+
+    # def Keq_(self):
+    #     '''Diss.-Recomb. equilibrium constants matrix'''
+
+    #     PFdot = {
+    #         name: spTh_.intPF.Q * spTh_.transPF.Q \
+    #             for name, spTh_ in self.spTh.items()
+    #     }
+
+    #     return PFdot[self.atom]**2 / PFdot[self.molecule]

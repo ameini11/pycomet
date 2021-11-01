@@ -126,6 +126,7 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
         self.max_samples = max_samples
 
         self.grads_eval = self.mean if method == 'mean' else self.max
+        self._update = True
 
     def on_train_begin(self, logs={}):
         self.init_weights()
@@ -134,9 +135,10 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
                 "Network `{}` hasn't any residual loss to be evaluated: "
                 "`{}` can't be applied.".format(self.model.name, self.name)
             )
+            self._update = False
 
     def on_epoch_begin(self, epoch, logs={}):
-        if epoch % self.freq == 0:
+        if self._update and epoch % self.freq == 0:
             self.update()
 
     def update(self):
@@ -253,6 +255,9 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
         )
 
         self.grads_eval = np.var if method == 'var' else np.std
+
+    def on_train_begin(self, logs={}):
+        self.init_weights()
 
     # Handling loss weights
     ###########################################################################

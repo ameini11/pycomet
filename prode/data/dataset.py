@@ -87,6 +87,7 @@ class DataSet(Data):
                     [self.col_x, self.col_y])
             )
         else:
+            print(data)
             # Data from lists of `numpy.array`
             if isinstance(data, (list,tuple)):
                 self.check_data_consistency(data)

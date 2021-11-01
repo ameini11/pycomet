@@ -18,7 +18,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 50000
+epochs = 5000#50000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -33,9 +33,9 @@ loss = {
     'ics': {'identifier': 'malpe', 'axis': 0},
     'pts': {'identifier': 'malpe', 'axis': 0},
     'res': {
+        'kinetic': {'identifier': 'mae', 'axis': 0},
         'mass': {'identifier': 'mae', 'axis': 0},
-        'energy': {'identifier': 'mae', 'axis': 0},
-        'kinetic': {'identifier': 'mae', 'axis': 0}
+        'energy': {'identifier': 'mae', 'axis': 0}
     }
 }
 

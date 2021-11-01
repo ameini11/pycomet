@@ -32,7 +32,7 @@ tsnn_dim = {
 layer_size = {
     names[0]: {
         "branch": [2+1, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
+        "trunk":  [1, 256, 64, 32]
     }
 }
 
@@ -45,7 +45,7 @@ activation = {
 
 kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
 
-block = 'ResPIBlock'
+block = 'FFBlock' #'ResPIBlock'
 
 opnn_end_scale = 'dense'
 
@@ -72,5 +72,5 @@ dropout_rate = 0
 # *** Inputs
 input_fn = {
     "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
-    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
+    "trunk": pro_layers.Scaling(slope=1.e8, name='trunk_fn', trainable=False)
 }

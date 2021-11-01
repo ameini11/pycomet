@@ -37,11 +37,17 @@ flags = {
 # Physical model
 # =============================================================================
 # Input space (limit values)
+# input_space = {
+#     'Ttr':  [5.e3,   1.5e4],        # Tanslational temperature [K]
+#     'T0':   [1.e3,   4.e3],         # Initial temperature [K]
+#     'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
+#     'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
+# }
 input_space = {
-    'Ttr':  [8.e3,   1.5e4],        # Tanslational temperature [K]
-    'T0':   [1.e3,   8.e3],         # Initial temperature [K]
-    'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
-    'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
+    'Ttr':  [1.e4,   1.e4],        # Tanslational temperature [K]
+    'T0':   [5.e3,   5.e3],         # Initial temperature [K]
+    'P0':   [1.e4,   1.e4],         # Initial pressure [Pa]
+    'XO2':  [0.5e0,  0.5e0]          # Initial O2 mole fraction
 }
 temp_limits = input_space['Ttr']
 
@@ -62,7 +68,7 @@ ts_thermochem = {
             },
             'O': None
         },
-        'reaction': 'diss'
+        'reaction': None #'diss'
     }
 
 }
@@ -70,21 +76,6 @@ ts_thermochem = {
 groups_graph = [0]
 
 # Thermochemistry -------------------------------------------------------------
-processes_mask = {      # Reactive processes
-    'excit':  0,
-    'diss':   1,
-    'recomb': 1
-}
-
-# *** Thermo
-mixture = {
-    'var': 'Y',
-    'type': 'MultiComponent',
-    'species': ['O2', 'O']
-}
-
-thermo = 'CoupledEnergyModes'
-
 # *** Species
 species = {
     'O2': {
@@ -95,4 +86,9 @@ species = {
         }
     },
     'O': None
+}
+
+processFlags = {      # Reactive processes
+    'excit':  0,
+    'diss':   1
 }

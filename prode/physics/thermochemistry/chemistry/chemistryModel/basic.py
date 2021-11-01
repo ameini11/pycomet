@@ -55,11 +55,11 @@ class Basic(object):
     # Methods
     ###########################################################################
     # Update method -----------------------------------------------------------
+    @abc.abstractmethod
     def update(self, T):
-        Kf = self.reactions.reacRate.k_(T)
-        self.K = self.K_(Kf)
+        pass
 
     # Rates matrices ----------------------------------------------------------
     @abc.abstractmethod
-    def K_(self, reac):
+    def K_(self, Kf, *args, **kwargs):
         pass

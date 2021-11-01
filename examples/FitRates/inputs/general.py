@@ -11,8 +11,8 @@
 
 # Thermochemistry
 # =============================================================================
-method = 'CBM' # 'RVE' 'CBM' 'DPM'
-n_bins = 3
+method = 'RVE' # 'RVE' 'CBM' 'DPM'
+n_bins = 9
 grouping = method + str(n_bins)
 
 # *** Temperature
@@ -49,7 +49,7 @@ reacReader = {
         'exch': 'Exch_Type1.dat',
         'inel': 'Inel.dat'
     },
-    'file_version': 'old'
+    'file_version': 'new'
 }
 
 reacWriter = {

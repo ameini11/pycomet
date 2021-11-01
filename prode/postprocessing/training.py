@@ -6,9 +6,18 @@ from matplotlib import pyplot as plt
 ###########################################################################
 ### Plotting Training Quantities
 ###########################################################################
-def plot_loss(history, path, scale='log', limit_y=False, 
-              title='Loss', var=['loss','val_loss'], fig_name='loss',
-              labels=['Training', 'Validation']):
+def plot_loss(
+    history,
+    path,
+    scale='log',
+    limit_y=False,
+    title='Loss',
+    var=['loss','val_loss'],
+    fig_name='loss',
+    labels=['Training', 'Validation'],
+    smoothed=True,
+    weight=0.9
+):
     """Loss History plotting."""
     fig = plt.figure()
 
@@ -16,9 +25,49 @@ def plot_loss(history, path, scale='log', limit_y=False,
         plt.ylim(limits(history[var]))
     plt.yscale(scale)
 
-    for i, var_i in enumerate(var):
-        if var_i in history:
-            plt.plot(history[var_i], lw=1, label=labels[i])
+    if smoothed:
+        for i, var_i in enumerate(var):
+            if var_i in history:
+                v = smooth(history[var_i].to_numpy(), weight)
+                plt.plot(
+                    history[var_i],
+                    lw=0.5,
+                    alpha=0.4
+                )
+                plt.plot(
+                    smooth(history[var_i].to_numpy(), weight),
+                    lw=1,
+                    label=labels[i],
+                    color=plt.gca().lines[-1].get_color()
+                )
+#                 h = history[var_i].to_numpy()
+#                 h = np.array_split(h, np.ceil(len(h)/cv))
+#                 _mean, _std = [], []
+#                 for h_i in h:
+#                     _mean.append(np.tile(np.mean(h_i), len(h_i)))
+#                     _std.append(np.tile(np.std(h_i), len(h_i)))
+#                 _mean, _std = np.concatenate(_mean), np.concatenate(_std)
+#                 plt.plot(
+#                     _mean,
+#                     lw=2,
+#                     label=labels[i]
+#                 )
+#                 plt.fill_between(
+#                     np.arange(len(_mean)),
+#                     _mean - _std,
+#                     _mean + _std,
+#                     alpha=0.2,
+#                     color=plt.gca().lines[-1].get_color(),
+#                 )
+    else:
+        for i, var_i in enumerate(var):
+            if var_i in history:
+                plt.plot(
+                    history[var_i],
+                    lw=1,
+                    label=labels[i]
+                )
+                
     plt.xlabel('Epoch')
     plt.legend()
     plt.grid()
@@ -27,11 +76,16 @@ def plot_loss(history, path, scale='log', limit_y=False,
     plt.close()
 
 
-def plot_composite_loss(history, path, scale='log', limit_y=False):
+def plot_composite_loss(
+    history,
+    path,
+    scale='log',
+    limit_y=False
+):
     """Residual History plotting."""
     identifier = {
         'ics': 'ICs Loss',
-        'pts': 'Operator Loss',
+        'pts': 'Anchor pts Loss',
         'res': 'Residual Loss',
         'reg': 'Regularization Loss',
         'tot': 'Total Loss'
@@ -120,3 +174,14 @@ def limits(y):
         return y_min*0.9, y[index]
     else:
         return y_min*0.9, y_max*1.1
+
+def smooth(scalars, weight):
+    weight = np.clip(weight, 0., 1.)
+    last = scalars[0]
+    smoothed = list()
+    for point in scalars:
+        smoothed_val = last * weight + (1 - weight) * point
+        smoothed.append(smoothed_val)
+        last = smoothed_val
+
+    return smoothed
