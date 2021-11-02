@@ -28,7 +28,7 @@ def output_ops(y):
 
 # Style -----------------------------------------------------------------------
 var_names = [r'$O_2$', r'$O$'] \
-    + [r'$O_2^{(1,{%s})}$' % (i+1) for i in range(inp_gen.dim['out'][1])]
+    + [r'$O_2^{({%s})}$' % (i+1) for i in range(inp_gen.dim['out'][1])]
 
 plot_style = {
     'output_ops':   output_ops,

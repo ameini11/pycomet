@@ -198,6 +198,7 @@ class ODE(Data):
 
             # Evaluate gradients
             grads = self.grad_fn(self, self.ode_order, model, ic, t, training)
+            grads = [tf.split(g, model.outputs_dim, axis=1) for g in grads]
 
             # Evaluate residual
             res_pred = self.ode_func(ic, t, grads)

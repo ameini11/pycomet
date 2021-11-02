@@ -35,7 +35,7 @@ class DataGenerator(object):
         time_limit,
         input_space,
         species,
-        processes_mask,
+        processFlags,
         groups_graph=None
     ):
         # Data Quantities -----------------------------------------------------
@@ -55,9 +55,9 @@ class DataGenerator(object):
 
         self.distribution = distribution    # Training pts distribution
         self.train_split = {                # Training pts splitting
-            'init_dyn':  0.17,
-            'stiff_dyn': 0.75,
-            'equil_dyn': 0.08
+            'init_dyn':  0.3,
+            'stiff_dyn': 0.65,
+            'equil_dyn': 0.05
         }
 
         # Testing scenarios
@@ -86,7 +86,7 @@ class DataGenerator(object):
         self.reac_names = {'diss', 'exch', 'inel'}
 
         # Building Master Equation matrices -----------------------------------
-        self.ODE_sol = ODESolver(processes_mask)
+        self.ODE_sol = ODESolver(processFlags)
         self.arrhenius_coeff = pd.read_csv(
             self.rates_path+'arrhenius_coeff.csv', index_col=0
         )

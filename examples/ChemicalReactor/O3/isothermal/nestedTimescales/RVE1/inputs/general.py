@@ -37,17 +37,11 @@ flags = {
 # Physical model
 # =============================================================================
 # Input space (limit values)
-# input_space = {
-#     'Ttr':  [5.e3,   1.5e4],        # Tanslational temperature [K]
-#     'T0':   [1.e3,   4.e3],         # Initial temperature [K]
-#     'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
-#     'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
-# }
 input_space = {
-    'Ttr':  [1.e4,   1.e4],        # Tanslational temperature [K]
-    'T0':   [5.e3,   5.e3],         # Initial temperature [K]
-    'P0':   [1.e4,   1.e4],         # Initial pressure [Pa]
-    'XO2':  [0.5e0,  0.5e0]          # Initial O2 mole fraction
+    'Ttr':  [5.e3,   1.5e4],        # Tanslational temperature [K]
+    'T0':   [1.e3,   4.e3],         # Initial temperature [K]
+    'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
+    'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
 }
 temp_limits = input_space['Ttr']
 
@@ -89,6 +83,6 @@ species = {
 }
 
 processFlags = {      # Reactive processes
-    'excit':  0,
-    'diss':   1
+    'excit': 0,
+    'diss':  1
 }

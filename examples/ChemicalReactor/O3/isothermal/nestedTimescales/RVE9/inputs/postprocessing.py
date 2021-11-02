@@ -15,6 +15,7 @@
 import tensorflow as tf
 import inputs.general as inp_gen
 
+
 # Training quantities
 # =============================================================================
 limit_y = False

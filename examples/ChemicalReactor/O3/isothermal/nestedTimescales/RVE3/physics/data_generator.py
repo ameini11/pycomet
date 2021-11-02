@@ -55,9 +55,9 @@ class DataGenerator(object):
 
         self.distribution = distribution    # Training pts distribution
         self.train_split = {                # Training pts splitting
-            'init_dyn':  0.17,
-            'stiff_dyn': 0.75,
-            'equil_dyn': 0.08
+            'init_dyn':  0.3,
+            'stiff_dyn': 0.65,
+            'equil_dyn': 0.05
         }
 
         # Testing scenarios

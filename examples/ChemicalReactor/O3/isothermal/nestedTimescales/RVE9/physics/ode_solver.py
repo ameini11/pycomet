@@ -131,7 +131,7 @@ class ODESolver(object):
             self.processes_mask['diss'], rates_coeff
         ) / const.mass['O']
         K_r = self.recom(
-            self.processes_mask['recomb'], rates_coeff, Q_bins, T
+            self.processes_mask['diss'], rates_coeff, Q_bins, T
         ) / const.mass['O']**2 * 2
         return K_e, K_d, K_r
 

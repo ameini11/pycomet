@@ -12,6 +12,7 @@
 # --------------------------------------------------------------------------- #
 
 
+import tensorflow as tf
 import inputs.general as inp_gen
 
 from tensorflow.keras import layers as tf_layers
@@ -42,8 +43,8 @@ layer_size = {
         "trunk":  [1, 64, 64, 32]
     },
     names[1]: {
-        "branch": [2+3, 48, 48, 48],
-        "trunk":  [1, 96, 96, 48]
+        "branch": [2+3, 64, 64, 64],
+        "trunk":  [1, 64, 64, 64]
     }
 }
 
@@ -56,7 +57,7 @@ activation = {
 
 kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
 
-block = 'ResPIBlock'
+block = 'ResPIBlock' # 'FFBlock' 'ResPIBlock'
 
 opnn_end_scale = 'dense'
 
@@ -83,5 +84,6 @@ dropout_rate = 0
 # *** Inputs
 input_fn = {
     "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
-    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
+    "trunk": tf_layers.Lambda(lambda x: tf.math.reciprocal((x+1.e-15)*1.e7))
+    # "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
 }

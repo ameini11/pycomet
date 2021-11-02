@@ -18,12 +18,12 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 5000#50000
+epochs = 10000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 512*300
+decay_steps = 512*200
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -35,7 +35,7 @@ loss = {
     'res': {
         'kinetic': {'identifier': 'mae', 'axis': 0},
         'mass': {'identifier': 'mae', 'axis': 0},
-        'energy': {'identifier': 'mae', 'axis': 0}
+        # 'energy': {'identifier': 'mae', 'axis': 0}
     }
 }
 

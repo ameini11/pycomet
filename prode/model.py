@@ -69,8 +69,11 @@ class Model(object):
                 inputs_shape = tuple([1,input_dim])
             self.net.build(inputs_shape)
         graph = self.net.get_graph()
+        # I/O characterization
         self.net.inputs = graph.inputs
         self.net.outputs = graph.outputs
+        self.net.inputs_dim = [ inp.shape[1] for inp in self.net.inputs]
+        self.net.outputs_dim = [ out.shape[1] for out in self.net.outputs]
 
         # Visualize net/graph
         graph.summary()

@@ -38,8 +38,8 @@ flags = {
 # =============================================================================
 # Input space (limit values)
 input_space = {
-    'Ttr':  [8.e3,   1.5e4],        # Tanslational temperature [K]
-    'T0':   [1.e3,   8.e3],         # Initial temperature [K]
+    'Ttr':  [5.e3,   1.5e4],        # Tanslational temperature [K]
+    'T0':   [1.e3,   4.e3],         # Initial temperature [K]
     'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
     'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
 }
@@ -62,7 +62,7 @@ ts_thermochem = {
             },
             'O': None
         },
-        'reaction': 'diss'
+        'reaction': None #'diss'
     },
 
     'TS1': {
@@ -85,21 +85,6 @@ groups_graph = {
 }
 
 # Thermochemistry -------------------------------------------------------------
-processes_mask = {      # Reactive processes
-    'excit':  1,
-    'diss':   1,
-    'recomb': 1
-}
-
-# *** Thermo
-mixture = {
-    'var': 'Y',
-    'type': 'MultiComponent',
-    'species': ['O2', 'O']
-}
-
-thermo = 'CoupledEnergyModes'
-
 # *** Species
 species = {
     'O2': {
@@ -110,4 +95,9 @@ species = {
         }
     },
     'O': None
+}
+
+processFlags = {      # Reactive processes
+    'excit': 1,
+    'diss':  1
 }

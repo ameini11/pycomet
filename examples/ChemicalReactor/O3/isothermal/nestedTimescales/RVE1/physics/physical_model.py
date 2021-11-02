@@ -71,7 +71,7 @@ class PhysicalModel(object):
         # Extract `mass` and `T` vectors from the `ic` tensor
         T, mass = tf.split(tf.gather(ic, [0,1], axis=1), [1,1], axis=1)
 
-        # Manipulate variables
+        # Extract gradients
         Y, dY = grads
 
         # Update rates and thermos

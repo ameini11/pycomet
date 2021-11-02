@@ -67,7 +67,7 @@ def plot_loss(
                     lw=1,
                     label=labels[i]
                 )
-                
+
     plt.xlabel('Epoch')
     plt.legend()
     plt.grid()
@@ -80,7 +80,9 @@ def plot_composite_loss(
     history,
     path,
     scale='log',
-    limit_y=False
+    limit_y=False,
+    smoothed=True,
+    weight=0.9
 ):
     """Residual History plotting."""
     identifier = {
@@ -100,10 +102,28 @@ def plot_composite_loss(
                 composite_loss['labels'].append(identifier[loss_id])
             if loss_id == 'reg':
                 continue
-            plot_loss(history, path, scale=scale, limit_y=limit_y,
-                title=identifier[loss_id], var=[c,'val_'+c], fig_name=c)
-    plot_loss(history, path, scale=scale, limit_y=limit_y,
-        **composite_loss, title='Losses', fig_name='losses')
+            plot_loss(
+                history,
+                path,
+                scale=scale,
+                limit_y=limit_y,
+                title=identifier[loss_id],
+                var=[c,'val_'+c],
+                fig_name=c,
+                smoothed=smoothed,
+                weight=weight
+            )
+    plot_loss(
+        history,
+        path,
+        scale=scale,
+        limit_y=limit_y,
+        **composite_loss,
+        title='Losses',
+        fig_name='losses',
+        smoothed=smoothed,
+        weight=weight
+    )
 
 
 def plot_loss_weights(history, path, scale='log'):
