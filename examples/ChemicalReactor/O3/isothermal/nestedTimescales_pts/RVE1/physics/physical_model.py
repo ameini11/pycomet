@@ -72,7 +72,11 @@ class PhysicalModel(object):
         T, mass = tf.split(tf.gather(ic, [0,1], axis=1), [1,1], axis=1)
 
         # Extract gradients
-        Y, dY = grads
+        Y_O2, Y_O = tf.split(grads[0][0], grads[0][0].shape[1], axis=1)
+        dY_O2, dY_O = tf.split(grads[1][0], grads[1][0].shape[1], axis=1)
+
+        Y = tf.concat([grads[0][-1], Y_O], axis=1)      # 0-th order derivative
+        dY = tf.concat([grads[1][-1], dY_O], axis=1)    # 1-st order derivative
 
         # Update rates and thermos
         self.chem.update(Y, T, mass)

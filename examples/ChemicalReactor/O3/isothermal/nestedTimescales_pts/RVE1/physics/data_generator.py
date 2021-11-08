@@ -26,7 +26,7 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(
         self,
-        dim,
+        # dim,
         train_pts,
         valid,
         distribution,
@@ -35,10 +35,26 @@ class DataGenerator(object):
         time_limit,
         input_space,
         species,
-        processFlags,
-        groups_graph=None,
-        connect=None
+        # processFlags,
+        groups_graph=None
     ):
+        # Processes -----------------------------------------------------------
+        processFlags = {      # Reactive processes
+            'excit': 1,
+            'diss':  1
+        }
+
+        # Timescales connectivity ---------------------------------------------
+        connect = {
+            0: {
+                0: [0,1,2],
+                1: [3,4,5],
+                2: [6,7,8]
+            }
+        }
+        self.ts_fast_conn = self.ts_to_fastest_connectivity(connect)
+        self.ts_fast = utils.depth(groups_graph)
+
         # Data Quantities -----------------------------------------------------
         # Training/Validation pts
         self.scenarios = train_pts['ics']
@@ -77,13 +93,6 @@ class DataGenerator(object):
         self.binMap_file = path + '/LevelsMap_' + rovib['grouping'] + '.csv'
         self.g, self.E, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
-
-        # Timescales connectivity ---------------------------------------------
-        if groups_graph:
-            self.ts_fast_conn = self.ts_to_fastest_connectivity(groups_graph)  # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
-            self.num_ts = len(list(self.ts_fast_conn.keys()))
-        if connect:
-            self.reduction = self.ts_to_fastest_connectivity(connect)  # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
 
         # Retrieving Rates coefficients ---------------------------------------
         self.rates_path = kinetic_db + '/O3_UMN/' + rovib['grouping'] + '/'
@@ -196,9 +205,8 @@ class DataGenerator(object):
             #                         fillstyle='full', markersize=2)
             #     plt.xscale('log')
             #     plt.yscale('log')
-            #     # plt.plot(data_i['res'][0][1], data_i['res'][1], **marker_style, label=self.data_label_out)
-            #     plt.plot(data_i['pts'][0][1], data_i['pts'][1], **marker_style, label=self.data_label_out)
-            #     # plt.plot(data_i['pts'][0][1], data_i['pts'][1], c='k', **marker_style)
+            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style, label=self.data_label_out)
+            #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
             #     plt.legend()
             #     plt.grid()
             #     plt.show()
@@ -262,10 +270,10 @@ class DataGenerator(object):
         n = np.shape(idx)[0]
         # Input data
         y_O2 = ic[2:-1]
-        if self.reduction[self.num_ts-1]:
+        if self.ts_fast_conn[self.ts_fast]:
             y_O2 = np.concatenate(
                 [np.sum(np.take(y_O2, i), keepdims=True) \
-                    for i in self.reduction[self.num_ts-1]]
+                    for i in self.ts_fast_conn[self.ts_fast]]
             )
         u, t = np.tile(np.concatenate([ic[:2],y_O2]), (n,1)), t[idx]
         # Target data
@@ -274,11 +282,11 @@ class DataGenerator(object):
         else:
             y_O2, y_O = np.hsplit(y[idx], [-1])
             y = []
-            for ts in range(self.num_ts):
-                if self.reduction[ts]:
+            for ts in range(self.ts_fast+1):
+                if self.ts_fast_conn[ts]:
                     y_slow = np.hstack(
                         [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) \
-                            for i in self.reduction[ts]]
+                            for i in self.ts_fast_conn[ts]]
                     )
                 else:
                     y_slow = y_O2
@@ -360,7 +368,7 @@ class DataGenerator(object):
             df = pd.DataFrame(
                 ic_test,
                 columns=['T','rho'] \
-                    + [ 'Y_'+str(i+1) for i in self.reduction[self.num_ts-1][-1] ] \
+                    + [ 'Y_'+str(i+1) for i in self.ts_fast_conn[0][0] ] \
                     + ['Y_O']
             )
             df.to_csv(
@@ -398,27 +406,27 @@ class DataGenerator(object):
             f_rhs = sol[-1]
 
         # Extract data values
-        tree     = KDTree(np.c_[t_i.ravel()])
-        d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
+        tree = KDTree(np.c_[t_i.ravel()])
+        d, ii = tree.query([[self.t0],[self.t_end]], k=1)
         t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
 
         # `u` input
         y_O2 = ic_i[2:-1]
-        if self.reduction[self.num_ts-1]:
+        if self.ts_fast_conn[self.ts_fast]:
             y_O2 = np.concatenate(
                 [np.sum(np.take(y_O2, i), keepdims=True) \
-                    for i in self.reduction[self.num_ts-1]]
+                    for i in self.ts_fast_conn[self.ts_fast]]
             )
         u_i = np.tile(np.concatenate([ic_i[:2], y_O2]), (t_i.shape[0],1))
 
-        # `y` target
+        # Target data
         y_O2, y_O = np.hsplit(y_i, [-1])
         y_i = []
-        for ts in range(self.num_ts):
-            if self.reduction[ts]:
+        for ts in range(self.ts_fast+1):
+            if self.ts_fast_conn[ts]:
                 y_slow = np.hstack(
                     [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) \
-                        for i in self.reduction[ts]]
+                        for i in self.ts_fast_conn[ts]]
                 )
             else:
                 y_slow = y_O2
@@ -501,8 +509,7 @@ class DataGenerator(object):
 
     # Groups connectivity/indexing
     # -------------------------------------------------------------------------
-    def ts_to_fastest_connectivity(self, graph, ts=None):
-        ts = ts or {}
+    def ts_to_fastest_connectivity(self, graph, ts={}):
         conn = self.graph_to_nested_list(graph)
         TS = utils.depth(graph)
         for l in range(-1, TS):

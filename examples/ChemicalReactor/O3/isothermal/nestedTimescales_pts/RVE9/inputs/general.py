@@ -27,7 +27,7 @@ dim = {
 # Execution Flags
 # =============================================================================
 flags = {
-    'load':  0,       # Loading model       0: no, 1: saved model, 2: ckpt
+    'load':  1,       # Loading model       0: no, 1: saved model, 2: ckpt
     'train': 1,       # Training model      0: no, 1: yes
     'test':  1,       # Evaluating          0: no, 1: yes
     'plot':  2,       # Plotting            0: no, 1: offline, 2: online
@@ -38,8 +38,8 @@ flags = {
 # =============================================================================
 # Input space (limit values)
 input_space = {
-    'Ttr':  [5.e3,   1.5e4],        # Tanslational temperature [K]
-    'T0':   [1.e3,   4.e3],         # Initial temperature [K]
+    'Ttr':  [8.e3,   1.5e4],        # Tanslational temperature [K]
+    'T0':   [1.e3,   8.e3],         # Initial temperature [K]
     'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
     'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
 }

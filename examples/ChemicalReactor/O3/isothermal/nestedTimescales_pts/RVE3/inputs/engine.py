@@ -36,11 +36,11 @@ loss = {
     'pts': {
         name: {'identifier': 'malpe', 'axis': -1} for name in inp_net.names
     },
-    # 'res': {
-    #     'kinetic': {'identifier': 'mae', 'axis': -1},
-    #     'mass': {'identifier': 'mae', 'axis': -1},
-    #     'energy': {'identifier': 'mae', 'axis': -1}
-    # }
+    #'res': {
+    #    'kinetic': {'identifier': 'mae', 'axis': 0},
+    #    'mass': {'identifier': 'mae', 'axis': 0},
+    #    'energy': {'identifier': 'mae', 'axis': 0}
+    #}
 }
 
 # Callbacks
@@ -78,12 +78,12 @@ callbacks = {
         'profile_batch':  0
     },
 
-    # 'weighted_loss': {
-    #     'name':         'EmpiricalWeightsAdapter',
-    #     'alpha':        0.9,
-    #     'freq':         50,
-    #     'max_samples':  20000
-    # }
+    #'weighted_loss': {
+    #    'name':         'EmpiricalWeightsAdapter',
+    #    'alpha':        0.9,
+    #    'freq':         50,
+    #    'max_samples':  20000
+    #}
 
     # 'weighted_loss': {
     #     'name':         'NTKWeightsAdapter',

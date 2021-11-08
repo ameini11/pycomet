@@ -29,20 +29,23 @@ class ODESolver(object):
     def f(self, t, y, arg):
         '''
         Input matrices:
-        - arg[0] = Dissociation rates
-        - arg[1] = Recombination rates
+        - arg[0] = Excitation rates
+        - arg[1] = Dissociation rates
+        - arg[2] = Recombination rates
         '''
-        dis_term = np.matmul(arg[0], y) * y[-1]
-        rec_term = np.squeeze(arg[1]) * np.power(y[-1], 3)
-        return dis_term + rec_term
+        exc_term = np.matmul(arg[0], y) * y[-1]
+        dis_term = np.matmul(arg[1], y) * y[-1]
+        rec_term = np.squeeze(arg[2]) * np.power(y[-1], 3)
+        return exc_term + dis_term + rec_term
 
     def jac(self, t, y, arg):
         '''Jacobian calculation: jac[i,j] = df[i] / dy[j].'''
         d = np.shape(y)[0]
         J = np.zeros((d,d), dtype=np.float64)
-        J[:,:-1] = (arg[0][:,:-1]) * y[-1]
+        J[:,:-1] = (arg[0][:,:-1] + arg[1][:,:-1]) * y[-1]
         J[:, -1] = np.matmul(arg[0][:,:-1], y[:-1]) \
-            + 3*np.squeeze(arg[1])*np.power(y[-1], 2)
+            + np.matmul(arg[1][:,:-1], y[:-1]) \
+            + 3*np.squeeze(arg[2])*np.power(y[-1], 2)
         return J
 
     def eval_J(self, t, y, arg):
@@ -121,13 +124,33 @@ class ODESolver(object):
     ###########################################################################
     def get_matrices(self, rates_coeff, Q_bins, T):
         '''Get all the rates matrices for the ODE.'''
+        K_e = self.excit(
+            self.processes_mask['excit'], rates_coeff, Q_bins
+        ) / const.mass['O']
         K_d = self.disso(
             self.processes_mask['diss'], rates_coeff
         ) / const.mass['O']
         K_r = self.recom(
             self.processes_mask['diss'], rates_coeff, Q_bins, T
         ) / const.mass['O']**2 * 2
-        return K_d, K_r
+        return K_e, K_d, K_r
+
+    def excit(self, mask, rates_coeff, Q_bins):
+        '''Excit. & Relax. rates matrix'''
+
+        # Obtain relaxation rates
+        rates = rates_coeff['exch'] + rates_coeff['inel']
+        idx   = list(map(tuple, np.transpose(np.where(rates == 0.0))))
+        for i,j in idx:
+            if i != j:
+                rates[i,j] = rates[j,i] * Q_bins[j] / Q_bins[i]
+
+        # Construct Excit. & Relax. matrix
+        d = np.shape(rates)[0] + 1
+        K = np.zeros((d,d), dtype=np.float64)
+        if mask:
+            K[:-1,:-1] = -np.diag(np.sum(rates, axis=1)) + np.transpose(rates)
+        return K
 
     def disso(self, mask, rates_coeff):
         '''Dissociation rates matrix'''

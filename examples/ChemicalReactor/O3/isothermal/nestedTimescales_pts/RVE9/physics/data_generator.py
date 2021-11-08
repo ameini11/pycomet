@@ -26,7 +26,7 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(
         self,
-        dim,
+        # dim,
         train_pts,
         valid,
         distribution,
@@ -36,8 +36,7 @@ class DataGenerator(object):
         input_space,
         species,
         processFlags,
-        groups_graph=None,
-        connect=None
+        groups_graph=None
     ):
         # Data Quantities -----------------------------------------------------
         # Training/Validation pts
@@ -81,9 +80,6 @@ class DataGenerator(object):
         # Timescales connectivity ---------------------------------------------
         if groups_graph:
             self.ts_fast_conn = self.ts_to_fastest_connectivity(groups_graph)  # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
-            self.num_ts = len(list(self.ts_fast_conn.keys()))
-        if connect:
-            self.reduction = self.ts_to_fastest_connectivity(connect)  # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
 
         # Retrieving Rates coefficients ---------------------------------------
         self.rates_path = kinetic_db + '/O3_UMN/' + rovib['grouping'] + '/'
@@ -278,11 +274,10 @@ class DataGenerator(object):
         else:
             y_O2, y_O = np.hsplit(y[idx], [-1])
             y = []
-            for ts in self.num_ts:
-                if self.ts_fast_conn[ts]:
+            for ts, indeces in self.ts_fast_conn.items():
+                if indeces:
                     y_slow = np.hstack(
-                        [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) \
-                            for i in self.ts_fast_conn[ts]]
+                        [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) for i in indeces]
                     )
                 else:
                     y_slow = y_O2
@@ -404,11 +399,10 @@ class DataGenerator(object):
 
         y_O2, y_O = np.hsplit(y_i, [-1])
         y_i = []
-        for ts in self.num_ts:
-            if self.ts_fast_conn[ts]:
+        for ts, indeces in self.ts_fast_conn.items():
+            if indeces:
                 y_slow = np.hstack(
-                    [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) \
-                        for i in self.ts_fast_conn[ts]]
+                    [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) for i in indeces]
                 )
             else:
                 y_slow = y_O2
@@ -489,8 +483,7 @@ class DataGenerator(object):
 
     # Groups connectivity/indexing
     # -------------------------------------------------------------------------
-    def ts_to_fastest_connectivity(self, graph, ts=None):
-        ts = ts or {}
+    def ts_to_fastest_connectivity(self, graph, ts={}):
         conn = self.graph_to_nested_list(graph)
         TS = utils.depth(graph)
         for l in range(-1, TS):

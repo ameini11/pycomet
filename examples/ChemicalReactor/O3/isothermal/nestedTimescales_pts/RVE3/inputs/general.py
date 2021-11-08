@@ -101,11 +101,3 @@ processFlags = {      # Reactive processes
     'excit': 1,
     'diss':  1
 }
-
-connect = {
-    0: {
-        0: [0,1,2],
-        1: [3,4,5],
-        2: [6,7,8]
-    }
-}
