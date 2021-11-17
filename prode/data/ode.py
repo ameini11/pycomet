@@ -78,9 +78,10 @@ class ODE(Data):
         self.test = test_data
 
         # Update data ids
-        self.data_ids = self.train.data_ids
-        if self.valid:
-            self.data_ids_valid = self.valid.data_ids
+        if training:
+            self.data_ids = self.train.data_ids
+            if self.valid:
+                self.data_ids_valid = self.valid.data_ids
 
         # ODE properties
         self.input_is_list = True if isinstance(self.dim['inp'], (list,tuple)) \

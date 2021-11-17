@@ -76,8 +76,6 @@ class DataGenerator(object):
     ###########################################################################
     def initial_cond(self):
 
-        print('\n' + self.header + 'Generating initial conditions ...')
-
         d = len(self.input_space)
         n = self.scenarios*2 + self.test_cases      # '*2' for validation cases
         unit_vec = np.array([[1.] * d])
@@ -114,7 +112,6 @@ class DataGenerator(object):
         self,
         ic_train
     ):
-        print('\n' + self.header + 'Generating training pts ...')
 
         data_list = jl.Parallel(n_jobs=-1)(
             jl.delayed(self.single_train_scenario)(i, ic_i) \
@@ -211,7 +208,6 @@ class DataGenerator(object):
         ic_train=None,
         header=None
     ):
-        print('\n' + self.header + 'Generating testing pts ...')
 
         if isinstance(ic_test, str):
             ic_test = pd.read_csv(ic_test, sep=',', header=header).values
