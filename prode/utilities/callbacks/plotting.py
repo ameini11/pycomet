@@ -108,15 +108,15 @@ class Plotter(CB.Callback):
                     self.fig_name = [
                         'fig'+str(i) for i in range(1,len(y_true)+1)
                     ]
-                for y_i in range(len(y_pred)):
+                for j in range(len(y_pred)):
                     kwargs = dict(
-                        y_true=y_true[y_i],
-                        y_pred=y_pred[y_i],
-                        var_names=self.var_names[y_i],
+                        y_true=y_true[j],
+                        y_pred=y_pred[j],
+                        var_names=self.var_names[j],
                         time_idx=self.time_idx,
-                        fig_name=self.fig_name[y_i],
-                        labels=self.labels[y_i],
-                        scales=self.scales[y_i]
+                        fig_name=self.fig_name[j],
+                        labels=self.labels[j],
+                        scales=self.scales[j]
                     )
                     self.testing_plot_fn(path, x, kwargs)
             else:
@@ -137,14 +137,8 @@ class Plotter(CB.Callback):
             kwargs['scales'] = ['log','log']
             post.testing.plot_test(path, x,**kwargs)
 
-    # def unpack_test_data(self, test_data):
-    #     elif len(test_data) == 2:
-    #         x, y = test_data
-    #     else:
-    #         x, y = test_data, None
-    #     return x, y
 
-
+# @keras_export('keras.callbacks.MovieDumper')
 # class MovieDumper(CB.Callback):
 #     """Dump a movie to show the training progress of the function along a line.
 
@@ -153,6 +147,20 @@ class Plotter(CB.Callback):
 #     """
 
 #     def __init__(
+#         self,
+#         test_data=None,
+#         train_dir=None,
+#         output_ops=None,
+#         var_names=None,
+#         time_idx=-1,
+#         fig_name=None,
+#         labels=None,
+#         scales=None,
+#         limit_y=False,
+#         log_plot=False,
+#         freq=100
+
+
 #         self,
 #         filename,
 #         x1,
@@ -163,6 +171,32 @@ class Plotter(CB.Callback):
 #         save_spectrum=False,
 #         y_reference=None,
 #     ):
+#         super(MovieDumper, self).__init__()
+
+#         self.test_data = test_data
+
+#         self.train_dir = train_dir
+#         self.path = self.train_dir+'plots/movie'
+#         if not os.path.exists(self.path):
+#             os.makedirs(self.path)
+
+#         self.output_ops = output_ops
+
+#         self.var_names = var_names
+#         self.labels = labels
+#         self.time_idx = time_idx
+
+#         self.scales = scales
+#         self.log_plot = log_plot
+        
+#         self.freq = freq
+#         self.fig_name = fig_name
+
+
+
+
+
+
 #         super(MovieDumper, self).__init__()
 #         self.filename = filename
 #         x1 = np.array(x1)
@@ -229,3 +263,67 @@ class Plotter(CB.Callback):
 #                 save_animation(
 #                     fname_movie, xdata, self.spectrum, logy=True, y_reference=np.abs(A)
 #                 )
+
+
+
+
+
+
+# def apply(func, args=None, kwds=None):
+#     """Clear Tensorflow GPU memory after model execution.
+
+#     References:
+
+#         - https://stackoverflow.com/questions/39758094/clearing-tensorflow-gpu-memory-after-model-execution
+#     """
+#     with Pool(1) as p:
+#         if args is None and kwds is None:
+#             r = p.apply(func)
+#         elif kwds is None:
+#             r = p.apply(func, args=args)
+#         elif args is None:
+#             r = p.apply(func, kwds=kwds)
+#         else:
+#             r = p.apply(func, args=args, kwds=kwds)
+#     return r
+
+
+
+# def save_animation(filename, xdata, ydata, y_reference=None, logy=False):
+#     apply(
+#         _save_animation,
+#         args=(filename, xdata, ydata),
+#         kwds={"y_reference": y_reference, "logy": logy},
+#     )
+
+
+# def save_animation(filename, xdata, ydata, y_reference=None, logy=False):
+#     """The animation figure window cannot be closed automatically.
+
+#     References:
+
+#         - https://stackoverflow.com/questions/43776528/python-animation-figure-window-cannot-be-closed-automatically
+#     """
+#     fig, ax = plt.subplots()
+#     if y_reference is not None:
+#         plt.plot(xdata, y_reference, "k-")
+#     (ln,) = plt.plot([], [], "r-o")
+
+#     def init():
+#         ax.set_xlim(np.min(xdata), np.max(xdata))
+#         if logy:
+#             ax.set_yscale("log")
+#             ax.set_ylim(max(1e-4, np.min(ydata)), np.max(ydata))
+#         else:
+#             ax.set_ylim(np.min(ydata), np.max(ydata))
+#         return (ln,)
+
+#     def update(frame):
+#         ln.set_data(xdata, ydata[frame])
+#         return (ln,)
+
+#     ani = animation.FuncAnimation(
+#         fig, update, frames=len(ydata), init_func=init, blit=True
+#     )
+#     ani.save(filename, writer="imagemagick", fps=30)
+#     plt.close()
