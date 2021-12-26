@@ -20,22 +20,24 @@ data_type = 'ODE'
 from_file = False
 
 # *** From file
-train_file = {
-    'ics': './data/train/ics.csv',
-    'pts': None,
-    'res': './data/train/res.csv'
+file = {
+    'train': {
+        'ics': './data/train/ics.csv',
+        'pts': None,
+        'res': './data/train/res.csv'
+    },
+    'valid': {
+        'ics': './data/valid/ics.csv',
+        'pts': None,
+        'res': './data/valid/res.csv'
+    },
+    'test': './data/test/ics.csv'
 }
 
-valid_file = {
-    'ics': './data/valid/ics.csv',
-    'pts': None,
-    'res': './data/valid/res.csv'
+col = {
+    'x': [[0,2],[2,3]],
+    'y': [3,5]
 }
-
-test_file = './data/test/ics.csv'
-
-col_x = [[0,2],[2,3]]
-col_y = [3,5]
 
 header = 0
 
@@ -55,13 +57,14 @@ test_training = True    # Test training cases
 
 # Batching --------------------------------------------------------------------
 batch_size = {
-    'ics': 16,
-    'pts': 16,
-    'res': 64
-}
-
-valid_batch_size = {
-    'ics': 32,
-    'pts': 32,
-    'res': 32
+    'train': {
+        'ics': 16,
+        'pts': 16,
+        'res': 64
+    },
+    'valid': {
+        'ics': 32,
+        'pts': 32,
+        'res': 32
+    }
 }

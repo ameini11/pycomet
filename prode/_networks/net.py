@@ -1,0 +1,329 @@
+import tensorflow as tf
+
+from tensorflow.python.keras.engine import compile_utils
+from tensorflow.python.keras.engine import base_layer
+from tensorflow.python.keras import metrics as metrics_mod
+from keras import backend as K
+
+from prode.utilities.model import layers
+from prode.utilities import utils
+from prode.networks import steps
+
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='Net')
+class Net(tf.keras.Model):
+    """Network base class."""
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        dim,
+        block='FFBlock',
+        name='net',
+        *args,
+        **kwargs
+    ):
+        super(Net, self).__init__(name=name, *args, **kwargs)
+
+        if not isinstance(dim, dict):
+            utils.raise_value_err(
+                "`dim` passed into `{}` network has "
+                "to be a `dict` of length 2:\n"
+                "  - 'inp': `int` (or list of `int`);\n"
+                "  - 'out': `int` (or list of `int`).\n"
+                "It represents the dimensions of the "
+                "feature space.".format(self.name)
+            )
+        self.inp_dim = dim["inp"]
+        self.out_dim = dim["out"]
+
+        self.block = block if callable(block) \
+            else utils.get_class(layers, block)
+
+        self.inp_trans = None
+        self.out_trans = None
+
+        # NN extra features for handling ODE data types
+        if self.physics_informed:
+            self.ode_loss_weights = None
+            self.residual = None
+            self.data_ids = None
+            self.data_ids_valid = None
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'inp_dim': self.inp_dim,
+            'out_dim': self.out_dim,
+            'block': self.block,
+            'inp_trans': self.inp_trans,
+            'out_trans': self.out_trans,
+            'ode_loss_weights': self.ode_loss_weights,
+            'residual': self.residual,
+            'data_ids': self.data_ids,
+            'data_ids_valid': self.data_ids_valid
+        }
+        base_config = super(Net, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    # Calling
+    ###########################################################################
+    def call(self, x, training=False):
+        return x
+
+    # Building
+    ###########################################################################
+    def build(self, input_shape):
+        super(Net, self).build(input_shape)
+        # I/O characterization
+        self.inputs = tf.nest.map_structure(
+            lambda i: K.placeholder(shape=[None,i], dtype=K.floatx()),
+            input_shape
+        )
+        self.outputs = self.call(self.inputs, training=False)
+        # I/O features space dimensions
+        self.input_dim = [i.shape[1] for i in self.inputs]
+        self.output_dim = [o.shape[1] for o in self.outputs]
+        # Network graph
+        self.graph = tf.keras.Model(self.inputs, self.outputs, name=self.name)
+
+    # Compiling
+    ###########################################################################
+    def compile(
+        self,
+        data_cls,
+        optimizer='rmsprop',
+        loss=None,
+        metrics=None,
+        loss_weights=None,
+        weighted_metrics=None,
+        run_eagerly=None,
+        steps_per_execution=None,
+        **kwargs
+    ):
+        if data_cls.name == 'ODE':
+            self.check_arg(loss, 'loss functions')
+            self.check_arg(loss_weights, 'loss weights')
+
+            base_layer.keras_api_gauge.get_cell('compile').set(True)
+
+            from_serialized = kwargs.pop('from_serialized', False)
+
+            self._validate_compile(optimizer, metrics, **kwargs)
+            self._run_eagerly = run_eagerly
+
+            # Defining optimizer
+            self.optimizer = self._get_optimizer(optimizer)
+
+            # Defining loss containers
+            self.compiled_loss = {}
+            for data_id in self.data_ids:
+                _loss = loss[data_id] if loss else None
+                _loss_weights = loss_weights[data_id] if loss_weights else None
+                self.compiled_loss[data_id] = compile_utils.LossesContainer(
+                    _loss, _loss_weights)
+                self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(
+                    name=data_id + '_loss'
+                )
+
+            # Defining metrics container
+            if metrics is not None:
+                utils.warning(
+                    "With `data.ode`, metrics evaluation is not available."
+                )
+            self.compiled_metrics = None
+
+            self._configure_steps_per_execution(steps_per_execution or 1)
+
+            # Initializes attrs that are reset each time `compile` is called.
+            self._reset_compile_cache()
+            self._is_compiled = True
+            self.loss = loss or {}
+        else:
+            return super(Net, self).compile(
+                optimizer=optimizer,
+                loss=loss,
+                metrics=metrics,
+                loss_weights=loss_weights,
+                weighted_metrics=weighted_metrics,
+                run_eagerly=run_eagerly,
+                steps_per_execution=steps_per_execution,
+                **kwargs
+            )
+
+    def check_arg(self, arg, definition):
+        if arg and not isinstance(arg, dict):
+            msg_args = [ nameof(arg), *([definition]*3) ]
+            utils.raise_value_err(
+                "`{}` passed into `compile` has to be a `dict`:\n"
+                "  - 'ics': initial condition pts {};\n"
+                "  - 'pts': additional anchor pts {};\n"
+                "  - 'res': collocation pts residual {}.".format(*msg_args)
+            )
+
+    @property
+    def metrics(self):
+        metrics = []
+        if self._is_compiled:
+            if self.compiled_loss is not None:
+                if isinstance(self.compiled_loss, dict):
+                    for container in self.compiled_loss.values():
+                        metrics += container.metrics
+                else:
+                    metrics += self.compiled_loss.metrics
+            if self.compiled_metrics is not None:
+                metrics += self.compiled_metrics.metrics
+        return metrics
+
+    # Steps
+    ###########################################################################
+    # Training Step
+    def train_step(self, data):
+        if self.multi_obj_loss:
+            return self.multi_obj_train_step(data)
+        else:
+            return super(Net, self).train_step(data)
+
+    def multi_obj_train_step(self, data):
+        """Custom train step."""
+
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+
+        # Gradient descent step
+        loss, losses = 0., {}
+        with backprop.GradientTape() as tape:
+            for obj in self.objectives['train']:
+                y_pred = self.predict_step(x[obj], objective=obj, training=True)
+                if self.weighted_loss is not None:
+                    sample_weight = self.weighted_loss.get_weights(
+                        obj,
+                        sample_weight=sample_weight
+                    )
+                losses[obj] = self.compiled_loss[obj](
+                    y[obj],
+                    y_pred,
+                    sample_weight=sample_weight
+                )
+            # Regularization loss
+            if self.losses:
+                reg_loss = tf.add_n(
+                    losses_utils.cast_losses_to_common_dtype(self.losses)
+                )
+                losses.update({'reg': reg_loss})
+            # Calculate total loss
+            loss = tf.add_n(losses.values())
+
+        # Update parameters
+        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+
+        # Update loss weights
+        if self.weighted_loss is not None:
+            self.weighted_loss.update_weights(loss, tape=tape)
+
+        # Collect metrics to return
+        metrics = {'loss': loss}
+        metrics.update({obj+'_loss': l for obj, l in losses.items()})
+        return metrics
+
+    # Testing Step
+    def test_step(self, data):
+        if self.multi_obj_loss:
+            return self.multi_obj_test_step(data)
+        else:
+            return super(Net, self).test_step(data)
+
+    def multi_obj_test_step(self, data):
+        # Unpack data
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        # Evaluate each objective function loss
+        losses = {}
+        for obj in self.objectives['valid']:
+            y_pred = self.predict_step(x[obj], objective=obj)
+            sw = sample_weight[obj] if sample_weight else None
+            losses[obj] = self.compiled_loss[obj](y[obj], y_pred, sw)
+        # Evaluate total loss
+        loss = tf.add_n(losses.values())
+        # Collect metrics to return
+        metrics = {'loss': loss}
+        metrics.update({obj+'_loss': l for obj, l in losses.items()})
+        return metrics
+
+    # Predicting Step
+    def predict_step(self, data=None, objective=None, training=False):
+        if self.multi_obj_loss:
+            return self.multi_obj_predict_step(data, objective, training)
+        else:
+            return super(Net, self).predict_step(data)
+
+    def multi_obj_predict_step(self, data=None, objective=None, training=False):
+        # Unpack data
+        x, _, _ = data_adapter.unpack_x_y_sample_weight(data)
+        if x is None:
+            x = self.inputs
+        # Evaluate predictions for the specific objective function
+        if objective == 'res':
+            return self.residual(x, training=training)
+        else:
+            return self(x, training=training)
+
+
+    # Input/Output transformations
+    ###########################################################################
+    @property
+    def inp_trans(self):
+        return self._inp_trans
+
+    @inp_trans.setter
+    def inp_trans(self, function):
+        self._inp_trans = function
+
+    @property
+    def out_trans(self):
+        return self._out_trans
+
+    @out_trans.setter
+    def out_trans(self, function):
+        self._out_trans = function
+
+    # Data identities
+    ###########################################################################
+    @property
+    def data_ids(self):
+        return self._data_ids
+
+    @data_ids.setter
+    def data_ids(self, identifiers):
+        self._data_ids = identifiers
+
+    @property
+    def data_ids_valid(self):
+        return self._data_ids_valid
+
+    @data_ids_valid.setter
+    def data_ids_valid(self, identifiers):
+        self._data_ids_valid = identifiers
+
+    # Losses properties
+    # ###########################################################################
+    @property
+    def ode_loss_weights(self):
+        return self._ode_loss_weights
+
+    @ode_loss_weights.setter
+    def ode_loss_weights(self, weights):
+        self._ode_loss_weights = weights
+
+    # Residual loss
+    @property
+    def residual(self):
+        return self._residual
+
+    @residual.setter
+    def residual(self, function):
+        self._residual = function
