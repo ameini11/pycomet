@@ -27,12 +27,12 @@ def _get_learning_rate(lr, decay):
 
 def _get_optimizer(name, lr):
     return {
-        "adadelta":     opt.Adadelta(learning_rate=lr),
-        "adagrad":      opt.Adagrad(learning_rate=lr),
-        "adam":         opt.Adam(learning_rate=lr),
-        "adamax":       opt.Adamax(learning_rate=lr),
-        "ftrl":         opt.Ftrl(learning_rate=lr),
-        "rmsprop":      opt.RMSprop(learning_rate=lr),
-        "sgd":          opt.SGD(learning_rate=lr),
+        "adadelta": opt.Adadelta(learning_rate=lr),
+        "adagrad": opt.Adagrad(learning_rate=lr),
+        "adam": opt.Adam(learning_rate=lr),
+        "adamax": opt.Adamax(learning_rate=lr),
+        "ftrl": opt.Ftrl(learning_rate=lr),
+        "rmsprop": opt.RMSprop(learning_rate=lr),
+        "sgd": opt.SGD(learning_rate=lr),
         "sgd_nesterov": opt.SGD(learning_rate=lr, nesterov=True)
     }[name]

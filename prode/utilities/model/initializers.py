@@ -1,20 +1,20 @@
 import scipy
 import tensorflow as tf
-import tensorflow.keras.initializers as init
+import tensorflow.keras.initializers as tf_init
 
 from prode.utilities import utils
 
 
 def get(identifier):
     identifiers = {
-        "zeros":              init.Zeros(),
-        "HeNormal":           init.HeNormal(),
-        "HeUniform":          init.HeUniform(),
-        "LecunNormal":        init.LecunNormal(),
-        "LecunUniform":       init.LecunUniform(),
-        "GlorotNormal":       init.GlorotNormal(),
-        "GlorotUniform":      init.GlorotUniform(),
-        "Orthogonal":         init.Orthogonal()
+        "zeros": tf_init.Zeros(),
+        "HeNormal": tf_init.HeNormal(),
+        "HeUniform": tf_init.HeUniform(),
+        "LecunNormal": tf_init.LecunNormal(),
+        "LecunUniform": tf_init.LecunUniform(),
+        "GlorotNormal": tf_init.GlorotNormal(),
+        "GlorotUniform": tf_init.GlorotUniform(),
+        "Orthogonal": tf_init.Orthogonal()
     }
 
     if isinstance(identifier, str):

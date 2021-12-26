@@ -8,12 +8,12 @@ from prode.utilities import utils
 def get(identifier):
     metric_identifier = {
         "accuracy": met.Accuracy(),
-        "mean":     met.Mean(),
-        "mae":      met.MeanAbsoluteError(),
-        "mape":     met.MeanAbsolutePercentageError(),
-        "mse":      met.MeanSquaredError(),
-        "msle":     met.MeanSquaredLogarithmicError(),
-        "rmse":     met.RootMeanSquaredError()
+        "mean": met.Mean(),
+        "mae": met.MeanAbsoluteError(),
+        "mape": met.MeanAbsolutePercentageError(),
+        "mse": met.MeanSquaredError(),
+        "msle": met.MeanSquaredLogarithmicError(),
+        "rmse": met.RootMeanSquaredError()
     }
 
     if isinstance(identifier, str):
@@ -25,7 +25,6 @@ def get(identifier):
         return identifier
     else:
         utils.raise_value_err(
-            "Could not interpret metric function identifier: `{}`".format(
-                identifier
-            )
+            "Could not interpret metric function "
+            "identifier: `{}`".format(identifier)
         )

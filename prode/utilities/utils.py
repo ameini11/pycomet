@@ -11,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 import multiprocessing as mp
 
+from pathlib import PurePath
 from matplotlib import animation
 from functools import wraps
 from prode.config import headers
@@ -178,6 +179,9 @@ def depth(d):
 def value_to_dict(value, keys):
     return value if isinstance(value, dict) else {k: value for k in keys}
 
+def to_list(x):
+    return list(x) if isinstance(x, (list,tuple)) else [x]
+
 def search_string(file, string):
     with open(file, 'r') as f:
         for i, line in enumerate(f):
@@ -189,6 +193,19 @@ def check_format(data_type, string):
         return string.replace("d", "e")
     else:
         return string
+
+def check_file_extension(file, extension):
+    os.path.isfile(file)
+    if PurePath(file).suffix != extension:
+        utils.raise_value_err(
+            "The file '{}' has to be a '{}' one.".format(
+                os.path.normpath(file), extension
+            )
+        )
+
+def zip_dict_of_lists(d):
+    keys = d.keys()
+    return [dict(zip(keys, v)) for v in zip(*(d[k] for k in keys))]
 
 # Others
 ###############################################################################
@@ -227,6 +244,12 @@ def environment():
 ###############################################################################
 def get_cardinality(x):
     return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
+
+def get_struct_shape(y, axis=None):
+    if axis:
+        return tf.nest.map_structure(lambda x: x.shape[axis], y)
+    else:
+        return tf.nest.map_structure(lambda x: x.shape, y)
 
  
 
