@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.python.keras.engine import compile_utils
 from tensorflow.python.keras.engine import base_layer
 from tensorflow.python.keras import metrics as metrics_mod
+from keras.engine import data_adapter
 from keras import backend as K
 
 from prode.utilities.model import layers
@@ -45,11 +46,10 @@ class Net(tf.keras.Model):
         self.out_trans = None
 
         # NN extra features for handling ODE data types
-        if self.physics_informed:
-            self.ode_loss_weights = None
-            self.residual = None
-            self.data_ids = None
-            self.data_ids_valid = None
+        self.multi_obj_loss = False
+        self.objectives = None
+        self.ode_loss_weights = None
+        self.residual = None
 
     # Configuration update
     ###########################################################################
@@ -62,8 +62,8 @@ class Net(tf.keras.Model):
             'out_trans': self.out_trans,
             'ode_loss_weights': self.ode_loss_weights,
             'residual': self.residual,
-            'data_ids': self.data_ids,
-            'data_ids_valid': self.data_ids_valid
+            'objectives': self.objectives,
+            'multi_obj_loss': self.multi_obj_loss
         }
         base_config = super(Net, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -97,7 +97,6 @@ class Net(tf.keras.Model):
     ###########################################################################
     def compile(
         self,
-        data_cls,
         optimizer='rmsprop',
         loss=None,
         metrics=None,
@@ -107,41 +106,37 @@ class Net(tf.keras.Model):
         steps_per_execution=None,
         **kwargs
     ):
-        if data_cls.name == 'ODE':
+        if self.multi_obj_loss:
+            # Check loss functions and weights
             self.check_arg(loss, 'loss functions')
             self.check_arg(loss_weights, 'loss weights')
-
+            # Other preliminary operations
             base_layer.keras_api_gauge.get_cell('compile').set(True)
-
             from_serialized = kwargs.pop('from_serialized', False)
-
             self._validate_compile(optimizer, metrics, **kwargs)
             self._run_eagerly = run_eagerly
-
-            # Defining optimizer
+            # Get optimizer
             self.optimizer = self._get_optimizer(optimizer)
-
-            # Defining loss containers
+            # Build loss containers
             self.compiled_loss = {}
-            for data_id in self.data_ids:
-                _loss = loss[data_id] if loss else None
-                _loss_weights = loss_weights[data_id] if loss_weights else None
-                self.compiled_loss[data_id] = compile_utils.LossesContainer(
-                    _loss, _loss_weights)
-                self.compiled_loss[data_id]._loss_metric = metrics_mod.Mean(
-                    name=data_id + '_loss'
+            for obj in self.objectives['train']:
+                self.compiled_loss[obj] = compile_utils.LossesContainer(
+                    loss[obj] if loss else None,
+                    loss_weights[obj] if loss_weights else None
                 )
-
-            # Defining metrics container
+                self.compiled_loss[obj]._loss_metric = metrics_mod.Mean(
+                    name=obj + '_loss'
+                )
+            # Build metrics container
             if metrics is not None:
                 utils.warning(
-                    "With `data.ode`, metrics evaluation is not available."
+                    "With multi-objective loss function, "
+                    "metrics evaluation is not available."
                 )
             self.compiled_metrics = None
-
+            # Configure steps
             self._configure_steps_per_execution(steps_per_execution or 1)
-
-            # Initializes attrs that are reset each time `compile` is called.
+            # Initialize attrs that are reset each time `compile` is called.
             self._reset_compile_cache()
             self._is_compiled = True
             self.loss = loss or {}
@@ -159,12 +154,12 @@ class Net(tf.keras.Model):
 
     def check_arg(self, arg, definition):
         if arg and not isinstance(arg, dict):
-            msg_args = [ nameof(arg), *([definition]*3) ]
+            arg = nameof(arg)
             utils.raise_value_err(
-                "`{}` passed into `compile` has to be a `dict`:\n"
-                "  - 'ics': initial condition pts {};\n"
-                "  - 'pts': additional anchor pts {};\n"
-                "  - 'res': collocation pts residual {}.".format(*msg_args)
+                f"`{arg}` passed into `compile` has to be a `dict`:\n"
+                f"  - 'ics': initial condition pts {definition};\n"
+                f"  - 'pts': additional anchor pts {definition};\n"
+                f"  - 'res': collocation pts residual {definition}."
             )
 
     @property
@@ -191,41 +186,41 @@ class Net(tf.keras.Model):
             return super(Net, self).train_step(data)
 
     def multi_obj_train_step(self, data):
-        """Custom train step."""
-
+        # Unpack data
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
-
         # Gradient descent step
         loss, losses = 0., {}
-        with backprop.GradientTape() as tape:
+        with backprop.GradientTape(persistent=True) as tape:
+            # Evaluate each objective function loss
             for obj in self.objectives['train']:
-                y_pred = self.predict_step(x[obj], objective=obj, training=True)
-                if self.weighted_loss is not None:
-                    sample_weight = self.weighted_loss.get_weights(
-                        obj,
-                        sample_weight=sample_weight
-                    )
-                losses[obj] = self.compiled_loss[obj](
-                    y[obj],
-                    y_pred,
-                    sample_weight=sample_weight
+                # Get predictions
+                y_pred = self.predict_step(
+                    x[obj], objective=obj, training=True
                 )
+                # Get loss weights
+                sw = sample_weight[obj] if sample_weight else None
+                if self.weighted_loss:
+                    sw = self.weighted_loss.get_weights(
+                        objective=obj,
+                        sample_weight=sw
+                    )
+                # Get loss
+                losses[obj] = self.compiled_loss[obj](y[obj], y_pred, sw)
             # Regularization loss
             if self.losses:
                 reg_loss = tf.add_n(
                     losses_utils.cast_losses_to_common_dtype(self.losses)
                 )
                 losses.update({'reg': reg_loss})
-            # Calculate total loss
+            # Evaluate total loss
             loss = tf.add_n(losses.values())
-
-        # Update parameters
+        # Update model parameters
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
-
         # Update loss weights
-        if self.weighted_loss is not None:
-            self.weighted_loss.update_weights(loss, tape=tape)
-
+        if self.weighted_loss:
+            self.weighted_loss.update_weights(
+                loss, sample_weight=sample_weight, tape=tape
+            )
         # Collect metrics to return
         metrics = {'loss': loss}
         metrics.update({obj+'_loss': l for obj, l in losses.items()})
@@ -261,7 +256,7 @@ class Net(tf.keras.Model):
         else:
             return super(Net, self).predict_step(data)
 
-    def multi_obj_predict_step(self, data=None, objective=None, training=False):
+    def multi_obj_predict_step(self, data, objective, training):
         # Unpack data
         x, _, _ = data_adapter.unpack_x_y_sample_weight(data)
         if x is None:
@@ -294,20 +289,20 @@ class Net(tf.keras.Model):
     # Data identities
     ###########################################################################
     @property
-    def data_ids(self):
-        return self._data_ids
+    def objectives(self):
+        return self._objectives
 
-    @data_ids.setter
-    def data_ids(self, identifiers):
-        self._data_ids = identifiers
+    @objectives.setter
+    def objectives(self, identifiers):
+        self._objectives = identifiers
 
     @property
-    def data_ids_valid(self):
-        return self._data_ids_valid
+    def multi_obj_loss(self):
+        return self._multi_obj_loss
 
-    @data_ids_valid.setter
-    def data_ids_valid(self, identifiers):
-        self._data_ids_valid = identifiers
+    @multi_obj_loss.setter
+    def multi_obj_loss(self, value):
+        self._multi_obj_loss = value
 
     # Losses properties
     # ###########################################################################

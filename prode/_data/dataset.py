@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from keras.engine import data_adapter
 from prode.data.data import Data
 from prode.utilities import utils
 
@@ -45,9 +46,8 @@ class DataSet(Data):
                 self.train = self.get_data(train_data, 'training')
                 self.valid = self.get_data(valid_data, 'validation')
             elif validation_split:
-                self.validation_split = validation_split
-                self.train, self.valid = self.get_train_valid(
-                    self.get_data(train_data, 'training')
+                self.train, self.valid = data_adapter.train_validation_split(
+                    self.get_data(train_data, 'training'), validation_split
                 )
             else:
                 self.train = self.get_data(train_data, 'training')

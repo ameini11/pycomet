@@ -100,9 +100,6 @@ class MultiObjData(tf.keras.utils.Sequence):
 
     # Handling data during training
     ###########################################################################
-    def on_train_begin(self, model):
-        self.init_targets(model)
-        self.on_epoch_end()
 
     @tf.function
     def on_epoch_end(self):
@@ -130,7 +127,12 @@ class MultiObjData(tf.keras.utils.Sequence):
 
 
 
-    def init_targets(
+    def build(self, model):
+        self.build_targets(model)
+        self.on_epoch_end()
+
+        
+    def build_targets(
         self,
         model
     ):
@@ -149,11 +151,11 @@ class MultiObjData(tf.keras.utils.Sequence):
                 else:
                     utils.raise_value_err(
                         "'{}' data passed into `{}` are inconsistent with the "
-                        "network prediction dimensions.".format(obj, self.name)
+                        "network output dimensions.".format(obj, self.name)
                     )
 
 
-    def init_weights(
+    def build_weights(
         self,
         initializer=None,
         trainable=False,

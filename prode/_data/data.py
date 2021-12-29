@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-from nltk import flatten
 from prode.utilities import utils
 from sklearn.model_selection import train_test_split
 
@@ -24,6 +23,7 @@ class Data(object):
 
         self.dim = dim
         self.training = training
+        self.built = False
 
         self.train = None
         self.valid = None
@@ -43,6 +43,9 @@ class Data(object):
         self.header = header
         self.preproc_fn = preproc_fn
 
+    def build(self, model):
+        self.built = True
+
     # Util functions
     ###########################################################################
     def get_num_pts(self, identifier='training', verbose=1, print_fn=None):
@@ -52,38 +55,7 @@ class Data(object):
         else:
             if verbose:
                 utils.print_submain("No {} pts available.".format(identifier))
-
-    # Splitting training/validation data
-    ###########################################################################
-    def get_train_valid(self, data):
-        if data is None:
-            return None, None
-        else:
-            return self.train_valid_split(*data)
-
-    def train_valid_split(self, x, y):
-        x, y = list(map(utils.to_list, [x, y]))
-
-        # Split arrays into random train and validation subsets
-        data = (*x, *y)
-        split = train_test_split(*data, test_size=self.validation_split)
-
-        # Define `x` and `y` indeces for extracting train and validation subsets
-        x_idx = list(zip(*[(i*2, i*2+1) for i in range(len(x))]))
-        y_idx = list(zip(*[(i*2, i*2+1) for i in range(len(x),len(x)+len(y))]))
-
-        # Extract train and validation subsets
-        x, x_val = [[split[i] for i in x_idx[j]] for j in [0,1]]
-        y, y_val = [[split[i] for i in y_idx[j]] for j in [0,1]]
-
-        # Single input model
-        if len(x) == 1:
-            x, x_val = x[-1], x_val[-1]
-        # Single output model
-        if len(y) == 1:
-            y, y_val = y[-1], y_val[-1]
-
-        return (x, y), (x_val, y_val)
+        print("")
 
     # Reading data from file
     ###########################################################################
@@ -118,16 +90,13 @@ class Data(object):
     ###########################################################################
     def check_data_consistency(self, data):
         net_dim = list(self.dim.values())
-        data_dim = tf.nest.map_structure(
-            lambda z: z.shape[1] if z is not None else None, data
-        )
-        for i in range(2):
-            if data_dim[i] is not None:
-                if flatten(data_dim[i]) != flatten(net_dim[i]):
-                    utils.raise_value_err(
-                        "Data and network I/O dimensions "
-                        "not consistent: see `dim`."
-                    )
+        data_dim = utils.get_struct_shape(data, axis=1)
+        for i, IO in enumerate(self.dim.keys()):
+            if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
+                utils.raise_value_err(
+                    "Data and network '{}' dimensions not "
+                    "consistent: check `dim` or data shape.".format(IO)
+                )
 
     # Updating default batch sizes
     ###########################################################################

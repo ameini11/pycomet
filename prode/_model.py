@@ -7,6 +7,7 @@ import tensorflow as tf
 import tensorflow.keras.callbacks as CB
 import prode.postprocessing as post
 
+from keras.engine import data_adapter
 from prode.utilities.callbacks import callbacks as callbacks_module
 from prode.utilities.training import losses as losses_module
 from prode.utilities.training import metrics as metrics_module
@@ -37,20 +38,23 @@ class Model(object):
         self.metrics = None
 
         # Define paths
-        self.save_dir = path+"/saving/"
-        self.post_dir = path+"/postprocessing/"
-        self.train_dir = path+"/training/"
-        self.ckpt_dir = self.train_dir+"ckpt/"
-        self.TB_dir = self.train_dir+"logs/"
-        for d in [self.save_dir, self.ckpt_dir, self.post_dir, self.train_dir]:
+        self.path = path
+        self.dir = {
+            'save': self.path + "/saving/",
+            'post': self.path + "/postprocessing/",
+            'train': self.path + "/training/",
+            'ckpt': self.path + "/training/ckpt/",
+            'logs': self.path + "/training/logs/"
+        }
+        for d in self.dir.values():
             if not os.path.exists(d):
                 os.makedirs(d)
 
         # Define saving format
         self.save_format = save_format
-        self.save_path = self.save_dir + name
+        self.save_path = self.dir['save'] + name
         if self.save_format == 'h5':
-            self.save_path = self.save_path + '.h5'
+            self.save_path += '.h5'
 
     # Building Model
     ###########################################################################
@@ -62,25 +66,28 @@ class Model(object):
         load_net=0,
         visualize_graph=False
     ):
-        # Building the network
+        # Build the network
         if not self.net.built:
             self.net.build(
                 tf.nest.map_structure(
                     lambda i: tf.TensorShape([None, i]), input_dim
                 )
             )
-        # Visualizing network graph
+        # Build data structures
+        if not self.data.built:
+            self.data.build(self.net)
+        # Visualize network graph
         self.net.graph.summary()
-        with open(self.save_dir+'model_summary.txt', 'w') as f:
+        with open(self.dir['save']+'model_summary.txt', 'w') as f:
             self.net.graph.summary(print_fn=lambda x: f.write(x + '\n'))
         if verbose:
             if visualize_graph:
-                file_name = self.save_dir + self.name + '_struct.h5'
+                file_name = self.dir['save'] + self.name + '_struct.h5'
                 self.net.graph.save(file_name, save_format='h5')
                 # graph.save_weights(file_name, save_format='h5')
                 utils.print_submain("", end=""); netron.start(file_name)
                 tf.keras.utils.plot_model(
-                    self.net.graph, self.train_dir + "/" + self.name + ".png"
+                    self.net.graph, self.dir['train'] + "/" + self.name + ".png"
                 )
             asw = utils.input_submain("Is the model structure correct? [y/n] ")
             if not asw.lower().startswith('y'):
@@ -107,11 +114,11 @@ class Model(object):
                 )
             elif load_net == 2:
                 last = max(
-                    os.listdir(self.ckpt_dir),
+                    os.listdir(self.dir['ckpt']),
                     key=lambda x: int(x.split('_')[1].split('.')[0])
                 )
                 if last:
-                    path = self.ckpt_dir + "/" + last
+                    path = self.dir['ckpt'] + "/" + last
                     utils.print_submain(
                         "Restoring network from checkpoint '{}'".format(
                             os.path.normpath(path)
@@ -137,25 +144,28 @@ class Model(object):
     @utils.timing
     def compile(
         self,
-        optimizer,
+        optimizer='adam',
         lr=None,
-        loss="mse",
-        metrics=None,
         decay=None,
+        loss="mse",
+        axis=None,
+        reduction='sum_over_batch_size',
+        metrics=None,
         loss_weights=None
     ):
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
-        # Update data ids
+        # Update multi-objective loss function
+        self.net.multi_obj_loss = self.data.multi_obj_loss
         self.net.objectives = self.data.objectives
 
         # Initializing loss weights
         self.loss_weights = self.get_loss_weights(loss_weights)
 
         # Initializing loss functions
-        self.loss = self.get_loss(loss)
-        if self.data.name == 'ODE':
+        self.loss = losses_module.get(loss, axis=axis, reduction=reduction)
+        if self.net.multi_obj_loss:
             self.net.residual = self.data.res_fn(self.net)
 
         # Initializing metrics
@@ -170,27 +180,6 @@ class Model(object):
             loss_weights=self.loss_weights,
             metrics=self.metrics
         )
-
-    def get_loss(self, loss):
-        if self.data.name == 'ODE':
-            loss_fn = {}
-            for data_id, loss_id in loss.items():
-                # if len(losses_id) > 1:
-                if isinstance(loss_id, dict) and 'identifier' in loss_id.keys():
-                    loss_fn[data_id] = losses_module.get(loss_id)
-                elif isinstance(loss_id, dict):
-                    loss_fn[data_id] = losses_module.get(list(loss_id.values()))
-                elif isinstance(loss_id, (set,list,tuple)):
-                    loss_fn = losses_module.get(loss_id)
-                # if len(self.net.outputs) > 1:
-                #     _loss = list(loss_id.values()) \
-                #         if isinstance(loss_id, dict) else loss_id
-                #     loss_fn[data_id] = losses_module.get(_loss)
-                # else:
-                #     loss_fn[data_id] = losses_module.get(loss_id)
-        else:
-            loss_fn = losses_module.get(loss)
-        return loss_fn
 
     def get_loss_weights(self, wg):
         if wg:
@@ -214,35 +203,33 @@ class Model(object):
     ):
         utils.print_main("Training the model ...")
 
-        # Defining callbacks
+        # Define callbacks
         utils.print_submain("Initilizing callbacks")
         callbacks = callbacks_module.get_cb_list(self, callbacks)
 
-        # Defining train/valid pts
+        # Define training/valididation points
         for identifier in ['training', 'validation']:
             self.data.get_num_pts(identifier, verbose)
-        print("")
 
         # Fit the model
-        if self.data.name == 'ODE':
-            x, y = self.data.train, None
-        else:
-            x, y = self.data.train
-
+        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(
+            self.data.train
+        )
         self.net.fit(
             x=x,
             y=y,
-            batch_size=self.data.batch_size,
+            batch_size=self.data.batch_size['train'],
             epochs=epochs,
             callbacks=callbacks,
             validation_split=self.data.validation_split,
             validation_data=self.data.valid,
-            validation_batch_size=self.data.valid_batch_size
+            sample_weight=sample_weight,
+            validation_batch_size=self.data.batch_size['valid']
         )
 
         # Save `history.history` in a file
-        pd.DataFrame.from_dict(self.net.history.history).to_csv( \
-            path_or_buf=self.train_dir+'/history.csv', index=False)
+        df = pd.DataFrame.from_dict(self.net.history.history)
+        df.to_csv(path_or_buf=self.dir['train']+'/history.csv', index=False)
 
     # Predicting phase
     ###########################################################################
@@ -264,7 +251,7 @@ class Model(object):
 
         if plotting:
             if path is None:
-                path = self.post_dir+'/testing'
+                path = self.dir['post']+'/testing'
             if not os.path.exists(path):
                 os.makedirs(path)
             if output_ops:
@@ -320,7 +307,7 @@ class Model(object):
         )
 
         # Save trainable weights (for `regularizers.FineTuningRegularizer')
-        file_name = self.save_dir+self.name+'_weights.h5'
+        file_name = self.dir['save']+self.name+'_weights.h5'
         dset = h5py.File(file_name,'w')
         for w in self.net.trainable_weights:
             dset.create_dataset(w.name, data=w.numpy())
@@ -339,23 +326,23 @@ class Model(object):
 
         history = self.get_history(history)
         if path is None:
-            path = self.post_dir+'/training'
+            path = self.dir['post']+'/training'
         if not os.path.exists(path):
             os.makedirs(path)
 
         # Learning Rate
-        post.training.plot_lr(self.train_dir+'/lr.csv', path)
+        post.training.plot_lr(self.dir['train']+'/lr.csv', path)
         # Losses
-        if 'loss' in history:
-            post.training.plot_loss(
-                history, path, scale=scale, limit_y=limit_y
-            )
-        elif 'tot_loss' in history:
+        if self.net.multi_obj_loss:
             post.training.plot_composite_loss(
                 history, path, scale=scale, limit_y=limit_y
             )
             if any([ c.endswith('weight') for c in history.columns ]):
                 post.training.plot_loss_weights(history, path)
+        else:
+            post.training.plot_loss(
+                history, path, scale=scale, limit_y=limit_y
+            )
         # Metrics
         if self.net.compiled_metrics:
             for metric in self.net.compiled_metrics.metrics:

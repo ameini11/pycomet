@@ -246,10 +246,12 @@ def get_cardinality(x):
     return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
 
 def get_struct_shape(y, axis=None):
-    if axis:
-        return tf.nest.map_structure(lambda x: x.shape[axis], y)
-    else:
-        return tf.nest.map_structure(lambda x: x.shape, y)
+    if y is not None:
+        if axis:
+            fn = lambda x: x.shape[axis] if x is not None else None
+        else:
+            fn = lambda x: x.shape if x is not None else None
+        return tf.nest.map_structure(fn, y)
 
  
 

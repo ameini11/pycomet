@@ -1,4 +1,5 @@
 import sys
+import copy
 import itertools
 import numpy as np
 import joblib as jl
@@ -415,12 +416,29 @@ class SoftAttentionWeightsAdapter(CB.Callback):
         self.trainable = trainable
         self.rank = rank
 
-    def on_train_begin(self, logs={}):
-        self.data_generator.on_train_begin(self.model)
-        initializer = tf.nest.map_structure(
+
+        self.initializer = tf.nest.map_structure(
             lambda l: tf_init.RandomUniform(*l), self.limits
         )
-        self.data_generator.init_weights(
-            initializer, self.trainable, self.rank
-        )
 
+    def on_train_begin(self, logs={}):
+        self.data_generator.init_weights(
+            self.initializer, self.trainable, self.rank
+        )
+        self.data_generator.on_epoch_end()
+        self.optimizer = {
+            obj: copy.deepcopy(self.model.optimizer) \
+                for obj in self.model.objectives['train']
+        }
+
+    def get_weights(self, objective=None, sample_weight=1.):
+        return tf.nest.map_structure(tf.square, sample_weight)
+
+
+    def update_weights(self, loss=0., sample_weight={}, tape=None):
+        if self.trainable:
+            for obj, sw in sample_weight.items():
+                sw = tf.nest.flatten(sw)
+                self.optimizer[obj].minimize(-loss, sw, tape=tape)
+                # grads = tf.nest.flatten(-tape.gradient(loss, sw))
+                # self.optimizer[obj].apply_gradients(zip(grads, sw))

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from keras.engine import data_adapter
 from prode.data.sequence import MultiObjData
 from prode.data.data import Data
 from prode.data import gradients
@@ -57,9 +58,8 @@ class ODE(Data):
                 train_dset = self.data_as_dict(train_data)
                 valid_dset = self.data_as_dict(valid_data)
             elif validation_split:
-                self.validation_split = validation_split
-                train_dset, valid_dset = self.get_train_valid(
-                    self.data_as_dict(train_data)
+                train_dset, valid_dset = data_adapter.train_validation_split(
+                    self.data_as_dict(train_data), validation_split
                 )
             else:
                 train_dset = self.data_as_dict(train_data)
@@ -96,6 +96,12 @@ class ODE(Data):
         self.time_idx = time_idx
         self.ode_order = ode_order
         self.ode_func = ode_func
+
+
+    def build(self, model):
+        self.train.build(model)
+        self.valid.build(model)
+        self.built = True
 
     # Handling Data
     ###########################################################################
@@ -162,14 +168,6 @@ class ODE(Data):
                     utils.print_submain("  - '%s': %8d" % (k, v))
 
         super(ODE, self).get_num_pts(identifier, verbose, print_fn)
-
-    # Splitting Training/Validation Data
-    ###########################################################################
-    def get_train_valid(self, data):
-        train, valid = {}, {}
-        for obj, dset in data.items():
-            train[obj], valid[obj] = super(ODE, self).get_train_valid(dset)
-        return train, valid
 
     # Handling Residual Loss
     ###########################################################################
