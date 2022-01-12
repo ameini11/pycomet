@@ -75,7 +75,8 @@ class ODE(Data):
                 self.valid = MultiObjData(
                     data=valid_dset,
                     objectives=self.obj_list,
-                    batch_size=self.batch_size['valid'] or self.batch_size['train']
+                    batch_size=self.batch_size['valid'] \
+                        or self.batch_size['train']
                 )
 
         # Testing data
@@ -97,10 +98,10 @@ class ODE(Data):
         self.ode_order = ode_order
         self.ode_func = ode_func
 
-
     def build(self, model):
         self.train.build(model)
-        self.valid.build(model)
+        if self.valid is not None:
+            self.valid.build(model)
         self.built = True
 
     # Handling Data

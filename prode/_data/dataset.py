@@ -51,7 +51,6 @@ class DataSet(Data):
                 )
             else:
                 self.train = self.get_data(train_data, 'training')
-                self.valid = None
 
         # Testing data
         self.test = test_data

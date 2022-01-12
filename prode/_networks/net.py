@@ -48,7 +48,6 @@ class Net(tf.keras.Model):
         # NN extra features for handling ODE data types
         self.multi_obj_loss = False
         self.objectives = None
-        self.ode_loss_weights = None
         self.residual = None
 
     # Configuration update
@@ -60,10 +59,9 @@ class Net(tf.keras.Model):
             'block': self.block,
             'inp_trans': self.inp_trans,
             'out_trans': self.out_trans,
-            'ode_loss_weights': self.ode_loss_weights,
-            'residual': self.residual,
+            'multi_obj_loss': self.multi_obj_loss,
             'objectives': self.objectives,
-            'multi_obj_loss': self.multi_obj_loss
+            'residual': self.residual
         }
         base_config = super(Net, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -258,7 +256,7 @@ class Net(tf.keras.Model):
 
     def multi_obj_predict_step(self, data, objective, training):
         # Unpack data
-        x, _, _ = data_adapter.unpack_x_y_sample_weight(data)
+        x, *_ = data_adapter.unpack_x_y_sample_weight(data)
         if x is None:
             x = self.inputs
         # Evaluate predictions for the specific objective function
@@ -286,7 +284,7 @@ class Net(tf.keras.Model):
     def out_trans(self, function):
         self._out_trans = function
 
-    # Data identities
+    # Losses properties
     ###########################################################################
     @property
     def objectives(self):
@@ -303,16 +301,6 @@ class Net(tf.keras.Model):
     @multi_obj_loss.setter
     def multi_obj_loss(self, value):
         self._multi_obj_loss = value
-
-    # Losses properties
-    # ###########################################################################
-    @property
-    def ode_loss_weights(self):
-        return self._ode_loss_weights
-
-    @ode_loss_weights.setter
-    def ode_loss_weights(self, weights):
-        self._ode_loss_weights = weights
 
     # Residual loss
     @property

@@ -113,7 +113,9 @@ class MultiObjData(tf.keras.utils.Sequence):
 
     def shuffle_data(self, obj, dset):
         indeces = np.random.permutation(self.n_samples[obj])
-        return tf.nest.map_structure(lambda z: z[indeces], dset)
+        dset = tf.nest.map_structure(lambda z: z[indeces], dset)
+        dset.append(indeces.reshape((-1,1)))
+        return dset
 
     def batch_data(self, obj, dset):
         repeat = int(np.ceil(self.__len__()/self.steps[obj]))
@@ -137,10 +139,11 @@ class MultiObjData(tf.keras.utils.Sequence):
         model
     ):
         for obj in self.objectives:
-            # Get prediction shapes
+            # Get true and pred values
+            y_true = self.data[obj][1]
             y_pred = model.predict_step(objective=obj)
             # Get true and pred feature dimensions
-            dim_true = utils.get_struct_shape(self.data[obj][1], axis=1)
+            dim_true = utils.get_struct_shape(y_true, axis=1)
             dim_pred = utils.get_struct_shape(y_pred, axis=1)
             # Check if true and pred dimensions are the same
             if dim_true != dim_pred:
@@ -166,9 +169,9 @@ class MultiObjData(tf.keras.utils.Sequence):
             init_fn = initializer[obj] if initializer else np.ones
             # Define shape
             if rank == 1:
-                fn = lambda x: init_fn((x.shape[0],1))
+                fn = lambda x: init_fn(shape=(x.shape[0],1))
             else:
-                fn = lambda x: init_fn(x.shape)
+                fn = lambda x: init_fn(shape=x.shape)
             # Construct weights
             sample_weight = tf.nest.map_structure(fn, self.data[obj][1])
             # Make them tf.Variable if trainable
@@ -176,4 +179,8 @@ class MultiObjData(tf.keras.utils.Sequence):
                 sample_weight =  tf.nest.map_structure(
                     lambda w: tf.Variable(w, name='sw_'+obj), sample_weight
                 )
-            self.data[obj].append(sample_weight)
+            if len(self.data[obj]) <= 2:
+                self.data[obj].append(sample_weight)
+            else:
+                self.data[obj][2] = sample_weight
+
