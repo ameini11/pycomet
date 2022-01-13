@@ -60,7 +60,7 @@ class DataGenerator(object):
         for i, T_i in enumerate(self.rates):
             x[i,0] = float(T_i)
             y[i,:] = np.hstack(
-                tuple([K for name,K in self.rates[T_i].items()])
+                tuple([K for name, K in self.rates[T_i].items()])
             )
 
         return x, y

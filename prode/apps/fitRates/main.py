@@ -211,11 +211,14 @@ def main():
     utils.print_main('Fitting rates ...', verbose=opts.verbose)
     for j in range(K.shape[1]):
         K_log_j = np.log( K[:,j][ K[:,j] != 0. ] )
-        T_j     = T[:,0][ K[:,j] != 0. ]
+        T_j = T[:,0][ K[:,j] != 0. ]
 
-        param_j, _ = curve_fit(log_arrhenius_law, T_j, K_log_j, \
-            p0=[1,1,1.e4], method='trf')
-        param_j[0] = np.exp(param_j[0])
+        if T_j.size == 0:
+            param_j = np.zeros((3,))
+        else:
+            param_j, _ = curve_fit(log_arrhenius_law, T_j, K_log_j, \
+                p0=[1,1,1.e4], method='trf')
+            param_j[0] = np.exp(param_j[0])
         if j == 0:
             param = np.array(param_j)
         else:

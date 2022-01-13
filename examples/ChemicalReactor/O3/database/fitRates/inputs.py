@@ -31,7 +31,7 @@ class InputData(object):
 
     # Other properties --------------------------------------------------------
     method = 'RVE' # 'RVE' 'CBM' 'DPM'
-    num_bins = 1 
+    num_bins = 18 
     grouping = method + str(num_bins)
     file_version = 'new'
 
