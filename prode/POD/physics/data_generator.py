@@ -23,6 +23,7 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(
         self,
+        path,
         train_cases,
         test_cases,
         time_limit,
@@ -31,9 +32,9 @@ class DataGenerator(object):
         process_flags,
         groups_graph=None
     ):
-        self.data_dir = "./data/"
-        if not os.path.exists(self.data_dir):
-            os.makedirs(self.data_dir)
+        self.path = path + "/data/"
+        if not os.path.exists(self.path):
+            os.makedirs(self.path)
 
         # Data Quantities -----------------------------------------------------
         # Training/Validation pts
@@ -180,7 +181,7 @@ class DataGenerator(object):
             ic = pd.read_csv(ic, sep=',', header=header).to_numpy(dtype=np.float64)
         else:
             # Print input space
-            path = self.data_dir + name + '/'
+            path = self.path + name + '/'
             if not os.path.exists(path):
                 os.makedirs(path)
 

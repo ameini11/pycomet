@@ -14,11 +14,11 @@ class ODESolver(object):
     ):
         # Initial/Final time
         self.t0     = 0.
-        self.t_end  = 1.
+        self.t_end  = 1.e-1
 
         # Integrator time step
         self.dt0    = 1.e-14
-        self.dt_str = 1.01
+        self.dt_str = 1.005
         self.dt_max = 1.e-4
 
         # Reactive processes
