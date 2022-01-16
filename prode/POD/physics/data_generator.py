@@ -198,6 +198,9 @@ class DataGenerator(object):
             jl.delayed(self.single_scenario)(i, ic_i) \
                 for i, ic_i in enumerate(tqdm(ic))
         )
+        # data = []
+        # for i, ic_i in enumerate(tqdm(ic)):
+        #     data.append(self.single_scenario(i, ic_i))
 
         return data
 
@@ -210,9 +213,9 @@ class DataGenerator(object):
         ic_i[2:] = y_i[1]
 
         # Extract data values
-        tree = KDTree(np.c_[t_i.ravel()])
-        d, ii = tree.query([[self.t0],[self.t_end]], k=1)
-        t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
+        # tree = KDTree(np.c_[t_i.ravel()])
+        # d, ii = tree.query([[self.t0],[self.t_end]], k=1)
+        # t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
 
         y_O2, y_O = np.hsplit(y_i, [-1])
         y_i = []

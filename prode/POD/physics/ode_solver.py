@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.integrate import ode
+from scipy.integrate import ode, solve_ivp
 
 from prode.physics.general import const
 
@@ -10,23 +10,31 @@ class ODESolver(object):
     ###########################################################################
     def __init__(
         self,
-        process_flags
+        process_flags,
+        t_eval=(1.e-14,1.e-1)
     ):
         # Initial/Final time
-        self.t0     = 0.
-        self.t_end  = 1.e-1
+        self.t0 = 0.
+        self.t_end = 1.e-1
 
         # Integrator time step
-        self.dt0    = 1.e-14
+        self.dt0 = 1.e-14
         self.dt_str = 1.005
         self.dt_max = 1.e-4
 
         # Reactive processes
         self.process_flags = process_flags
 
+        # Time istants evaluated
+        self.t_eval = np.logspace(
+            np.log10(t_eval[0]),
+            np.log10(t_eval[1]),
+            num=10000
+        )
+
     # Solve ODE
     ###########################################################################
-    def f(self, t, y, arg):
+    def fun(self, t, y, *arg):
         '''
         Input matrices:
         - arg[0] = Excitation rates
@@ -38,7 +46,7 @@ class ODESolver(object):
         rec_term = np.squeeze(arg[2]) * np.power(y[-1], 3)
         return exc_term + dis_term + rec_term
 
-    def jac(self, t, y, arg):
+    def jac(self, t, y, *arg):
         '''Jacobian calculation: jac[i,j] = df[i] / dy[j].'''
         d = np.shape(y)[0]
         J = np.zeros((d,d), dtype=np.float64)
@@ -48,27 +56,49 @@ class ODESolver(object):
             + 3*np.squeeze(arg[2])*np.power(y[-1], 2)
         return J
 
+    # def solve(self, rho_0, params):
+    #     '''Solving the ODE.'''
+
+    #     r = ode(self.fun, self.jac).set_integrator(
+    #         'vode', method='bdf', with_jacobian=True, atol=1.e-20
+    #     )
+    #     r.set_initial_value(rho_0, self.t0)
+    #     r.set_f_params(params)
+    #     r.set_jac_params(params)
+
+    #     # Appending Data
+    #     t = np.array([[self.t0]])
+    #     y = np.expand_dims(rho_0,0)
+
+    #     dt = self.dt0
+    #     while r.successful() and r.t <= self.t_end:
+    #         r.integrate(r.t+dt)
+    #         t  = np.vstack((t, np.expand_dims(r.t,0)))
+    #         y  = np.vstack((y, np.expand_dims(r.y,0)))
+    #         dt = min(dt*self.dt_str, self.dt_max)
+    #     assert (y > 0.).all()
+
+    #     return [t, y]
+
     def solve(self, rho_0, params):
         '''Solving the ODE.'''
 
-        r = ode(self.f, self.jac).set_integrator(
-            'vode', method='bdf', with_jacobian=True, atol=1.e-20
+        sol = solve_ivp(
+            fun=self.fun,
+            t_span=(self.t0,self.t_end),
+            y0=rho_0,
+            method='BDF',
+            t_eval=self.t_eval,
+            args=params,
+            first_step=self.dt0,
+            max_step=self.dt_max,
+            atol=1.e-20,
+            jac=self.jac
         )
-        r.set_initial_value(rho_0, self.t0)
-        r.set_f_params(params)
-        r.set_jac_params(params)
+        assert (sol.y > 0.).all()
 
-        # Appending Data
-        t = np.array([[self.t0]])
-        y = np.expand_dims(rho_0,0)
-
-        dt = self.dt0
-        while r.successful() and r.t <= self.t_end:
-            r.integrate(r.t+dt)
-            t  = np.vstack((t, np.expand_dims(r.t,0)))
-            y  = np.vstack((y, np.expand_dims(r.y,0)))
-            dt = min(dt*self.dt_str, self.dt_max)
-        assert (y > 0.).all()
+        t = sol.t.reshape(-1,1)
+        y = sol.y.T
 
         return [t, y]
 
