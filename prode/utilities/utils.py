@@ -245,13 +245,13 @@ def environment():
 def get_cardinality(x):
     return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
 
-def get_struct_shape(y, axis=None):
-    if y is not None:
+def get_struct_shape(structure=None, axis=None):
+    if structure is not None:
         if axis:
             fn = lambda x: x.shape[axis] if x is not None else None
         else:
             fn = lambda x: x.shape if x is not None else None
-        return tf.nest.map_structure(fn, y)
+        return tf.nest.map_structure(fn, structure)
 
  
 

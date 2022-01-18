@@ -59,14 +59,14 @@ class DataSet(Data):
     ###########################################################################
     def get_data(self, data, identifier):
         if data is None:
-            if identifier != 'training':
-                return None
-            else:
+            if identifier == 'training':
                 utils.raise_value_err(
                     "No '{}' data passed into `{}`.".format(
                         identifier, self.name
                     )
                 )
+            else:
+                return None
         if self.from_file:
             # Data from a `.csv` file
             return self.read_datafile(data)

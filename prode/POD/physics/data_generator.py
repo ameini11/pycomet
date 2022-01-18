@@ -24,8 +24,7 @@ class DataGenerator(object):
     def __init__(
         self,
         path,
-        train_cases,
-        test_cases,
+        n_cases,
         time_limit,
         input_space,
         species,
@@ -37,11 +36,7 @@ class DataGenerator(object):
             os.makedirs(self.path)
 
         # Data Quantities -----------------------------------------------------
-        # Training/Validation pts
-        self.train_cases = train_cases
-
-        # Testing train_cases
-        self.test_cases = test_cases        # Number of testing cases
+        self.n_cases = n_cases
         self.t0, self.t_end = time_limit    # Time limits for testing
 
         # Input Space Variables -----------------------------------------------
@@ -126,7 +121,7 @@ class DataGenerator(object):
     ):
         print("Generating initial conditions ...")
 
-        n = self.train_cases*2 + self.test_cases    # '*2' for validation cases
+        n = self.n_cases
         unit_vec = np.array([[1.]*len(self.input_space)])
 
         # Contructing Design Matrix -------------------------------------------
@@ -156,41 +151,26 @@ class DataGenerator(object):
             rho_s[i, -1] = XO  * const.mass['O'] * nd
         Ttr, rho = X[:,0:1], np.sum(rho_s, axis=1, keepdims=True)
         ic = np.hstack((Ttr, rho, np.divide(rho_s, rho)))
-
-        if self.test_cases > 0:
-            idx_train, idx_test = self.stratified_sampling(
-                np.arange(n), self.test_cases
-            )
-            self.X_train, self.X_test = X[idx_train], X[idx_test]
-            return [ic[idx_train], ic[idx_test]]
-        else:
-            self.X_train, self.X_test = X, None
-            return [ic]
+        return ic
 
     # Generate Data
     ###########################################################################
     def generate(
         self,
         ic,
-        name='test',
         header=None
     ):
-        print("Generating " + name + " data ...")
+        print("Generating data ...")
 
         if isinstance(ic, str):
             ic = pd.read_csv(ic, sep=',', header=header).to_numpy(dtype=np.float64)
         else:
-            # Print input space
-            path = self.path + name + '/'
-            if not os.path.exists(path):
-                os.makedirs(path)
-
             # Print ics
             df = pd.DataFrame(
                 ic, columns=['T','rho'] + self.groups_label + ['Y_O']
             )
             df.to_csv(
-                path+"ics.csv", index=False, float_format='{:e}'.format
+                self.path+"ics.csv", index=False, float_format='{:e}'.format
             )
 
         # Generate data
@@ -198,9 +178,6 @@ class DataGenerator(object):
             jl.delayed(self.single_scenario)(i, ic_i) \
                 for i, ic_i in enumerate(tqdm(ic))
         )
-        # data = []
-        # for i, ic_i in enumerate(tqdm(ic)):
-        #     data.append(self.single_scenario(i, ic_i))
 
         return data
 
@@ -211,11 +188,6 @@ class DataGenerator(object):
         sol = self.ODE_sol.solve(rho_0, mat)
         t_i, y_i = sol[0], sol[1]/ic_i[1]
         ic_i[2:] = y_i[1]
-
-        # Extract data values
-        # tree = KDTree(np.c_[t_i.ravel()])
-        # d, ii = tree.query([[self.t0],[self.t_end]], k=1)
-        # t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
 
         y_O2, y_O = np.hsplit(y_i, [-1])
         y_i = []

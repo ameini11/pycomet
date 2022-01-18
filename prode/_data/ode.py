@@ -181,7 +181,7 @@ class ODE(Data):
             if len(model.inputs) > 1:
                 ic, t = inputs[self.time_idx-1], inputs[self.time_idx]
             else:
-                t = np.take(x, [self.time_idx], axis=1)
+                t = np.take(inputs, [self.time_idx], axis=1)
                 ic = np.delete(inputs, self.time_idx, axis=1)
 
             # Evaluate gradients

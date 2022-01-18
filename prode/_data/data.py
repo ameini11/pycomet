@@ -1,7 +1,6 @@
 import tensorflow as tf
 
 from prode.utilities import utils
-from sklearn.model_selection import train_test_split
 
 
 class Data(object):
@@ -65,7 +64,7 @@ class Data(object):
             utils.raise_value_err(
                 "`columns` provided in `{}` has to be a `dict` with keys "
                 "['x', 'y']. The corresponding values are doublets "
-                "(start, end+1) columns (or a list of those if "
+                "(start, end) columns (or a list of those if "
                 "multi I/O) for extracting input and target data "
                 "from file.".format(self.name)
             )
@@ -92,11 +91,12 @@ class Data(object):
         net_dim = list(self.dim.values())
         data_dim = utils.get_struct_shape(data, axis=1)
         for i, IO in enumerate(self.dim.keys()):
-            if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
-                utils.raise_value_err(
-                    "Data and network '{}' dimensions not "
-                    "consistent: check `dim` or data shape.".format(IO)
-                )
+            if data_dim[i]:
+                if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
+                    utils.raise_value_err(
+                        "Data and network '{}' dimensions not "
+                        "consistent: check `dim` or data shape.".format(IO)
+                    )
 
     # Updating default batch sizes
     ###########################################################################

@@ -11,7 +11,8 @@ class ODESolver(object):
     def __init__(
         self,
         process_flags,
-        t_eval=(1.e-14,1.e-1)
+        t_eval=(1.e-14,1.e-1),
+        n_eval=10000
     ):
         # Initial/Final time
         self.t0 = 0.
@@ -19,7 +20,6 @@ class ODESolver(object):
 
         # Integrator time step
         self.dt0 = 1.e-14
-        self.dt_str = 1.005
         self.dt_max = 1.e-4
 
         # Reactive processes
@@ -29,7 +29,7 @@ class ODESolver(object):
         self.t_eval = np.logspace(
             np.log10(t_eval[0]),
             np.log10(t_eval[1]),
-            num=10000
+            num=n_eval
         )
 
     # Solve ODE
@@ -55,30 +55,6 @@ class ODESolver(object):
             + np.matmul(arg[1][:,:-1], y[:-1]) \
             + 3*np.squeeze(arg[2])*np.power(y[-1], 2)
         return J
-
-    # def solve(self, rho_0, params):
-    #     '''Solving the ODE.'''
-
-    #     r = ode(self.fun, self.jac).set_integrator(
-    #         'vode', method='bdf', with_jacobian=True, atol=1.e-20
-    #     )
-    #     r.set_initial_value(rho_0, self.t0)
-    #     r.set_f_params(params)
-    #     r.set_jac_params(params)
-
-    #     # Appending Data
-    #     t = np.array([[self.t0]])
-    #     y = np.expand_dims(rho_0,0)
-
-    #     dt = self.dt0
-    #     while r.successful() and r.t <= self.t_end:
-    #         r.integrate(r.t+dt)
-    #         t  = np.vstack((t, np.expand_dims(r.t,0)))
-    #         y  = np.vstack((y, np.expand_dims(r.y,0)))
-    #         dt = min(dt*self.dt_str, self.dt_max)
-    #     assert (y > 0.).all()
-
-    #     return [t, y]
 
     def solve(self, rho_0, params):
         '''Solving the ODE.'''

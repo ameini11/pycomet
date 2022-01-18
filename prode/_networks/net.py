@@ -45,10 +45,11 @@ class Net(tf.keras.Model):
         self.inp_trans = None
         self.out_trans = None
 
-        # NN extra features for handling ODE data types
+        # Extra features for handling physics-informed multi-objective loss
         self.multi_obj_loss = False
         self.objectives = None
         self.residual = None
+        self.loss_ids = ['weighted', 'unweighted']
 
     # Configuration update
     ###########################################################################
@@ -186,24 +187,35 @@ class Net(tf.keras.Model):
     def multi_obj_train_step(self, data):
         # Unpack data
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        # Manipulate sample weights
+        if self.weighted_loss:
+            sample_weight = self.weighted_loss.on_grad_step_begin(
+                sample_weight
+            )
+        # Initialize loss variables
+        losses = {i: {} for i in self.loss_ids}
+        loss = {i: 0. for i in self.loss_ids}
         # Gradient descent step
-        loss, losses = 0., {}
         with backprop.GradientTape(persistent=True) as tape:
+            # Manipulate sample weights
+            if self.weighted_loss:
+                sample_weight = self.weighted_loss.on_grad_step_eval(
+                    sample_weight
+                )
             # Evaluate each objective function loss
             for obj in self.objectives['train']:
                 # Get predictions
                 y_pred = self.predict_step(
                     x[obj], objective=obj, training=True
                 )
-                # Get loss weights
-                sw = sample_weight[obj] if sample_weight else None
+                # Evaluate loss
+                losses['unweighted'][obj] = self.compiled_loss[obj](
+                    y[obj], y_pred
+                )
                 if self.weighted_loss:
-                    sw = self.weighted_loss.get_weights(
-                        objective=obj,
-                        sample_weight=sw
+                    losses['weighted'][obj] = self.compiled_loss[obj](
+                        y[obj], y_pred, sample_weight
                     )
-                # Get loss
-                losses[obj] = self.compiled_loss[obj](y[obj], y_pred, sw)
             # Regularization loss
             if self.losses:
                 reg_loss = tf.add_n(
@@ -216,7 +228,7 @@ class Net(tf.keras.Model):
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         # Update loss weights
         if self.weighted_loss:
-            self.weighted_loss.update_weights(
+            self.weighted_loss.on_grad_step_end(
                 loss, sample_weight=sample_weight, tape=tape
             )
         # Collect metrics to return

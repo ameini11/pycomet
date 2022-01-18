@@ -15,7 +15,8 @@ class MultiObjData(tf.keras.utils.Sequence):
         data,
         objectives,
         batch_size=32,
-        shuffle=True
+        shuffle=True,
+        keep_indeces=False
     ):
         super(MultiObjData, self).__init__()
 
@@ -78,6 +79,7 @@ class MultiObjData(tf.keras.utils.Sequence):
         )
 
         self.shuffle = shuffle
+        self.keep_indeces = keep_indeces
 
     def __len__(self):
         """Number of batches in the Sequence.
@@ -100,7 +102,6 @@ class MultiObjData(tf.keras.utils.Sequence):
 
     # Handling data during training
     ###########################################################################
-
     @tf.function
     def on_epoch_end(self):
         """Method called at the end of every epoch."""
@@ -114,7 +115,8 @@ class MultiObjData(tf.keras.utils.Sequence):
     def shuffle_data(self, obj, dset):
         indeces = np.random.permutation(self.n_samples[obj])
         dset = tf.nest.map_structure(lambda z: z[indeces], dset)
-        dset.append(indeces.reshape((-1,1)))
+        if self.keep_indeces:
+            dset.append(indeces.reshape((-1,1)))
         return dset
 
     def batch_data(self, obj, dset):
@@ -123,8 +125,12 @@ class MultiObjData(tf.keras.utils.Sequence):
             lambda z: np.array_split(z, self.steps[obj])*repeat, dset
         )
         for i, z in enumerate(dset):
-            if isinstance(self.shapes[obj][i], (list,tuple)):
-                dset[i] = list(zip(*z))
+            if self.keep_indeces and i == len(dset)-1:
+                break
+            else:
+                if isinstance(self.shapes[obj][i], list):
+                    dset[i] = list(zip(*z))
+        dset = list(zip(*dset))
         return dset
 
 
@@ -156,6 +162,8 @@ class MultiObjData(tf.keras.utils.Sequence):
                         "'{}' data passed into `{}` are inconsistent with the "
                         "network output dimensions.".format(obj, self.name)
                     )
+        # Update shapes
+        self.shapes= tf.nest.map_structure(lambda z: z.shape, self.data)
 
 
     def build_weights(
@@ -179,8 +187,10 @@ class MultiObjData(tf.keras.utils.Sequence):
                 sample_weight =  tf.nest.map_structure(
                     lambda w: tf.Variable(w, name='sw_'+obj), sample_weight
                 )
+            # Add sample weights to the data set
             if len(self.data[obj]) <= 2:
                 self.data[obj].append(sample_weight)
             else:
                 self.data[obj][2] = sample_weight
-
+        # Update shapes
+        self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
