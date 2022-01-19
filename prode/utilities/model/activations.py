@@ -21,12 +21,12 @@ def layer_wise_locally_adaptive(activation, n=1):
     """
     a = tf.Variable(
         1./n, trainable=True, name='act_scaling', dtype=K.floatx()
-        )
-    return lambda x: activation(n * a * x)
+    )
+    return lambda x: activation(n*a*x)
 
 def get(identifier):
     if identifier is None:
-        return linear
+        return act.linear
     if isinstance(identifier, str):
         if identifier.startswith("LAAF"):
             identifier = identifier.split()
@@ -56,6 +56,6 @@ def get(identifier):
         return identifier
     else:
         utils.raise_value_err(
-            "Could not interpret activation function identifier: " \
-                + str(identifier)
+            f"Could not interpret activation function "
+            f"identifier: {str(identifier)}"
         )

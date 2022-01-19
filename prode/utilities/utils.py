@@ -253,7 +253,28 @@ def get_struct_shape(structure=None, axis=None):
             fn = lambda x: x.shape if x is not None else None
         return tf.nest.map_structure(fn, structure)
 
- 
+
+def unpack_x_y_sample_weight_index(data):
+    if isinstance(data, list):
+        data = tuple(data)
+    if not isinstance(data, tuple):
+        return (data, None, None, None)
+    elif len(data) == 1:
+        return (data[0], None, None, None)
+    elif len(data) == 2:
+        return (data[0], data[1], None, None)
+    elif len(data) == 3:
+        return (data[0], data[1], data[2], None)
+    elif len(data) == 4:
+        return (data[0], data[1], data[2], data[3])
+    else:
+        error_msg = (
+            "Data is expected to be in format `x`, `(x,)`, "
+            "`(x, y)`, `(x, y, sample_weight)`, or "
+            "`(x, y, sample_weight, sample_index)`, found: {}"
+        ).format(data)
+    raise raise_value_err(error_msg)
+
 
 # def apply(func, args=None, kwds=None):
 #     """Clear Tensorflow GPU memory after model execution.

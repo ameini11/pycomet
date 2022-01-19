@@ -15,8 +15,7 @@ class MultiObjData(tf.keras.utils.Sequence):
         data,
         objectives,
         batch_size=32,
-        shuffle=True,
-        keep_indeces=False
+        shuffle=True
     ):
         super(MultiObjData, self).__init__()
 
@@ -79,7 +78,7 @@ class MultiObjData(tf.keras.utils.Sequence):
         )
 
         self.shuffle = shuffle
-        self.keep_indeces = keep_indeces
+        self.keep_indeces = False
 
     def __len__(self):
         """Number of batches in the Sequence.

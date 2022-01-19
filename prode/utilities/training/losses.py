@@ -1,82 +1,43 @@
 import tensorflow as tf
-import tensorflow.keras.losses as lss
+import tensorflow.keras.losses as tf_losses
 
-from tensorflow.python.ops import math_ops, array_ops
-from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.framework import ops
 from prode.utilities import utils
+from keras import backend as K
 
 
-# Custom loss functions
-###########################################################################
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MAE')
-def mae(axis):
-    def mean_absolute_error(y_true, y_pred):
-        y_pred = ops.convert_to_tensor_v2_with_dispatch(y_pred)
-        y_true = math_ops.cast(y_true, y_pred.dtype)
-        err    = math_ops.abs(y_pred - y_true)
-        return tf.reduce_sum(tf.reduce_mean(err, axis=axis))
-    return mean_absolute_error
+def get(
+    loss='mse',
+    axis=None,
+    reduction='sum_over_batch_size'
+):
+    # Check `axis` variable
+    if axis not in {0, -1, None}:
+        utils.raise_value_err(
+            "`axis` for loss function is not interpretable. Valid "
+            "options are: {0, -1, None}."
+        )
+    # Get `reduction` variable
+    reduction = {
+        'auto': losses_utils.ReductionV2.AUTO,
+        'none': losses_utils.ReductionV2.NONE,
+        'sum': losses_utils.ReductionV2.SUM,
+        'sum_over_batch_size': losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE
+    }[reduction.lower()]
 
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')
-def malpe(axis):
-    def mean_absolute_log_percentage_error(y_true, y_pred):
-        y_pred = ops.convert_to_tensor_v2_with_dispatch(y_pred)
-        y_true = math_ops.cast(y_true, y_pred.dtype)
-        y_pred = math_ops.log(K.maximum(y_pred, K.epsilon()))
-        y_true = math_ops.log(K.maximum(y_true, K.epsilon()))
-        err    = math_ops.abs((y_true - y_pred) / y_true)
-        return 100. * tf.reduce_sum(tf.reduce_mean(err, axis=axis))
-    return mean_absolute_log_percentage_error
-
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MAPE')
-def mape(axis):
-    def mean_absolute_percentage_error(y_true, y_pred):
-        # Warning: see MeanSquaredError above.
-        y_pred = ops.convert_to_tensor_v2_with_dispatch(y_pred)
-        y_true = math_ops.cast(y_true, y_pred.dtype)
-        err    = math_ops.abs((y_true - y_pred) \
-                    / K.maximum(math_ops.abs(y_true), K.epsilon()))
-        return 100. * tf.reduce_sum(tf.reduce_mean(err, axis=axis))
-    return mean_absolute_percentage_error
-
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MSE')
-def mse(axis):
-    def mean_squared_error(y_true, y_pred):
-        # Warning: see MeanSquaredError above.
-        y_pred = ops.convert_to_tensor_v2_with_dispatch(y_pred)
-        y_true = math_ops.cast(y_true, y_pred.dtype)
-        err    = math_ops.squared_difference(y_pred, y_true)
-        return tf.reduce_sum(tf.reduce_mean(err, axis=axis))
-    return mean_squared_error
-
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MSLE')
-def msle(axis):
-    def mean_squared_logarithmic_error(y_true, y_pred):
-        # Warning: see MeanSquaredError above.
-        y_pred = ops.convert_to_tensor_v2_with_dispatch(y_pred)
-        y_true = math_ops.cast(y_true, y_pred.dtype)
-        y_pred = math_ops.log(K.maximum(y_pred, K.epsilon()))
-        y_true = math_ops.log(K.maximum(y_true, K.epsilon()))
-        err    = math_ops.squared_difference(y_pred, y_true)
-        return tf.reduce_sum(tf.reduce_mean(err, axis=axis))
-    return mean_squared_logarithmic_error
-
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='ZERO')
-def zero(*args):
-    return tf.constant(0., dtype=K.floatx())
+    return tf.nest.map_structure(
+        lambda l: get_loss_fn(l, axis=axis, reduction=reduction), loss
+    )
 
 
-# Utils
-###########################################################################
-def get(identifier, axis=-1):
+def get_loss_fn(identifier=None, axis=-1, reduction=None):
     """Get Keras callable/readable object for the specific loss function
     identifier.
 
     Args:
         identifier: Name/callable of the loss function.
-        axis: Data matrix reduction axis for mean loss evaluation.
+        axis: The dimensions to reduce for the `mean` operation.
+        reduction: Type of `tf.keras.losses.Reduction` to apply to loss.
 
     Returns:
         A `list`/`dict` of loss function callables.
@@ -84,75 +45,31 @@ def get(identifier, axis=-1):
     Examples to be used in the input file:
         - Single output:
             loss = 'mae'
-        - Single output + reduction axis:
-            loss = {'identifier': 'mae', 'axis': 0}
         - Multi outputs:
             loss = ['mae', 'mape']
-        - Multi outputs + reduction axis:
-            loss = [{'identifier': 'mae', 'axis': 0},
-                    {'identifier': 'mape', 'axis': 0}]
 
-        >> If ODE data type are considered (see `model.get_loss_fn` first):
+        >> If multi-objective functions loss is considered:
         - Single output:
             loss = {
                 'ics': 'mae',
                 'pts': 'mae',
-                'res': 'mse',
-            }
-        - Single output + reduction axis:
-            loss = {
-                'ics': {'identifier': 'malpe', 'axis': 0},
-                'pts': {'identifier': 'malpe', 'axis': 0},
-                'res': {'identifier': 'mse', 'axis': 0},
+                'res': 'mse'
             }
         - Multi outputs:
             loss = {
                 'ics': ['mae', 'mape'],
                 'pts': ['mae', 'mape'],
                 'res': ['mse', 'mse']
-                }
-            }
-        - Multi outputs + reduction axis:
-            loss = {
-                'ics': [{'identifier': 'malpe', 'axis': 0},
-                        {'identifier': 'malpe', 'axis': 0}],
-                'pts': [{'identifier': 'malpe', 'axis': 0},
-                        {'identifier': 'malpe', 'axis': 0}],
-                'res': [{'identifier': 'mse', 'axis': 0},
-                        {'identifier': 'mse', 'axis': 0}]
-                }
-            }
-        - Multi outputs (names included) + reduction axis:
-            loss = {
-                'ics': {
-                    'out_1': {'identifier': 'malpe', 'axis': 0},
-                    'out_2': {'identifier': 'malpe', 'axis': 0}
-                },
-                'pts': {
-                    'out_1': {'identifier': 'malpe', 'axis': 0},
-                    'out_2': {'identifier': 'malpe', 'axis': 0}
-                },
-                'res': {
-                    'out_1': {'identifier': 'mse', 'axis': 0},
-                    'out_2': {'identifier': 'mse', 'axis': 0}
-                }
             }
     """
-    if isinstance(identifier, (list, tuple)):
-        return list(map(get, identifier))
-    
-    if isinstance(identifier, dict):
-        identifier, axis = identifier.values()
-
     loss_identifier = {
-        "mae":   mae(axis),
-        "malpe": malpe(axis),
-        "mape":  mape(axis),
-        "mse":   mse(axis),
-        "msle":  msle(axis),
-        "zero":  zero,
+        "mae":   MeanAbsoluteError(axis, reduction),
+        "malpe": MeanAbsoluteLogarithmicPercentageError(axis, reduction),
+        "mape":  MeanAbsolutePercentageError(axis, reduction),
+        "mse":   MeanSquaredError(axis, reduction),
+        "msle":  MeanSquaredLogarithmicError(axis, reduction),
+        "zero":  Zero(axis, reduction)
     }
-
     if isinstance(identifier, str):
         if identifier.lower() in loss_identifier:
             return loss_identifier[identifier.lower()]
@@ -160,11 +77,138 @@ def get(identifier, axis=-1):
             return identifier
     elif callable(identifier):
         return identifier
-    elif identifier == None:
+    elif identifier is None:
         return None
     else:
         utils.raise_value_err(
-            "Could not interpret loss function identifier: `{}`".format(
-                identifier
-            )
+            f"Could not interpret loss function identifier: `{identifier}`."
         )
+
+
+# Custom loss functions
+###############################################################################
+# MAE -------------------------------------------------------------------------
+@keras_export('keras.losses.MeanAbsoluteError')
+class MeanAbsoluteError(tf_losses.LossFunctionWrapper):
+    def __init__(
+        self,
+        axis,
+        reduction,
+        name='mean_absolute_error'
+    ):
+        err_fn = mean_absolute_error(axis)
+        super().__init__(err_fn, name=name, reduction=reduction)
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MAE')
+def mean_absolute_error(axis):
+    def err_fn(y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+        err = tf.abs(y_true - y_pred)
+        return K.mean(err, axis=axis) if axis else err
+    return err_fn
+
+# MALPE -----------------------------------------------------------------------
+@keras_export('keras.losses.MeanAbsoluteLogarithmicPercentageError')
+class MeanAbsoluteLogarithmicPercentageError(tf_losses.LossFunctionWrapper):
+    def __init__(
+        self,
+        axis,
+        reduction,
+        name='mean_absolute_logarithmic_percentage_error'
+    ):
+        err_fn = mean_absolute_logarithmic_percentage_error(axis)
+        super().__init__(err_fn, name=name, reduction=reduction)
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MALPE')
+def mean_absolute_logarithmic_percentage_error(axis):
+    def err_fn(y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred = tf.math.log(K.maximum(y_pred, K.epsilon()))
+        y_true = tf.math.log(K.maximum(y_true, K.epsilon()))
+        err = 100. * tf.abs((y_true - y_pred) / y_true)
+        return K.mean(err, axis=axis) if axis else err
+    return err_fn
+
+# MAPE ------------------------------------------------------------------------
+@keras_export('keras.losses.MeanAbsolutePercentageError')
+class MeanAbsolutePercentageError(tf_losses.LossFunctionWrapper):
+    def __init__(
+        self,
+        axis,
+        reduction,
+        name='mean_absolute_percentage_error'
+    ):
+        err_fn = mean_absolute_percentage_error(axis)
+        super().__init__(err_fn, name=name, reduction=reduction)
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MAPE')
+def mean_absolute_percentage_error(axis):
+    def err_fn(y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+        err = 100. * tf.abs(
+            (y_true - y_pred) / K.maximum(tf.abs(y_true), K.epsilon())
+        )
+        return K.mean(err, axis=axis) if axis else err
+    return err_fn
+
+# MSE -------------------------------------------------------------------------
+@keras_export('keras.losses.MeanSquaredError')
+class MeanSquaredError(tf_losses.LossFunctionWrapper):
+    def __init__(
+        self,
+        axis,
+        reduction,
+        name='mean_squared_error'
+    ):
+        err_fn = mean_squared_error(axis)
+        super().__init__(err_fn, name=name, reduction=reduction)
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MSE')
+def mean_squared_error(axis):
+    def err_fn(y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+        err = tf.math.squared_difference(y_pred, y_true)
+        return K.mean(err, axis=axis) if axis else err
+    return err_fn
+
+# MSLE ------------------------------------------------------------------------
+@keras_export('keras.losses.MeanSquaredLogarithmicError')
+class MeanSquaredLogarithmicError(tf_losses.LossFunctionWrapper):
+    def __init__(
+        self,
+        axis,
+        reduction,
+        name='mean_squared_logarithmic_error'
+    ):
+        err_fn = mean_squared_logarithmic_error(axis)
+        super().__init__(err_fn, name=name, reduction=reduction)
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MSLE')
+def mean_squared_logarithmic_error(axis):
+    def err_fn(y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred = tf.math.log(K.maximum(y_pred, K.epsilon()))
+        y_true = tf.math.log(K.maximum(y_true, K.epsilon()))
+        err = tf.math.squared_difference(y_pred, y_true)
+        return K.mean(err, axis=axis) if axis else err
+    return err_fn
+
+# ZERO ------------------------------------------------------------------------
+@keras_export('keras.losses.Zero')
+class Zero(tf_losses.LossFunctionWrapper):
+    def __init__(
+        self,
+        axis,
+        reduction,
+        name='zero'
+    ):
+        super().__init__(zero, name=name, reduction=reduction)
+
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='ZERO')
+def zero():
+    return tf.constant(0., dtype=K.floatx())

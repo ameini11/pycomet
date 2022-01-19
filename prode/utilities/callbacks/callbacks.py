@@ -59,12 +59,12 @@ def get_weighted_loss(model, kwargs):
     # model.net.add_loss_weights(model.loss_weights)
     # Manipulate arguments for `weighted_loss` callback
     name = kwargs.pop('name')
-    kwargs.update(
-        {
-            'data_generator': model.data.train,
-            'log_dir': model.TB_dir
-        }
-    )
+    # kwargs.update(
+    #     {
+    #         'data_container': model.data.train,
+    #         'log_dir': model.TB_dir
+    #     }
+    # )
     return utils.get_class(weighted_loss, name)(**kwargs)
 
 def get_lr_scheduler(kwargs):

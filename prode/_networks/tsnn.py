@@ -1,12 +1,8 @@
 import tensorflow as tf
 import tensorflow.keras.layers as tf_layers
 
-from prode.utilities.model import activations
-from prode.utilities.model import initializers
-from prode.utilities.model import regularizers
 from prode.utilities.model import layers
 from prode.utilities import utils
-from prode.physics.general import const
 from prode.networks.opnn import OpNN
 from prode.networks.net import Net
 
