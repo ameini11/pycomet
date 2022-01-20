@@ -1,13 +1,8 @@
 import itertools
 import tensorflow as tf
-import tensorflow.keras.layers as tf_layers
+import tensorflow.python.keras.layers as tf_layers
 
-from prode.utilities.model import activations
-from prode.utilities.model import initializers
-from prode.utilities.model import regularizers
-from prode.utilities.model import layers
 from prode.utilities import utils
-from prode.physics.general import const
 from prode.networks.tsnn import TimeScaleNN
 from prode.networks.net import Net
 
@@ -132,7 +127,7 @@ class IsoThermChemReacNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None, noneq_factor=None):
+    def call(self, x, training=False, mask=None):
 
         # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
@@ -152,17 +147,14 @@ class IsoThermChemReacNN(Net):
                 x_y = self.inp_trans(x_y)
 
         # Kernel - Timescales NN ----------------------------------------------
-        y = [ ts([x_u, x_y], training, mask, noneq_factor) \
-                for ts in self.timescales ]
-        if training is False and noneq_factor is True:
-            return y if len(y) > 1 else y[-1]
+        y = [ ts([x_u, x_y], training, mask) for ts in self.timescales ]
 
         # Outputs manipulation ------------------------------------------------
         if len(y) > 1:
             # Concatenate Timescales NN outputs
             y = [ tf_layers.Concatenate()(y_i) \
                 if isinstance(y_i, (list,tuple)) else y_i for y_i in y ]
-            # Loop over timescales
+            # 
             for ts, indeces in self.ts_ts_conn.items():
                 if indeces:
                     # Split the slower timescale
@@ -237,11 +229,3 @@ class IsoThermChemReacNN(Net):
             return self.join(ls)
         except:
             return ls
-
-    # Graph
-    ###########################################################################
-    def get_graph(self):
-        x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
-              tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
-        y = self.call(x)
-        return tf.keras.Model(inputs=x, outputs=y, name=self.name)

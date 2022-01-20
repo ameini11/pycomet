@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras.backend as K
-import tensorflow.keras.callbacks as CB
+import tensorflow.python.keras.backend as K
+import tensorflow.python.keras.callbacks as CB
 
 from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
@@ -45,23 +45,22 @@ class LearningRateTracker(CB.Callback):
 
     def __init__(
         self,
-        file=None,
-        log_dir=None,
         verbose=1
     ):
         super(LearningRateTracker, self).__init__()
 
-        self.log_dir = log_dir
+        self.verbose = verbose
+
+    def on_train_begin(self, logs={}):
+        self.log_dir = self.model.TB_dir
         if self.log_dir is not None:
             self.log_lr = tf.summary.create_file_writer(
                 log_dir + '/scalars/lr'
             )
 
-        self.file = None if file is None else open(file, "w", buffering=1)
+        self.file = open(self.model.train_dir+'/lr.csv', "w", buffering=1)
         if self.file is not None:
             self.file.write("lr\n")
-
-        self.verbose = verbose
 
     def on_epoch_begin(self, epoch, logs=None):
         logs = logs or {}

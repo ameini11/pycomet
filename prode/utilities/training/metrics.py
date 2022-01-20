@@ -1,4 +1,4 @@
-import tensorflow.keras.metrics as met
+import tensorflow.python.keras.metrics as met
 
 from prode.utilities.training import losses as losses_module
 from prode.utilities import utils
@@ -26,6 +26,5 @@ def get(identifier):
         return identifier
     else:
         utils.raise_value_err(
-            "Could not interpret metric function "
-            "identifier: `{}`".format(identifier)
+            f"Could not interpret metric function identifier: `{identifier}`."
         )

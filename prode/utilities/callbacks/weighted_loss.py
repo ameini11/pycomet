@@ -1,10 +1,12 @@
 import sys
+import copy
 import itertools
 import numpy as np
 import joblib as jl
 import tensorflow as tf
-import tensorflow.keras.backend as K
-import tensorflow.keras.callbacks as CB
+import tensorflow.python.keras.backend as K
+import tensorflow.python.keras.callbacks as CB
+import tensorflow.python.keras.initializers as tf_init
 
 from tqdm import tqdm
 from tensorflow.python.eager import backprop
@@ -12,87 +14,142 @@ from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
 
 
-@keras_export('keras.callbacks.ConstantWeightsAdapter')
-class ConstantWeightsAdapter(CB.Callback):
-    """Base class for adaptive loss weights techniques."""
+@keras_export('keras.callbacks.BaseWeightsAdapter')
+class BaseWeightsAdapter(CB.Callback):
+    """Base class for adaptive multi-objective loss weights techniques."""
 
     def __init__(
         self,
-        ode_loss_weights=None,
-        data_generator=None,
+        multi_obj_loss_weights=None,
         freq=1,
-        log_dir=None,
         **kwargs
     ):
-        super(ConstantWeightsAdapter, self).__init__()
+        super(BaseWeightsAdapter, self).__init__()
 
         self.name = utils.get_class_name(self)
-        self.data_generator = data_generator
-        self.ode_loss_weights = ode_loss_weights
-        self.freq = np.clip(freq, 1, None) if freq is not None else np.inf
-        self.log_dir = log_dir
+        self.multi_obj_loss_weights = multi_obj_loss_weights
+        self.freq = int(np.clip(freq, 1, None))
 
     def on_train_begin(self, logs={}):
-        self.init_weights()
+        # Define data container
+        self.data_container = self.model.data.train
+        assert self.data_container is self.model.data.train
+        # Define `logs` directory
+        self.log_dir = self.model.TB_dir
+        # Assign `weighted_loss` class to model
+        self.model.weighted_loss = self
 
     def on_epoch_end(self, epoch, logs={}):
-        self.print_weights(epoch, logs)
+        if self.multi_obj_loss_weights is not None:
+            self.print_weights(epoch, logs)
 
     def init_weights(self):
-        if self.ode_loss_weights is None:
-            utils.warning("No `ode_loss_weights` have been provided to `{}`: "
-                "the initial value of 1 will be applied.".format(self.name))
-            _ode_loss_weights = dict(
-                zip(self.model.data_ids, [1.]*len(self.model.data_ids))
+        if self.multi_obj_loss_weights is None:
+            utils.warning(
+                "No `multi_obj_loss_weights` have been provided to `{}`: "
+                "the initial value of 1 will be applied.".format(self.name)
             )
-        elif isinstance(self.ode_loss_weights, (list,tuple)):
-            _ode_loss_weights = dict(
-                zip(self.model.data_ids, self.ode_loss_weights)
+            self.multi_obj_loss_weights = {
+                obj: 1. for obj in self.model.objectives['train']
+            }
+        elif isinstance(self.multi_obj_loss_weights, (list,tuple)):
+            self.multi_obj_loss_weights = dict(
+                zip(
+                    self.model.objectives['train'],
+                    self.multi_obj_loss_weights
+                )
             )
-        elif isinstance(ode_loss_weights, dict):
-            _ode_loss_weights = self.ode_loss_weights
+        elif isinstance(self.multi_obj_loss_weights, dict):
+            continue
         else:
-            utils.raise_value_err("`ode_loss_weights` passed into `{}` "
+            utils.raise_value_err(
+                "`multi_obj_loss_weights` passed into `{}` "
                 "has to be a list or a dictionary:\n"
                 "  - 'ics': weight for initial condition pts loss;\n"
                 "  - 'pts': weight for anchor pts loss;\n"
-                "  - 'res': weight for residual loss.".format(self.name))
-        self.model.ode_loss_weights = _ode_loss_weights
+                "  - 'res': weight for residual loss.".format(self.name)
+            )
         
         if self.log_dir is not None:
-            self.logs = { k: tf.summary.create_file_writer(
-                self.log_dir + '/scalars/ode_loss_weights/' + k
-            ) for k in self.model.ode_loss_weights }
+            self.logs = {
+                obj: tf.summary.create_file_writer(
+                    self.log_dir + '/scalars/multi_obj_loss_weights/' + obj
+                ) for obj in self.multi_obj_loss_weights
+            }
 
     def print_weights(self, epoch, logs):
         log_weights = {
-            k+'_loss_weight': v for k,v in self.model.ode_loss_weights.items()
+            obj + '_loss_weight': w for obj, w \
+                in self.multi_obj_loss_weights.items()
         }
         logs.update(log_weights)
         if self.log_dir is not None:
-            for k, log in self.logs.items():
+            for obj, log in self.logs.items():
                 with log.as_default():
-                    tf.summary.scalar(name='epoch_'+k+'_loss_weight', \
-                        data=self.model.ode_loss_weights[k], step=epoch)
+                    tf.summary.scalar(
+                        name='epoch_' + obj + '_loss_weight',
+                        data=self.multi_obj_loss_weights[obj],
+                        step=epoch
+                    )
 
-    def check_weights(self):
-        weights = self.model.ode_loss_weights.values()
-        if any(tf.math.is_nan(w) for w in weights) \
-            or any(tf.math.is_inf(w) for w in weights):
+    def check_weights(self, weights):
+        nan = [tf.math.is_nan(w) for w in weights]
+        inf = [tf.math.is_inf(w) for w in weights]
+        if any(nan) or any(inf):
             print("")
             utils.warning(
-                "One or multiple `ode_loss_weights` evaluated in `{}` class "
+                "One or multiple weights evaluated in `{}` class "
                 "are `inf` or `nan`.".format(self.name)
             )
-            utils.print_submain("Here the `ode_loss_weights` values:")
-            for k,v in self.model.ode_loss_weights.items():
-                utils.print_submain("  - '{}': {}".format(k,v))
-            utils.print_submain("The training will be stopped.")
-            self.model.stop_training = True
+            if self.multi_obj_loss_weights is not None:
+                utils.print_submain(
+                    "Here the `multi_obj_loss_weights` values:"
+                )
+                for k, v in self.multi_obj_loss_weights.items():
+                    utils.print_submain("  - '{}': {}".format(k,v))
+                utils.print_submain("The training will be stopped.")
+                self.model.stop_training = True
+
+    # Gradient descent methods
+    def on_grad_step_begin(self, sample_weight=None):
+        return self.multi_obj_loss_weights
+
+    def on_grad_step_eval(self, sample_weight=None):
+        return self.multi_obj_loss_weights
+
+    def on_grad_step_end(
+        self,
+        loss=0.,
+        sample_weight=None,
+        sample_index=None,
+        tape=None
+    ):
+        pass
+
+
+@keras_export('keras.callbacks.ConstantWeightsAdapter')
+class ConstantWeightsAdapter(BaseWeightsAdapter):
+    """Constant loss weights techniques."""
+
+    def __init__(
+        self,
+        multi_obj_loss_weights=None,
+        freq=1,
+        **kwargs
+    ):
+        super(ConstantWeightsAdapter, self).__init__(
+            multi_obj_loss_weights=multi_obj_loss_weights,
+            freq=freq,
+            **kwargs
+        )
+
+    def on_train_begin(self, logs={}):
+        super(ConstantWeightsAdapter, self).on_train_begin(logs=logs)
+        self.init_weights()
 
 
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
-class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
+class EmpiricalWeightsAdapter(BaseWeightsAdapter):
     """Adaptive loss weights technique for PINNs based on an empirical learning
     rate annealing algorithm.
 
@@ -104,128 +161,109 @@ class EmpiricalWeightsAdapter(ConstantWeightsAdapter):
 
     def __init__(
         self,
-        ode_loss_weights=None,
-        data_generator=None,
+        multi_obj_loss_weights=None,
         freq=1000,
         alpha=0.8,
-        log_dir=None,
         max_samples=20000,
         method='mean',
         **kwargs
     ):
         super(EmpiricalWeightsAdapter, self).__init__(
-            ode_loss_weights=ode_loss_weights,
-            data_generator=data_generator,
+            multi_obj_loss_weights=multi_obj_loss_weights,
             freq=freq,
-            log_dir=log_dir
+            **kwargs
         )
 
         self.alpha = tf.cast(tf.clip_by_value(alpha, 0., 1.), K.floatx())
-        self.loss_gradients = {}
+        self.gradients = {}
         self.dataset = {}
         self.max_samples = max_samples
 
-        self.grads_eval = self.mean if method == 'mean' else self.max
-        self._update = True
+        if method == 'mean':
+            self.grads_eval = tf.reduce_mean(
+                [tf.reduce_mean(tf.math.abs(i)) for i in x]
+            )
+        else:
+            self.grads_eval = tf.reduce_max(
+                [tf.reduce_max(tf.math.abs(i)) for i in x]
+            )
+
+        self.update = True
+        self.check_residual = True
 
     def on_train_begin(self, logs={}):
+        super(EmpiricalWeightsAdapter, self).on_train_begin(logs=logs)
         self.init_weights()
-        if 'res' not in self.model.data_ids:
+        if 'res' not in self.model.objectives['train'] and self.check_residual:
             utils.warning(
                 "Network `{}` hasn't any residual loss to be evaluated: "
                 "`{}` can't be applied.".format(self.model.name, self.name)
             )
-            self._update = False
+            self.update = False
 
     def on_epoch_begin(self, epoch, logs={}):
-        if self._update and epoch % self.freq == 0:
-            self.update()
+        if self.update and epoch % self.freq == 0:
+            self.update_weights()
 
-    def update(self):
+    def update_weights(self):
         self.sample_dataset()
         self.eval_loss_gradients()
-        self.update_loss_weights()
+        self.update_multi_obj_loss_weights()
         self.check_weights()
 
     # Sampling data
     ###########################################################################
     def sample_dataset(self):
-        for data_id, dset in self.data_generator.data.items():
-            n_samples = utils.get_cardinality(dset)
-            indeces = np.random.permutation(n_samples)
+        for obj, dset in self.data_container.data.items():
+            indeces = np.random.permutation(self.data_container.n_samples[obj])
             if n_samples > self.max_samples:
                 indeces = np.random.choice(
                     indeces, self.max_samples, replace=False
                 )
-            self.dataset[data_id] = self.shuffle_data(dset, indeces)
-
-    def shuffle_data(self, dset, indeces):
-        _dset = []
-        for xy in dset:
-            if isinstance(xy, (list,tuple)):
-                _dset.append([tf.convert_to_tensor(i[indeces], \
-                    dtype=K.floatx()) for i in xy])
-            else:
-                _dset.append(tf.convert_to_tensor(xy[indeces], \
-                    dtype=K.floatx()))
-        return _dset
+            self.dataset[obj] = tf.nest.map_structure(
+                lambda z: z[indeces], dset
+            )
 
     # Handling loss gradients
     ###########################################################################
     def eval_loss_gradients(self):
         pred, losses = {}, {}
         with backprop.GradientTape(persistent=True) as tape:
-            for data_id in self.model.data_ids:
-                pred[data_id], losses[data_id] = self.get_pred_loss(
-                    *self.dataset[data_id], data_id=data_id
+            for obj in self.model.objectives['train']:
+                # Get predictions
+                y_pred[obj] = self.model.predict_step(
+                    self.dataset[obj][0], objective=obj
                 )
-        for data_id in self.model.data_ids:
-            self.loss_gradients[data_id] = tape.gradient(
-                losses[data_id], self.model.trainable_variables
+                # Evaluate each objective function loss
+                losses[obj] = self.model.compiled_loss[obj](
+                    self.dataset[obj][1], y_pred[obj]
+                )
+        # Evaluate each objective function loss
+        for obj in self.model.objectives['train']:
+            self.gradients[obj] = tape.gradient(
+                losses[obj], self.model.trainable_variables
             )
-
-    def get_pred_loss(self, x, y, data_id):
-        if data_id == 'res':
-            y_pred = self.model.residual(x, training=False)
-            if isinstance(y_pred, (list,tuple)):
-                y = [ tf.zeros_like(y_pred_i) for y_pred_i in y_pred ]
-            else:
-                y = tf.zeros_like(y_pred)
-        else:
-            y_pred = self.model(x, training=False)
-        loss = self.model.compiled_loss[data_id](y, y_pred)
-        return y_pred, loss
 
     # Handling loss weights
     ###########################################################################
-    def update_loss_weights(self):
-        new_weights = self.eval_loss_weights()
-        for data_id, loss in self.model.ode_loss_weights.items():
-            if data_id == 'res':
-                continue
-            weight = self.alpha * new_weights[data_id] + \
-                (1. - self.alpha) * self.model.ode_loss_weights[data_id]
-            self.model.ode_loss_weights[data_id] = weight.numpy()
-
-    def eval_loss_weights(self):
-        # Get the maximum/mean gradient value from residual loss (see `method')
-        grad_res = self.grads_eval(self.loss_gradients['res'])
+    def update_multi_obj_loss_weights(self):
+        # Manipulate residual gradients
+        grad_res = self.grads_eval(self.gradients['res'])
         new_weights = {}
-        for data_id, grad in self.loss_gradients.items():
-            if data_id == 'res':
+        for obj, grad in self.gradients.items():
+            if obj == 'res':
                 continue
-            # Get the mean of the gradients for each remaining loss term
-            grads_mean = self.mean(grad)
-            # Update the loss weights
-            new_weights[data_id] = grad_res / grads_mean \
-                * self.model.ode_loss_weights['res']
-        return new_weights
-
-    def max(self, x):
-        return tf.reduce_max([tf.reduce_max(tf.math.abs(i)) for i in x])
-
-    def mean(self, x):
-        return tf.reduce_mean([tf.reduce_mean(tf.math.abs(i)) for i in x])
+            # Manipulate gradients of the remaining objective loss functions
+            grads_obj = self.mean(grad)
+            # Evaluate new multi-objective loss weights
+            new_weights[obj] = grad_res / grads_obj \
+                * self.multi_obj_loss_weights['res']
+        # Update multi-objective loss weights
+        self.multi_obj_loss_weights = tf.nest.map_structure(
+            lambda old, new: self.alpha*new + (1. - self.alpha)*old,
+            self.multi_obj_loss_weights,
+            new_weights
+        )
 
 
 @keras_export('keras.callbacks.InverseDirichletWeightsAdapter')
@@ -235,151 +273,261 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 
     def __init__(
         self,
-        ode_loss_weights=None,
-        data_generator=None,
+        multi_obj_loss_weights=None,
         freq=1000,
         alpha=0.8,
-        log_dir=None,
         max_samples=20000,
         method='std',
         **kwargs
     ):
         super(InverseDirichletWeightsAdapter, self).__init__(
-            ode_loss_weights=ode_loss_weights,
-            data_generator=data_generator,
+            multi_obj_loss_weights=multi_obj_loss_weights,
             freq=freq,
             alpha=alpha,
-            log_dir=log_dir,
             max_samples=max_samples,
             **kwargs
         )
 
         self.grads_eval = np.var if method == 'var' else np.std
-
-    def on_train_begin(self, logs={}):
-        self.init_weights()
+        self.check_residual = False
 
     # Handling loss weights
     ###########################################################################
-    def update_loss_weights(self):
-        new_weights = self.eval_loss_weights()
-        for data_id, loss in self.model.ode_loss_weights.items():
-            weight = self.alpha * new_weights[data_id] + \
-                (1. - self.alpha) * self.model.ode_loss_weights[data_id]
-            self.model.ode_loss_weights[data_id] = weight.numpy()
-
-    def eval_loss_weights(self):
+    def update_multi_obj_loss_weights(self):
+        # Evaluate gradients `var` or `std`
         sigmas = {}
-        for data_id, grad in self.loss_gradients.items():
-            sigmas[data_id] = self.grads_eval(
+        for obj, grad in self.gradients.items():
+            sigmas[obj] = self.grads_eval(
                 np.concatenate([ g.numpy().flatten() for g in grad ])
             )
-        sigma_max = max(sigmas.values())
-        return {data_id: sigma_max/sigma for data_id, sigma in sigmas.items()}
+        # Evaluate new multi-objective loss weights
+        new_weights = {
+            obj: max(sigmas.values())/sigma for obj, sigma in sigmas.items()
+        }
+        # Update multi-objective loss weights
+        self.multi_obj_loss_weights = tf.nest.map_structure(
+            lambda old, new: self.alpha*new + (1. - self.alpha)*old,
+            self.multi_obj_loss_weights,
+            new_weights
+        )
+
+# @keras_export('keras.callbacks.NTKWeightsAdapter')
+# class NTKWeightsAdapter(EmpiricalWeightsAdapter):
+#     """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
+#     (NTK) theory.
+
+#     See:
+#         Sifan Wang, Xinling Yu, Paris Perdikaris
+#         `When and why PINNs fail to train: A neural tangent kernel perspective`
+#         https://arxiv.org/abs/2007.14527"""
+
+#     def __init__(
+#         self,
+#         ode_loss_weights=None,
+#         data_container=None,
+#         freq=None,
+#         log_dir=None,
+#         max_samples=1000,
+#         **kwargs
+#     ):
+#         super(NTKWeightsAdapter, self).__init__(
+#             ode_loss_weights=ode_loss_weights,
+#             data_container=data_container,
+#             freq=freq,
+#             log_dir=log_dir,
+#             max_samples=max_samples,
+#             **kwargs
+#         )
+#         self.pred_fn = {}
+
+#     def on_train_begin(self, logs={}):
+#         self.init_weights()
+#         self.set_pred_fn()
+
+#     def update(self):
+#         self.sample_dataset()
+#         ntk = self.get_ntk()
+#         self.update_loss_weights(ntk)
+#         self.check_weights()
+
+#     # Handling predictions
+#     ###########################################################################
+#     def set_pred_fn(self):
+#         for data_id in self.model.data_ids:
+#             if data_id == 'res':
+#                 _pred_fn = self.model.residual
+#             else:
+#                 _pred_fn = self.model.call
+#             self.pred_fn[data_id] = _pred_fn
+
+#     # Handling loss gradients
+#     ###########################################################################
+#     def flatten(self, x):
+#         # Flatten array or list of arrays into 1D vector
+#         if isinstance(x, (list,tuple)):
+#             return list(itertools.chain(
+#                 *[tf.split(tf.reshape(i,[-1]), tf.size(i).numpy()) for i in x]
+#             ))
+#         else:
+#             return tf.split(tf.reshape(x,[-1]), tf.size(x).numpy())
+
+#     def get_ntk(self):
+#         pred = {}
+#         with backprop.GradientTape(persistent=True) as tape:
+#             for data_id in self.model.data_ids:
+#                 x = self.dataset[data_id][0]
+#                 pred[data_id] = self.flatten(
+#                     self.pred_fn[data_id](
+#                         self.dataset[data_id][0], training=False
+#                     )
+#                 )
+#         return self.eval_diag_ntk(pred, tape)
+
+#     def eval_diag_ntk(self, pred, tape):
+#         utils.print_submain("From `NTKWeightsAdapter` callback:")
+#         ntk = {}
+#         for data_id, pred_i in pred.items():
+#             utils.print_submain("  - Evaluating NTK matrix for `{}` data "
+#                 "points".format(data_id))
+#             ta = tf.TensorArray(
+#                 dtype=K.floatx(),
+#                 size=0,
+#                 dynamic_size=True,
+#                 clear_after_read=False
+#             )
+#             for i, elem in enumerate(tqdm(pred_i, file=sys.stdout)):
+#                 grad = tape.gradient(
+#                     elem,
+#                     self.model.trainable_variables,
+#                     unconnected_gradients='zero'
+#                 )
+#                 tr = tf.add_n([tf.reduce_sum(tf.multiply(g, g)) for g in grad])
+#                 ta = ta.write(i, tr)
+#             ntk[data_id] = ta.stack()
+#         return ntk
+
+#     # Handling loss weights
+#     ###########################################################################
+#     def update_loss_weights(self, ntk):
+#         trace = {
+#             data_id: tf.reduce_sum(ntk_i).numpy() \
+#                 for data_id, ntk_i in ntk.items()
+#         }
+#         norm_grad = tf.reduce_sum(list(trace.values())).numpy()
+#         for data_id in self.model.data_ids:
+#             self.model.ode_loss_weights[data_id] = norm_grad / trace[data_id]
 
 
-@keras_export('keras.callbacks.NTKWeightsAdapter')
-class NTKWeightsAdapter(EmpiricalWeightsAdapter):
-    """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
-    (NTK) theory.
 
-    See:
-        Sifan Wang, Xinling Yu, Paris Perdikaris
-        `When and why PINNs fail to train: A neural tangent kernel perspective`
-        https://arxiv.org/abs/2007.14527"""
+@keras_export('keras.callbacks.SoftAttentionWeightsAdapter')
+class SoftAttentionWeightsAdapter(BaseWeightsAdapter):
+    """Base class for adaptive loss weights techniques."""
 
     def __init__(
         self,
-        ode_loss_weights=None,
-        data_generator=None,
-        freq=None,
-        log_dir=None,
-        max_samples=1000,
+        trainable=True,
+        rank=1,
+        limits=[1.,1.],
+        freq=1,
         **kwargs
     ):
-        super(NTKWeightsAdapter, self).__init__(
-            ode_loss_weights=ode_loss_weights,
-            data_generator=data_generator,
+        super(SoftAttentionWeightsAdapter, self).__init__(
             freq=freq,
-            log_dir=log_dir,
-            max_samples=max_samples,
             **kwargs
         )
-        self.pred_fn = {}
+
+        # Characterize weights tensors
+        self.trainable = trainable
+        self.rank = rank
+
+        # Define weights initializers
+        self.limits = limits
+        if isinstance(limits, list):
+            self.limits = {
+                obj: limits for obj in self.model.objectives['train']
+            }
+        if not isinstance(self.limits, dict)
+            utils.raise_value_err(
+                "`limits` in `{}` has to be a `dict` of [min, max] value "
+                "list for each objecitve function.".format(self.name)
+            )
+        self.initializer = tf.nest.map_structure(
+            lambda limit: tf_init.RandomUniform(*limit), self.limits
+        )
+
+        # Define the self-adaptation mask function
+        if q is not None:
+            if any([q_i <= 0. for q_i in q])
+                utils.raise_value_err(
+                    "`q` coefficents for the mask function in `{}` have "
+                    "to be positive.".format(self.name)
+                )
+        else:
+            q = [1., 1.]
+        if mask == 'poly':
+            self.mask_fn = lambda x: q[0]*tf.pow(tf.math.abs(x), q[1])
+        elif mask == 'sigmoid':
+            self.mask_fn = lambda x: q[0]*tf.math.sigmoid(q[1]*x)
+        elif mask == 'exp':
+            self.mask_fn = lambda x: q[0]*tf.math.exp(q[1]*x)
+        else:
+            self.mask_fn = tf.square
+
+        self.update = True
 
     def on_train_begin(self, logs={}):
-        self.init_weights()
-        self.set_pred_fn()
-
-    def update(self):
-        self.sample_dataset()
-        ntk = self.get_ntk()
-        self.update_loss_weights(ntk)
-        self.check_weights()
-
-    # Handling predictions
-    ###########################################################################
-    def set_pred_fn(self):
-        for data_id in self.model.data_ids:
-            if data_id == 'res':
-                _pred_fn = self.model.residual
-            else:
-                _pred_fn = self.model.call
-            self.pred_fn[data_id] = _pred_fn
-
-    # Handling loss gradients
-    ###########################################################################
-    def flatten(self, x):
-        # Flatten array or list of arrays into 1D vector
-        if isinstance(x, (list,tuple)):
-            return list(itertools.chain(
-                *[tf.split(tf.reshape(i,[-1]), tf.size(i).numpy()) for i in x]
-            ))
-        else:
-            return tf.split(tf.reshape(x,[-1]), tf.size(x).numpy())
-
-    def get_ntk(self):
-        pred = {}
-        with backprop.GradientTape(persistent=True) as tape:
-            for data_id in self.model.data_ids:
-                x = self.dataset[data_id][0]
-                pred[data_id] = self.flatten(
-                    self.pred_fn[data_id](
-                        self.dataset[data_id][0], training=False
-                    )
-                )
-        return self.eval_diag_ntk(pred, tape)
-
-    def eval_diag_ntk(self, pred, tape):
-        utils.print_submain("From `NTKWeightsAdapter` callback:")
-        ntk = {}
-        for data_id, pred_i in pred.items():
-            utils.print_submain("  - Evaluating NTK matrix for `{}` data "
-                "points".format(data_id))
-            ta = tf.TensorArray(
-                dtype=K.floatx(),
-                size=0,
-                dynamic_size=True,
-                clear_after_read=False
-            )
-            for i, elem in enumerate(tqdm(pred_i, file=sys.stdout)):
-                grad = tape.gradient(
-                    elem,
-                    self.model.trainable_variables,
-                    unconnected_gradients='zero'
-                )
-                tr = tf.add_n([tf.reduce_sum(tf.multiply(g, g)) for g in grad])
-                ta = ta.write(i, tr)
-            ntk[data_id] = ta.stack()
-        return ntk
-
-    # Handling loss weights
-    ###########################################################################
-    def update_loss_weights(self, ntk):
-        trace = {
-            data_id: tf.reduce_sum(ntk_i).numpy() \
-                for data_id, ntk_i in ntk.items()
+        super(SoftAttentionWeightsAdapter, self).on_train_begin(logs=logs)
+        # Build sample weights
+        self.data_container.init_weights(
+            self.initializer, self.trainable, self.rank
+        )
+        # Shuffle/Batch data
+        self.data_container.keep_indeces = True
+        self.data_container.on_epoch_end()
+        # Get indipendent model optimizer for each objective function
+        self.optimizer = {
+            obj: copy.deepcopy(self.model.optimizer) \
+                for obj in self.model.objectives['train']
         }
-        norm_grad = tf.reduce_sum(list(trace.values())).numpy()
-        for data_id in self.model.data_ids:
-            self.model.ode_loss_weights[data_id] = norm_grad / trace[data_id]
+
+    def on_epoch_begin(self, epoch, logs={}):
+        if epoch % self.freq == 0:
+            self.update = True
+        else:
+            self.update = False
+
+    # Gradient descent methods
+    def on_grad_step_begin(self, sample_weight=None):
+        if self.update and sample_weight is not None:
+            return tf.nest.map_structure(
+                lambda sw: tf.Variable(sw, trainable=self.trainable),
+                sample_weight
+            )
+
+    def on_grad_step_eval(self, sample_weight=None):
+        if sample_weight is not None:
+            return tf.nest.map_structure(self.mask_fn, sample_weight)
+
+    def on_grad_step_end(
+        self,
+        loss=0.,
+        sample_weight=None,
+        sample_index=None,
+        tape=None
+    ):
+        if self.update and self.trainable and sample_weight is not None:
+            for obj, sw in sample_weight.items():
+                # Update batch sample weights
+                self.optimizer[obj].minimize(
+                    -loss, tf.nest.flatten(sw), tape=tape
+                )
+                # grads = tape.gradient(loss, tf.nest.flatten(sw))
+                # self.optimizer[obj].apply_gradients(zip(-grads, sw))
+                # Assign the updated sample weights to data container
+                tf.nest.map_structure(
+                    lambda sw_old, sw_new: sw_old.scatter_nd_update(
+                        sample_index[obj], sw_new
+                    ),
+                    self.data_container[obj][-1],
+                    sw,
+                )

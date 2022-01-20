@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tensorflow.keras.activations as act
+import tensorflow.python.keras.activations as act
 
 from tensorflow.python.keras import backend as K
 from prode.utilities import utils

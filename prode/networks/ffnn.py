@@ -81,7 +81,7 @@ class FFNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None):
+    def call(self, x, training=False):
 
         # Input Transform
         y = x
@@ -96,10 +96,3 @@ class FFNN(Net):
             y = self.out_trans(y)
 
         return y
-
-    # Graph
-    ###########################################################################
-    def get_graph(self):
-        x = tf.keras.Input(shape=(self.inp_dim,))
-        y = self.call(x)
-        return tf.keras.Model(inputs=x, outputs=y, name=self.name)

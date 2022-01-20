@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
-from varname import nameof
+from keras.engine import data_adapter
 from prode.data.data import Data
 from prode.utilities import utils
 
@@ -24,88 +24,72 @@ class DataSet(Data):
         valid_data=None,
         test_data=None,
         validation_split=None,
+        batch_size=None,
         from_file=False,
-        col_x=None,
-        col_y=None,
+        columns=None,
         header=None,
-        preproc_fn=None,
-        batch_size=32,
-        valid_batch_size=None
+        preproc_fn=None
     ):
-        super(DataSet, self).__init__(dim=dim, training=training)
-
-        # Only if data from file
-        self.from_file = from_file
-        self.col_x = col_x
-        self.col_y = col_y
-        self.header = header
-        self.preproc_fn = preproc_fn
+        super(DataSet, self).__init__(
+            dim=dim,
+            training=training,
+            batch_size=batch_size,
+            from_file=from_file,
+            columns=columns,
+            header=header,
+            preproc_fn=preproc_fn
+        )
 
         # Training/Validation data
         if training:
             if valid_data:
-                self.train = self.get_data(train_data, nameof(train_data))
-                self.valid = self.get_data(valid_data, nameof(valid_data))
+                self.train = self.get_data(train_data, 'training')
+                self.valid = self.get_data(valid_data, 'validation')
             elif validation_split:
-                self.validation_split = validation_split
-                self.train, self.valid = self.get_train_valid(
-                    self.get_data(train_data, nameof(train_data))
+                self.train, self.valid = data_adapter.train_validation_split(
+                    self.get_data(train_data, 'training'), validation_split
                 )
             else:
-                self.train = self.get_data(train_data, nameof(train_data))
-                self.valid = None
+                self.train = self.get_data(train_data, 'training')
 
         # Testing data
         self.test = test_data
 
-        self.batch_size = batch_size
-        self.valid_batch_size = valid_batch_size
-
     # Handling Data
     ###########################################################################
-    def get_data(self, data, data_name):
+    def get_data(self, data, identifier):
         if data is None:
-            if data_name != 'train_data':
-                return None
-            else:
+            if identifier == 'training':
                 utils.raise_value_err(
-                    "No training data passed into `{}`.".format(self.name)
+                    "No '{}' data passed into `{}`.".format(
+                        identifier, self.name
+                    )
                 )
+            else:
+                return None
         if self.from_file:
-            # Data from `.csv` file
-            if self.col_x is None or self.col_y is None:
-                utils.raise_value_err("In `{}` you have to provide both "
-                    "`self.col_x` and `self.col_y` to extract data from file."
-                    "\nThey should be the doublet (start,end+1) columns "
-                    "(or a list of those) of x and y data.".format(self.name))
-            df = pd.read_csv(data, sep=',', header=self.header).astype(
-                K.floatx()).values
-            if self.preproc_fn is not None:
-                df = self.preproc_fn(df)
-            return list(
-                map(lambda c: self.read_dataframe(df, c), \
-                    [self.col_x, self.col_y])
-            )
+            # Data from a `.csv` file
+            return self.read_datafile(data)
         else:
-            # Data from lists of `numpy.array`
+            # Data from lists of `numpy.ndarray`
             if isinstance(data, (list,tuple)):
                 self.check_data_consistency(data)
                 return data
             else:
-                utils.raise_value_err("Data passed into `{}` has to be a "
-                    "list or a tuple of arrays: [x, y]".format(self.name))
+                utils.raise_value_err(
+                    "'{}' data passed into `{}` has to be a list or "
+                    "a tuple of arrays: [x, y]".format(
+                        identifier, self.name
+                    )
+                )
 
+    def get_num_pts(self, identifier='training', verbose=1):
 
-    def get_num_pts(self, data_type='training', verbose=1):
-
-        def print_fn(dset, data_type, verbose):
+        def print_fn(dset, identifier, verbose):
             num_pts = utils.get_cardinality(dset)
             if verbose:
                 utils.print_submain(
-                    "Number of %s batches:  %10d" % (data_type, num_pts)
+                    "Number of %s pts:  %10d" % (identifier, num_pts)
                 )
-            return num_pts
 
-        super(DataSet, self).get_num_pts(
-            data_type=data_type, verbose=verbose, print_fn=print_fn
-        )
+        super(DataSet, self).get_num_pts(identifier, verbose, print_fn)

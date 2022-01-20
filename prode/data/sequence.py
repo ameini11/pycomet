@@ -5,62 +5,80 @@ from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
 
 
-@keras_export('keras.utils.ODEDataSequence')
-class ODEDataSequence(tf.keras.utils.Sequence):
+@keras_export('keras.utils.MultiObjData')
+class MultiObjData(tf.keras.utils.Sequence):
 
-    def __init__(self, data, data_ids, batch_size=64, shuffle=True):
-        super(ODEDataSequence, self).__init__()
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        data,
+        objectives,
+        batch_size=32,
+        shuffle=True
+    ):
+        super(MultiObjData, self).__init__()
 
         self.name = utils.get_class_name(self)
 
-        # Check data identities `data_ids`
-        self.data_ids = list(data_ids)
+        # Objective functions identifiers: ['ics','pts','res']
+        self.objectives = list(objectives)
 
-        # Check `batch_size` variable
+        # Checking `batch_size`
         if not isinstance(batch_size, (dict, int)):
             utils.raise_value_err(
-                "`batch_size` passed into `{}` has to be a `int` or `dict`. If `dict`:\n"
+                "`batch_size` passed into `{}` has to be a"
+                " `int` or `dict`. If `dict`:\n"
                 "  - 'ics': initial condition pts batch size;\n"
                 "  - 'pts': additional anchor pts batch size;\n"
-                "  - 'res': collocation pts batch size (residual).".format(self.name))
+                "  - 'res': collocation pts batch size "
+                "(residual).".format(self.name))
         if isinstance(batch_size, int):
-            self.batch_size = {data_id: batch_size for data_id in self.data_ids}
+            self.batch_size = {
+                obj: batch_size for obj in self.objectives
+            }
         else:
             self.batch_size = batch_size
 
-        # Check `data` variable
+        # Checking `data`
         if not isinstance(data, dict):
             utils.raise_value_err(
                 "`data` passed into `{}` has to be a `dict`:\n"
                 "  - 'ics': initial condition pts dataset;\n"
                 "  - 'pts': additional anchor pts dataset;\n"
-                "  - 'res': collocation pts dataset (residual).".format(self.name))
+                "  - 'res': collocation pts dataset "
+                "(residual).".format(self.name)
+            )
         else:
             self.data, self.n_samples = {}, {}
-            for k in list(data_ids):
-                if k not in data or data[k] is None:
-                    # Delete the corresponding `key` entry
-                    self.data_ids.remove(k)
-                    if k in self.batch_size:
-                        self.batch_size.pop(k)
+            for obj in self.objectives:
+                if obj not in data or data[obj] is None:
+                    # Deleting the corresponding `key` entry
+                    self.objectives.remove(obj)
+                    if obj in self.batch_size:
+                        self.batch_size.pop(obj)
                 else:
-                    if not isinstance(data[k], (list,tuple)) and len(data[k]) > 2:
-                        # Check data type: `[x,y]` or `(x,y)`
+                    if not isinstance(data[obj], (list,tuple)):
+                        # Check data type: [x, y, sample_weight]
                         utils.raise_value_err(
-                            "Values passed into `data` dictionary in `{}` must "
-                            "be a `list`/`tuple` of `np.ndarray` of length 2: "
-                            "(inputs, outputs).".format(self.name))
+                            "Values passed into `data` dictionary in `{}` "
+                            "must be a `list`/`tuple` of `np.ndarray`: "
+                            "[x, y, sample_weight].".format(self.name)
+                        )
                     else:
-                        self.data[k] = data[k]
-                        self.n_samples[k] = utils.get_cardinality(data[k])
-                        if k not in self.batch_size:
-                            self.batch_size[k] = 32
+                        self.data[obj] = data[obj]
+                        self.n_samples[obj] = utils.get_cardinality(data[obj])
 
-        # Number of batches for each data id
-        self.steps = {k: int(np.ceil(self.n_samples[k]/self.batch_size[k])) for k in self.data_ids}
+        # Data dimensions
+        self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
+
+        # Number of batches for each objective data
+        self.steps = tf.nest.map_structure(
+            lambda x, y: int(np.ceil(x/y)), self.n_samples, self.batch_size
+        )
 
         self.shuffle = shuffle
-        self.on_epoch_end()
+        self.keep_indeces = False
 
     def __len__(self):
         """Number of batches in the Sequence.
@@ -79,44 +97,99 @@ class ODEDataSequence(tf.keras.utils.Sequence):
         Returns:
             A batch
         """
-        x, y = [ xy for xy in zip(*self.sequence[index]) ]
-        return x, y
+        return utils.zip_dict_of_lists(self.sequence[index])
 
-    # Handling data at the end of each epoch
+    # Handling data during training
     ###########################################################################
     @tf.function
     def on_epoch_end(self):
-        """Method called at the end of every epoch.
-        """
-        batches = dict()
-        for dset_id, dset in self.data.items():
+        """Method called at the end of every epoch."""
+        batches = {}
+        for obj, dset in self.data.items():
             if self.shuffle:
-                dset = self.shuffle_data(dset, dset_id)
-            batches[dset_id] = self.batch_data(dset, dset_id)
-        self.sequence = [ batch for batch in zip(*list(batches.values())) ]
+                dset = self.shuffle_data(obj, dset)
+            batches[obj] = self.batch_data(obj, dset)
+        self.sequence = utils.zip_dict_of_lists(batches)
 
-    def shuffle_data(self, dset, dset_id):
-        indeces = np.random.permutation(self.n_samples[dset_id])
-        _dset = []
-        for xy in dset:
-            if isinstance(xy, (list,tuple)):
-                # Multiple I/O
-                _dset.append([i[indeces] for i in xy])
-            else:
-                # Single I/O
-                _dset.append(xy[indeces])
-        return _dset
+    def shuffle_data(self, obj, dset):
+        indeces = np.random.permutation(self.n_samples[obj])
+        dset = tf.nest.map_structure(lambda z: z[indeces], dset)
+        if self.keep_indeces:
+            dset.append(indeces.reshape((-1,1)))
+        return dset
 
-    def batch_data(self, dset, dset_id):
-        repeat = int(np.ceil(self.__len__()/self.steps[dset_id]))
-        _dset = []
-        for xy in dset:
-            if isinstance(xy, (list,tuple)):
-                # Multiple I/O
-                spl = [ np.array_split(i, self.steps[dset_id])*repeat for i in xy ]
-                _xy = [ spl_i for spl_i in zip(*spl) ]
+    def batch_data(self, obj, dset):
+        repeat = int(np.ceil(self.__len__()/self.steps[obj]))
+        dset = tf.nest.map_structure(
+            lambda z: np.array_split(z, self.steps[obj])*repeat, dset
+        )
+        for i, z in enumerate(dset):
+            if self.keep_indeces and i == len(dset)-1:
+                break
             else:
-                # Single I/O
-                _xy = np.array_split(xy, self.steps[dset_id])*repeat
-            _dset.append(_xy)
-        return [ _dset_i for _dset_i in zip(*_dset) ]
+                if isinstance(self.shapes[obj][i], list):
+                    dset[i] = list(zip(*z))
+        dset = list(zip(*dset))
+        return dset
+
+
+
+    def build(self, model):
+        self.build_targets(model)
+        self.on_epoch_end()
+
+        
+    def build_targets(
+        self,
+        model
+    ):
+        for obj in self.objectives:
+            # Get true and pred values
+            y_true = self.data[obj][1]
+            y_pred = model.predict_step(objective=obj)
+            # Get true and pred feature dimensions
+            dim_true = utils.get_struct_shape(y_true, axis=1)
+            dim_pred = utils.get_struct_shape(y_pred, axis=1)
+            # Check if true and pred dimensions are the same
+            if dim_true != dim_pred:
+                if obj == 'res':
+                    self.data[obj][1] = tf.nest.map_structure(
+                        lambda d: np.zeros((self.n_samples[obj], d)), dim_pred
+                    )
+                else:
+                    utils.raise_value_err(
+                        "'{}' data passed into `{}` are inconsistent with the "
+                        "network output dimensions.".format(obj, self.name)
+                    )
+        # Update shapes
+        self.shapes= tf.nest.map_structure(lambda z: z.shape, self.data)
+
+
+    def init_weights(
+        self,
+        initializer=None,
+        trainable=False,
+        rank=2
+    ):
+        for obj in self.objectives:
+            # Get initializers
+            init_fn = initializer[obj] if initializer else np.ones
+            # Define shape
+            if rank == 1:
+                fn = lambda x: init_fn(shape=(x.shape[0],1))
+            else:
+                fn = lambda x: init_fn(shape=x.shape)
+            # Construct weights
+            sample_weight = tf.nest.map_structure(fn, self.data[obj][1])
+            # Make them tf.Variable if trainable
+            if trainable:
+                sample_weight =  tf.nest.map_structure(
+                    lambda w: tf.Variable(w, name='sw_'+obj), sample_weight
+                )
+            # Add sample weights to the data set
+            if len(self.data[obj]) <= 2:
+                self.data[obj].append(sample_weight)
+            else:
+                self.data[obj][2] = sample_weight
+        # Update shapes
+        self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)

@@ -1,4 +1,4 @@
-from tensorflow.keras import optimizers as opt
+from tensorflow.python.keras import optimizers as opt
 from prode.utilities import utils
 
 

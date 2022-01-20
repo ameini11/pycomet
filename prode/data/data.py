@@ -1,7 +1,6 @@
 import tensorflow as tf
 
 from prode.utilities import utils
-from sklearn.model_selection import train_test_split
 
 
 class Data(object):
@@ -12,118 +11,113 @@ class Data(object):
     def __init__(
         self,
         dim,
-        training=True
+        training=True,
+        batch_size=None,
+        from_file=False,
+        columns=None,
+        header=None,
+        preproc_fn=None
     ):
         self.name = utils.get_class_name(self)
 
         self.dim = dim
         self.training = training
+        self.built = False
 
         self.train = None
         self.valid = None
         self.test = None
         self.validation_split = None
         
-        self.batch_size = None
-        self.valid_batch_size = None
-        
-        self.data_ids = None
-        self.data_ids_valid = None
+        self.batch_size = {
+            'train': 32,
+            'valid': None
+        }
+        if batch_size != None:
+            self.update_batch_size(batch_size)
+
+        # Extra attributes if `data` extracted from file
+        self.from_file = from_file
+        self.columns = columns
+        self.header = header
+        self.preproc_fn = preproc_fn
+
+        # Defining multi-objective loss function identifiers
+        self.multi_obj_loss = False
+        self.objectives = None
+
+    def build(self, model):
+        self.built = True
 
     # Util functions
     ###########################################################################
-    def get_num_pts(self, data_type='training', verbose=1, print_fn=None):
-        if data_type == 'training':
-            dset = self.train
-        elif data_type == 'validation':
-            dset = self.valid
-        else:
-            utils.raise_value_err(
-                "`data_type` passed into `{}.get_num_pts` "
-                "method must be equal to 'training' or "
-                "'validation'.".format(self.name))
-        if dset:
-            return print_fn(dset, data_type, verbose) if print_fn else None
+    def get_num_pts(self, identifier='training', verbose=1, print_fn=None):
+        dset = self.train if identifier == 'training' else self.valid
+        if dset is not None and print_fn is not None:
+            print_fn(dset, identifier, verbose)
         else:
             if verbose:
-                utils.print_submain("No {} pts available.".format(data_type))
-            return None
+                utils.print_submain("No {} pts available.".format(identifier))
+        print("")
 
-    # Splitting Training/Validation Data
+    # Reading data from file
     ###########################################################################
-    def get_train_valid(self, data):
-        if data is None:
-            return None, None
-        else:
-            return self.split_data(*data)
-
-    def train_valid_split(self, x, y):
-        x, y = list(map(self.to_list, [x, y]))
-
-        # Split arrays into random train and validation subsets
-        data = (*x, *y)
-        split = train_test_split(*data, test_size=self.validation_split)
-
-        # Define `x` and `y` indeces for extracting train and validation subsets
-        x_idx = list(zip(*[(i*2, i*2+1) for i in range(len(x))]))
-        y_idx = list(zip(*[(i*2, i*2+1) for i in range(len(x),len(x)+len(y))]))
-
-        # Extract train and validation subsets
-        x, x_val = [[split[i] for i in x_idx[j]] for j in [0,1]]
-        y, y_val = [[split[i] for i in y_idx[j]] for j in [0,1]]
-
-        # Single input model
-        if len(x) == 1:
-            x, x_val = x[0], x_val[0]
-        # Single output model
-        if len(y) == 1:
-            y, y_val = y[0], y_val[0]
-
-        return (x, y), (x_val, y_val)
-
-    def to_list(self, x):
-        return list(x) if isinstance(x, (list,tuple)) else [x]
+    def read_datafile(self, file):
+        utils.check_file_extension(file, '.cvs')
+        if not isinstance(self.columns, dict):
+            utils.raise_value_err(
+                "`columns` provided in `{}` has to be a `dict` with keys "
+                "['x', 'y']. The corresponding values are doublets "
+                "(start, end) columns (or a list of those if "
+                "multi I/O) for extracting input and target data "
+                "from file.".format(self.name)
+            )
+        elif None in self.columns.values():
+            utils.raise_value_err(
+                "In `columns` dictionary, provided in `{}`, both 'x' and "
+                "'y' keys have to be not `None`.".format(self.name)
+            )
+        df = pd.read_csv(data, sep=',', header=self.header)
+        df = df.to_numpy(dtype=K.floatx())
+        if self.preproc_fn is not None:
+            df = self.preproc_fn(df)
+        return [self.read_dataframe(df, self.columns[i]) for i in ['x', 'y']]
 
     def read_dataframe(self, df, col):
         if any(isinstance(i, (list,tuple)) for i in col):
-            return [ df[:, col[i][0]:col[i][1]] for i in range(len(col)) ]
+            return [df[:, col[i][0]:col[i][1]] for i in range(len(col))]
         else:
             return df[:, col[0]:col[1]]
 
+    # Checking data - network consistency
+    ###########################################################################
     def check_data_consistency(self, data):
-        msg = "Inconsistency between data and " \
-            "network I/O dimensions (see `dim`)."
-        dim = list(self.dim.values())
-        for i, xy in enumerate(data):
-            if isinstance(xy, (list,tuple)):
-                if isinstance(dim[i], (list,tuple)):
-                    if not len(xy) == len(dim[i]):
-                        utils.raise_value_err(msg)
-                    for j in range(len(xy)):
-                        if not xy[j].shape[1] == dim[i][j]:
-                            utils.raise_value_err(msg)
-                else:
-                    utils.raise_value_err(msg)
-            else:
-                if isinstance(dim[i], int):
-                    if not xy.shape[1] == dim[i]:
-                        utils.raise_value_err(msg)
+        net_dim = list(self.dim.values())
+        data_dim = utils.get_struct_shape(data, axis=1)
+        for i, IO in enumerate(self.dim.keys()):
+            if data_dim[i]:
+                if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
+                    utils.raise_value_err(
+                        "Data and network '{}' dimensions not "
+                        "consistent: check `dim` or data shape.".format(IO)
+                    )
 
-    def check_size(self, data):
-        msg = "Inconsistency between data and " \
-            "network I/O dimensions (see `dim`)."
-        dim = list(self.dim.values())
-        for i, xy in enumerate(data):
-            if isinstance(xy, (list,tuple)):
-                if isinstance(dim[i], (list,tuple)):
-                    if not len(xy) == len(dim[i]):
-                        utils.raise_value_err(msg)
-                    for j in range(len(xy)):
-                        if not xy[j].shape[1] == dim[i][j]:
-                            utils.raise_value_err(msg)
-                else:
-                    utils.raise_value_err(msg)
+    # Updating default batch sizes
+    ###########################################################################
+    def update_batch_size(self, batch_size):
+        if isinstance(batch_size, dict):
+            if all(k in batch_size.keys() for k in ['train', 'valid']):
+                self.batch_size = batch_size
             else:
-                if isinstance(dim[i], int):
-                    if not xy.shape[1] == dim[i]:
-                        utils.raise_value_err(msg)
+                utils.raise_value_err(
+                    "`batch_size` dictionary passed into `{}` has to have "
+                    "['train', 'valid'] as keys.".format(self.name)
+                )
+        elif isinstance(batch_size, int):
+            for k in self.batch_size.keys():
+                self.batch_size[k] = batch_size
+        else:
+            utils.raise_value_err(
+                "`batch_size` passed into `{}` has to be a "
+                "`int` or a `dict`".format(self.name)
+            )

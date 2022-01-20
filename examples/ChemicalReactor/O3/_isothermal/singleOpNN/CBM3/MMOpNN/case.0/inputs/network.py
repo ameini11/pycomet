@@ -14,8 +14,8 @@
 
 import tensorflow as tf
 
-from tensorflow.keras import layers as tf_layers
-from tensorflow.keras import activations as tf_act
+from tensorflow.python.keras import layers as tf_layers
+from tensorflow.python.keras import activations as tf_act
 from prode.utilities.model import layers as pro_layers
 
 

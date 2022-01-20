@@ -2,7 +2,7 @@ import os
 import copy
 import numpy as np
 import pandas as pd
-import tensorflow.keras.callbacks as CB
+import tensorflow.python.keras.callbacks as CB
 import prode.postprocessing as post
 
 from tqdm import tqdm
@@ -16,8 +16,6 @@ class Plotter(CB.Callback):
 
     def __init__(
         self,
-        test_data=None,
-        train_dir=None,
         output_ops=None,
         var_names=None,
         time_idx=-1,
@@ -29,17 +27,6 @@ class Plotter(CB.Callback):
         freq=100
     ):
         super(Plotter, self).__init__()
-
-        self.test_data = test_data
-
-        self.train_dir = train_dir
-        self.path = {
-            'train': self.train_dir+'plots/training',
-            'test':  self.train_dir+'plots/testing'
-        }
-        for k, v in self.path.items():
-            if not os.path.exists(v):
-                os.makedirs(v)
 
         self.output_ops = output_ops
 
@@ -53,6 +40,19 @@ class Plotter(CB.Callback):
         
         self.freq = freq
         self.fig_name = fig_name
+
+
+    def on_train_begin(self, logs={}):
+        self.test_data = self.model.data.test
+
+        self.train_dir = self.model.train_dir
+        self.path = {
+            'train': self.train_dir+'plots/training',
+            'test':  self.train_dir+'plots/testing'
+        }
+        for k, v in self.path.items():
+            if not os.path.exists(v):
+                os.makedirs(v)
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % self.freq == 0:

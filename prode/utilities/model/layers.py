@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow_addons.layers as tfa_layers
-import tensorflow.keras.layers as tf_layers
+import tensorflow.python.keras.layers as tf_layers
 
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import tensor_shape

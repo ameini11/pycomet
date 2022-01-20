@@ -14,7 +14,7 @@
 
 import inputs.general as inp_gen
 
-from tensorflow.keras import layers as tf_layers
+from tensorflow.python.keras import layers as tf_layers
 from prode.utilities.model import layers as pro_layers
 
 

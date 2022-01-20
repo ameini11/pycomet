@@ -5,29 +5,22 @@ from matplotlib import pyplot as plt
 def plot_test(
     path,
     x,
-    y_true,
+    y,
     y_pred,
     var_names,
-    time_idx=-1,
     fig_name=None,
     labels=[None, None],
-    scales=['log', 'linear'],
-    locs={'col': 3, 'type': 1}
+    scales=['log', 'linear']
 ):
     """Variable plotting."""
 
     fig = plt.figure()
-    plt.grid()
 
-    # Preprocess figure -------------------------------------------------------
+    # Set up figure -----------------------------------------------------------
     x_label, y_label = labels
     x_scale, y_scale = scales
 
     # X axis
-    if isinstance(x, (list,tuple)):
-        x = x[time_idx] # Time input
-    else:
-        x = x[:,time_idx]
     if x_label is not None:
         plt.xlabel(x_label)
     if x_scale is not None:
@@ -86,29 +79,21 @@ def plot_test(
             c=colors[-1]
         )
 
-    # Plot legends
-    fontsize = 'x-small'
-    if n > 6:
-        fontsize = 'xx-small'
-    legend_col = plt.legend(
+    # Plot color legends
+    if n > 12:
+        fs = 'x-small'
+    elif n > 6:
+        fs = 'small'
+    else:
+        fs = 'medium'
+    plt.legend(
         [plt.plot([], [], c=colors[i])[0] for i in range(len(var_names))],
         var_names,
-        fontsize=fontsize,
-        loc=locs['col'],
-        ncol=int(np.ceil(n/6))
+        fontsize=fs,
+        ncol=int(np.ceil(n/3))
     )
-    legend_type = plt.legend(
-        [
-            plt.plot([], [], c="k", **true_style)[0],
-            plt.plot([], [], c="k", **pred_style)[0]
-        ],
-        ["True", "Pred"],
-        fontsize=fontsize,
-        loc=locs['type']
-    )
-    plt.gca().add_artist(legend_col)
 
-    # Save figure
+    # Save figure -------------------------------------------------------------
     name = y_scale if fig_name == None else fig_name + '_' + y_scale
     fig_path = path + '/' + name + '.pdf'
     fig.savefig(fig_path)

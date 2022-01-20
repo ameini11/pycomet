@@ -1,9 +1,6 @@
 import tensorflow as tf
-import tensorflow.keras.layers as tf_layers
+import tensorflow.python.keras.layers as tf_layers
 
-from prode.utilities.model import activations
-from prode.utilities.model import initializers
-from prode.utilities.model import regularizers
 from prode.utilities.model import layers
 from prode.utilities import utils
 from prode.networks.opnn import OpNN
@@ -149,7 +146,7 @@ class MMOpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None):
+    def call(self, x, training=False, mask=None):
 
         # Inputs
         if isinstance(x, (list, tuple)):
@@ -188,11 +185,3 @@ class MMOpNN(Net):
             G_uy = self.out_trans(G_uy)
 
         return G_uy
-
-    # Graph
-    ###########################################################################
-    def get_graph(self):
-        x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
-              tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
-        y = self.call(x)
-        return tf.keras.Model(inputs=x, outputs=y, name=self.name)

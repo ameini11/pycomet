@@ -107,11 +107,13 @@ def app_epilog(name=None, delta=None):
 
 # Handling data types
 ###############################################################################
-def get_class(module, name):
+def get_class(module, name=None, kwargs=None):
     """Return a class object given its name and the module which belongs to."""
-    for name_i, obj_i in inspect.getmembers(module, inspect.isclass):
+    if name is None and 'name' in kwargs:
+        name = kwargs.pop('name')
+    for name_i, cls_i in inspect.getmembers(module, inspect.isclass):
         if name_i == name:
-            return obj_i
+            return cls_i(**kwargs) if kwargs else cls_i
     raise_value_err(
         "Class `{}` not found in module `{}`.".format(name, module.__name__)
     )

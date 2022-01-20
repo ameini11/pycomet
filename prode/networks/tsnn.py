@@ -1,12 +1,8 @@
 import tensorflow as tf
-import tensorflow.keras.layers as tf_layers
+import tensorflow.python.keras.layers as tf_layers
 
-from prode.utilities.model import activations
-from prode.utilities.model import initializers
-from prode.utilities.model import regularizers
 from prode.utilities.model import layers
 from prode.utilities import utils
-from prode.physics.general import const
 from prode.networks.opnn import OpNN
 from prode.networks.net import Net
 
@@ -128,7 +124,7 @@ class TimeScaleNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None, noneq_factor=None):
+    def call(self, x, training=False, mask=None):
 
         ic, t = x
 
@@ -158,15 +154,6 @@ class TimeScaleNN(Net):
 
         # Equilibrium layer ---------------------------------------------------
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-        if training is False and noneq_factor is True:
-            return y
-        else:
-            return self.equilibrium([y, T, rho])
+        y = self.equilibrium([y, T, rho])
 
-    # Graph
-    ###########################################################################
-    def get_graph(self):
-        x = [ tf.keras.Input(shape=(self.inp_dim[0],), name="branch_input"),
-              tf.keras.Input(shape=(self.inp_dim[1],), name="trunk_input") ]
-        y = self.call(x)
-        return tf.keras.Model(inputs=x, outputs=y, name=self.name)
+        return y
