@@ -116,11 +116,11 @@ def main():
 
     if inp.data.from_file:
         utils.print_main("Extracting training/validation pts from file ...")
-        train_data, valid_data = inp.data.train_file, inp.data.valid_file
+        train_data, valid_data = inp.data.file['train'], inp.data.file['valid']
         if inp.general.flags['test'] > 0 and inp.data.test_cases > 0:
             utils.print_main('Generating testing pts ...')
             test_data = dataGen.testing_data(
-                inp.data.test_file,
+                inp.data.file['test'],
                 header=inp.data.header
             )
     else:
@@ -142,7 +142,7 @@ def main():
         modules=[inp.data, inp.general]
     )
 
-    if physics_informed and inp.data.data_type == 'ODE':
+    if physics_informed and inp.data.data_type:
         utils.print_main("Initializing physical model ...")
         PhysicalModel_args = utils.get_args_values(
             args=utils.get_args(PhysicalModel.__init__),
@@ -179,7 +179,7 @@ def main():
         net.inp_trans = inp.network.input_fn
     if hasattr(inp.network, 'output_fn'):
         net.out_trans = inp.network.output_fn
-
+    
     # Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
@@ -195,6 +195,8 @@ def main():
         visualize_graph=opts.graph,
         verbose=opts.verbose
     )
+
+    input('++++++++++++++++++++++++++++++++++++++++++')
 
     # Compile Model -----------------------------------------------------------
     utils.print_main(

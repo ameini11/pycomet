@@ -66,12 +66,16 @@ class Model(object):
         load_net=0,
         visualize_graph=False
     ):
+        # Update multi-objective loss function parameters
+        self.net.multi_obj_loss = self.data.multi_obj_loss
+        self.net.objectives = self.data.objectives
+        if self.net.multi_obj_loss:
+            self.net.residual = self.data.res_fn(self.net)
+
         # Build the network
         if not self.net.built:
             self.net.build(
-                tf.nest.map_structure(
-                    lambda i: tf.TensorShape([None, i]), input_dim
-                )
+                tf.nest.map_structure(lambda i: [1, i], input_dim)
             )
         # Build data structures
         if not self.data.built:

@@ -137,6 +137,7 @@ class FFBlock(tf_layers.Layer):
         batch_norm=None,
         weight_norm=False,
         name='ff_block',
+        linear_out=True,
         **kwargs
     ):
         super(FFBlock, self).__init__(name=name, **kwargs)
@@ -149,6 +150,7 @@ class FFBlock(tf_layers.Layer):
         self.dropout_rate = dropout_rate
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
+        self.linear_out = linear_out
 
         ### Layers Initialization ---------------------------------------------
         # Hidden Layers
@@ -167,15 +169,16 @@ class FFBlock(tf_layers.Layer):
 
         # Output Layer
         self.multi_lays.append(
-            MultiLayerBlock(
+            tf_layers.Dense(
                 units=self.layer_size[-1],
-                activation=self.activation,
+                activation='linear' if self.linear_out else self.activation,
                 kernel_initializer=self.kernel_initializer,
-                regularizer=self.regularizer,
-                weight_norm=self.weight_norm,
+                kernel_regularizer=self.regularizer,
+                bias_regularizer=self.regularizer,
                 name='output'
             )
         )
+
 
     # Configuration update
     ###########################################################################
@@ -188,7 +191,8 @@ class FFBlock(tf_layers.Layer):
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
-            'multi_lays': self.multi_lays
+            'multi_lays': self.multi_lays,
+            'linear_out': self.linear_out
         }
         base_config = super(FFBlock, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -233,6 +237,7 @@ class ResPIBlock(FFBlock):
         batch_norm=None,
         weight_norm=False,
         name='res_pi_block',
+        linear_out=True,
         **kwargs
     ):
         super(ResPIBlock, self).__init__(
@@ -243,6 +248,7 @@ class ResPIBlock(FFBlock):
             dropout_rate=dropout_rate,
             batch_norm=batch_norm,
             weight_norm=weight_norm,
+            linear_out=linear_out,
             name=name,
             **kwargs
         )
@@ -489,6 +495,49 @@ class Bias(tf_layers.Layer):
             y = self.activation(y)
 
         return y
+
+
+# =========================================================================== #
+# Logarithmic Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='Log')
+class Log(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        base=10,
+        min_value=1.,
+        name='log',
+        **kwargs
+    ):
+        super(Bias, self).__init__(name=name, **kwargs)
+
+        self.base = base
+        self.min_value = min_value
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'base': self.base,
+            'min_value': self.min_value
+        }
+        base_config = super(Log, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    # Calling
+    ###########################################################################
+    def call(self, x, training=None):
+        if isinstance(self.base, str) and self.base == 'e':
+            return tf.math.log(x)
+        else:
+            return tf.math.log(x) / tf.math.log(self.base)
 
 
 # =========================================================================== #

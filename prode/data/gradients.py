@@ -7,11 +7,11 @@ def order_0(time_idx, order, model, ic, t, training):
     assert order == 0
     # Inputs
     x = [t, ic] if time_idx == 0 else [ic, t]
-    if len(model.inputs) == 1:
+    if len(tf.nest.flatten(model.inputs)) == 1:
         x = tf.concat(x, axis=1)
     # Outputs
     y = model(x, training=training)
-    if len(model.outputs) > 1:
+    if len(tf.nest.flatten(model.outputs)) > 1:
         y = tf.concat(y, axis=1)
     return [y]
 
@@ -33,6 +33,6 @@ def order_n(time_idx, order, model, ic, t, training):
 def eval(time_idx, order, model, ic, t, training):
     grad_fn = order_0 if order == 0 else order_n
     grads = grad_fn(time_idx, order, model, ic, t, training)
-    if len(model.outputs) > 1:
+    if len(tf.nest.flatten(model.outputs)) > 1:
         grads = [tf.split(g, model.output_dim, axis=1) for g in grads]
     return grads

@@ -79,14 +79,17 @@ class Net(tf.keras.Model):
     def build(self, input_shape):
         super(Net, self).build(input_shape)
         # I/O characterization
-        self.inputs = tf.nest.map_structure(
-            lambda i: K.placeholder(shape=[None,i], dtype=K.floatx()),
-            input_shape
-        )
-        self.outputs = self.call(self.inputs, training=False)
+        self.inputs = [
+            K.placeholder(shape=s, dtype=K.floatx()) for s in input_shape
+        ]
+        self.outputs = self.predict_step()
         # I/O features space dimensions
-        self.input_dim = [i.shape[1] for i in self.inputs]
-        self.output_dim = [o.shape[1] for o in self.outputs]
+        self.input_dim = tf.nest.map_structure(
+            lambda i: i.shape[1], self.inputs
+        )
+        self.output_dim = tf.nest.map_structure(
+            lambda o: o.shape[1], self.outputs
+        )
         # Network graph
         self.graph = tf.keras.Model(self.inputs, self.outputs, name=self.name)
 

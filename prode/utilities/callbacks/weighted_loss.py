@@ -60,7 +60,7 @@ class BaseWeightsAdapter(CB.Callback):
                 )
             )
         elif isinstance(self.multi_obj_loss_weights, dict):
-            continue
+            pass
         else:
             utils.raise_value_err(
                 "`multi_obj_loss_weights` passed into `{}` "
@@ -446,7 +446,7 @@ class SoftAttentionWeightsAdapter(BaseWeightsAdapter):
             self.limits = {
                 obj: limits for obj in self.model.objectives['train']
             }
-        if not isinstance(self.limits, dict)
+        if not isinstance(self.limits, dict):
             utils.raise_value_err(
                 "`limits` in `{}` has to be a `dict` of [min, max] value "
                 "list for each objecitve function.".format(self.name)
@@ -457,7 +457,7 @@ class SoftAttentionWeightsAdapter(BaseWeightsAdapter):
 
         # Define the self-adaptation mask function
         if q is not None:
-            if any([q_i <= 0. for q_i in q])
+            if any([q_i <= 0. for q_i in q]):
                 utils.raise_value_err(
                     "`q` coefficents for the mask function in `{}` have "
                     "to be positive.".format(self.name)

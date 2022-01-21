@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 
+from tensorflow.python.keras import backend as K
 from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
 
@@ -51,7 +52,7 @@ class MultiObjData(tf.keras.utils.Sequence):
             )
         else:
             self.data, self.n_samples = {}, {}
-            for obj in self.objectives:
+            for obj in list(objectives):
                 if obj not in data or data[obj] is None:
                     # Deleting the corresponding `key` entry
                     self.objectives.remove(obj)
@@ -66,7 +67,7 @@ class MultiObjData(tf.keras.utils.Sequence):
                             "[x, y, sample_weight].".format(self.name)
                         )
                     else:
-                        self.data[obj] = data[obj]
+                        self.data[obj] = list(data[obj])
                         self.n_samples[obj] = utils.get_cardinality(data[obj])
 
         # Data dimensions
@@ -146,7 +147,13 @@ class MultiObjData(tf.keras.utils.Sequence):
         for obj in self.objectives:
             # Get true and pred values
             y_true = self.data[obj][1]
-            y_pred = model.predict_step(objective=obj)
+            y_pred = model.predict_step(
+                tf.nest.map_structure(
+                    lambda z: tf.random.normal(z.shape, dtype=K.floatx()),
+                    model.inputs
+                ),
+                objective=obj
+            )
             # Get true and pred feature dimensions
             dim_true = utils.get_struct_shape(y_true, axis=1)
             dim_pred = utils.get_struct_shape(y_pred, axis=1)
@@ -162,7 +169,7 @@ class MultiObjData(tf.keras.utils.Sequence):
                         "network output dimensions.".format(obj, self.name)
                     )
         # Update shapes
-        self.shapes= tf.nest.map_structure(lambda z: z.shape, self.data)
+        self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
 
 
     def init_weights(

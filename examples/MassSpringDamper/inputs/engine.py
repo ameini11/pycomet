@@ -29,9 +29,9 @@ decay = ["exponential", decay_steps, decay_rate]
 # Loss & Metrics
 # =============================================================================
 loss = {
-    'ics': {'identifier': 'mse', 'axis': 0},
-    'pts': {'identifier': 'mse', 'axis': 0},
-    'res': {'identifier': 'mse', 'axis': 0}
+    'ics': 'mse',
+    'pts': 'mse',
+    'res': 'mse'
 }
 
 # Callbacks

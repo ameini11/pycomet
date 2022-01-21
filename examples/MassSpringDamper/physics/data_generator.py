@@ -24,7 +24,7 @@ class DataGenerator(object):
     def __init__(
         self,
         train_pts,
-        valid,
+        validation_split,
         distribution,
         test_cases,
         test_training,
@@ -43,7 +43,7 @@ class DataGenerator(object):
         # Training/Validation pts
         self.scenarios = train_pts['ics']
         self.valid_pts = {
-            k: round(valid*train_pts[k]) if k != 'ics' \
+            k: round(validation_split*train_pts[k]) if k != 'ics' \
                 else self.scenarios for k in train_pts
         }
         self.train_pts = {

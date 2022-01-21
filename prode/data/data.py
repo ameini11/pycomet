@@ -94,7 +94,7 @@ class Data(object):
     def check_data_consistency(self, data):
         net_dim = list(self.dim.values())
         data_dim = utils.get_struct_shape(data, axis=1)
-        for i, IO in enumerate(self.dim.keys()):
+        for i, IO in enumerate(data_dim):
             if data_dim[i]:
                 if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
                     utils.raise_value_err(
