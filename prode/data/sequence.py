@@ -149,8 +149,8 @@ class MultiObjData(tf.keras.utils.Sequence):
             y_true = self.data[obj][1]
             y_pred = model.predict_step(
                 tf.nest.map_structure(
-                    lambda z: tf.random.normal(z.shape, dtype=K.floatx()),
-                    model.inputs
+                    lambda d: tf.random.normal((0, d), dtype=K.floatx()),
+                    model.input_dim
                 ),
                 objective=obj
             )

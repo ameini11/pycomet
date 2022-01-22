@@ -196,8 +196,6 @@ def main():
         verbose=opts.verbose
     )
 
-    input('++++++++++++++++++++++++++++++++++++++++++')
-
     # Compile Model -----------------------------------------------------------
     utils.print_main(
         "Compiling '{}' network ...".format(inp.network.architecture)
@@ -207,6 +205,8 @@ def main():
         modules=inp.engine
     )
     model.compile(**compile_args)
+
+    input('++++++++++++++++++++++++++++++++++++++++++')
 
     # Fit Model ---------------------------------------------------------------
     if inp.general.flags['train'] > 0:

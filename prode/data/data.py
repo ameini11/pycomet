@@ -1,5 +1,7 @@
+import pandas as pd
 import tensorflow as tf
 
+from tensorflow.python.keras import backend as K
 from prode.utilities import utils
 
 
@@ -63,7 +65,7 @@ class Data(object):
     # Reading data from file
     ###########################################################################
     def read_datafile(self, file):
-        utils.check_file_extension(file, '.cvs')
+        utils.check_file_extension(file, '.csv')
         if not isinstance(self.columns, dict):
             utils.raise_value_err(
                 "`columns` provided in `{}` has to be a `dict` with keys "
@@ -77,7 +79,7 @@ class Data(object):
                 "In `columns` dictionary, provided in `{}`, both 'x' and "
                 "'y' keys have to be not `None`.".format(self.name)
             )
-        df = pd.read_csv(data, sep=',', header=self.header)
+        df = pd.read_csv(file, sep=',', header=self.header)
         df = df.to_numpy(dtype=K.floatx())
         if self.preproc_fn is not None:
             df = self.preproc_fn(df)

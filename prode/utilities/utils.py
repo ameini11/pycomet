@@ -199,7 +199,7 @@ def check_format(data_type, string):
 def check_file_extension(file, extension):
     os.path.isfile(file)
     if PurePath(file).suffix != extension:
-        utils.raise_value_err(
+        raise_value_err(
             "The file '{}' has to be a '{}' one.".format(
                 os.path.normpath(file), extension
             )

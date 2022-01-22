@@ -76,13 +76,15 @@ class Net(tf.keras.Model):
 
     # Building
     ###########################################################################
-    def build(self, input_shape):
+    def build(self, input_dim):
+        # Define input shapes and build the network
+        input_shape = tf.nest.map_structure(lambda i: (None, i), input_dim)
         super(Net, self).build(input_shape)
         # I/O characterization
         self.inputs = [
             K.placeholder(shape=s, dtype=K.floatx()) for s in input_shape
         ]
-        self.outputs = self.predict_step()
+        self.outputs = self.call(self.inputs)
         # I/O features space dimensions
         self.input_dim = tf.nest.map_structure(
             lambda i: i.shape[1], self.inputs
@@ -106,7 +108,9 @@ class Net(tf.keras.Model):
         steps_per_execution=None,
         **kwargs
     ):
+        print(loss)
         if self.multi_obj_loss:
+            print('yes')
             # Check loss functions and weights
             self.check_arg(loss, 'loss functions')
             self.check_arg(loss_weights, 'loss weights')

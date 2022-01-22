@@ -24,13 +24,13 @@ end_scale = 'bias'
 
 # DeepONet characterization ---------------------------------------------------
 layer_size = {
-    "branch": [inp_gen.dim['inp'][0], 32, 32, 16],
-    "trunk":  [inp_gen.dim['inp'][1], 32, 32, 16]
+    "branch": [inp_gen.dim['inp'][0], 32, 32, 2],
+    "trunk":  [inp_gen.dim['inp'][1], 32, 32, 2]
 }
 
 activation = {
-    "branch": 'elu',
-    "trunk": 'tanh'
+    "branch": 'sigmoid',
+    "trunk": 'sigmoid'
 }
 
 kernel_initializer = 'GlorotNormal'
