@@ -45,22 +45,23 @@ class LearningRateTracker(CB.Callback):
 
     def __init__(
         self,
+        file=None,
+        log_dir=None,
         verbose=1
     ):
         super(LearningRateTracker, self).__init__()
 
-        self.verbose = verbose
-
-    def on_train_begin(self, logs={}):
-        self.log_dir = self.model.TB_dir
+        self.log_dir = log_dir
         if self.log_dir is not None:
             self.log_lr = tf.summary.create_file_writer(
                 log_dir + '/scalars/lr'
             )
 
-        self.file = open(self.model.train_dir+'/lr.csv', "w", buffering=1)
+        self.file = None if file is None else open(file, "w", buffering=1)
         if self.file is not None:
             self.file.write("lr\n")
+
+        self.verbose = verbose
 
     def on_epoch_begin(self, epoch, logs=None):
         logs = logs or {}

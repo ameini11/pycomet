@@ -222,8 +222,6 @@ def main():
                 inp.engine, 'callbacks'
             ) else None
         )
-
-    input('++++++++++++++++++++++++++++++++++++++++++')
     
     # Save Model --------------------------------------------------------------
     if inp.general.flags['save'] > 0:
@@ -232,19 +230,15 @@ def main():
     # Postprocessing
     ###########################################################################
     # Training phase ----------------------------------------------------------
-    model.visualize_training(
-        history=model.train_dir+'/history.csv',
-        limit_y=inp.postprocessing.limit_y \
-            if hasattr(inp.postprocessing, 'limit_y') else False
-    )
+    model.visualize_training(history=model.dir['train']+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
     utils.print_main("Postprocessing physical quantities ...")
     if inp.data.test_cases > 0 and inp.general.flags['test'] > 0:
-        for i, test_i in enumerate(tqdm(data.test)):
+        for i, data in enumerate(tqdm(data.test)):
             model.predict(
-                data=test_i,
+                data=data,
                 plotting=inp.general.flags['plot'],
-                path=model.post_dir+'/testing/test_'+str(i+1),
+                path=model.dir['post']+'/testing/test_'+str(i+1),
                 **inp.postprocessing.plot_style
             )

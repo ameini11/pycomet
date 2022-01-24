@@ -2,9 +2,12 @@ import os
 import copy
 import numpy as np
 import pandas as pd
-import tensorflow.python.keras.callbacks as CB
-import prode.postprocessing as post
+import tensorflow.keras.callbacks as CB
+from prode import postprocessing as postprocessing
 
+import tensorflow as tf
+
+from tensorflow.python.keras.engine import data_adapter
 from tqdm import tqdm
 from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
@@ -16,6 +19,8 @@ class Plotter(CB.Callback):
 
     def __init__(
         self,
+        test_data=None,
+        train_dir=None,
         output_ops=None,
         var_names=None,
         time_idx=-1,
@@ -27,6 +32,17 @@ class Plotter(CB.Callback):
         freq=100
     ):
         super(Plotter, self).__init__()
+
+        self.test_data = test_data
+
+        self.train_dir = train_dir
+        self.dir = {
+            'train': self.train_dir + 'plots/training',
+            'test': self.train_dir + 'plots/testing'
+        }
+        for k, v in self.dir.items():
+            if not os.path.exists(v):
+                os.makedirs(v)
 
         self.output_ops = output_ops
 
@@ -41,101 +57,93 @@ class Plotter(CB.Callback):
         self.freq = freq
         self.fig_name = fig_name
 
-
-    def on_train_begin(self, logs={}):
-        self.test_data = self.model.data.test
-
-        self.train_dir = self.model.train_dir
-        self.path = {
-            'train': self.train_dir+'plots/training',
-            'test':  self.train_dir+'plots/testing'
-        }
-        for k, v in self.path.items():
-            if not os.path.exists(v):
-                os.makedirs(v)
-
     def on_epoch_end(self, epoch, logs=None):
-        if epoch % self.freq == 0:
+        if epoch != 0 and epoch % self.freq == 0:
             utils.print_main(">> `Plotter` callback:")
-            self.training(limit_y=self.limit_y)
+            self.training()
             if self.test_data is not None:
                 self.testing()
             print("")
 
-    def training(self, scale='log', limit_y=False):
+    def training(self, scale='log'):
         utils.print_submain(" - Plotting training quantities ...")
         history = pd.DataFrame.from_dict(self.model.history.history)
-        path = self.path['train']
+        path = self.dir['train']
         # Learning rate
-        post.training.plot_lr(self.train_dir+'/lr.csv', path)
+        postprocessing.training.plot_lr(self.train_dir+'/lr.csv', path)
         # Losses
-        if 'loss' in history:
-            post.training.plot_loss(
-                history, path, scale=scale, limit_y=limit_y
+        if self.model.multi_obj_loss:
+            postprocessing.training.plot_composite_loss(
+                history, path, scale=scale
             )
-        elif 'tot_loss' in history:
-            post.training.plot_composite_loss(
-                history, path, scale=scale, limit_y=limit_y
-            )
-            if any([ c.endswith('weight') for c in history ]):
-                post.training.plot_loss_weights(history, path)
+            if any([ c.endswith('weight') for c in history.columns ]):
+                postprocessing.training.plot_loss_weights(
+                    history, path
+                )
+        else:
+            postprocessing.training.plot_loss(history, path, scale=scale)
         # Metrics
         if self.model.compiled_metrics:
             for metric in self.model.compiled_metrics.metrics:
                 if metric.name in history:
-                    post.training.plot_metric(
+                    postprocessing.training.plot_metric(
                         history,
                         path,
                         metric.name,
-                        scale=scale,
-                        limit_y=limit_y
+                        scale=scale
                     )
+
 
     def testing(self):
         utils.print_submain(" - Plotting test cases ...")
-        for i, test_i in enumerate(tqdm(copy.deepcopy(self.test_data))):
-            # x, y_true = self.unpack_test_data(test_i)
-            x, y_true = test_i
+        for i, data in enumerate(tqdm(copy.deepcopy(self.test_data))):
+            # Get true and pred values
+            x, y = data
             y_pred = self.model.predict(x)
-            if self.output_ops:
-                y_true, y_pred = list(map(self.output_ops, [y_true, y_pred]))
-
-            path = self.path['test'] + '/test_'+str(i+1)
+            # Define `testing` directory
+            path = self.dir['test'] + '/test_' + str(i+1)
             if not os.path.exists(path):
                 os.makedirs(path)
-            if isinstance(y_pred, (list,tuple)):
-                if self.fig_name == None:
-                    self.fig_name = [
-                        'fig'+str(i) for i in range(1,len(y_true)+1)
-                    ]
-                for j in range(len(y_pred)):
+            # Manipulate model inputs
+            if isinstance(x, (list,tuple)):
+                x = x[self.time_idx] # Time input
+            else:
+                x = x[:,self.time_idx]
+            # Manipulate model outputs
+            if self.output_ops:
+                y, y_pred = list(map(self.output_ops, [y, y_pred]))
+            # Plot true vs. pred values for each single model output
+            if len(tf.nest.flatten(self.model.outputs)) > 1:
+                for j in range(len(y)):
                     kwargs = dict(
-                        y_true=y_true[j],
+                        path=path,
+                        x=x,
+                        y=y[j],
                         y_pred=y_pred[j],
                         var_names=self.var_names[j],
-                        time_idx=self.time_idx,
-                        fig_name=self.fig_name[j],
+                        fig_name=self.fig_name[j] if self.fig_name else None,
                         labels=self.labels[j],
                         scales=self.scales[j]
                     )
-                    self.testing_plot_fn(path, x, kwargs)
+                    self.testing_plot_fn(kwargs)
             else:
                 kwargs = dict(
-                    y_true=y_true,
+                    path=path,
+                    x=x,
+                    y=y,
                     y_pred=y_pred,
                     var_names=self.var_names,
-                    time_idx=self.time_idx,
                     fig_name=self.fig_name,
                     labels=self.labels,
                     scales=self.scales
                 )
-                self.testing_plot_fn(path, x, kwargs)
+                self.testing_plot_fn(kwargs)
 
-    def testing_plot_fn(self, path, x, kwargs):
-        post.testing.plot_test(path, x, **kwargs)
+    def testing_plot_fn(self, kwargs):
+        postprocessing.testing.plot_test(**kwargs)
         if self.log_plot:
             kwargs['scales'] = ['log','log']
-            post.testing.plot_test(path, x,**kwargs)
+            postprocessing.testing.plot_test(**kwargs)
 
 
 # @keras_export('keras.callbacks.MovieDumper')

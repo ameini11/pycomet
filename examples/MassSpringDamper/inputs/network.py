@@ -41,13 +41,8 @@ stacked = True
 
 cross_encoder = {
     "branch": True,
-    "trunk": True
+    "trunk": False
 }
-
-# cross_encoder_layer_size = {
-#     "branch": 'sigmoid',
-#     "trunk": 'sigmoid'
-# }
 
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
@@ -68,4 +63,3 @@ dropout_rate = 0
 # Global model ----------------------------------------------------------------
 input_fn = None
 output_fn = None
-

@@ -95,7 +95,7 @@ def plot_composite_loss(
         weight=weight
     )
 
-    composite_loss = {'var': [], 'labels': []}
+    composite_loss = {'var': [], 'label': []}
     for c in history.columns:
         if c.endswith('loss') and not c.startswith('val'):
             if c not in {'loss', 'weighted_loss'}:

@@ -38,7 +38,7 @@ paths = None
 # Physical model
 # =============================================================================
 ode_order = 1
-params = [1., 3., 0.5]    # m, k, c
+params = [1., 3., 0.5]  # m, k, c
 
 # Input space (limit values)
 input_space = {

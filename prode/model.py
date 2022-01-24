@@ -241,7 +241,7 @@ class Model(object):
         log_scale=False
     ):
         # Get true and pred values
-        x, y, _ = data_adapter.unpack_x_y_sample_weight(data)
+        x, y = data
         y_pred = self.net.predict(x)
 
         if plotting and y is not None:
@@ -258,24 +258,41 @@ class Model(object):
             # Manipulate and flatten model outputs
             if output_ops:
                 y, y_pred = list(map(output_ops, [y, y_pred]))
-            y, y_pred = list(map(tf.nest.flatten, [y, y_pred]))
             # Plot true vs. pred values for each single model output
-            for i in range(len(y)):
+            if len(tf.nest.flatten(self.net.outputs)) > 1:
+                for j in range(len(y)):
+                    kwargs = dict(
+                        path=path,
+                        x=x,
+                        y=y[j],
+                        y_pred=y_pred[j],
+                        var_names=var_names[j],
+                        fig_name=fig_name[j] if fig_name else None,
+                        labels=labels[j],
+                        scales=scales[j]
+                    )
+                    self.testing_plot_fn(log_scale, kwargs)
+            else:
                 kwargs = dict(
-                    y=y[i],
-                    y_pred=y_pred[i],
-                    var_names=var_names[i],
-                    fig_name=fig_name[i],
-                    labels=labels[i],
-                    scales=scales[i]
+                    path=path,
+                    x=x,
+                    y=y,
+                    y_pred=y_pred,
+                    var_names=var_names,
+                    fig_name=fig_name,
+                    labels=labels,
+                    scales=scales
                 )
-                postprocessing.testing.plot_test(path, x, **kwargs)
-                # Additionally plot in log scale
-                if log_scale:
-                    kwargs['scales'] = ['log','log']
-                    postprocessing.testing.plot_test(path, x,**kwargs)
+                self.testing_plot_fn(log_scale, kwargs)
 
         return y_pred
+
+    def testing_plot_fn(self, log_scale, kwargs):
+        postprocessing.testing.plot_test(**kwargs)
+        if log_scale:
+            kwargs['scales'] = ['log','log']
+            postprocessing.testing.plot_test(**kwargs)
+
 
     # Saving Model
     ###########################################################################
@@ -313,7 +330,9 @@ class Model(object):
             os.makedirs(path)
 
         # Learning Rate
-        postprocessing.training.plot_lr(self.dir['train']+'/lr.csv', path)
+        postprocessing.training.plot_lr(
+            history=self.dir['train']+'/lr.csv', path=path
+        )
         # Losses
         if self.net.multi_obj_loss:
             postprocessing.training.plot_composite_loss(

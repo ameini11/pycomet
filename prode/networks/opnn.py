@@ -43,7 +43,7 @@ class OpNN(Net):
             **kwargs
         )
 
-        self.sub_nets = {"branch", "trunk"}
+        self.sub_nets = ("branch", "trunk")
 
         ### Hyperparameters Initialization ------------------------------------
         if not isinstance(self.inp_dim, (list, tuple)):

@@ -17,7 +17,7 @@
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = True
+from_file = False
 
 # *** From file
 file = {
@@ -44,7 +44,7 @@ header = 0
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 10,      # Number of training scenarios
+    'ics': 80,      # Number of training scenarios
     'pts': 0,       # Number of total anchor pts for each scenario
     'res': 160      # Number of total collocation pts for each scenario
 }

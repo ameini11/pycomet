@@ -33,13 +33,13 @@ def plot_test(
         plt.ylabel(y_label)
     if y_scale == 'log':
         plt.yscale(y_scale)
-        plt.ylim([np.amin(y_true)*5.e-1, np.amax(y_true)*5.e+0])
+        plt.ylim([np.amin(y)*5.e-1, np.amax(y)*5.e+0])
     else:
-        delta = np.amax(y_true)*0.1
-        plt.ylim([np.amin(y_true)-delta, np.amax(y_true)+delta])
+        delta = np.amax(y)*0.1
+        plt.ylim([np.amin(y)-delta, np.amax(y)+delta])
 
-    if len(y_true.shape) < 2:
-        y_true = np.expand_dims(y_true, 1)
+    if len(y.shape) < 2:
+        y = np.expand_dims(y, 1)
 
     # Plot figure -------------------------------------------------------------
     # Define styles
@@ -50,14 +50,14 @@ def plot_test(
         marker='^',
         fillstyle='none',
         markersize=5,
-        markevery=y_true.shape[0]//20,
+        markevery=y.shape[0]//20,
         ls='--',
         lw=1.
     )
 
     # Define parameters
     colors = []
-    n = y_true.shape[1]
+    n = y.shape[1]
 
     # Loop over features
     for d in range(n):
@@ -65,7 +65,7 @@ def plot_test(
         # >> Plot true values
         plt.plot(
             x,
-            y_true[:,d],
+            y[:,d],
             **true_style
         )
         colors.append(plt.gca().lines[-1].get_color())

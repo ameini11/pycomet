@@ -109,7 +109,7 @@ def app_epilog(name=None, delta=None):
 ###############################################################################
 def get_class(module, name=None, kwargs=None):
     """Return a class object given its name and the module which belongs to."""
-    if name is None and 'name' in kwargs:
+    if name is None and 'name' in kwargs.keys():
         name = kwargs.pop('name')
     for name_i, cls_i in inspect.getmembers(module, inspect.isclass):
         if name_i == name:

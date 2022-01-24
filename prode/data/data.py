@@ -60,7 +60,6 @@ class Data(object):
         else:
             if verbose:
                 utils.print_submain("No {} pts available.".format(identifier))
-        print("")
 
     # Reading data from file
     ###########################################################################

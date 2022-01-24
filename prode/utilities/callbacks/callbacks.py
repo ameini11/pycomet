@@ -11,28 +11,41 @@ from prode.utilities import utils
 def get_cb_list(model, callbacks):
     if callbacks:
         return [
-            get_callback(model, identifier, kwargs) for identifier, kwargs in \
-                callbacks.items() if kwargs is not None
+            get_callback(model, identifier, kwargs) for identifier, kwargs \
+                in callbacks.items() if kwargs is not None
         ]
 
-def get_callback(model, identifier, kwargs):
-    cb_identifier = {
-        "early_stopping": cb.EarlyStopping(**kwargs),
-        "lr_scheduler":   utils.get_class(learning_rate, kwargs=kwargs),
-        "lr_tracker":     learning_rate.LearningRateTracker(**kwargs),
-        "plotter":        plotting.Plotter(**kwargs),
-        "model_ckpt":     cb.ModelCheckpoint(
-                              filepath=model.ckpt_dir+"/weights_{epoch:06d}.h5",
-                              **kwargs
-                          ),
-        "tensorboard":    cb.TensorBoard(**kwargs, log_dir=model.TB_dir),
-        "timer":          early_stopping.Timer(**kwargs),
-        "variable":       variable.VariableValue(**kwargs),
-        "weighted_loss":  utils.get_class(weighted_loss, kwargs=kwargs)
-    }
 
+def get_callback(model, identifier, kwargs):
     if isinstance(identifier, str):
-        return cb_identifier[identifier]
+        if identifier == "early_stopping":
+            return cb.EarlyStopping(**kwargs)
+        elif identifier == "lr_scheduler":
+            return utils.get_class(learning_rate, kwargs=kwargs)
+        elif identifier == "lr_tracker":
+            return learning_rate.LearningRateTracker(
+                file=model.dir['train']+'/lr.csv',
+                log_dir=model.dir['logs'],
+                **kwargs
+            )
+        elif identifier == "plotter":
+            return plotting.Plotter(
+                test_data=model.data.test,
+                train_dir=model.dir['train'],
+                **kwargs
+            )
+        elif identifier == "model_ckpt":
+            return cb.ModelCheckpoint(
+                filepath=model.dir['ckpt']+"/weights_{epoch:06d}.h5", **kwargs
+            )
+        elif identifier == "tensorboard":
+            return cb.TensorBoard(**kwargs, log_dir=model.dir['logs'])
+        elif identifier == "timer":
+            return early_stopping.Timer(**kwargs)
+        elif identifier == "variable":
+            return variable.VariableValue(**kwargs)
+        elif identifier == "weighted_loss":
+            return utils.get_class(weighted_loss, kwargs=kwargs)
     elif callable(identifier):
         return identifier
     else:
