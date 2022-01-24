@@ -75,6 +75,8 @@ def main():
     ###########################################################################
     # Define arguments --------------------------------------------------------
     opts = get_opts()
+    if opts.graph:
+        opts.verbose = 1
 
     # Configure TensorFlow ----------------------------------------------------
     tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
@@ -179,7 +181,7 @@ def main():
         net.inp_trans = inp.network.input_fn
     if hasattr(inp.network, 'output_fn'):
         net.out_trans = inp.network.output_fn
-    
+
     # Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
@@ -190,7 +192,6 @@ def main():
         "Building '{}' network ...".format(inp.network.architecture)
     )
     model.build(
-        input_dim=inp.general.dim['inp'],
         load_net=inp.general.flags['load'],
         visualize_graph=opts.graph,
         verbose=opts.verbose
@@ -205,8 +206,6 @@ def main():
         modules=inp.engine
     )
     model.compile(**compile_args)
-
-    input('++++++++++++++++++++++++++++++++++++++++++')
 
     # Fit Model ---------------------------------------------------------------
     if inp.general.flags['train'] > 0:
@@ -223,6 +222,8 @@ def main():
                 inp.engine, 'callbacks'
             ) else None
         )
+
+    input('++++++++++++++++++++++++++++++++++++++++++')
     
     # Save Model --------------------------------------------------------------
     if inp.general.flags['save'] > 0:

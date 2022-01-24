@@ -61,7 +61,6 @@ class Model(object):
     @utils.timing
     def build(
         self,
-        input_dim,
         verbose=1,
         load_net=0,
         visualize_graph=False
@@ -74,7 +73,8 @@ class Model(object):
 
         # Build the network
         if not self.net.built:
-            self.net.build(input_dim)
+            self.net.build()
+            # self.net.build(input_dim)
         # Build data structures
         if not self.data.built:
             self.data.build(self.net)
@@ -158,14 +158,8 @@ class Model(object):
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
-        # Update multi-objective loss function parameters
-        self.net.multi_obj_loss = self.data.multi_obj_loss
-        self.net.objectives = self.data.objectives
-
         # Initializing loss functions
         self.loss = losses_module.get(loss, axis=axis, reduction=reduction)
-        if self.net.multi_obj_loss:
-            self.net.residual = self.data.res_fn(self.net)
 
         # Initializing loss weights
         self.loss_weights = self.get_loss_weights(loss_weights)

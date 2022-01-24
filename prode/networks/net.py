@@ -19,6 +19,7 @@ class Net(tf.keras.Model):
         self,
         dim,
         block='FFBlock',
+        input_name='Input',
         name='net',
         *args,
         **kwargs
@@ -34,6 +35,7 @@ class Net(tf.keras.Model):
                 "It represents the dimensions of the "
                 "feature space.".format(self.name)
             )
+
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
 
@@ -47,7 +49,7 @@ class Net(tf.keras.Model):
         self.multi_obj_loss = False
         self.objectives = None
         self.residual = None
-        self.losses_ids = ['weighted', 'unweighted']
+        # self.losses_ids = ['weighted', 'unweighted']
 
     # Configuration update
     ###########################################################################
@@ -76,9 +78,9 @@ class Net(tf.keras.Model):
 
     # Building
     ###########################################################################
-    def build(self, input_dim):
+    def build(self):
         # Define input shapes and build the network
-        input_shape = tf.nest.map_structure(lambda i: (None, i), input_dim)
+        input_shape = tf.nest.map_structure(lambda i: (None, i), self.inp_dim)
         super(Net, self).build(input_shape)
         # I/O characterization
         self.inputs = [
@@ -108,9 +110,7 @@ class Net(tf.keras.Model):
         steps_per_execution=None,
         **kwargs
     ):
-        print(loss)
         if self.multi_obj_loss:
-            print('yes')
             # Check loss functions and weights
             self.check_arg(loss, 'loss functions')
             self.check_arg(loss_weights, 'loss weights')

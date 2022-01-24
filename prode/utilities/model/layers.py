@@ -129,9 +129,9 @@ class FFBlock(tf_layers.Layer):
     ###########################################################################
     def __init__(
         self,
-        layer_size,
-        activation,
-        kernel_initializer,
+        layer_size=None,
+        activation='linear',
+        kernel_initializer=None,
         regularizer=None,
         dropout_rate=0,
         batch_norm=None,
@@ -229,9 +229,9 @@ class ResPIBlock(FFBlock):
     ###########################################################################
     def __init__(
         self,
-        layer_size,
-        activation,
-        kernel_initializer,
+        layer_size=None,
+        activation='linear',
+        kernel_initializer=None,
         regularizer=None,
         dropout_rate=0,
         batch_norm=None,

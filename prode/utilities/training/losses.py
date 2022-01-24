@@ -164,7 +164,6 @@ class MeanSquaredError(tf_losses.LossFunctionWrapper):
         reduction,
         name='mean_squared_error'
     ):
-        print(axis)
         err_fn = mean_squared_error(axis)
         super().__init__(err_fn, name=name, reduction=reduction)
 

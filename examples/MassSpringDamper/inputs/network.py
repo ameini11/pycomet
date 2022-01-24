@@ -24,8 +24,8 @@ end_scale = 'bias'
 
 # DeepONet characterization ---------------------------------------------------
 layer_size = {
-    "branch": [inp_gen.dim['inp'][0], 32, 32, 2],
-    "trunk":  [inp_gen.dim['inp'][1], 32, 32, 2]
+    "branch": [inp_gen.dim['inp'][0], 16, 16, 2],
+    "trunk":  [inp_gen.dim['inp'][1], 16, 16, 2]
 }
 
 activation = {
@@ -38,6 +38,16 @@ kernel_initializer = 'GlorotNormal'
 block = 'ResPIBlock' #'FFBlock'
 
 stacked = True
+
+cross_encoder = {
+    "branch": True,
+    "trunk": True
+}
+
+# cross_encoder_layer_size = {
+#     "branch": 'sigmoid',
+#     "trunk": 'sigmoid'
+# }
 
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
