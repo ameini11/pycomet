@@ -14,6 +14,7 @@ from prode.utilities.training.optimizers import get_train_opt
 from prode.utilities import utils
 from prode import postprocessing
 
+from tensorflow.python.keras import backend as K
 
 class Model(object):
     """The `Model` class trains a `Net` on a `Data`."""

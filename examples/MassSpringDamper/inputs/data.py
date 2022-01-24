@@ -17,18 +17,18 @@
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
 
 # *** From file
 file = {
     'train': {
         'ics': './data/train/ics.csv',
-        'pts': None,
+        'pts': './data/train/pts.csv',
         'res': './data/train/res.csv'
     },
     'valid': {
         'ics': './data/valid/ics.csv',
-        'pts': None,
+        'pts': './data/train/pts.csv',
         'res': './data/valid/res.csv'
     },
     'test': './data/test/ics.csv'
@@ -45,7 +45,7 @@ header = 0
 # Training data
 train_pts = {
     'ics': 80,      # Number of training scenarios
-    'pts': 0,       # Number of total anchor pts for each scenario
+    'pts': 50,       # Number of total anchor pts for each scenario
     'res': 160      # Number of total collocation pts for each scenario
 }
 validation_split = 0.2                 # % of Validation pts

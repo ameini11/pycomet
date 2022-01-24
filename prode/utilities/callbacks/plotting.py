@@ -2,15 +2,13 @@ import os
 import copy
 import numpy as np
 import pandas as pd
-import tensorflow.keras.callbacks as CB
-from prode import postprocessing as postprocessing
-
 import tensorflow as tf
+import tensorflow.keras.callbacks as CB
 
-from tensorflow.python.keras.engine import data_adapter
-from tqdm import tqdm
 from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
+from prode import postprocessing
+from tqdm import tqdm
 
 
 @keras_export('keras.callbacks.Plotter')
@@ -92,7 +90,6 @@ class Plotter(CB.Callback):
                         metric.name,
                         scale=scale
                     )
-
 
     def testing(self):
         utils.print_submain(" - Plotting test cases ...")

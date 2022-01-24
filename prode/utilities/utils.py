@@ -17,6 +17,10 @@ from functools import wraps
 from prode.config import headers
 
 
+from tensorflow.python.keras import backend as K
+
+
+
 # Printing functions
 ###############################################################################
 def print_main(text, start='\n', verbose=True, *args, **kwargs):
@@ -208,6 +212,12 @@ def check_file_extension(file, extension):
 def zip_dict_of_lists(d):
     keys = d.keys()
     return [dict(zip(keys, v)) for v in zip(*(d[k] for k in keys))]
+
+
+def convert_struct_to_tf(x):
+    return tf.nest.map_structure(
+        lambda y: tf.convert_to_tensor(y, dtype=K.floatx()), x
+    )
 
 # Others
 ###############################################################################

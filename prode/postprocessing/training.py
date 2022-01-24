@@ -101,14 +101,13 @@ def plot_composite_loss(
             if c not in {'loss', 'weighted_loss'}:
                 composite_loss['var'].append(c)
                 composite_loss['label'].append(identifier[c])
-            if c == 'reg_loss':
-                continue
-            plot_loss(
-                title=identifier[c],
-                var=[c,'val_'+c],
-                fig_name=c,
-                **kwargs
-            )
+            if c not in {'reg_loss', 'weighted_loss'}:
+                plot_loss(
+                    title=identifier[c],
+                    var=[c,'val_'+c],
+                    fig_name=c,
+                    **kwargs
+                )
     plot_loss(
         **composite_loss,
         title='Losses',

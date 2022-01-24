@@ -45,6 +45,12 @@ def get_callback(model, identifier, kwargs):
         elif identifier == "variable":
             return variable.VariableValue(**kwargs)
         elif identifier == "weighted_loss":
+            kwargs.update(
+                dict(
+                    data_container=model.data.train,
+                    log_dir=model.dir['train']
+                )
+            )
             return utils.get_class(weighted_loss, kwargs=kwargs)
     elif callable(identifier):
         return identifier
