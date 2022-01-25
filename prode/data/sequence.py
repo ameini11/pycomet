@@ -93,7 +93,7 @@ class MultiObjData(tf.keras.utils.Sequence):
     ):
         for obj in self.objectives:
             # Get true and pred values
-            y_true = self.data[obj][1]
+            y = self.data[obj][1]
             y_pred = model.predict_step(
                 tf.nest.map_structure(
                     lambda d: tf.random.normal((1, d), dtype=K.floatx()),
@@ -101,16 +101,20 @@ class MultiObjData(tf.keras.utils.Sequence):
                 ),
                 objective=obj
             )
+            y_true, y_pred = list(map(
+                lambda x: list(x) if isinstance(x, tuple) else x, [y, y_pred]
+            ))
             if isinstance(y_pred, tuple):
                 y_pred = list(y_pred)
             # Get true and pred feature dimensions
-            dim_true = utils.get_struct_shape(y_true, axis=1)
-            dim_pred = utils.get_struct_shape(y_pred, axis=1)
+            y_dim = utils.get_struct_shape(y, axis=1)
+            y_pred_dim = utils.get_struct_shape(y_pred, axis=1)
             # Check if true and pred dimensions are the same
-            if dim_true != dim_pred:
+            if y_dim != y_pred_dim:
                 if obj == 'res':
                     self.data[obj][1] = tf.nest.map_structure(
-                        lambda d: np.zeros((self.n_samples[obj], d)), dim_pred
+                        lambda d: np.zeros((self.n_samples[obj], d)),
+                        y_pred_dim
                     )
                 else:
                     utils.raise_value_err(

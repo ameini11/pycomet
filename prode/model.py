@@ -5,6 +5,7 @@ import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras.engine import data_adapter
+from tensorflow.python.keras import backend as K
 from prode.utilities.callbacks import callbacks as callbacks_module
 from prode.utilities.training import losses as losses_module
 from prode.utilities.training import metrics as metrics_module
@@ -69,26 +70,41 @@ class Model(object):
         if self.net.multi_obj_loss:
             self.net.residual = self.data.res_fn(self.net)
 
-        # Build the network
+        # Build the network ---------------------------------------------------
+        input_shape = tf.nest.map_structure(
+            lambda i: (None, i), self.net.inp_dim
+        )
         if not self.net.built:
-            self.net.build(
-                tf.nest.map_structure(lambda i: (None, i), self.net.inp_dim)
-            )
-        # Build data structures
+            self.net.build(input_shape)
+        # I/O characterization
+        self.net.inputs = [
+            K.placeholder(shape=s, dtype=K.floatx()) for s in input_shape
+        ]
+        self.net.outputs = self.net.call(self.net.inputs)
+        # I/O features space dimensions
+        self.net.input_dim = utils.get_struct_shape(self.net.inputs, axis=1)
+        self.net.output_dim = utils.get_struct_shape(self.net.outputs, axis=1)
+        # Network graph
+        self.graph = tf.keras.Model(
+            self.net.inputs, self.net.outputs, name=self.name
+        )
+
+        # Build data structures -----------------------------------------------
         if not self.data.built:
             self.data.build(self.net)
-        # Visualize network graph
-        self.net.graph.summary()
+
+        # Visualize network graph ---------------------------------------------
+        self.graph.summary()
         with open(self.dir['save']+'model_summary.txt', 'w') as f:
-            self.net.graph.summary(print_fn=lambda x: f.write(x + '\n'))
+            self.graph.summary(print_fn=lambda x: f.write(x + '\n'))
         if verbose:
             if visualize_graph:
                 file_name = self.dir['save'] + self.name + '_struct.h5'
-                self.net.graph.save(file_name, save_format='h5')
+                self.graph.save(file_name, save_format='h5')
                 # graph.save_weights(file_name, save_format='h5')
                 utils.print_submain("", end=""); netron.start(file_name)
                 tf.keras.utils.plot_model(
-                    self.net.graph, self.dir['train'] + "/" + self.name + ".png"
+                    self.graph, self.dir['train'] + "/" + self.name + ".png"
                 )
             asw = utils.input_submain("Is the model structure correct? [y/n] ")
             if not asw.lower().startswith('y'):
@@ -258,7 +274,7 @@ class Model(object):
             if output_ops:
                 y, y_pred = list(map(output_ops, [y, y_pred]))
             # Plot true vs. pred values for each single model output
-            if len(tf.nest.flatten(self.net.outputs)) > 1:
+            if isinstance(y, (list,tuple)):
                 for j in range(len(y)):
                     kwargs = dict(
                         path=path,

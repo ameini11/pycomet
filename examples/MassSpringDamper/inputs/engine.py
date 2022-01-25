@@ -39,7 +39,7 @@ loss = {
 callbacks = {
 
     'early_stopping': {
-       'monitor':              'val_tot_loss',
+       'monitor':              'val_loss',
        'min_delta':            1.e-8,
        'patience':             20000,
        'restore_best_weights': True,
@@ -51,7 +51,7 @@ callbacks = {
     },
 
     'model_ckpt': {
-        'monitor':           'val_tot_loss',
+        'monitor':           'val_loss',
         'save_best_only':    True,
         'save_weights_only': True
     }, 

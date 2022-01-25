@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow_addons.layers as tfa_layers
 import tensorflow.python.keras.layers as tf_layers
@@ -330,33 +331,28 @@ class Scaling(tf_layers.Layer):
         else:
             self.trans_fn = lambda x: x
 
+        self.weights_values = {
+            'slope': self.slope,
+            'offset': self.offset,
+        }
+
     # Building
     ###########################################################################
     def build(self, input_shape):
-        dtype = dtypes.as_dtype(self.dtype or K.floatx())
-        if not (dtype.is_floating or dtype.is_complex):
-            raise TypeError("Unable to build `Scale` layer with non-floating"
-                " point dtype %s." % (dtype,))
-
         input_shape = tensor_shape.TensorShape(input_shape)
         last_dim = tensor_shape.dimension_value(input_shape[-1])
         if last_dim is None:
             utils.raise_value_err("The last dimension of the inputs to "
                 "`Scale` should be defined. Found `None`.")
 
-        self._slope = self.add_weight(
-            name='slope',
-            dtype=self.dtype,
-            initializer=initializers.Constant(value=self.slope),
-            trainable=self.trainable
-        )
-
-        self._offset = self.add_weight(
-            name='offset',
-            dtype=self.dtype,
-            initializer=initializers.Constant(value=self.offset),
-            trainable=self.trainable
-        )
+        self._weights = {}
+        for name, w in self.weights_values.items():
+            self._weights[name] = self.add_weight(
+                name=name,
+                dtype=K.floatx(),
+                initializer=initializers.Constant(value=w),
+                trainable=self.trainable
+            )
 
         self.built = True
 
@@ -378,7 +374,9 @@ class Scaling(tf_layers.Layer):
     # Calling
     ###########################################################################
     def call(self, x, training=None):
-        return self.trans_fn(x * self._slope + self._offset)
+        return self.trans_fn(
+            x * self._weights['slope'] + self._weights['offset']
+        )
 
 
 # =========================================================================== #
@@ -407,9 +405,84 @@ class LinearNorm(Scaling):
         super(LinearNorm, self).__init__(
             slope=slope,
             offset=offset,
-            name='scaling',
             **kwargs
         )
+
+
+# =========================================================================== #
+# Logarithmic Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='Log')
+class Log(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        base=10.,
+        slope=1.,
+        offset=1.,
+        name='log',
+        **kwargs
+    ):
+        super(Log, self).__init__(name=name, **kwargs)
+
+        self.base = base
+        self.slope = slope
+        self.offset = offset
+
+        if self.base == 'e':
+            self.scale = 1.
+        else:
+            self.scale = np.log(self.base)
+
+        self.weights_values = {
+            'slope': self.slope,
+            'offset': self.offset,
+            'scale': self.scale
+        }
+
+    # Building
+    ###########################################################################
+    def build(self, input_shape):
+        input_shape = tensor_shape.TensorShape(input_shape)
+        last_dim = tensor_shape.dimension_value(input_shape[-1])
+        if last_dim is None:
+            utils.raise_value_err("The last dimension of the inputs to "
+                "`Scale` should be defined. Found `None`.")
+
+        self._weights = {}
+        for name, w in self.weights_values.items():
+            self._weights[name] = self.add_weight(
+                name=name,
+                dtype=K.floatx(),
+                initializer=initializers.Constant(value=w),
+                trainable=self.trainable
+            )
+
+        self.built = True
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'base': self.base,
+            'slope': self.slope,
+            'offset': self.offset
+        }
+        base_config = super(Scaling, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    # Calling
+    ###########################################################################
+    def call(self, x, training=None):
+        y = tf.math.log(self._weights['slope'] * (x + self._weights['offset']))
+        y = y / self._weights['scale']
+        return y
 
 
 # =========================================================================== #
@@ -492,50 +565,6 @@ class Bias(tf_layers.Layer):
             y = self.activation(y)
 
         return y
-
-
-# =========================================================================== #
-# Logarithmic Layer
-# =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='Log')
-class Log(tf_layers.Layer):
-
-    # Initialization
-    ###########################################################################
-    def __init__(
-        self,
-        base=10,
-        min_value=1.,
-        name='log',
-        **kwargs
-    ):
-        super(Log, self).__init__(name=name, **kwargs)
-
-        self.base = base
-        self.min_value = min_value
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'base': self.base,
-            'min_value': self.min_value
-        }
-        base_config = super(Log, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    # Calling
-    ###########################################################################
-    def call(self, x, training=None):
-        x = x + self.min_value
-        if isinstance(self.base, str) and self.base == 'e':
-            return tf.math.log(x)
-        else:
-            return tf.math.log(x) / tf.math.log(self.base)
 
 
 # =========================================================================== #

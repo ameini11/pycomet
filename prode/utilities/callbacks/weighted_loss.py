@@ -91,18 +91,16 @@ class BaseWeightsAdapter(CB.Callback):
             }
 
     def print_weights(self, epoch, logs):
-        log_weights = {
-            obj + '_loss_weight': w for obj, w \
-                in self.multi_obj_loss_weights.items()
-        }
-        logs.update(log_weights)
+        weights = tf.nest.map_structure(
+            lambda x: np.squeeze(x.numpy()), self.multi_obj_loss_weights
+        )
+        logs.update({obj + '_loss_weight': w for obj, w in weights.items()})
         if self.log_dir is not None:
             for obj, log in self.logs.items():
-                data = np.asscalar(self.multi_obj_loss_weights[obj].numpy())
                 with log.as_default():
                     tf.summary.scalar(
                         name='epoch_' + obj + '_loss_weight',
-                        data=data,
+                        data=weights[obj],
                         step=epoch
                     )
 

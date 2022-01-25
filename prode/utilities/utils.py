@@ -214,6 +214,7 @@ def convert_struct_to_tf(x):
         lambda y: tf.convert_to_tensor(y, dtype=K.floatx()), x
     )
 
+
 # Others
 ###############################################################################
 def kill_process():
@@ -228,6 +229,18 @@ def close_all_hdf5():
                 obj.close()
             except:
                 pass
+
+class H5DataSet:
+    def __init__(self, path):
+        self.data = {}
+        self.df = h5py.File(path,'r')
+        self.df.visititems(self)
+        self.df.close()
+
+    def __call__(self, name, node):
+        if isinstance(node, h5py.Dataset):
+            self.data[name] = self.df[name][()]
+
 
 # Environment setup -----------------------------------------------------------
 def environment():

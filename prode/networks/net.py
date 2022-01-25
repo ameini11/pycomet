@@ -78,25 +78,25 @@ class Net(tf.keras.Model):
     def call(self, x, training=False):
         return x
 
-    # Building
-    ###########################################################################
-    def build(self, input_shape):
-        # Build the network
-        super(Net, self).build(input_shape)
-        # I/O characterization
-        self.inputs = [
-            K.placeholder(shape=s, dtype=K.floatx()) for s in input_shape
-        ]
-        self.outputs = self.call(self.inputs)
-        # I/O features space dimensions
-        self.input_dim = tf.nest.map_structure(
-            lambda i: i.shape[1], self.inputs
-        )
-        self.output_dim = tf.nest.map_structure(
-            lambda o: o.shape[1], self.outputs
-        )
-        # Network graph
-        self.graph = tf.keras.Model(self.inputs, self.outputs, name=self.name)
+    # # Building
+    # ###########################################################################
+    # def build(self, input_shape):
+    #     # Build the network
+    #     super(Net, self).build(input_shape)
+    #     # I/O characterization
+    #     self.inputs = [
+    #         K.placeholder(shape=s, dtype=K.floatx()) for s in input_shape
+    #     ]
+    #     self.outputs = self.call(self.inputs)
+    #     # I/O features space dimensions
+    #     self.input_dim = tf.nest.map_structure(
+    #         lambda i: i.shape[1], self.inputs
+    #     )
+    #     self.output_dim = tf.nest.map_structure(
+    #         lambda o: o.shape[1], self.outputs
+    #     )
+    #     # Network graph
+    #     self.graph = tf.keras.Model(self.inputs, self.outputs, name=self.name)
 
     # Compiling
     ###########################################################################
