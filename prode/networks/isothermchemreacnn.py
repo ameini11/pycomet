@@ -31,6 +31,8 @@ class IsoThermChemReacNN(Net):
         opnn_end_scale='bias',
         stacked=True,
         block='FFBlock',
+        cross_encoder=False,
+        cross_encoder_layer_size=None,
         name='isothermchemreacnn',
         *args,
         **kwargs
@@ -74,8 +76,11 @@ class IsoThermChemReacNN(Net):
         self.dropout_rate = dropout_rate
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
+        self.cross_encoder = cross_encoder
+        self.cross_encoder_layer_size = cross_encoder_layer_size
 
         ### TimeScaleNNs Initialization ---------------------------------------
+        self.sub_nets = ("branch", "trunk")
         self.tsnn_dim = tsnn_dim
         self.opnn_end_scale = utils.value_to_dict(opnn_end_scale, self.names)
         self.stacked = stacked
@@ -95,6 +100,8 @@ class IsoThermChemReacNN(Net):
                 opnn_end_scale=self.opnn_end_scale[name],
                 stacked=self.stacked,
                 block=self.block,
+                cross_encoder=self.cross_encoder,
+                cross_encoder_layer_size=self.cross_encoder_layer_size,
                 name=name
             ) for i, name in enumerate(self.names)
         ]
@@ -106,6 +113,7 @@ class IsoThermChemReacNN(Net):
             'ts_thermochem': self.ts_thermochem,
             'groups_graph': self.groups_graph,
             'temp_limits': self.temp_limits,
+            'sub_nets': self.sub_nets,
             'tsnn_dim': self.tsnn_dim,
             'names': self.names,
             'layer_size': self.layer_size,
@@ -116,7 +124,9 @@ class IsoThermChemReacNN(Net):
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
             'opnn_end_scale': self.opnn_end_scale,
-            'stacked': self.stacked
+            'stacked': self.stacked,
+            'cross_encoder': self.cross_encoder,
+            'cross_encoder_layer_size': self.cross_encoder_layer_size
         }
         base_config = super(IsoThermChemReacNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -127,11 +137,11 @@ class IsoThermChemReacNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None):
+    def call(self, x, training=False, mask=None, noneq_factor=False):
 
         # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
-            x_u, x_y = x[0], x[1]
+            x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
@@ -139,22 +149,25 @@ class IsoThermChemReacNN(Net):
 
         # Input transformation
         if self.inp_trans is not None:
-            if isinstance(self.inp_trans, dict):
-                x_u = self.inp_trans["branch"](x_u)
-                x_y = self.inp_trans["trunk"](x_y)
-            else:
-                x_u = self.inp_trans(x_u)
-                x_y = self.inp_trans(x_y)
+            for k in self.sub_nets:
+                if isinstance(self.inp_trans, dict):
+                    x[k] = self.inp_trans[k](x[k])
+                else:
+                    x[k] = self.inp_trans(x[k])
+
+        x = tf.nest.flatten(x)
 
         # Kernel - Timescales NN ----------------------------------------------
-        y = [ ts([x_u, x_y], training, mask) for ts in self.timescales ]
+        y = [ ts(x, training, mask, noneq_factor) for ts in self.timescales ]
+        if training is False and noneq_factor is True:
+            return y if len(y) > 1 else y[-1]
 
         # Outputs manipulation ------------------------------------------------
         if len(y) > 1:
             # Concatenate Timescales NN outputs
             y = [ tf_layers.Concatenate()(y_i) \
                 if isinstance(y_i, (list,tuple)) else y_i for y_i in y ]
-            # 
+            # Loop over timescales
             for ts, indeces in self.ts_ts_conn.items():
                 if indeces:
                     # Split the slower timescale

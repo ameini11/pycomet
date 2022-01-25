@@ -1,6 +1,3 @@
-import numpy as np
-import tensorflow as tf
-
 from tensorflow.python.keras.engine import data_adapter
 from prode.data.data import Data
 from prode.utilities import utils

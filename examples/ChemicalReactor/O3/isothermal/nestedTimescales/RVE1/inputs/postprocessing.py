@@ -27,5 +27,5 @@ plot_style = {
     'var_names':    [r'$O_2$', r'$O$'],
     'labels':       [r'$t\quad[s]$', r'$Y$'],
     'scales':       ['log', 'linear'],
-    'log_plot':     True
+    'log_scale':    True
 }

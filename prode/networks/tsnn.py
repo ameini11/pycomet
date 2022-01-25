@@ -29,6 +29,8 @@ class TimeScaleNN(Net):
         opnn_end_scale='bias',
         stacked=True,
         block='FFBlock',
+        cross_encoder=False,
+        cross_encoder_layer_size=None,
         name='tsnn',
         *args,
         **kwargs
@@ -69,6 +71,8 @@ class TimeScaleNN(Net):
         self.dropout_rate = dropout_rate
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
+        self.cross_encoder = cross_encoder
+        self.cross_encoder_layer_size = cross_encoder_layer_size
 
         ### OpNNs Initialization ----------------------------------------------
         self.opnn_end_scale = opnn_end_scale
@@ -86,6 +90,8 @@ class TimeScaleNN(Net):
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
                 block=self.block,
+                cross_encoder=self.cross_encoder,
+                cross_encoder_layer_size=self.cross_encoder_layer_size,
                 name='opnn_' + str(i)
             ) for i in range(len(self.out_dim))
         ]
@@ -113,7 +119,9 @@ class TimeScaleNN(Net):
             'opnn_end_scale': self.opnn_end_scale,
             'stacked': self.stacked,
             'reaction': self.reaction,
-            'species': self.species
+            'species': self.species,
+            'cross_encoder': self.cross_encoder,
+            'cross_encoder_layer_size': self.cross_encoder_layer_size
         }
         base_config = super(TimeScaleNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -124,7 +132,7 @@ class TimeScaleNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None):
+    def call(self, x, training=False, mask=None, noneq_factor=False):
 
         ic, t = x
 
@@ -154,6 +162,7 @@ class TimeScaleNN(Net):
 
         # Equilibrium layer ---------------------------------------------------
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-        y = self.equilibrium([y, T, rho])
-
-        return y
+        if training is False and noneq_factor is True:
+            return y
+        else:
+            return self.equilibrium([y, T, rho])

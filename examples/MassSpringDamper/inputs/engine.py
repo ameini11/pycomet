@@ -17,7 +17,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 1000
+epochs = 100
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -74,5 +74,17 @@ callbacks = {
         'freq':         50,
         'max_samples':  20000
     }
+
+    # 'weighted_loss': {
+    #     'name': 'SoftAttentionWeightsAdapter',
+    #     'rank': 1,
+    #     'limits': {
+    #         'ics': [1.,1.],
+    #         'pts': [1.,1.],
+    #         'res': [1.,1.]
+    #     },
+    #     'mask': 'sigmoid',
+    #     'q': [1.e2, 1.]
+    # }
 
 }

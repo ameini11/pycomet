@@ -26,7 +26,7 @@ class Plotter(CB.Callback):
         labels=None,
         scales=None,
         limit_y=False,
-        log_plot=False,
+        log_scale=False,
         freq=100
     ):
         super(Plotter, self).__init__()
@@ -49,7 +49,7 @@ class Plotter(CB.Callback):
         self.time_idx = time_idx
 
         self.scales = scales
-        self.log_plot = log_plot
+        self.log_scale = log_scale
         self.limit_y = limit_y
         
         self.freq = freq
@@ -138,7 +138,7 @@ class Plotter(CB.Callback):
 
     def testing_plot_fn(self, kwargs):
         postprocessing.testing.plot_test(**kwargs)
-        if self.log_plot:
+        if self.log_scale:
             kwargs['scales'] = ['log','log']
             postprocessing.testing.plot_test(**kwargs)
 

@@ -18,7 +18,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 10000
+epochs = 10
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -30,13 +30,9 @@ decay = ["exponential", decay_steps, decay_rate]
 # Loss & Metrics
 # =============================================================================
 loss = {
-    'ics': {'identifier': 'malpe', 'axis': 0},
-    'pts': {'identifier': 'malpe', 'axis': 0},
-    'res': {
-        'kinetic': {'identifier': 'mae', 'axis': 0},
-        'mass': {'identifier': 'mae', 'axis': 0},
-        # 'energy': {'identifier': 'mae', 'axis': 0}
-    }
+    'ics': 'malpe',
+    'pts': 'malpe',
+    'res': 'mae'
 }
 
 # Callbacks
@@ -64,7 +60,7 @@ callbacks = {
     'plotter': {
         **inp_post.plot_style,
         'limit_y': inp_post.limit_y,
-        'freq':  500
+        'freq':  50
     },
 
     'tensorboard': {
@@ -82,9 +78,15 @@ callbacks = {
     }
 
     # 'weighted_loss': {
-    #     'name':         'NTKWeightsAdapter',
-    #     'freq':         50,
-    #     'max_samples':  1000
+    #     'name': 'SoftAttentionWeightsAdapter',
+    #     'rank': 1,
+    #     'limits': {
+    #         'ics': [1.,1.],
+    #         'pts': [1.,1.],
+    #         'res': [1.,1.]
+    #     },
+    #     'mask': 'sigmoid',
+    #     'q': [1.e2, 1.]
     # }
 
 }

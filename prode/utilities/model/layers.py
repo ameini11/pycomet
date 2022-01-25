@@ -1,5 +1,3 @@
-import numpy as np
-import pandas as pd
 import tensorflow as tf
 import tensorflow_addons.layers as tfa_layers
 import tensorflow.python.keras.layers as tf_layers
@@ -15,7 +13,6 @@ from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
 from prode.physics.thermochemistry.specie import partitionFun
 from prode.physics.thermochemistry.specie import specie
-from prode.physics.general import const
 from prode.utilities import utils
 
 
@@ -512,7 +509,7 @@ class Log(tf_layers.Layer):
         name='log',
         **kwargs
     ):
-        super(Bias, self).__init__(name=name, **kwargs)
+        super(Log, self).__init__(name=name, **kwargs)
 
         self.base = base
         self.min_value = min_value
@@ -534,6 +531,7 @@ class Log(tf_layers.Layer):
     # Calling
     ###########################################################################
     def call(self, x, training=None):
+        x = x + self.min_value
         if isinstance(self.base, str) and self.base == 'e':
             return tf.math.log(x)
         else:

@@ -5,7 +5,6 @@ from tensorflow.python.util.tf_export import keras_export
 from prode.utilities import utils
 
 
-
 @keras_export('keras.callbacks.VariableValue')
 class VariableValue(CB.Callback):
     """Get the variable values.
@@ -21,11 +20,11 @@ class VariableValue(CB.Callback):
     def __init__(self, var_list, period=1, filepath=None):
         super(VariableValue, self).__init__()
 
-        self.var_list  = var_list
-        self.names     = [weight.name for layer in self.model.layers for weight in layer.weights]
-        self.idx       = [self.names.index(i) for i in self.var_list]
+        self.var_list = var_list
+        self.names = [weight.name for layer in self.model.layers for weight in layer.weights]
+        self.idx = [self.names.index(i) for i in self.var_list]
 
-        self.period    = period
+        self.period = period
         self.precision = precision
 
         self.file = sys.stdout if filepath is None \

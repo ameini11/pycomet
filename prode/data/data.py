@@ -86,9 +86,9 @@ class Data(object):
 
     def read_dataframe(self, df, col):
         if any(isinstance(i, (list,tuple)) for i in col):
-            return [df[:, col[i][0]:col[i][1]] for i in range(len(col))]
+            return [df[:,col[i][0]:col[i][1]] for i in range(len(col))]
         else:
-            return df[:, col[0]:col[1]]
+            return df[:,col[0]:col[1]]
 
     # Checking data - network consistency
     ###########################################################################

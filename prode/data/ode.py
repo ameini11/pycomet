@@ -1,7 +1,5 @@
 import os
 import numpy as np
-import pandas as pd
-import tensorflow as tf
 
 from tensorflow.python.keras.engine import data_adapter
 from prode.data.sequence import MultiObjData

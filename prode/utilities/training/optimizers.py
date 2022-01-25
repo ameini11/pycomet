@@ -1,4 +1,4 @@
-from tensorflow.keras import optimizers as opt
+from tensorflow.keras import optimizers as tf_opt
 from prode.utilities import utils
 
 
@@ -13,13 +13,13 @@ def get_learning_rate(lr, decay):
     if decay is None:
         return lr
     return {
-        "exponential": opt.schedules.ExponentialDecay(
+        "exponential": tf_opt.schedules.ExponentialDecay(
             lr, decay[1], decay[2], staircase=True
         ),
-        "inverse_time": opt.schedules.InverseTimeDecay(
+        "inverse_time": tf_opt.schedules.InverseTimeDecay(
             lr, decay[1], decay[2], staircase=True
         ),
-        "polynomial": opt.schedules.PolynomialDecay(
+        "polynomial": tf_opt.schedules.PolynomialDecay(
             lr, decay[1], end_learning_rate=1.e-2*lr
         )
     }[decay[0]]
@@ -27,12 +27,12 @@ def get_learning_rate(lr, decay):
 
 def get_optimizer(name, lr):
     return {
-        "adadelta":     opt.Adadelta(learning_rate=lr),
-        "adagrad":      opt.Adagrad(learning_rate=lr),
-        "adam":         opt.Adam(learning_rate=lr),
-        "adamax":       opt.Adamax(learning_rate=lr),
-        "ftrl":         opt.Ftrl(learning_rate=lr),
-        "rmsprop":      opt.RMSprop(learning_rate=lr),
-        "sgd":          opt.SGD(learning_rate=lr),
-        "sgd_nesterov": opt.SGD(learning_rate=lr, nesterov=True)
+        "adadelta":     tf_opt.Adadelta(learning_rate=lr),
+        "adagrad":      tf_opt.Adagrad(learning_rate=lr),
+        "adam":         tf_opt.Adam(learning_rate=lr),
+        "adamax":       tf_opt.Adamax(learning_rate=lr),
+        "ftrl":         tf_opt.Ftrl(learning_rate=lr),
+        "rmsprop":      tf_opt.RMSprop(learning_rate=lr),
+        "sgd":          tf_opt.SGD(learning_rate=lr),
+        "sgd_nesterov": tf_opt.SGD(learning_rate=lr, nesterov=True)
     }[name]

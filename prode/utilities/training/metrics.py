@@ -1,4 +1,4 @@
-import tensorflow.python.keras.metrics as met
+import tensorflow.python.keras.metrics as tf_met
 
 from prode.utilities.training import losses as losses_module
 from prode.utilities import utils
@@ -8,13 +8,13 @@ from prode.utilities import utils
 ###########################################################################
 def get(identifier):
     metric_identifier = {
-        "accuracy": met.Accuracy(),
-        "mean":     met.Mean(),
-        "mae":      met.MeanAbsoluteError(),
-        "mape":     met.MeanAbsolutePercentageError(),
-        "mse":      met.MeanSquaredError(),
-        "msle":     met.MeanSquaredLogarithmicError(),
-        "rmse":     met.RootMeanSquaredError()
+        "accuracy": tf_met.Accuracy(),
+        "mean":     tf_met.Mean(),
+        "mae":      tf_met.MeanAbsoluteError(),
+        "mape":     tf_met.MeanAbsolutePercentageError(),
+        "mse":      tf_met.MeanSquaredError(),
+        "msle":     tf_met.MeanSquaredLogarithmicError(),
+        "rmse":     tf_met.RootMeanSquaredError()
     }
 
     if isinstance(identifier, str):

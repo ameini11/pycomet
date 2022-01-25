@@ -81,65 +81,12 @@ class MultiObjData(tf.keras.utils.Sequence):
         self.shuffle = shuffle
         self.keep_indeces = False
 
-    def __len__(self):
-        """Number of batches in the Sequence.
-        Returns:
-            The number of batches in the Sequence.
-        """
-        return max(list(self.steps.values()))
-
-    # Handling batches during each epoch
+    # Building
     ###########################################################################
-    @tf.function
-    def __getitem__(self, index):
-        """Gets batch at position `index`.
-        Args:
-            index: position of the batch in the Sequence.
-        Returns:
-            A batch
-        """
-        return utils.zip_dict_of_lists(self.sequence[index])
-
-    # Handling data during training
-    ###########################################################################
-    @tf.function
-    def on_epoch_end(self):
-        """Method called at the end of every epoch."""
-        batches = {}
-        for obj, dset in self.data.items():
-            if self.shuffle:
-                dset = self.shuffle_data(obj, dset)
-            batches[obj] = self.batch_data(obj, dset)
-        self.sequence = utils.zip_dict_of_lists(batches)
-
-    def shuffle_data(self, obj, dset):
-        indeces = np.random.permutation(self.n_samples[obj])
-        dset = tf.nest.map_structure(lambda z: z[indeces], dset)
-        if self.keep_indeces:
-            dset.append(indeces.reshape((-1,1)))
-        return dset
-
-    def batch_data(self, obj, dset):
-        repeat = int(np.ceil(self.__len__()/self.steps[obj]))
-        dset = tf.nest.map_structure(
-            lambda z: np.array_split(z, self.steps[obj])*repeat, dset
-        )
-        for i, z in enumerate(dset):
-            if self.keep_indeces and i == len(dset)-1:
-                break
-            else:
-                if isinstance(self.shapes[obj][i], list):
-                    dset[i] = list(zip(*z))
-        dset = list(zip(*dset))
-        return dset
-
-
-
     def build(self, model):
         self.build_targets(model)
         self.on_epoch_end()
 
-        
     def build_targets(
         self,
         model
@@ -149,11 +96,13 @@ class MultiObjData(tf.keras.utils.Sequence):
             y_true = self.data[obj][1]
             y_pred = model.predict_step(
                 tf.nest.map_structure(
-                    lambda d: tf.random.normal((0, d), dtype=K.floatx()),
+                    lambda d: tf.random.normal((1, d), dtype=K.floatx()),
                     model.input_dim
                 ),
                 objective=obj
             )
+            if isinstance(y_pred, tuple):
+                y_pred = list(y_pred)
             # Get true and pred feature dimensions
             dim_true = utils.get_struct_shape(y_true, axis=1)
             dim_pred = utils.get_struct_shape(y_pred, axis=1)
@@ -171,8 +120,7 @@ class MultiObjData(tf.keras.utils.Sequence):
         # Update shapes
         self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
 
-
-    def init_weights(
+    def init_sample_weight(
         self,
         initializer=None,
         trainable=False,
@@ -183,15 +131,15 @@ class MultiObjData(tf.keras.utils.Sequence):
             init_fn = initializer[obj] if initializer else np.ones
             # Define shape
             if rank == 1:
-                fn = lambda x: init_fn(shape=(x.shape[0],1))
+                fn = lambda x: init_fn(shape=(x.shape[0],1), dtype=K.floatx())
             else:
-                fn = lambda x: init_fn(shape=x.shape)
+                fn = lambda x: init_fn(shape=x.shape, dtype=K.floatx())
             # Construct weights
             sample_weight = tf.nest.map_structure(fn, self.data[obj][1])
             # Make them tf.Variable if trainable
             if trainable:
                 sample_weight =  tf.nest.map_structure(
-                    lambda w: tf.Variable(w, name='sw_'+obj), sample_weight
+                    lambda w: tf.Variable(w), sample_weight
                 )
             # Add sample weights to the data set
             if len(self.data[obj]) <= 2:
@@ -200,3 +148,55 @@ class MultiObjData(tf.keras.utils.Sequence):
                 self.data[obj][2] = sample_weight
         # Update shapes
         self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
+
+    # Sequencing
+    ###########################################################################
+    def __len__(self):
+        """Number of batches in the Sequence.
+        Returns:
+            The number of batches in the Sequence.
+        """
+        return max(list(self.steps.values()))
+
+    # Handling batches during each epoch --------------------------------------
+    def __getitem__(self, index):
+        """Gets batch at position `index`.
+        Args:
+            index: position of the batch in the Sequence.
+        Returns:
+            A batch
+        """
+        return utils.zip_dict_of_lists(self.sequence[index])
+
+    # Handling data during training -------------------------------------------
+    def on_epoch_end(self):
+        """Method called at the end of every epoch."""
+        batches = {}
+        for obj, dset in self.data.items():
+            if self.shuffle:
+                dset = self.shuffle_data(obj, dset)
+            batches[obj] = self.batch_data(obj, dset)
+        self.sequence = utils.zip_dict_of_lists(batches)
+
+    def shuffle_data(self, obj, dset):
+        indeces = np.random.permutation(self.n_samples[obj])
+        dset = tf.nest.map_structure(
+            lambda z: tf.gather(z, indeces).numpy(), dset
+        )
+        if self.keep_indeces:
+            dset.append(indeces.reshape((-1,1)))
+        return dset
+
+    def batch_data(self, obj, dset):
+        repeat = int(np.ceil(self.__len__()/self.steps[obj]))
+        dset = tf.nest.map_structure(
+            lambda z: np.array_split(z, self.steps[obj])*repeat, dset
+        )
+        for i, z in enumerate(dset):
+            if self.keep_indeces and i == len(dset)-1:
+                break
+            else:
+                if isinstance(self.shapes[obj][i], list):
+                    dset[i] = list(zip(*z))
+        dset = list(zip(*dset))
+        return dset

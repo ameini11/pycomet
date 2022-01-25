@@ -6,19 +6,14 @@ import time
 import signal
 import inspect
 import datetime
-
 import numpy as np
 import tensorflow as tf
-import multiprocessing as mp
 
 from pathlib import PurePath
-from matplotlib import animation
+# from matplotlib import animation
 from functools import wraps
 from prode.config import headers
-
-
 from tensorflow.python.keras import backend as K
-
 
 
 # Printing functions

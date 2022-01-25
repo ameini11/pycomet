@@ -20,8 +20,8 @@ class LRPiecewiseConstantDecay(CB.Callback):
                 "be 1 less than the length of `values`.".format(self.__name__)
             )
         self.boundaries = np.array(boundaries)
-        self.values     = np.array(values)
-        self.idx        = 0
+        self.values = np.array(values)
+        self.idx = 0
 
     def on_epoch_end(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, "lr"):

@@ -17,9 +17,7 @@ NAME = 'trainPro'
 import os
 import sys
 import argparse
-import numpy as np
-import pandas as pd
-import prode as pro
+import prode
 import tensorflow as tf
 
 from tqdm import tqdm
@@ -135,7 +133,7 @@ def main():
             test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
 
     # Initialize Data Class ---------------------------------------------------
-    data_cls = utils.get_class(pro.data, inp.data.data_type)
+    data_cls = utils.get_class(prode.data, inp.data.data_type)
     utils.print_main(
         "Initializing '{}' data ...".format(inp.data.data_type)
     )
@@ -166,7 +164,7 @@ def main():
     # Network
     ###########################################################################
     # Initialize Network ------------------------------------------------------
-    net_cls = utils.get_class(pro.networks, inp.network.architecture)
+    net_cls = utils.get_class(prode.networks, inp.network.architecture)
     utils.print_main(
         "Initializing '{}' network ...".format(inp.network.architecture)
     )
@@ -185,7 +183,7 @@ def main():
     # Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = pro.model.Model(data, net, inp.general.model_name)
+    model = prode.model.Model(data, net, inp.general.model_name)
 
     # Build Model -------------------------------------------------------------
     utils.print_main(

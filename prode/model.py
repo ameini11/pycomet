@@ -1,10 +1,8 @@
 import os
 import h5py
 import netron
-import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow.python.keras.callbacks as CB
 
 from tensorflow.python.keras.engine import data_adapter
 from prode.utilities.callbacks import callbacks as callbacks_module
@@ -14,7 +12,6 @@ from prode.utilities.training.optimizers import get_train_opt
 from prode.utilities import utils
 from prode import postprocessing
 
-from tensorflow.python.keras import backend as K
 
 class Model(object):
     """The `Model` class trains a `Net` on a `Data`."""
@@ -74,8 +71,9 @@ class Model(object):
 
         # Build the network
         if not self.net.built:
-            self.net.build()
-            # self.net.build(input_dim)
+            self.net.build(
+                tf.nest.map_structure(lambda i: (None, i), self.net.inp_dim)
+            )
         # Build data structures
         if not self.data.built:
             self.data.build(self.net)
@@ -199,7 +197,7 @@ class Model(object):
         utils.print_main("Training the model ...")
 
         # Define callbacks
-        utils.print_submain("Initilizing callbacks")
+        utils.print_submain("Initializing callbacks")
         callbacks = callbacks_module.get_cb_list(self, callbacks)
 
         # Define training/valididation points

@@ -80,9 +80,8 @@ class Net(tf.keras.Model):
 
     # Building
     ###########################################################################
-    def build(self):
-        # Define input shapes and build the network
-        input_shape = tf.nest.map_structure(lambda i: (None, i), self.inp_dim)
+    def build(self, input_shape):
+        # Build the network
         super(Net, self).build(input_shape)
         # I/O characterization
         self.inputs = [
@@ -203,11 +202,11 @@ class Net(tf.keras.Model):
         with backprop.GradientTape(persistent=True) as tape:
             # Manipulate sample weights
             if self.weighted_loss:
-                sample_weight = self.weighted_loss.on_grad_step_eval(
+                _sample_weight = self.weighted_loss.on_grad_step_eval(
                     sample_weight
                 )
             # Evaluate losses
-            losses = self.eval_losses(x, y, sample_weight)
+            losses = self.eval_losses(x, y, _sample_weight)
             # Regularization loss
             reg_loss = self.eval_reg_loss()
             # Evaluate total loss

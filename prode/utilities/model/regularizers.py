@@ -1,20 +1,17 @@
 import h5py
-import pandas as pd
 import tensorflow as tf
-import tensorflow.python.keras.regularizers as reg
+import tensorflow.python.keras.regularizers as tf_reg
 
-from tensorflow.python.ops import math_ops
-from tensorflow.python.keras.utils import losses_utils
 from prode.utilities import utils
 
 
 def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
     return (
-        reg.L1(l1=l1)
+        tf_reg.L1(l1=l1)
         if name == "l1"
-        else reg.L2(l2=l2)
+        else tf_reg.L2(l2=l2)
         if name == "l2"
-        else reg.L1L2(l1=l1, l2=l2)
+        else tf_reg.L1L2(l1=l1, l2=l2)
         if name == "l1+l2"
         else FineTuningRegularizer(l1=l1, l2=l2, weights_SP=weights_SP)
         if name == "fine_tuning"
@@ -25,7 +22,7 @@ def get(name="l1+l2", l1=0., l2=0., weights_SP=None):
 @tf.keras.utils.register_keras_serializable(
     package='PrODE', name='FineTuningRegularizer'
 )
-class FineTuningRegularizer(reg.L1L2):
+class FineTuningRegularizer(tf_reg.L1L2):
     """Transfer learning technique for fine-tuning.
     See:
         Xuhong Li, Yves Grandvalet, Franck Davoine

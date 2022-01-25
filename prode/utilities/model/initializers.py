@@ -1,5 +1,3 @@
-import scipy
-import tensorflow as tf
 import tensorflow.python.keras.initializers as tf_init
 
 from prode.utilities import utils

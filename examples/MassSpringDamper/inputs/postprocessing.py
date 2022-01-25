@@ -20,4 +20,3 @@ plot_style = {
     'labels':    [r'$t$ [s]', None],
     'scales':    ['linear', 'linear']
 }
-
