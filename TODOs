@@ -1,0 +1,5 @@
+- Implement animation
+- Reading Arrhenius coefficient from the same file
+- Embed `DataGenerator` and `ODESolver` into the src code
+- Try to fix `SoftAttentionWeightsAdapter` and `NTKWeightsAdapter`
+- Implement cross encoding for DeepONet
