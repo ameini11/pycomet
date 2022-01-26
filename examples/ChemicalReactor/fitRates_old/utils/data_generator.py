@@ -5,6 +5,10 @@ import pandas as pd
 
 from const import const
 
+import prode.physics.database as db
+kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
+grouping_db = os.path.dirname(db.__file__) + '/air/grouping/'
+
 
 class DataGenerator(object):
 
@@ -22,13 +26,13 @@ class DataGenerator(object):
         self.T_str = list(map(lambda x: str(int(x)), inputs.T))     # Temp. in string form
 
         # Retrieving Molecular data -------------------------------------------
-        self.levels_file = inputs.database_path + '/levels/O3_UMN/O2/FromUMN_Sorted.inp'
-        self.binMap_file = inputs.database_path + '/grouping/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
+        self.levels_file = grouping_db + '/O3_UMN/O2/levels.inp'
+        self.binMap_file = grouping_db + '/O3_UMN/O2/LevelsMap_' + inputs.grouping + '.csv'
         self.g, self.EeV, self.num_lev = self.read_levels()
         self.bins, self.num_bins = self.read_groups()
 
         # Retrieving Rates coefficients ---------------------------------------
-        self.rates_path = inputs.database_path + '/kinetics/O3_UMN_' + inputs.grouping + '/'
+        self.rates_path = kinetic_db + '/O3_UMN/' + inputs.grouping + '/'
         self.react_file = {'diss': 'Diss_Corrected.dat'}
         if inputs.num_bins > 1:
             self.react_file.update({'exch': 'Exch_Type1.dat', 'inel': 'Inel.dat'})

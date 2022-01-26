@@ -9,3 +9,4 @@ class const(object):
     hp          = double(6.62607015e-34)            # Planck Constant
     Av          = double(6.0221367e23)              # Avogadro Number
     mO          = double(15.9994e-3/Av)             # Mass of atomic oxygen
+    URG         = UKb*Av                            # Universal gas constant [J/(mol K)]

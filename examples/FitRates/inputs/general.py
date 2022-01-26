@@ -12,7 +12,7 @@
 # Thermochemistry
 # =============================================================================
 method = 'RVE' # 'RVE' 'CBM' 'DPM'
-n_bins = 18
+n_bins = 27
 grouping = method + str(n_bins)
 
 # *** Temperature

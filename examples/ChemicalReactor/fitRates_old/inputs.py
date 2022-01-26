@@ -6,7 +6,7 @@ class InputData(object):
     ###########################################################################
     ### Paths
     ###########################################################################
-    database_path = os.path.normpath(os.getcwd()+'/../')
+    # database_path = os.path.normpath(os.getcwd()+'/../../../prode/physics/database/air/')
     utils_path = os.path.normpath('./utils')
 
 

@@ -110,8 +110,8 @@ class DataGenerator(object):
 
     # Master Equation matrices
     ###########################################################################
-    def modified_arrhenius(self, T, A, n, Ea):
-        return A * np.power(T,n) * np.exp(-Ea/(const.URG*T))
+    def modified_arrhenius(self, T, A, n, Ta):
+        return A * np.power(T,n) * np.exp(-Ta/T)
 
     def get_rates(self, T):
         '''Retrieve rates coefficients from dataframe.'''
@@ -122,7 +122,7 @@ class DataGenerator(object):
             rates_coeff[reac_name] = np.zeros(shape, dtype=np.float64)
 
         for index, row in self.arrhenius_coeff.iterrows():
-            rate = self.modified_arrhenius(T, row['A'], row['n'], row['Ea'])
+            rate = self.modified_arrhenius(T, row['A'], row['n'], row['Ta'])
             reac_name, *bins_idx = index.split('_')
             if reac_name == 'diss':
                 idx = int(bins_idx[0])-1
