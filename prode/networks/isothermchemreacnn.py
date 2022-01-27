@@ -31,6 +31,7 @@ class IsoThermChemReacNN(Net):
         opnn_end_scale='bias',
         stacked=True,
         block='FFBlock',
+        block_linear_out=True,
         cross_encoder=False,
         cross_encoder_layer_size=None,
         name='isothermchemreacnn',
@@ -40,6 +41,7 @@ class IsoThermChemReacNN(Net):
         super(IsoThermChemReacNN, self).__init__(
             dim=dim,
             block=block,
+            block_linear_out=block_linear_out,
             name=name,
             *args,
             **kwargs
@@ -100,6 +102,7 @@ class IsoThermChemReacNN(Net):
                 opnn_end_scale=self.opnn_end_scale[name],
                 stacked=self.stacked,
                 block=self.block,
+                block_linear_out=self.block_linear_out,
                 cross_encoder=self.cross_encoder,
                 cross_encoder_layer_size=self.cross_encoder_layer_size,
                 name=name

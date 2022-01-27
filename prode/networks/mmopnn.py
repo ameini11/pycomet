@@ -31,6 +31,7 @@ class MMOpNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
+        block_linear_out=True,
         name='mmopnn',
         *args,
         **kwargs
@@ -38,6 +39,7 @@ class MMOpNN(Net):
         super(MMOpNN, self).__init__(
             dim=dim,
             block=block,
+            block_linear_out=block_linear_out,
             name=name,
             *args,
             **kwargs
@@ -78,6 +80,7 @@ class MMOpNN(Net):
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
                 block=self.block,
+                block_linear_out=self.block_linear_out,
                 name='opnn_'+name
             ) for name in self.names
         }

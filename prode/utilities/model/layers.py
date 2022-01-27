@@ -46,9 +46,11 @@ class MultiLayerBlock(tf_layers.Layer):
         ### Hyperparameters Initialization ------------------------------------
         self.units = units
         if batch_norm not in {None, "before", "after"}:
-            utils.raise_value_err("Invalid `batch_norm` argument "
-                "passed into `{}`. Available choices: {{None|'before'|"
-                "'after'}}.".format(self.name))
+            utils.raise_value_err(
+                "Invalid `batch_norm` argument passed into "
+                "`{}`. Available choices: {{None|'before'|"
+                "'after'}}.".format(self.name)
+            )
         self.batch_norm = batch_norm
         self.activation = activation
         self.use_bias = use_bias
@@ -134,8 +136,8 @@ class FFBlock(tf_layers.Layer):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='ff_block',
         linear_out=True,
+        name='ff_block',
         **kwargs
     ):
         super(FFBlock, self).__init__(name=name, **kwargs)
@@ -167,16 +169,17 @@ class FFBlock(tf_layers.Layer):
 
         # Output Layer
         self.multi_lays.append(
-            tf_layers.Dense(
+            MultiLayerBlock(
                 units=self.layer_size[-1],
                 activation='linear' if self.linear_out else self.activation,
                 kernel_initializer=self.kernel_initializer,
-                kernel_regularizer=self.regularizer,
-                bias_regularizer=self.regularizer,
+                regularizer=self.regularizer,
+                weight_norm=self.weight_norm,
+                batch_norm=self.batch_norm,
+                dropout_rate=self.dropout_rate,
                 name='output'
             )
         )
-
 
     # Configuration update
     ###########################################################################
@@ -234,8 +237,8 @@ class ResPIBlock(FFBlock):
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
-        name='res_pi_block',
         linear_out=True,
+        name='res_pi_block',
         **kwargs
     ):
         super(ResPIBlock, self).__init__(

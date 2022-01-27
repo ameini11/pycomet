@@ -59,9 +59,9 @@ def preproc_fn(x):
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 2000,            # Number of training scenarios
+    'ics': 2048,            # Number of training scenarios
     'pts': 1,               # Number of total anchor pts for each scenario
-    'res': 320              # Number of total collocation pts for each scenario
+    'res': 160              # Number of total collocation pts for each scenario
 }
 validation_split = 0.2      # % of Validation pts
 distribution = 'uniform'    # Training pts distribution
@@ -75,7 +75,7 @@ batch_size = {
     'train': {
         'ics': 128,
         'pts': 128,
-        'res': 1024
+        'res': 512
     },
     'valid': {
         'ics': 256,

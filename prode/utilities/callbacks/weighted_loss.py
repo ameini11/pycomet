@@ -41,6 +41,10 @@ class BaseWeightsAdapter(CB.Callback):
 
     # Callback methods --------------------------------------------------------
     def on_train_begin(self, logs={}):
+        utils.print_main(
+            "The `{}` callback is used to balance "
+            "the multi-objective.".format(self.name)
+        )
         # Assign `weighted_loss` class to Keras model
         self.model.weighted_loss = self
 

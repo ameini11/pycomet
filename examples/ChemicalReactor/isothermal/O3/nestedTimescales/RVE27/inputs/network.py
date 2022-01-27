@@ -66,7 +66,7 @@ layer_size = {
 
 activation = {
     name: {
-        "branch": 'sigmoid',   # elu/gelu
+        "branch": 'tanh',   # elu/gelu
         "trunk":  'sigmoid'
     } for name in names
 }
@@ -74,8 +74,9 @@ activation = {
 kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
 
 block = 'ResPIBlock' # 'FFBlock' 'ResPIBlock'
+block_linear_out = False
 
-opnn_end_scale = 'bias' # 'dense'
+opnn_end_scale = 'dense'
 
 stacked = True
 
@@ -91,7 +92,7 @@ batch_norm = {
 }
 
 regularization = {
-    'name':         'fine_tuning',            # 'l1+l2', 'fine_tuning'
+    'name':         'fine_tuning',                                      # 'fine_tuning'
     'l1':           1.e-3,
     'l2':           1.e-3,
     'weights_path': './saving/'+inp_gen.model_name+'_weights.h5'  # For `FineTuningRegularizer`

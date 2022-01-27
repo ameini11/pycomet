@@ -21,7 +21,7 @@ class Net(tf.keras.Model):
         self,
         dim,
         block='FFBlock',
-        input_name='Input',
+        block_linear_out=True,
         name='net',
         *args,
         **kwargs
@@ -43,6 +43,7 @@ class Net(tf.keras.Model):
 
         self.block = block if callable(block) \
             else utils.get_class(layers, block)
+        self.block_linear_out = block_linear_out
 
         self.inp_trans = None
         self.out_trans = None
@@ -60,6 +61,7 @@ class Net(tf.keras.Model):
             'inp_dim': self.inp_dim,
             'out_dim': self.out_dim,
             'block': self.block,
+            'block_linear_out': self.block_linear_out,
             'inp_trans': self.inp_trans,
             'out_trans': self.out_trans,
             'multi_obj_loss': self.multi_obj_loss,

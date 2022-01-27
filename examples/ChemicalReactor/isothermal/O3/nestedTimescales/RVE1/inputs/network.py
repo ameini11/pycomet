@@ -39,7 +39,7 @@ layer_size = {
 
 activation = {
     name: {
-        "branch": 'sigmoid',   # elu/gelu
+        "branch": 'tanh',   # elu/gelu
         "trunk":  'sigmoid'
     } for name in names
 }
@@ -47,8 +47,9 @@ activation = {
 kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
 
 block = 'ResPIBlock' # 'FFBlock' 'ResPIBlock'
+block_linear_out = False
 
-opnn_end_scale = 'bias'
+opnn_end_scale = 'dense'
 
 stacked = True
 

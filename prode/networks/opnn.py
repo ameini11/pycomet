@@ -29,6 +29,7 @@ class OpNN(Net):
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
+        block_linear_out=True,
         cross_encoder=False,
         cross_encoder_layer_size=None,
         name='opnn',
@@ -38,6 +39,7 @@ class OpNN(Net):
         super(OpNN, self).__init__(
             dim=dim,
             block=block,
+            block_linear_out=block_linear_out,
             name=name,
             *args,
             **kwargs
@@ -147,7 +149,8 @@ class OpNN(Net):
             kernel_initializer=self.kernel_initializer,
             regularizer=self.regularizer,
             dropout_rate=self.dropout_rate,
-            weight_norm=self.weight_norm
+            weight_norm=self.weight_norm,
+            linear_out=self.block_linear_out
         )
         args = {
             "branch": {

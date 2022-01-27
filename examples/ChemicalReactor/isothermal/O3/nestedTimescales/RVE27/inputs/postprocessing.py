@@ -31,5 +31,5 @@ plot_style = {
     'var_names':    var_names,
     'labels':       [r'$t\quad[s]$', r'$Y$'],
     'scales':       ['log', 'linear'],
-    'log_scale':     True
+    'log_scale':    True
 }
