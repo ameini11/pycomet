@@ -229,6 +229,7 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
                 "`{}` can't be applied.".format(self.model.name, self.name)
             )
             self._update = False
+            self.model.weighted_loss = None
 
     def on_epoch_begin(self, epoch, logs={}):
         if self._update and epoch % self.freq == 0:
