@@ -5,3 +5,4 @@
 - Implement cross encoding for DeepONet
 - Jupyter notebook for postprocessing
 - `Load` function in app
+- Implement sampler and on-fly sampling
