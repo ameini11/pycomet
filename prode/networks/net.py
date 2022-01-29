@@ -8,6 +8,7 @@ from tensorflow.python.keras import metrics as metrics_mod
 from tensorflow.python.keras import backend as K
 from tensorflow.python.eager import backprop
 from prode.utilities.model import layers
+from prode.utilities.model import blocks
 from prode.utilities import utils
 
 
@@ -17,7 +18,7 @@ class Net(tf.keras.Model):
 
     # Initialization
     ###########################################################################
-    def __init__(
+    def __init__( 
         self,
         dim,
         block='FFBlock',
@@ -42,7 +43,7 @@ class Net(tf.keras.Model):
         self.out_dim = dim["out"]
 
         self.block = block if callable(block) \
-            else utils.get_class(layers, block)
+            else utils.get_class(blocks, block)
         self.block_linear_out = block_linear_out
 
         self.inp_trans = None
@@ -74,31 +75,6 @@ class Net(tf.keras.Model):
     @classmethod
     def from_config(cls, config):
         return cls(**config)
-
-    # Calling
-    ###########################################################################
-    def call(self, x, training=False):
-        return x
-
-    # # Building
-    # ###########################################################################
-    # def build(self, input_shape):
-    #     # Build the network
-    #     super(Net, self).build(input_shape)
-    #     # I/O characterization
-    #     self.inputs = [
-    #         K.placeholder(shape=s, dtype=K.floatx()) for s in input_shape
-    #     ]
-    #     self.outputs = self.call(self.inputs)
-    #     # I/O features space dimensions
-    #     self.input_dim = tf.nest.map_structure(
-    #         lambda i: i.shape[1], self.inputs
-    #     )
-    #     self.output_dim = tf.nest.map_structure(
-    #         lambda o: o.shape[1], self.outputs
-    #     )
-    #     # Network graph
-    #     self.graph = tf.keras.Model(self.inputs, self.outputs, name=self.name)
 
     # Compiling
     ###########################################################################

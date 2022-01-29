@@ -43,7 +43,12 @@ input_space = {
     'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
     'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
 }
-temp_limits = input_space['Ttr']
+
+# Temperature (limit values)
+temperature_limits = input_space['Ttr']
+
+# Input log-scaled mass fractions 
+log_mass_frac = False
 
 # Time (limit values)
 time_limit = [1.e-14, 1.e-3]

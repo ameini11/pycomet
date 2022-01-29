@@ -15,12 +15,13 @@ class IsoThermChemReacNN(Net):
     ###########################################################################
     def __init__(
         self,
+        dim,
+        names,
         ts_thermochem,
         groups_graph,
-        temp_limits,
-        dim,
+        temperature_limits,
+        log_mass_frac,
         tsnn_dim,
-        names,
         layer_size,
         activation,
         kernel_initializer,
@@ -63,7 +64,10 @@ class IsoThermChemReacNN(Net):
         self.ts_ts_conn = self.ts_to_ts_connectivity(self.groups_graph)         # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
 
         # Temperature
-        self.temp_limits = temp_limits
+        self.temperature_limits = temperature_limits
+
+        # Temperature
+        self.log_mass_frac = log_mass_frac
 
         # Timescales thermochemistry
         self.ts_thermochem = ts_thermochem
@@ -89,8 +93,9 @@ class IsoThermChemReacNN(Net):
         self.timescales = [
             TimeScaleNN(
                 **self.ts_thermochem[name],
-                temp_limits=self.temp_limits,
                 dim=self.tsnn_dim[name],
+                temperature_limits=self.temperature_limits,
+                log_mass_frac=self.log_mass_frac,
                 ts_fast_conn=self.ts_fast_conn[i],
                 layer_size=self.layer_size[name],
                 activation=self.activation[name],
@@ -158,6 +163,7 @@ class IsoThermChemReacNN(Net):
                 else:
                     x[k] = self.inp_trans(x[k])
 
+        # Input flattening
         x = tf.nest.flatten(x)
 
         # Kernel - Timescales NN ----------------------------------------------

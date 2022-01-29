@@ -3,7 +3,8 @@ import tensorflow.python.keras.layers as tf_layers
 
 from prode.utilities.model import layers
 from prode.utilities import utils
-from prode.networks.opnn import OpNN
+# from prode.networks.opnn import OpNN
+from prode.networks.augopnn import AugOpNN
 from prode.networks.net import Net
 
 
@@ -14,10 +15,11 @@ class TimeScaleNN(Net):
     ###########################################################################
     def __init__(
         self,
+        dim,
         species,
         reaction,
-        temp_limits,
-        dim,
+        temperature_limits,
+        log_mass_frac,
         ts_fast_conn,
         layer_size,
         activation,
@@ -59,11 +61,14 @@ class TimeScaleNN(Net):
             "out": self.out_dim[i]
         } for i in range(len(self.out_dim))]
 
-        ### Normalization Layer -----------------------------------------------
-        self.temp_limits = temp_limits
-        self.temperature_norm = layers.LinearNorm(
-            *self.temp_limits, trainable=False
+        ### Input Transformation Layers ---------------------------------------
+        self.temperature_limits = temperature_limits
+        self.temperature_norm_lay = layers.LinearNorm(
+            *self.temperature_limits, trainable=False
         )
+        self.log_mass_frac = log_mass_frac
+        if self.log_mass_frac:
+            self.log_mass_frac_lay = layers.Log(offset=1.e-15, trainable=False)
 
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size = layer_size
@@ -79,8 +84,27 @@ class TimeScaleNN(Net):
         ### OpNNs Initialization ----------------------------------------------
         self.opnn_end_scale = opnn_end_scale
         self.stacked = stacked
+        # self.opnns = [
+        #     OpNN(
+        #         self.opnn_dim[i],
+        #         self.layer_size,
+        #         self.activation,
+        #         self.kernel_initializer,
+        #         regularization=self.regularization,
+        #         end_scale=self.opnn_end_scale,
+        #         stacked=self.stacked,
+        #         dropout_rate=self.dropout_rate,
+        #         batch_norm=self.batch_norm,
+        #         weight_norm=self.weight_norm,
+        #         block=self.block,
+        #         block_linear_out=self.block_linear_out,
+        #         cross_encoder=self.cross_encoder,
+        #         cross_encoder_layer_size=self.cross_encoder_layer_size,
+        #         name='opnn_' + str(i)
+        #     ) for i in range(len(self.out_dim))
+        # ]
         self.opnns = [
-            OpNN(
+            AugOpNN(
                 self.opnn_dim[i],
                 self.layer_size,
                 self.activation,
@@ -91,10 +115,7 @@ class TimeScaleNN(Net):
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
-                block=self.block,
                 block_linear_out=self.block_linear_out,
-                cross_encoder=self.cross_encoder,
-                cross_encoder_layer_size=self.cross_encoder_layer_size,
                 name='opnn_' + str(i)
             ) for i in range(len(self.out_dim))
         ]
@@ -111,7 +132,8 @@ class TimeScaleNN(Net):
     def get_config(self):
         config = {
             'ts_fast_conn': self.ts_fast_conn,
-            'temp_limits': self.temp_limits,
+            'temperature_limits': self.temperature_limits,
+            'log_mass_frac': self.log_mass_frac,
             'layer_size': self.layer_size,
             'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
@@ -137,27 +159,34 @@ class TimeScaleNN(Net):
     ###########################################################################
     def call(self, x, training=False, mask=None, noneq_factor=False):
 
+        # Inputs manipulation -------------------------------------------------
+        # Extract inputs
         ic, t = x
 
-        # Inputs manipulation -------------------------------------------------
         # Extract physical inputs
         T, rho, Y = tf.split(
             ic, num_or_size_splits=[1,1,self.inp_dim[0]-2], axis=1
         )
 
         # Normalize temperature
-        T_norm = self.temperature_norm(T)
+        T_norm = self.temperature_norm_lay(T)
 
-        # Compose new inputs
+        # Add mass fractions (micro-bins to macro-bins)
         if self.ts_fast_conn != None:
-            _Y = []
+            Y_ = []
             for indeces in self.ts_fast_conn:
-                _Y.append(
+                Y_.append(
                     tf.math.reduce_sum(
                         tf.gather(Y, indeces, axis=1), axis=1, keepdims=True
                     )
                 )
-            Y = tf_layers.Concatenate()(_Y) if len(_Y) > 1 else _Y[-1]
+            Y = tf_layers.Concatenate()(Y_) if len(Y_) > 1 else Y_[-1]
+
+        # Log-scaled mass fractions
+        if self.log_mass_frac is not None:
+            Y = self.log_mass_frac_lay(Y)
+
+        # Recompose ICs
         ic = tf_layers.Concatenate()([T_norm, rho, Y])
 
         # Kernel - OpNNs ------------------------------------------------------

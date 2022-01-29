@@ -45,6 +45,8 @@ class MMOpNN(Net):
             **kwargs
         )
 
+        self.sub_nets = ("branch", "trunk")
+
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size = layer_size
         self.activation = activation
@@ -113,9 +115,9 @@ class MMOpNN(Net):
         self.end_scale = end_scale
 
         if self.end_scale == 'bias':
-            self._end_scale = layers.Bias(name='end_scale')
+            self.end_scale_lay = layers.Bias(name='end_scale')
         elif self.end_scale == 'dense':
-            self._end_scale = tf_layers.Dense(
+            self.end_scale_lay = tf_layers.Dense(
                 units=self.out_dim,
                 kernel_initializer=self.kernel_initializer,
                 name='end_scale'
@@ -125,6 +127,7 @@ class MMOpNN(Net):
     ###########################################################################
     def get_config(self):
         config = {
+            'sub_nets': self.sub_nets,
             'names': self.names,
             'opnn_dim': self.opnn_dim,
             'layer_size': self.layer_size,
@@ -153,7 +156,7 @@ class MMOpNN(Net):
 
         # Inputs
         if isinstance(x, (list, tuple)):
-            x_u, x_y = x[0], x[1]
+            x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
@@ -161,23 +164,25 @@ class MMOpNN(Net):
 
         # Input transformation
         if self.inp_trans is not None:
-            if isinstance(self.inp_trans, dict):
-                x_u = self.inp_trans["branch"](x_u)
-                x_y = self.inp_trans["trunk"](x_y)
-            else:
-                x_u = self.inp_trans(x_u)
-                x_y = self.inp_trans(x_y)
+            for k in self.sub_nets:
+                if isinstance(self.inp_trans, dict):
+                    x[k] = self.inp_trans[k](x[k])
+                else:
+                    x[k] = self.inp_trans(x[k])
+
+        # Input flattening
+        x = tf.nest.flatten(x)
 
         # OpNNs
-        G_uy = [ g_uy([x_u, x_y]) for g_uy in self.opnns.values() ]
+        G_uy = [ g_uy(x) for g_uy in self.opnns.values() ]
 
         # Concatenate if single output or if final scaling is applied
         if not isinstance(self.out_dim, (list,tuple)) or self.end_scale != None:
             G_uy = tf_layers.Concatenate()(G_uy)
 
         # Final scaling
-        if self.end_scale != None:
-            G_uy = self._end_scale(G_uy)
+        if self.end_scale is not None:
+            G_uy = self.end_scale_lay(G_uy)
 
         # Split if multiple output
         if isinstance(self.out_dim, (list,tuple)) and tf.is_tensor(G_uy):

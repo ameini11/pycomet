@@ -203,9 +203,9 @@ class OpNN(Net):
 
         # Final scaling
         if self.end_scale == 'bias':
-            self._end_scale = layers.Bias(name='end_scale')
+            self.end_scale_lay = layers.Bias(name='end_scale')
         elif self.end_scale == 'dense':
-            self._end_scale = tf_layers.Dense(
+            self.end_scale_lay = tf_layers.Dense(
                 units=self.out_dim,
                 kernel_initializer=self.kernel_initializer,
                 name='end_scale'
@@ -290,8 +290,8 @@ class OpNN(Net):
 
         # Output layer - Concatenation
         G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
-        if self.end_scale != None:
-            G_uy = self._end_scale(G_uy)
+        if self.end_scale is not None:
+            G_uy = self.end_scale_lay(G_uy)
 
         # Output transformation
         if self.out_trans is not None:
