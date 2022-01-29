@@ -6,6 +6,7 @@ from prode.utilities.model import activations
 from prode.utilities.model import initializers
 from prode.utilities.model import regularizers
 from prode.utilities.model import layers
+from prode.utilities.model import blocks
 from prode.networks.net import Net
 from prode.utilities import utils
 
@@ -32,6 +33,7 @@ class OpNN(Net):
         block_linear_out=True,
         cross_encoder=False,
         cross_encoder_layer_size=None,
+        augmented=False,
         name='opnn',
         *args,
         **kwargs
@@ -60,11 +62,11 @@ class OpNN(Net):
             self.layer_size = layer_size
 
         # Activation functions
-        act = tf.nest.map_structure(activations.get, activation)
-        if not isinstance(act, dict):
-            self.act = {k: act for k in self.sub_nets}
+        activation = tf.nest.map_structure(activations.get, activation)
+        if not isinstance(activation, dict):
+            self.activation = {k: activation for k in self.sub_nets}
         else:
-            self.act = act
+            self.activation = activation
 
         # Regularization
         if regularization is not None:
@@ -86,7 +88,7 @@ class OpNN(Net):
         ### Cross-encoding between branch and trunk ---------------------------
         # Cross-encoding block
         if isinstance(cross_encoder, dict):
-            if any(k not in {"branch", "trunk"} for k in cross_encoder.keys()):
+            if any(k not in self.sub_nets for k in cross_encoder.keys()):
                 utils.raise_value_err(
                     f"Invalid `cross_encoder` dictionary "
                     f"keys passed into into `{self.name}`. "
@@ -105,7 +107,7 @@ class OpNN(Net):
         # Cross-encoding block layer sizes
         self.ce_layer_size = {}
         if isinstance(cross_encoder_layer_size, dict):
-            if any(k not in {"branch", "trunk"} for k in cross_encoder.keys()):
+            if any(k not in self.sub_nets for k in cross_encoder.keys()):
                 utils.raise_value_err(
                     f"Invalid `cross_encoder_layer_size` dictionary "
                     f"keys passed into into `{self.name}`. "
@@ -135,6 +137,11 @@ class OpNN(Net):
             lambda y: tf.einsum('nij,nj->ni', y[0], y[1])
         )
 
+        ### Augmented cross-encoding ------------------------------------------
+        self.augmented = augmented
+        if self.augmented and self.block.name != 'cross_encoded_block':
+            self.block = utils.get_class(blocks, 'CrossEncodedBlock')
+
         ### Final scaling ----------------------------------------------------
         if end_scale not in {None, "bias", "dense"}:
             utils.raise_value_err(
@@ -156,14 +163,14 @@ class OpNN(Net):
             "branch": {
                 **shared_args,
                 **dict(
-                    activation=self.act["branch"],
+                    activation=self.activation["branch"],
                     batch_norm=self.batch_norm["branch"],
                 )
             },
             "trunk": {
                 **shared_args,
                 **dict(
-                    activation=self.act["trunk"],
+                    activation=self.activation["trunk"],
                     batch_norm=self.batch_norm["trunk"],
                 )
             }
@@ -184,7 +191,7 @@ class OpNN(Net):
             name='trunk'
         )
 
-        # Cross-encoding blocks
+        # Cross-encoding blocks -----------------------------------------------
         self._cross_encoder = {}
         # Branch encoder
         if self.cross_encoder["branch"]:
@@ -201,7 +208,31 @@ class OpNN(Net):
                 name='cross_encoder_trunk'
             )
 
-        # Final scaling
+        # Augmented cross-encoding layers
+        if self.augmented:
+            self.U = blocks.MultiLayerBlock(
+                units=self.layer_size["branch"][1],
+                activation=self.activation["branch"],
+                kernel_initializer=self.kernel_initializer,
+                regularizer=self.regularizer,
+                weight_norm=self.weight_norm,
+                batch_norm=self.batch_norm["branch"],
+                dropout_rate=self.dropout_rate,
+                name='U'
+            )
+
+            self.V = blocks.MultiLayerBlock(
+                units=self.layer_size["trunk"][1],
+                activation=self.activation["trunk"],
+                kernel_initializer=self.kernel_initializer,
+                regularizer=self.regularizer,
+                weight_norm=self.weight_norm,
+                batch_norm=self.batch_norm["trunk"],
+                dropout_rate=self.dropout_rate,
+                name='V'
+            )
+
+        # Final scaling -------------------------------------------------------
         if self.end_scale == 'bias':
             self.end_scale_lay = layers.Bias(name='end_scale')
         elif self.end_scale == 'dense':
@@ -215,9 +246,9 @@ class OpNN(Net):
     ###########################################################################
     def get_config(self):
         config = {
+            'activation': self.activation,
             'sub_nets': self.sub_nets,
             'layer_size': self.layer_size,
-            'act': self.act,
             'kernel_initializer': self.kernel_initializer,
             'regularizer': self.regularizer,
             'dropout_rate': self.dropout_rate,
@@ -225,7 +256,8 @@ class OpNN(Net):
             'weight_norm': self.weight_norm,
             'end_scale': self.end_scale,
             'cross_encoder': self.cross_encoder,
-            'ce_layer_size': self.ce_layer_size
+            'ce_layer_size': self.ce_layer_size,
+            'augmented': self.augmented
         }
         base_config = super(OpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -271,13 +303,17 @@ class OpNN(Net):
                     [self.einsum_lay([A[k], x[j]]), b[k]]
                 )
 
-        # Branch/-es
-        G_u = [
-            branch(x["branch"], training=training) for branch in self._branches
-        ]
+        # Augmented cross-encoding
+        if self.augmented:
+            u = self.U(x["branch"], training=training)
+            v = self.V(x["trunk"], training=training)
 
-        # Trunk
-        G_y = self._trunk(x["trunk"], training=training)
+        # Branch/-es & Trunk
+        args = dict(training=training)
+        if self.augmented:
+            args.update(dict(u=u, v=v))
+        G_u = [ branch(x["branch"], **args) for branch in self._branches ]
+        G_y = self._trunk(x["trunk"], **args)
 
         # Output layer - Dot product
         if self.stacked:

@@ -69,6 +69,8 @@ cross_encoder = {
     "trunk": False
 }
 
+augmented = False
+
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
     "branch": None,

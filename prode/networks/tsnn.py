@@ -3,8 +3,7 @@ import tensorflow.python.keras.layers as tf_layers
 
 from prode.utilities.model import layers
 from prode.utilities import utils
-# from prode.networks.opnn import OpNN
-from prode.networks.augopnn import AugOpNN
+from prode.networks.opnn import OpNN
 from prode.networks.net import Net
 
 
@@ -34,6 +33,7 @@ class TimeScaleNN(Net):
         block_linear_out=True,
         cross_encoder=False,
         cross_encoder_layer_size=None,
+        augmented=False,
         name='tsnn',
         *args,
         **kwargs
@@ -80,31 +80,13 @@ class TimeScaleNN(Net):
         self.weight_norm = weight_norm
         self.cross_encoder = cross_encoder
         self.cross_encoder_layer_size = cross_encoder_layer_size
+        self.augmented = augmented
 
         ### OpNNs Initialization ----------------------------------------------
         self.opnn_end_scale = opnn_end_scale
         self.stacked = stacked
-        # self.opnns = [
-        #     OpNN(
-        #         self.opnn_dim[i],
-        #         self.layer_size,
-        #         self.activation,
-        #         self.kernel_initializer,
-        #         regularization=self.regularization,
-        #         end_scale=self.opnn_end_scale,
-        #         stacked=self.stacked,
-        #         dropout_rate=self.dropout_rate,
-        #         batch_norm=self.batch_norm,
-        #         weight_norm=self.weight_norm,
-        #         block=self.block,
-        #         block_linear_out=self.block_linear_out,
-        #         cross_encoder=self.cross_encoder,
-        #         cross_encoder_layer_size=self.cross_encoder_layer_size,
-        #         name='opnn_' + str(i)
-        #     ) for i in range(len(self.out_dim))
-        # ]
         self.opnns = [
-            AugOpNN(
+            OpNN(
                 self.opnn_dim[i],
                 self.layer_size,
                 self.activation,
@@ -115,7 +97,11 @@ class TimeScaleNN(Net):
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
+                block=self.block,
                 block_linear_out=self.block_linear_out,
+                cross_encoder=self.cross_encoder,
+                cross_encoder_layer_size=self.cross_encoder_layer_size,
+                augmented=self.augmented,
                 name='opnn_' + str(i)
             ) for i in range(len(self.out_dim))
         ]
@@ -146,7 +132,8 @@ class TimeScaleNN(Net):
             'reaction': self.reaction,
             'species': self.species,
             'cross_encoder': self.cross_encoder,
-            'cross_encoder_layer_size': self.cross_encoder_layer_size
+            'cross_encoder_layer_size': self.cross_encoder_layer_size,
+            'augmented': self.augmented
         }
         base_config = super(TimeScaleNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -183,7 +170,7 @@ class TimeScaleNN(Net):
             Y = tf_layers.Concatenate()(Y_) if len(Y_) > 1 else Y_[-1]
 
         # Log-scaled mass fractions
-        if self.log_mass_frac is not None:
+        if self.log_mass_frac:
             Y = self.log_mass_frac_lay(Y)
 
         # Recompose ICs

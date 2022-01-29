@@ -35,6 +35,7 @@ class IsoThermChemReacNN(Net):
         block_linear_out=True,
         cross_encoder=False,
         cross_encoder_layer_size=None,
+        augmented=False,
         name='isothermchemreacnn',
         *args,
         **kwargs
@@ -84,6 +85,7 @@ class IsoThermChemReacNN(Net):
         self.weight_norm = weight_norm
         self.cross_encoder = cross_encoder
         self.cross_encoder_layer_size = cross_encoder_layer_size
+        self.augmented = augmented
 
         ### TimeScaleNNs Initialization ---------------------------------------
         self.sub_nets = ("branch", "trunk")
@@ -110,6 +112,7 @@ class IsoThermChemReacNN(Net):
                 block_linear_out=self.block_linear_out,
                 cross_encoder=self.cross_encoder,
                 cross_encoder_layer_size=self.cross_encoder_layer_size,
+                augmented=self.augmented,
                 name=name
             ) for i, name in enumerate(self.names)
         ]
@@ -134,7 +137,8 @@ class IsoThermChemReacNN(Net):
             'opnn_end_scale': self.opnn_end_scale,
             'stacked': self.stacked,
             'cross_encoder': self.cross_encoder,
-            'cross_encoder_layer_size': self.cross_encoder_layer_size
+            'cross_encoder_layer_size': self.cross_encoder_layer_size,
+            'augmented': self.augmented
         }
         base_config = super(IsoThermChemReacNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
