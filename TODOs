@@ -2,7 +2,6 @@
 - Reading Arrhenius coefficient from the same file
 - Embed `DataGenerator` and `ODESolver` into the src code
 - Try to fix `SoftAttentionWeightsAdapter` and `NTKWeightsAdapter`
-- Implement cross encoding for DeepONet
 - Jupyter notebook for postprocessing
 - `Load` function in app
 - Implement sampler and on-fly sampling
