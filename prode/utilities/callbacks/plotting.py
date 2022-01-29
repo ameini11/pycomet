@@ -110,7 +110,7 @@ class Plotter(CB.Callback):
             if self.output_ops:
                 y, y_pred = list(map(self.output_ops, [y, y_pred]))
             # Plot true vs. pred values for each single model output
-            if len(tf.nest.flatten(self.model.outputs)) > 1:
+            if isinstance(y, (list,tuple)):
                 for j in range(len(y)):
                     kwargs = dict(
                         path=path,
@@ -119,8 +119,8 @@ class Plotter(CB.Callback):
                         y_pred=y_pred[j],
                         var_names=self.var_names[j],
                         fig_name=self.fig_name[j] if self.fig_name else None,
-                        labels=self.labels[j],
-                        scales=self.scales[j]
+                        labels=self.labels,
+                        scales=self.scales
                     )
                     self.testing_plot_fn(kwargs)
             else:

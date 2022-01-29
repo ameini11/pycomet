@@ -283,8 +283,8 @@ class Model(object):
                         y_pred=y_pred[j],
                         var_names=var_names[j],
                         fig_name=fig_name[j] if fig_name else None,
-                        labels=labels[j],
-                        scales=scales[j]
+                        labels=labels,
+                        scales=scales
                     )
                     self.testing_plot_fn(log_scale, kwargs)
             else:
