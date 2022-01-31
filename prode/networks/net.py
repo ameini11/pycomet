@@ -180,11 +180,11 @@ class Net(tf.keras.Model):
         with backprop.GradientTape(persistent=True) as tape:
             # Manipulate sample weights
             if self.weighted_loss:
-                _sample_weight = self.weighted_loss.on_grad_step_eval(
+                sample_weight = self.weighted_loss.on_grad_step_eval(
                     sample_weight
                 )
             # Evaluate losses
-            losses = self.eval_losses(x, y, _sample_weight)
+            losses = self.eval_losses(x, y, sample_weight)
             # Regularization loss
             reg_loss = self.eval_reg_loss()
             # Evaluate total loss

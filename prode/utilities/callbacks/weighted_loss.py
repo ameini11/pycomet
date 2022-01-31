@@ -447,125 +447,125 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 
 
 
-@keras_export('keras.callbacks.SoftAttentionWeightsAdapter')
-class SoftAttentionWeightsAdapter(BaseWeightsAdapter):
-    """Base class for adaptive loss weights techniques."""
+# @keras_export('keras.callbacks.SoftAttentionWeightsAdapter')
+# class SoftAttentionWeightsAdapter(BaseWeightsAdapter):
+#     """Base class for adaptive loss weights techniques."""
 
-    def __init__(
-        self,
-        data_container=None,
-        trainable=True,
-        rank=1,
-        limits=[1.,1.],
-        mask=None,
-        q=None,
-        freq=1,
-        log_dir=None,
-        **kwargs
-    ):
-        super(SoftAttentionWeightsAdapter, self).__init__(
-            data_container=data_container,
-            freq=freq,
-            log_dir=log_dir,
-            **kwargs
-        )
-        # Characterize weights tensors
-        self.trainable = trainable
-        self.rank = rank
+#     def __init__(
+#         self,
+#         data_container=None,
+#         trainable=True,
+#         rank=1,
+#         limits=[1.,1.],
+#         mask=None,
+#         q=None,
+#         freq=1,
+#         log_dir=None,
+#         **kwargs
+#     ):
+#         super(SoftAttentionWeightsAdapter, self).__init__(
+#             data_container=data_container,
+#             freq=freq,
+#             log_dir=log_dir,
+#             **kwargs
+#         )
+#         # Characterize weights tensors
+#         self.trainable = trainable
+#         self.rank = rank
 
-        # Define weights initializers
-        self.limits = limits
-        if isinstance(limits, list):
-            self.limits = {
-                obj: limits for obj in self.model.objectives['train']
-            }
-        if not isinstance(self.limits, dict):
-            utils.raise_value_err(
-                "`limits` in `{}` has to be a `dict` of [min, max] value "
-                "list for each objecitve function.".format(self.name)
-            )
-        self.initializer = {
-            obj: tf_init.RandomUniform(*l) for obj, l in self.limits.items()
-        }
+#         # Define weights initializers
+#         self.limits = limits
+#         if isinstance(limits, list):
+#             self.limits = {
+#                 obj: limits for obj in self.model.objectives['train']
+#             }
+#         if not isinstance(self.limits, dict):
+#             utils.raise_value_err(
+#                 "`limits` in `{}` has to be a `dict` of [min, max] value "
+#                 "list for each objecitve function.".format(self.name)
+#             )
+#         self.initializer = {
+#             obj: tf_init.RandomUniform(*l) for obj, l in self.limits.items()
+#         }
 
-        # Define the self-adaptation mask function
-        if q is not None:
-            if any([q_i <= 0. for q_i in q]):
-                utils.raise_value_err(
-                    "`q` coefficents for the mask function in `{}` have "
-                    "to be positive.".format(self.name)
-                )
-        else:
-            q = [1., 1.]
-        if mask == 'poly':
-            self.mask_fn = lambda x: q[0]*tf.pow(tf.math.abs(x), q[1])
-        elif mask == 'sigmoid':
-            self.mask_fn = lambda x: q[0]*tf.math.sigmoid(q[1]*x)
-        elif mask == 'exp':
-            self.mask_fn = lambda x: q[0]*tf.math.exp(q[1]*x)
-        else:
-            self.mask_fn = tf.square
+#         # Define the self-adaptation mask function
+#         if q is not None:
+#             if any([q_i <= 0. for q_i in q]):
+#                 utils.raise_value_err(
+#                     "`q` coefficents for the mask function in `{}` have "
+#                     "to be positive.".format(self.name)
+#                 )
+#         else:
+#             q = [1., 1.]
+#         if mask == 'poly':
+#             self.mask_fn = lambda x: q[0]*tf.pow(tf.math.abs(x), q[1])
+#         elif mask == 'sigmoid':
+#             self.mask_fn = lambda x: q[0]*tf.math.sigmoid(q[1]*x)
+#         elif mask == 'exp':
+#             self.mask_fn = lambda x: q[0]*tf.math.exp(q[1]*x)
+#         else:
+#             self.mask_fn = tf.square
 
-        self._update = True
-        self.init_weights()
+#         self._update = True
+#         self.init_weights()
 
-    # Callback methods --------------------------------------------------------
-    def on_train_begin(self, logs={}):
-        super(SoftAttentionWeightsAdapter, self).on_train_begin(logs=logs)
-        # Get indipendent model optimizer for each objective function
-        self.optimizer = {
-            obj: copy.deepcopy(self.model.optimizer) \
-                for obj in self.model.objectives['train']
-        }
+#     # Callback methods --------------------------------------------------------
+#     def on_train_begin(self, logs={}):
+#         super(SoftAttentionWeightsAdapter, self).on_train_begin(logs=logs)
+#         # Get indipendent model optimizer for each objective function
+#         self.optimizer = {
+#             obj: copy.deepcopy(self.model.optimizer) \
+#                 for obj in self.model.objectives['train']
+#         }
 
-    def on_epoch_begin(self, epoch, logs={}):
-        if epoch % self.freq == 0:
-            self._update = True
-        else:
-            self._update = False
+#     def on_epoch_begin(self, epoch, logs={}):
+#         if epoch % self.freq == 0:
+#             self._update = True
+#         else:
+#             self._update = False
 
-    # Handling weights methods ------------------------------------------------
-    def init_weights(self):
-        # Build sample weights
-        self.data_container.init_sample_weight(
-            self.initializer, self.trainable, self.rank
-        )
-        # Shuffle/Batch data
-        self.data_container.keep_indeces = True
-        self.data_container.on_epoch_end()
+#     # Handling weights methods ------------------------------------------------
+#     def init_weights(self):
+#         # Build sample weights
+#         self.data_container.init_sample_weight(
+#             self.initializer, self.trainable, self.rank
+#         )
+#         # Shuffle/Batch data
+#         self.data_container.keep_indeces = True
+#         self.data_container.on_epoch_end()
 
-    # Gradient descent methods ------------------------------------------------
-    def on_grad_step_begin(self, sample_weight=None):
-        if self._update and sample_weight is not None:
-            return tf.nest.map_structure(
-                lambda sw: tf.Variable(sw, trainable=self.trainable),
-                sample_weight
-            )
+#     # Gradient descent methods ------------------------------------------------
+#     def on_grad_step_begin(self, sample_weight=None):
+#         if self._update and sample_weight is not None:
+#             return tf.nest.map_structure(
+#                 lambda sw: tf.Variable(sw, trainable=self.trainable),
+#                 sample_weight
+#             )
 
-    def on_grad_step_eval(self, sample_weight=None):
-        if sample_weight is not None:
-            return tf.nest.map_structure(self.mask_fn, sample_weight)
+#     def on_grad_step_eval(self, sample_weight=None):
+#         if sample_weight is not None:
+#             return tf.nest.map_structure(self.mask_fn, sample_weight)
 
-    def on_grad_step_end(
-        self,
-        loss=0.,
-        sample_weight=None,
-        sample_index=None,
-        tape=None
-    ):
-        if self._update and self.trainable and sample_weight is not None:
-            for obj, sw in sample_weight.items():
-                # Update batch sample weights
-                sw = tf.nest.flatten(sw)
-                grads = tf.nest.map_structure(
-                    lambda x: -tape.gradient(loss, x), sw
-                )
-                self.optimizer[obj].apply_gradients(zip(grads, sw))
-                # Assign the updated sample weights to data container
-                tf.nest.map_structure(
-                    lambda sw_old, sw_new: sw_old.scatter_nd_update(
-                        sample_index[obj], sw_new
-                    ),
-                    self.data_container[obj][-1],
-                    sw
-                )
+#     def on_grad_step_end(
+#         self,
+#         loss=0.,
+#         sample_weight=None,
+#         sample_index=None,
+#         tape=None
+#     ):
+#         if self._update and self.trainable and sample_weight is not None:
+#             for obj, sw in sample_weight.items():
+#                 # Update batch sample weights
+#                 sw = tf.nest.flatten(sw)
+#                 grads = tf.nest.map_structure(
+#                     lambda x: -tape.gradient(loss, x), sw
+#                 )
+#                 self.optimizer[obj].apply_gradients(zip(grads, sw))
+#                 # Assign the updated sample weights to data container
+#                 tf.nest.map_structure(
+#                     lambda sw_old, sw_new: sw_old.scatter_nd_update(
+#                         sample_index[obj], sw_new
+#                     ),
+#                     self.data_container[obj][-1],
+#                     sw
+#                 )

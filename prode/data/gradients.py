@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from tensorflow.python.ops.parallel_for import control_flow_ops
 
 # Gradient functions
 ###############################################################################
@@ -20,10 +21,9 @@ def order_n(time_idx, order, model, ic, t, training):
     with tf.GradientTape(persistent=True) as tape:
         tape.watch(t)
         grads = grad_fn(time_idx, order-1, model, ic, t, training)
-        # Get `n-1`-th order gradients
-        y = tf.split(grads[-1], grads[-1].shape[1], axis=1)
     # Evaluate `n`-th order gradients
-    dy = tf.concat([tape.gradient(i, t) for i in y], axis=1)
+    dy = tape.batch_jacobian(grads[-1], t, experimental_use_pfor=True)
+    dy = tf.squeeze(dy, axis=-1)
     # Collect `n`-th order gradients
     grads.append(dy)
     return grads
