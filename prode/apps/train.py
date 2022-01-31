@@ -93,13 +93,6 @@ def main():
         physics_informed = False
     from physics.data_generator import DataGenerator
 
-    # Add additional paths
-    if hasattr(inp.general, 'paths') and inp.general.paths is not None:
-        paths = list(inp.general.paths.values()) \
-            if isinstance(inp.general.paths, dict) else inp.general.paths
-        for path in paths:
-            sys.path.append(path)
-
     # Data
     ###########################################################################
     # Generate Data -----------------------------------------------------------
@@ -183,7 +176,7 @@ def main():
     # Model
     ###########################################################################
     # Initialize Model --------------------------------------------------------
-    model = prode.model.Model(data, net, inp.general.model_name)
+    model = prode.model.Model(data=data, net=net, name=inp.general.model_name)
 
     # Build Model -------------------------------------------------------------
     utils.print_main(
@@ -231,8 +224,8 @@ def main():
     model.visualize_training(history=model.dir['train']+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
-    utils.print_main("Postprocessing physical quantities ...")
     if inp.data.test_cases > 0 and inp.general.flags['test'] > 0:
+        utils.print_main("Postprocessing physical quantities ...")
         for i, data in enumerate(tqdm(data.test)):
             model.predict(
                 data=data,

@@ -21,9 +21,9 @@ class Model(object):
     ###########################################################################
     def __init__(
         self,
-        data,
-        net,
-        name,
+        data=None,
+        net=None,
+        name='model',
         path='./',
         save_format='h5'
     ):
@@ -65,10 +65,11 @@ class Model(object):
         visualize_graph=False
     ):
         # Update network multi-objective loss function parameters
-        self.net.multi_obj_loss = self.data.multi_obj_loss
-        self.net.objectives = self.data.objectives
-        if self.net.multi_obj_loss:
-            self.net.residual = self.data.res_fn(self.net)
+        if self.data:
+            self.net.multi_obj_loss = self.data.multi_obj_loss
+            self.net.objectives = self.data.objectives
+            if self.net.multi_obj_loss:
+                self.net.residual = self.data.res_fn(self.net)
 
         # Build the network ---------------------------------------------------
         input_shape = tf.nest.map_structure(
@@ -90,7 +91,7 @@ class Model(object):
         )
 
         # Build data structures -----------------------------------------------
-        if not self.data.built:
+        if self.data and not self.data.built:
             self.data.build(self.net)
 
         # Visualize network graph ---------------------------------------------
