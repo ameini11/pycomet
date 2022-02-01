@@ -87,9 +87,14 @@ class DataGenerator(object):
 
         # Building Master Equation matrices -----------------------------------
         self.ODE_sol = ODESolver(processFlags)
-        self.arrhenius_coeff = pd.read_csv(
-            self.rates_path+'arrhenius_coeff.csv', index_col=0
+        self.reactions_list = pd.read_csv(
+            self.rates_path+'reactions.csv', index_col=0
         )
+        self.process_indices = {
+            'diss': 2,
+            'exch': 5,
+            'inel': 6
+        }
 
         # Labeling Data -------------------------------------------------------
         self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
@@ -110,8 +115,8 @@ class DataGenerator(object):
 
     # Master Equation matrices
     ###########################################################################
-    def modified_arrhenius(self, T, A, n, Ta):
-        return A * np.power(T,n) * np.exp(-Ta/T)
+    def arrhenius(self, T, A, beta, Ta):
+        return A * np.power(T,beta) * np.exp(-Ta/T)
 
     def get_rates(self, T):
         '''Retrieve rates coefficients from dataframe.'''
@@ -121,13 +126,16 @@ class DataGenerator(object):
                 else (self.num_bins, self.num_bins)
             rates_coeff[reac_name] = np.zeros(shape, dtype=np.float64)
 
-        for index, row in self.arrhenius_coeff.iterrows():
-            rate = self.modified_arrhenius(T, row['A'], row['n'], row['Ta'])
-            reac_name, *bins_idx = index.split('_')
-            if reac_name == 'diss':
+        for index, row in self.reactions_list.iterrows():
+            rate = self.arrhenius(T, row['A'], row['beta'], row['Ta'])
+            bins_idx = re.findall(r"\((.*?)\)", row['reactStr'])
+            if self.process_indices['diss'] == row['reacIndex']:
                 idx = int(bins_idx[0])-1
             else:
                 idx = int(bins_idx[0])-1, int(bins_idx[1])-1
+            reac_name = utils.get_key_from_value(
+                self.process_indices, row['reacIndex']
+            )
             rates_coeff[reac_name][idx] = rate
         return rates_coeff
 

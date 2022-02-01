@@ -214,6 +214,12 @@ def convert_struct_to_tf(x):
         lambda y: tf.convert_to_tensor(y, dtype=K.floatx()), x
     )
 
+def get_key_from_value(d, v):
+    for key, value in d.items():
+         if v == value:
+             return key
+    raise_value_err(f"A key for value `{v}` doesn't exist in the dictionary.")
+
 
 # Others
 ###############################################################################
