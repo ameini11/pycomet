@@ -16,12 +16,14 @@ NAME = 'trainPro'
 
 import os
 import sys
-import argparse
 import prode
+import argparse
+import importlib
 import tensorflow as tf
 
 from tqdm import tqdm
 from prode.utilities import utils
+from prode.apps import functionObjects as fun
 
 
 def dir_path(path):
@@ -84,13 +86,12 @@ def main():
     # Add modules -------------------------------------------------------------
     sys.path.append(opts.dir)
     # Input module
-    import inputs as inp
+    import inputs
+    from inputs.general import flags
     # Physics-related module
-    try:
-        from physics.physical_model import PhysicalModel
+    physics_informed = False
+    if importlib.util.find_spec('physics.physical_model'):
         physics_informed = True
-    except ModuleNotFoundError:
-        physics_informed = False
     from physics.data_generator import DataGenerator
 
     # Data
@@ -98,7 +99,7 @@ def main():
     # Generate Data -----------------------------------------------------------
     dataGen_args = utils.get_args_values(
         args=utils.get_args(DataGenerator.__init__),
-        modules=[inp.data, inp.general]
+        modules=[inputs.data, inputs.general]
     )
     dataGen = DataGenerator(
         **dataGen_args
@@ -107,116 +108,51 @@ def main():
     if not os.path.exists(dataGen.data_dir):
         os.makedirs(dataGen.data_dir)
 
-    if inp.data.from_file:
+    if inputs.data.from_file:
         utils.print_main("Extracting training/validation pts from file ...")
-        train_data, valid_data = inp.data.file['train'], inp.data.file['valid']
-        if inp.general.flags['test'] > 0 and inp.data.test_cases > 0:
+        train_data = inputs.data.file['train']
+        valid_data = inputs.data.file['valid']
+        if flags['test'] > 0 and inputs.data.test_cases > 0:
             utils.print_main('Generating testing pts ...')
             test_data = dataGen.testing_data(
-                inp.data.file['test'],
-                header=inp.data.header
+                inputs.data.file['test'],
+                header=inputs.data.header
             )
     else:
         utils.print_main("Generating initial conditions ...")
         ic = dataGen.initial_cond()
         utils.print_main("Generating training/validation pts ...")
         train_data, valid_data = dataGen.training_data(ic[0])
-        if inp.general.flags['test'] > 0 and inp.data.test_cases > 0:
+        if flags['test'] > 0 and inputs.data.test_cases > 0:
             utils.print_main('Generating testing pts ...')
             test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
 
-    # Initialize Data Class ---------------------------------------------------
-    data_cls = utils.get_class(prode.data, inp.data.data_type)
-    utils.print_main(
-        "Initializing '{}' data ...".format(inp.data.data_type)
-    )
-    data_args = utils.get_args_values(
-        args=utils.get_args(data_cls.__init__),
-        modules=[inp.data, inp.general]
-    )
-
-    if physics_informed and inp.data.data_type:
-        utils.print_main("Initializing physical model ...")
-        PhysicalModel_args = utils.get_args_values(
-            args=utils.get_args(PhysicalModel.__init__),
-            modules=inp.general
-        )
-        physicalMdl = PhysicalModel(
-            **PhysicalModel_args
-        )
-        data_args.update(dict(ode_func=physicalMdl.ode))
-
-    data = data_cls(
-        training=inp.general.flags['train'],
+    # Data Class --------------------------------------------------------------
+    data = fun._data(
+        flags=flags,
+        input_module=inputs,
+        physics_informed=physics_informed,
         train_data=train_data,
         valid_data=valid_data,
         test_data=test_data or None,
-        **data_args
     )
 
-    # Network
+    # Network 
     ###########################################################################
-    # Initialize Network ------------------------------------------------------
-    net_cls = utils.get_class(prode.networks, inp.network.architecture)
-    utils.print_main(
-        "Initializing '{}' network ...".format(inp.network.architecture)
+    net = fun._net(
+        input_module=inputs
     )
-    net_args = utils.get_args_values(
-        args=utils.get_args(net_cls.__init__),
-        modules=[inp.network, inp.general]
-    )
-    net = net_cls(**net_args)
 
-    # Apply I/O Transformation ------------------------------------------------
-    if hasattr(inp.network, 'input_fn'):
-        net.inp_trans = inp.network.input_fn
-    if hasattr(inp.network, 'output_fn'):
-        net.out_trans = inp.network.output_fn
-
-    # Model
+    # Model 
     ###########################################################################
-    # Initialize Model --------------------------------------------------------
-    model = prode.model.Model(data=data, net=net, name=inp.general.model_name)
-
-    # Build Model -------------------------------------------------------------
-    utils.print_main(
-        "Building '{}' network ...".format(inp.network.architecture)
-    )
-    model.build(
-        load_net=inp.general.flags['load'],
-        visualize_graph=opts.graph,
+    model = fun._model(
+        flags=flags,
+        input_module=inputs,
+        net=net,
+        data=data,
+        graph=opts.graph,
         verbose=opts.verbose
     )
-
-    # Compile Model -----------------------------------------------------------
-    utils.print_main(
-        "Compiling '{}' network ...".format(inp.network.architecture)
-    )
-    compile_args = utils.get_args_values(
-        args=utils.get_args(model.compile),
-        modules=inp.engine
-    )
-    model.compile(**compile_args)
-
-    # Fit Model ---------------------------------------------------------------
-    if inp.general.flags['train'] > 0:
-        if hasattr(inp.engine, 'callbacks'):
-            if 'plotter' in inp.engine.callbacks \
-                and inp.general.flags['plot'] != 2:
-                inp.engine.callbacks.pop('plotter')
-        else:
-            inp.engine.callbacks = None
-
-        model.fit(
-            epochs=inp.engine.epochs,
-            callbacks=inp.engine.callbacks if hasattr(
-                inp.engine, 'callbacks'
-            ) else None
-        )
-    
-    # Save Model --------------------------------------------------------------
-    if inp.general.flags['save'] > 0:
-        model.save()
 
     # Postprocessing
     ###########################################################################
@@ -224,12 +160,12 @@ def main():
     model.visualize_training(history=model.dir['train']+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
-    if inp.data.test_cases > 0 and inp.general.flags['test'] > 0:
+    if inputs.data.test_cases > 0 and flags['test'] > 0:
         utils.print_main("Postprocessing physical quantities ...")
         for i, data in enumerate(tqdm(data.test)):
             model.predict(
                 data=data,
-                plotting=inp.general.flags['plot'],
+                plotting=flags['plot'],
                 path=model.dir['post']+'/testing/test_'+str(i+1),
-                **inp.postprocessing.plot_style
+                **inputs.postprocessing.plot_style
             )

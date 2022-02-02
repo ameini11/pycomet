@@ -8,7 +8,7 @@
 
 # -------------------------------- EXEC FILE -------------------------------- #
 # Description:
-# >> Build a ML-based approximator for ODEs
+# >> Test a ML-based approximator for ODEs
 # --------------------------------------------------------------------------- #
 
 
@@ -16,12 +16,13 @@ NAME = 'testPro'
 
 import os
 import sys
-import argparse
 import prode
+import argparse
 import tensorflow as tf
 
 from tqdm import tqdm
 from prode.utilities import utils
+from prode.apps import functionObjects as fun
 
 
 def dir_path(path):
@@ -84,13 +85,9 @@ def main():
     # Add modules -------------------------------------------------------------
     sys.path.append(opts.dir)
     # Input module
-    import inputs as inp
+    import inputs
+    from inputs.general import flags
     # Physics-related module
-    try:
-        from physics.physical_model import PhysicalModel
-        physics_informed = True
-    except ModuleNotFoundError:
-        physics_informed = False
     from physics.data_generator import DataGenerator
 
     # Data
@@ -98,7 +95,7 @@ def main():
     # Generate Testing Data ---------------------------------------------------
     dataGen_args = utils.get_args_values(
         args=utils.get_args(DataGenerator.__init__),
-        modules=[inp.data, inp.general]
+        modules=[inputs.data, inputs.general]
     )
     dataGen = DataGenerator(
         **dataGen_args
@@ -108,67 +105,45 @@ def main():
         os.makedirs(dataGen.data_dir)
 
     utils.print_main("Generating testing pts ...")
-    if inp.data.from_file:
+    if inputs.data.from_file:
         test_data = dataGen.testing_data(
-            inp.data.file['test'],
-            header=inp.data.header
+            inputs.data.file['test'],
+            header=inputs.data.header
         )
     else:
-        ic = dataGen.initial_cond()
-        test_data = dataGen.testing_data(ic)
+        raise NotImplementedError
 
-    # Network
+    # Network 
     ###########################################################################
-    # Initialize Network ------------------------------------------------------
-    net_cls = utils.get_class(prode.networks, inp.network.architecture)
-    utils.print_main(
-        "Initializing '{}' network ...".format(inp.network.architecture)
+    net = fun._net(
+        input_module=inputs
     )
-    net_args = utils.get_args_values(
-        args=utils.get_args(net_cls.__init__),
-        modules=[inp.network, inp.general]
-    )
-    net = net_cls(**net_args)
 
-    # Apply I/O Transformation ------------------------------------------------
-    if hasattr(inp.network, 'input_fn'):
-        net.inp_trans = inp.network.input_fn
-    if hasattr(inp.network, 'output_fn'):
-        net.out_trans = inp.network.output_fn
-
-    # Model
+    # Model 
     ###########################################################################
-    # Initialize Model --------------------------------------------------------
-    model = prode.model.Model(net=net, name=inp.general.model_name)
-
-    # Build Model -------------------------------------------------------------
-    utils.print_main(
-        "Building '{}' network ...".format(inp.network.architecture)
-    )
-    model.build(
-        load_net=inp.general.flags['load'],
-        visualize_graph=opts.graph,
+    for k in ('train', 'save'):
+        flags[k] = 0
+    if flags['load'] not in (1, 2):
+        utils.raise_value_err(
+            "The network has to be restored from a saved or a checkpointed "
+            "one. Modified the 'load' entri in the `flags` input variable."
+        )
+    model = fun._model(
+        flags=flags,
+        input_module=inputs,
+        net=net,
+        graph=opts.graph,
         verbose=opts.verbose
     )
 
-    # Compile Model -----------------------------------------------------------
-    utils.print_main(
-        "Compiling '{}' network ...".format(inp.network.architecture)
-    )
-    compile_args = utils.get_args_values(
-        args=utils.get_args(model.compile),
-        modules=inp.engine
-    )
-    model.compile(**compile_args)
-
-    # Postprocessing - Testing
+    # Postprocessing - Testing 
     ###########################################################################
-    if inp.general.flags['test'] > 0:
+    if flags['test'] > 0:
         utils.print_main("Testing physical scenarios ...")
-        for i, data in enumerate(tqdm(data.test)):
+        for i, data in enumerate(tqdm(test_data)):
             model.predict(
                 data=data,
-                plotting=inp.general.flags['plot'],
+                plotting=flags['plot'],
                 path=model.dir['post']+'/testing/test_'+str(i+1),
-                **inp.postprocessing.plot_style
+                **inputs.postprocessing.plot_style
             )
