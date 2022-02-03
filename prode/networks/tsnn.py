@@ -68,7 +68,7 @@ class TimeScaleNN(Net):
         )
         self.log_mass_frac = log_mass_frac
         if self.log_mass_frac:
-            self.log_mass_frac_lay = layers.Log(offset=1.e-16, trainable=False)
+            self.log_mass_frac_lay = layers.Log(offset=0., trainable=False)
 
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size = layer_size

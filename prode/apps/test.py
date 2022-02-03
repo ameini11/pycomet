@@ -126,7 +126,7 @@ def main():
     if flags['load'] not in (1, 2):
         utils.raise_value_err(
             "The network has to be restored from a saved or a checkpointed "
-            "one. Modified the 'load' entri in the `flags` input variable."
+            "one. Modified the 'load' entry in the `flags` input variable."
         )
     model = fun._model(
         flags=flags,
