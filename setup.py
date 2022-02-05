@@ -22,8 +22,10 @@ setup(
     entry_points ={
         'console_scripts': [
             'cleanPro = prode.apps.clean:main',
+            'testPro = prode.apps.test:main',
             'trainPro = prode.apps.train:main',
-            'fitRatesPro = prode.apps.fitRates.main:main'
+            'fitRatesPro = prode.physics.apps.fitRates.main:main',
+            'fitThermosPro = prode.physics.apps.fitThermos:main'
         ]
     },
     classifiers=[

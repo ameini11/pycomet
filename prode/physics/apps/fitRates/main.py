@@ -24,7 +24,7 @@ from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 
 from prode.utilities import utils
-from prode.apps.fitRates.dataGenerator import DataGenerator
+from prode.physics.apps.fitRates.dataGenerator import DataGenerator
 from prode.physics.thermochemistry.specie.specie import Specie
 
 import prode.physics.database as db
@@ -192,8 +192,8 @@ def main():
         "Initializing species ...", start='', verbose=opts.verbose
     )
     species = {
-        sp: Specie(sp, **info) if info != None else Specie(sp) \
-            for sp, info in inp_gen.species.items()
+        sp: Specie(sp, **sp_info) if sp_info != None else Specie(sp) \
+            for sp, sp_info in inp_gen.species.items()
     }
 
     # Generate Data ===========================================================
@@ -227,7 +227,7 @@ def main():
         param = np.expand_dims(param, 0)
 
     # Write coefficient =======================================================
-    utils.print_main('Write coefficients ...', verbose=opts.verbose)
+    utils.print_main('Writing coefficients ...', verbose=opts.verbose)
     paramDB = pd.DataFrame(param, columns=['A', 'beta', 'Ta'])
     reactions = pd.concat([dataGen.reacDB, paramDB], axis=1)
     path = kinetic_db + inp_gen.reacReader['path']+'/reactions.csv'
