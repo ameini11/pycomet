@@ -105,16 +105,16 @@ class DataGenerator(object):
         self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
         self.data_label_inp = ['T', 'rho'] + self.groups_label + ['t']
         self.data_label_out = []
-        for ts, indeces in self.ts_fast_conn.items():
+        for ts, indices in self.ts_fast_conn.items():
             if ts == 0:
                 self.data_label_out += ['Y_O2', 'Y_O']
-            elif indeces is None:
+            elif indices is None:
                 self.data_label_out += [
                     'Y_'+str(ts)+str(i+1) for i in range(self.num_bins)
                 ]
             else:
                 self.data_label_out += [
-                    'Y_'+str(ts)+str(i+1) for i in range(len(indeces))
+                    'Y_'+str(ts)+str(i+1) for i in range(len(indices))
                 ]
         self.data_label = self.data_label_inp + self.data_label_out
 
@@ -146,7 +146,7 @@ class DataGenerator(object):
 
     # def build_matrices(self, T):
     #     '''Build Master Equation matrices.'''
-    #     Q_bins = self.partition_func(T)
+    #     Q_bins = self.partition_function(T)
     #     rates_coeff = self.get_rates(T)
     #     return self.ODE_sol.get_matrices(rates_coeff, Q_bins, T)
 
@@ -157,17 +157,15 @@ class DataGenerator(object):
         self,
         path
     ):
-        # Input module --------------------------------------------------------
+        # Input module
         sys.path.append(path)
         import inputs
         from inputs.general import flags
-
-        # Network -------------------------------------------------------------
+        # Network
         net = fun._net(
             input_module=inputs
         )
-
-        # Model ---------------------------------------------------------------
+        # Model
         for k in ('train', 'save'):
             flags[k] = 0
         if flags['load'] not in (1, 2):
@@ -181,7 +179,6 @@ class DataGenerator(object):
             input_module=inputs,
             net=net
         )
-
 
     def get_species_thermos(
         self
@@ -203,8 +200,6 @@ class DataGenerator(object):
             # Add species thermodynamics to the corresponding timescale
             ts_to_species_thermos[timescale] = spTh
         return ts_to_species_thermos
-
-
 
     # Initial Conditions
     ###########################################################################
@@ -236,7 +231,7 @@ class DataGenerator(object):
             Ttr, T0, P0, XO2 = [ X[i,j] for j in range(4) ]
             XO = 1. - XO2
             nd = P0 / (const.UKB * T0)
-            Q_bins = self.partition_func(T0)
+            Q_bins = self.partition_function(T0)
             rho_s[i,:-1] = XO2*Q_bins/sum(Q_bins)*2.*const.mass['O']*nd
             rho_s[i, -1] = XO*const.mass['O']*nd
         Ttr, rho = X[:,0:1], np.sum(rho_s, axis=1, keepdims=True)
@@ -246,11 +241,10 @@ class DataGenerator(object):
             idx_train, idx_test = self.stratified_sampling(
                 np.arange(n), self.test_cases
             )
-            self.X_train, self.X_test = X[idx_train], X[idx_test]
             return [ic[idx_train], ic[idx_test]]
         else:
-            self.X_train, self.X_test = X, None
             return [ic]
+
 
     # Training/Validation Data
     ###########################################################################
@@ -258,9 +252,16 @@ class DataGenerator(object):
         self,
         ic_train
     ):
-        data_list = jl.Parallel(n_jobs=-1)(jl.delayed(self.single_train_scenario)(
-            i, ic_i, eval_jac, eval_f) for i, ic_i in enumerate(tqdm(ic_train)))
-
+        # Generate data
+        # data_list = jl.Parallel(n_jobs=-1)(
+        #     jl.delayed(self.single_train_scenario)(i, ic_i) \
+        #         for i, ic_i in enumerate(tqdm(ic_train))
+        # )
+        data_list = [
+            self.single_train_scenario(i, ic_i) \
+                for i, ic_i in enumerate(tqdm(ic_train))
+        ]
+        # Concatenate data
         data = {}
         for i, data_i in enumerate(data_list):
             # Define data type
@@ -275,188 +276,129 @@ class DataGenerator(object):
             #     plt.legend()
             #     plt.grid()
             #     plt.show()
-            data = self.stack_data(data, data_i, data_type)
-
+            if data_type not in data.keys():
+                data[data_type] = data_i
+            else:
+                data[data_type] = tf.nest.map_structure(
+                    lambda x,y: np.vstack((x,y)), data[data_type], data_i
+                )
         # Save data in a `.csv` file
-        for data_type in data:
-            for data_id in data[data_type]:
-                if data[data_type][data_id] is None:
-                    continue
+        for data_type in data.keys():
+            for obj in data[data_type].keys():
                 path = self.data_dir + data_type + "/"
                 if not os.path.exists(path):
                     os.makedirs(path)
-                _data = np.hstack(self.unpack_data(data[data_type][data_id]))
-                pd.DataFrame(
-                    _data, columns=self.data_label[:_data.shape[1]]
-                ).to_csv(
-                    path+data_id+".csv", index=False, float_format='{:e}'.format
+                df = pd.DataFrame(
+                    np.hstack(self.unpack_data(data[data_type][obj])),
+                    columns=self.data_label
                 )
-            # Print input space
-            i_0 = 0 if data_type == 'train' else 1
-            pd.DataFrame(
-                self.X_train[range(i_0,i,2)], columns=self.input_space.keys()
-            ).to_csv(
-                path+"input_space.csv", index=False, float_format='{:e}'.format
-            )
-
+                df.to_csv(
+                    path+obj+".csv", index=False, float_format='{:e}'.format
+                )
+        # Return data
         return data['train'], data['valid']
 
+    def single_train_scenario(self, scenario_num, ic):
+        # Define data type
+        pts = self.train_pts if (scenario_num % 2) == 0 else self.valid_pts
+        # Get sampling indices
+        indices = {}
+        for obj, n in pts.items():
+            if obj == 'ics':
+                indices[obj] = np.array([0])
+            else:
+                indices[obj] = self.sampling(1, self.max_num_pts, n)
+        # Compose inputs
+        idx = np.concatenate(list(indices.values()))
+        x = self.compose_inputs(ic, indices=idx)
+        # Get target data
+        y = self.data_single_scenario(x=[ic, t])
+        return {
+            obj: tf.nest.map_structure (lambda x: x[i], [x, y]) \
+                for obj, i in indices.items()
+        }
+
     def unpack_data(self, data):
-        _data = []
+        d = []
         for xy in data:
             if isinstance(xy, (list,tuple)):
-                _data.extend(xy)
+                d.extend(xy)
             else:
-                _data.append(xy)
-        return _data
+                d.append(xy)
+        return d
 
-    def single_train_scenario(self, i, ic_i, eval_jac, eval_f):
-
-
-
-        # Number of data pts
-        n = np.shape(idx)[0]
-        # Input data
-        u, t = np.tile(ic[:-1], (n,1)), t[idx]
-        # Target data
-        if y is None:
-            return [[u, t]]
+    # Testing Data
+    ###########################################################################
+    def testing_data(
+        self,
+        ic_test,
+        ic_train=None,
+        header=None
+    ):
+        if isinstance(ic_test, str):
+            ic_test = pd.read_csv(ic_test, sep=',', header=header).values
         else:
-            y_O2, y_O = np.hsplit(y[idx], [-1])
-            y = []
-            for ts, indeces in self.ts_fast_conn.items():
-                if indeces:
-                    y_slow = np.hstack(
-                        [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) for i in indeces]
-                    )
-                else:
-                    y_slow = y_O2
-                if ts == 0:
-                    y_slow = np.hstack([y_slow, y_O])
-                y.append(y_slow)
-            return [[u, t], y]
+            # Print input space
+            path = self.data_dir+"test/"
+            if not os.path.exists(path):
+                os.makedirs(path)
+            # Test underfitting
+            if self.test_training and ic_train is not None:
+                assert self.scenarios >= self.test_cases
+                idx = np.random.choice(
+                    ic_train.shape[0], size=self.test_cases, replace=False
+                )
+                ic_test = np.vstack((ic_test, ic_train[idx]))
+            # Print ics
+            df = pd.DataFrame(
+                ic_test, columns=['T','rho'] + self.groups_label + ['Y_O']
+            )
+            df.to_csv(
+                path+"ics.csv", index=False, float_format='{:e}'.format
+            )
+        # Generate data
+        # data_list = jl.Parallel(n_jobs=-1)(
+        #     jl.delayed(self.single_test_scenario)(i, ic_i) \
+        #         for i, ic_i in enumerate(tqdm(ic_test))
+        # )
+        data_list = [
+            self.single_test_scenario(i, ic_i) \
+                for i, ic_i in enumerate(tqdm(ic_test))
+        ]
+        return data_test
 
+    def single_test_scenario(self, ic):
+        # Compose inputs
+        x = self.compose_inputs(ic)
+        # Get target data
+        y = self.data_single_scenario(x=[ic, t])
+        return [x, y]
 
-
-
-
-        # Define data type
-        pts = self.train_pts if (i % 2) == 0 else self.valid_pts
-        # Sample data
-        n_pts = sum([ n for k,n in pts.items() if k != 'ics' ])
-        idx = self.get_indices(t_i, norm_J_i, n_pts)
-        data_i = self.get_data(ic_i, t_i, y_i, pts, idx)
-
-        return data_i
+    # Single scenario
+    ###########################################################################
+    # Handling inputs ---------------------------------------------------------
+    def compose_inputs(self, ic, indices=None):
+        ic = self.update_ic(ic)
+        t = np.logspace(
+            np.log10(self.t0), np.log10(self.t_end), num=self.max_num_pts
+        )
+        if indices:
+            ic = np.tile(ic, (len(idx),1))
+            t = t[idx]
+        else:
+            ic = np.tile(ic, (self.max_num_pts,1))
+        return ic, t
 
     def update_ic(self, ic):
         T, rho, Y = ic[0], ic[1], ic[2:]
         # Solving the ODE
         mat = self.build_matrices(T)
         t, y = self.ODE_sol.solve(rho * Y, mat)
-        # Update ic (reasonable numerical values)
-        ic[2:] = y[1,:] / rho
+        # Update ic (reasonable numerical values + exclude Y_O)
+        ic[2:] = y[1,:-1] / rho
         return ic
 
-    def compose_inputs(self, ic, t, indeces):
-        # Update ic
-        ic = self.update_ic(ic)
-        # Number of pts
-        n = np.shape(indeces)[0]
-        # Input data
-        u, t = np.tile(ic[:-1], (n,1)), t[indeces]
-        return u, t
-
-    def extract_data_scenario(self, idx, ic, t, y):
-        # Number of data pts
-        n = np.shape(idx)[0]
-        # Input data
-        u, t = np.tile(ic[:-1], (n,1)), t[idx]
-        # Target data
-        if y is None:
-            return [[u, t]]
-        else:
-            y_O2, y_O = np.hsplit(y[idx], [-1])
-            y = []
-            for ts, indeces in self.ts_fast_conn.items():
-                if indeces:
-                    y_slow = np.hstack(
-                        [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) for i in indeces]
-                    )
-                else:
-                    y_slow = y_O2
-                if ts == 0:
-                    y_slow = np.hstack([y_slow, y_O])
-                y.append(y_slow)
-            return [[u, t], y]
-
-    def get_data(self, ic, t, y, pts, idx):
-        data = {}
-        for k, n in pts.items():
-            if n == 0 or n is None:
-                data[k] = None
-            else:
-                if k == 'ics':
-                    idx_k = [0]
-                else:
-                    if k == 'pts':
-                        if n == 1:
-                            idx_k = [idx[-1]]
-                            idx = np.delete(idx, -1)
-                        else:
-                            idx, idx_k = self.stratified_sampling(idx, n)
-                    elif k == 'res':
-                        idx_k = idx
-                        y = None
-                    else:
-                        raise KeyError(self.header + "Wrong `data_id` "
-                            "key in sampling training data.")
-                data[k] = self.extract_data_scenario(idx_k, ic, t, y)
-        return data
-
-    def stack_data(self, data, data_new, data_type):
-        if data_type not in data:
-            data[data_type] = data_new
-        else:
-            for data_id in data[data_type]:
-                if data[data_type][data_id] is None:
-                    continue
-                for i, xy in enumerate(data[data_type][data_id]):
-                    xy_new = data_new[data_id][i]
-                    if isinstance(xy, (list,tuple)):
-                        xy = list(map(lambda x,y: np.vstack((x,y)), xy, xy_new))
-                    else:
-                        xy = np.vstack((xy,xy_new))
-                    data[data_type][data_id][i] = xy
-        return data
-
-
-
-
-    def single_train_scenario(self, i, ic_i, eval_jac, eval_f):
-        # Solving the ODE
-        mat = self.build_matrices(ic_i[0])
-        rho_0 = ic_i[2:] * ic_i[1]
-        sol = self.ODE_sol.solve(rho_0, mat, eval_jac=eval_jac, eval_f=eval_f)
-        t_i, y_i = np.delete(sol[0], 0, 0), np.delete(sol[1], 0, 0)/ic_i[1]
-        t_i[0,:], ic_i[2:] = 0., y_i[0,:]
-        if eval_jac:
-            norm_J_i, eig_J_i = np.delete(sol[2], 0, 0), np.delete(sol[3], 0, 0)
-        if eval_f:
-            f_rhs = np.delete(sol[-1], 0, 0)
-
-
-        # Define data type
-        pts = self.train_pts if (i % 2) == 0 else self.valid_pts
-        # Sample data
-        n_pts = sum([ n for k,n in pts.items() if k != 'ics' ])
-        idx = self.get_indices(t_i, norm_J_i, n_pts)
-        data_i = self.get_data(ic_i, t_i, y_i, pts, idx)
-
-
-
-    # Data from Single Scenario
-    ###########################################################################
+    # Handling target data ----------------------------------------------------
     def data_single_scenario(
         self,
         x
@@ -535,7 +477,7 @@ class DataGenerator(object):
             dalpha_norm[timescale] = [
                 tf.norm(da, ord=2, axis=-1, keepdims=True) for da in dalpha_ts
             ]
-        # Handle timescale names and indeces
+        # Handle timescale names and indices
         timescale_names = tuple(dalpha_norm.keys())
         timescale_indeces = list(range(len(timescale_names)))
         timescale_indeces.reverse()
@@ -563,124 +505,11 @@ class DataGenerator(object):
         neq_lev.reverse()
         return neq_lev
 
-
-
-
-    # Testing Data
-    ###########################################################################
-    def testing_data(
-        self,
-        ic_test,
-        ic_train=None,
-        eval_jac=False,
-        eval_f=False,
-        header=None
-    ):
-        if isinstance(ic_test, str):
-            ic_test = pd.read_csv(ic_test, sep=',', header=header).values
-        else:
-            # Print input space
-            path = self.data_dir+"test/"
-            if not os.path.exists(path):
-                os.makedirs(path)
-
-            # Test underfitting
-            if self.test_training and ic_train is not None:
-                assert self.scenarios >= self.test_cases
-                idx = np.random.choice(
-                    ic_train.shape[0], size=self.test_cases, replace=False
-                )
-                ic_test = np.vstack((ic_test, ic_train[idx]))
-                self.X_test = np.vstack((self.X_test, self.X_train[idx]))
-
-            # Print ics
-            df = pd.DataFrame(
-                ic_test, columns=['T','rho'] + self.groups_label + ['Y_O']
-            )
-            df.to_csv(
-                path+"ics.csv", index=False, float_format='{:e}'.format
-            )
-
-            # Print and plot input space
-            path = path+"input_space/"
-            if not os.path.exists(path):
-                os.makedirs(path)
-            pd.DataFrame(self.X_test, columns=self.input_space.keys(), \
-                index=list(range(1,self.test_cases*2+1))).to_csv( \
-                path+"data.csv", float_format='{:e}'.format)
-            self.plot_inp_space(path)
-
-        # Generate data
-        data_test = jl.Parallel(n_jobs=-1)(
-            jl.delayed(self.single_test_scenario)(i, ic_i, eval_jac, eval_f) \
-                for i, ic_i in enumerate(tqdm(ic_test))
-        )
-
-        return data_test
-
-    def single_test_scenario(self, i, ic_i, eval_jac, eval_f):
-
-        # Solving the ODE
-        mat = self.build_matrices(ic_i[0])
-        rho_0 = ic_i[2:] * ic_i[1]
-        sol = self.ODE_sol.solve(rho_0, mat, eval_jac=eval_jac, eval_f=eval_f)
-        t_i, y_i = sol[0], sol[1]/ic_i[1]
-        ic_i[2:] = y_i[1]
-        if eval_jac:
-            norm_J_i, eig_J_i = sol[2], sol[3]
-        if eval_f:
-            f_rhs = sol[-1]
-
-        # Extract data values
-        tree     = KDTree(np.c_[t_i.ravel()])
-        d, ii    = tree.query([[self.t0],[self.t_end]], k=1)
-        t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
-        u_i      = np.tile(ic_i[:-1], (t_i.shape[0],1))
-
-        y_O2, y_O = np.hsplit(y_i, [-1])
-        y_i = []
-        for ts, indeces in self.ts_fast_conn.items():
-            if indeces:
-                y_slow = np.hstack(
-                    [np.sum(np.take(y_O2, i, axis=1), axis=1, keepdims=True) for i in indeces]
-                )
-            else:
-                y_slow = y_O2
-            if ts == 0:
-                y_slow = np.hstack([y_slow, y_O])
-            y_i.append(y_slow)
-
-        # Collect data values
-        data_i = [[u_i, t_i], y_i]
-        if eval_f:
-            data_i.append(f_rhs[ii[0]:ii[1],:])
-
-        return data_i
-
-    def plot_inp_space(self, path):
-        lbl = [ r'$T_0$', r'$P_0$', r'${X_O}_2$' ]
-        X_tr = self.X_train[range(0,len(self.X_train),2)]
-        for i, X_i in enumerate(self.X_test):
-            fig = plt.figure()
-            ax  = plt.axes(projection='3d')
-            ax.set_xlabel(lbl[0])
-            ax.set_ylabel(lbl[1])
-            ax.set_zlabel(lbl[2])
-
-            marker_style = dict(marker='x', lw=0.5, linestyle='none', \
-                fillstyle='none', markersize=5)
-            ax.plot3D(X_tr[:,1], X_tr[:,2], X_tr[:,3], c='k', **marker_style)
-            ax.plot3D(X_i[1], X_i[2], X_i[3], c='r', **marker_style)
-
-            plt.grid()
-            fig.savefig(path+'/test_'+str(i+1)+'.pdf')
-            plt.close()
-
-    # Util Functions
+    # Extra functions
     ###########################################################################
     # Chemical Kinetics
     # -------------------------------------------------------------------------
-    def partition_func(self, T):
+    def partition_function(self, T):
         '''Compute bins partition function.'''
         q = self.g * np.exp( - self.E / (T * const.UKB) )
         Q_bins = np.zeros(self.num_bins)
@@ -711,125 +540,8 @@ class DataGenerator(object):
         num  = max(bins) + 1
         return bins, num
 
-    def dens2mass_frac(self, u, y=None):
-        '''Transform variables from partial densities to mass fractions.'''
-        rho = np.sum(u, axis=1, keepdims=True)
-        u = np.hstack((np.divide(u, rho), rho))
-        if y is not None:
-            y = np.divide(y, rho)
-            return u, y
-        else:
-            return u
-
-    # Groups connectivity/indexing
-    # -------------------------------------------------------------------------
-    def ts_to_fastest_connectivity(self, graph, ts={}):
-        conn = self.graph_to_nested_list(graph)
-        TS = utils.depth(graph)
-        for l in range(-1, TS):
-            ts[l+1] = self.merge(conn, it_max=l+1)
-        return ts
-
-    def graph_to_nested_list(self, graph):
-        if isinstance(graph, dict):
-            ls = []
-            for k, v in graph.items():
-                ls.append(self.graph_to_nested_list(v))
-            return ls
-        else:
-            if isinstance(graph, (list, tuple, set)):
-                return list(graph)
-            else:
-                utils.raise_value_err(
-                    "The last level of the groups graph has to be a list."
-                )
-
-    def merge(self, ls, it=0, it_max=1):
-        if any(isinstance(l, list) for l in ls):
-            if it < it_max:
-                ls = list(itertools.chain.from_iterable(ls))
-                return self.merge(ls, it=it+1, it_max=it_max)
-            else:
-                return self.join(ls)
-
-    def join(self, ls):
-        try:
-            ls = [list(itertools.chain.from_iterable(l)) for l in ls]
-            return self.join(ls)
-        except:
-            return ls
-
     # Sampling methods
     # -------------------------------------------------------------------------
-    def get_indices(self, t, QoI, pts):
-        '''Get meaningful values by selecting indices.'''
-
-        tree  = KDTree(np.c_[t.ravel()])
-        QoI_del = np.amax(
-            np.abs((QoI[:-1,:] - QoI[1:,:]) / QoI[1:,:]), axis=1, keepdims=True
-        )
-
-        # Get min and max indices ---------------------------------------------
-        idx_min, delta_min = None, 1.e-5
-        while idx_min is None:
-            try:
-                idx_min = np.where(QoI_del > delta_min)[0][ 0]  # Dynamics start-point
-            except:
-                idx_min = None
-                delta_min = delta_min * 0.99
-        idx_max = np.where(QoI_del > 1.e-13)[0][-1]  # Dynamics end-point
-
-        # Define number of pts ------------------------------------------------
-        # Split the number of pts among the 3 different regions of sampling
-        pts_dist = list(
-            map(
-                lambda i: round(list(self.train_split.values())[i]*pts), range(2)
-            )
-        )
-        pts_dist.append(pts - sum(pts_dist))
-
-        # Sampling ------------------------------------------------------------
-        idx = []
-        margin = 5
-        max_val = tree.query([ min(t[idx_max][0]*1.e2, 1.e-2) ], k=1)[1]
-
-        # Initial dynamic region
-        if margin > idx_min:
-            pts_dist[1] += pts_dist[0]
-        elif (idx_min - margin) - margin > pts_dist[1]:
-            idx.append(
-                self.sampling(margin, idx_min - margin, pts_dist[0])
-                # self.sampling(margin, idx_min - margin, t, tree, pts_dist[0])
-            )
-        else:
-            idx.append(list(range(margin, idx_min-margin)))
-            pts_dist[1] += pts_dist[0] - len(idx[-1])
-
-        # Equilibrium region
-        if max_val <= idx_max:
-            pts_dist[1] += pts_dist[2]
-        elif max_val - (idx_max + margin) >= pts_dist[2]:
-            idx.append(
-                self.sampling(idx_max + margin, max_val, pts_dist[2])
-            )
-        else:
-            idx.append(list(range(idx_max+margin, max_val)))
-            pts_dist[1] += pts_dist[2] - len(idx[-1])
-
-        # Stiff nonequilibrium region
-        idx.append(
-            self.sampling(
-                idx_min + margin, idx_max - margin, pts_dist[1]
-            )
-        )
-
-        # Merging indices -----------------------------------------------------
-        idx = np.sort(np.concatenate(idx))
-        _, counts = np.unique(idx, return_counts=True)
-        assert pts == len(counts)
-
-        return idx
-
     def sampling(self, idx_min, idx_max, pts):
         '''Get data by sampling t vector.'''
         diff = idx_max - idx_min
