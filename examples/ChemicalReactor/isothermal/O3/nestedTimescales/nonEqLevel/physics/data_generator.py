@@ -37,7 +37,8 @@ class DataGenerator(object):
         input_space,
         species,
         processFlags,
-        groups_graph=None
+        trained_model,
+        ts_to_grouping
     ):
         # Data Quantities -----------------------------------------------------
         # Training/Validation pts
@@ -55,11 +56,6 @@ class DataGenerator(object):
                 self.valid_pts[k] = 1
 
         self.distribution = distribution    # Training pts distribution
-        # self.train_split = {                # Training pts splitting
-        #     'init_dyn':  0.3,
-        #     'stiff_dyn': 0.65,
-        #     'equil_dyn': 0.05
-        # }
 
         # Testing scenarios
         self.test_cases = test_cases        # Number of testing cases
@@ -71,85 +67,81 @@ class DataGenerator(object):
             k: np.array(v, dtype=np.float64) for k, v in input_space.items()
         }
 
+        # Retrieving Molecular data -------------------------------------------
+        self.species = species
+        rovib = species['O2']['rovib']
+        path = grouping_db + rovib['system'] + '_' + rovib['PES'] + '/O2/'
+        self.levels_file = path + '/levels.inp'
+        self.binMap_file = path + '/LevelsMap_' + rovib['grouping'] + '.csv'
+        self.g, self.E, self.num_lev = self.read_levels()
+        self.bins, self.num_bins = self.read_groups()
+
+        # Retrieving Rates coefficients ---------------------------------------
+        self.rates_path = kinetic_db + '/O3_UMN/' + rovib['grouping'] + '/'
+        self.reac_names = {'diss', 'exch', 'inel'}
+
+        # Building Master Equation matrices -----------------------------------
+        self.ODE_sol = ODESolver(processFlags)
+        self.ODE_sol.t_end = 1.e-13
+        self.reactions_list = pd.read_csv(
+            self.rates_path+'reactions.csv', index_col=0
+        )
+        self.process_indices = {
+            'diss': 2,
+            'exch': 5,
+            'inel': 6
+        }
+
         # Model ---------------------------------------------------------------
-        self.load_model(model_path)
+        self.model = self.get_model(trained_model)
 
-        # # Retrieving Molecular data -------------------------------------------
-        # rovib = species['O2']['rovib']
-        # path = grouping_db + rovib['system'] + '_' + rovib['PES'] + '/O2/'
-        # self.levels_file = path + '/levels.inp'
-        # self.binMap_file = path + '/LevelsMap_' + rovib['grouping'] + '.csv'
-        # self.g, self.E, self.num_lev = self.read_levels()
-        # self.bins, self.num_bins = self.read_groups()
-
-        # # Timescales connectivity ---------------------------------------------
-        # if groups_graph:
-        #     self.ts_fast_conn = self.ts_to_fastest_connectivity(groups_graph)  # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
-
-        # # Retrieving Rates coefficients ---------------------------------------
-        # self.rates_path = kinetic_db + '/O3_UMN/' + rovib['grouping'] + '/'
-        # self.reac_names = {'diss', 'exch', 'inel'}
-
-        # # Building Master Equation matrices -----------------------------------
-        # self.ODE_sol = ODESolver(processFlags)
-        # self.reactions_list = pd.read_csv(
-        #     self.rates_path+'reactions.csv', index_col=0
-        # )
-        # self.process_indices = {
-        #     'diss': 2,
-        #     'exch': 5,
-        #     'inel': 6
-        # }
+        # Timescale to species ------------------------------------------------
+        self.ts_to_grouping = ts_to_grouping
+        self.ts_to_species_thermos = self.get_species_thermos(ts_to_grouping)
 
         # Labeling Data -------------------------------------------------------
         self.groups_label = [ 'Y_'+str(i+1) for i in range(self.num_bins) ]
         self.data_label_inp = ['T', 'rho'] + self.groups_label + ['t']
         self.data_label_out = []
-        for ts, indices in self.ts_fast_conn.items():
-            if ts == 0:
-                self.data_label_out += ['Y_O2', 'Y_O']
-            elif indices is None:
-                self.data_label_out += [
-                    'Y_'+str(ts)+str(i+1) for i in range(self.num_bins)
-                ]
-            else:
-                self.data_label_out += [
-                    'Y_'+str(ts)+str(i+1) for i in range(len(indices))
-                ]
+        for i, spTh in enumerate(self.ts_to_species_thermos.values()):
+            if i+1 == len(ts_to_grouping):
+                continue
+            self.data_label_out += [
+                f'e_{i+1}{j+1}' for j in range(spTh['O2'].specie.num_bins)
+            ]
         self.data_label = self.data_label_inp + self.data_label_out
 
-    # # Master Equation matrices
-    # ###########################################################################
-    # def arrhenius(self, T, A, beta, Ta):
-    #     return A * np.power(T,beta) * np.exp(-Ta/T)
+    # Master Equation matrices
+    ###########################################################################
+    def arrhenius(self, T, A, beta, Ta):
+        return A * np.power(T,beta) * np.exp(-Ta/T)
 
-    # def get_rates(self, T):
-    #     '''Retrieve rates coefficients from dataframe.'''
-    #     rates_coeff = dict()
-    #     for reac_name in self.reac_names:
-    #         shape = (self.num_bins,) if reac_name == 'diss' \
-    #             else (self.num_bins, self.num_bins)
-    #         rates_coeff[reac_name] = np.zeros(shape, dtype=np.float64)
+    def get_rates(self, T):
+        '''Retrieve rates coefficients from dataframe.'''
+        rates_coeff = dict()
+        for reac_name in self.reac_names:
+            shape = (self.num_bins,) if reac_name == 'diss' \
+                else (self.num_bins, self.num_bins)
+            rates_coeff[reac_name] = np.zeros(shape, dtype=np.float64)
 
-    #     for index, row in self.reactions_list.iterrows():
-    #         rate = self.arrhenius(T, row['A'], row['beta'], row['Ta'])
-    #         bins_idx = re.findall(r"\((.*?)\)", row['reactStr'])
-    #         if self.process_indices['diss'] == row['reacIndex']:
-    #             idx = int(bins_idx[0])-1
-    #         else:
-    #             idx = int(bins_idx[0])-1, int(bins_idx[1])-1
-    #         reac_name = utils.get_key_from_value(
-    #             self.process_indices, row['reacIndex']
-    #         )
-    #         rates_coeff[reac_name][idx] = rate
-    #     return rates_coeff
+        for index, row in self.reactions_list.iterrows():
+            rate = self.arrhenius(T, row['A'], row['beta'], row['Ta'])
+            bins_idx = re.findall(r"\((.*?)\)", row['reactStr'])
+            if self.process_indices['diss'] == row['reacIndex']:
+                idx = int(bins_idx[0])-1
+            else:
+                idx = int(bins_idx[0])-1, int(bins_idx[1])-1
+            reac_name = utils.get_key_from_value(
+                self.process_indices, row['reacIndex']
+            )
+            rates_coeff[reac_name][idx] = rate
+        return rates_coeff
 
-    # def build_matrices(self, T):
-    #     '''Build Master Equation matrices.'''
-    #     Q_bins = self.partition_function(T)
-    #     rates_coeff = self.get_rates(T)
-    #     return self.ODE_sol.get_matrices(rates_coeff, Q_bins, T)
-
+    def build_matrices(self, T):
+        '''Build Master Equation matrices.'''
+        Q_bins = self.partition_function(T)
+        rates_coeff = self.get_rates(T)
+        return self.ODE_sol.get_matrices(rates_coeff, Q_bins, T)
 
     # Trained Model
     ###########################################################################
@@ -181,10 +173,11 @@ class DataGenerator(object):
         )
 
     def get_species_thermos(
-        self
+        self,
+        ts_to_grouping
     ):
         ts_to_species_thermos = {}
-        for timescale, grouping in self.ts_to_grouping.items():
+        for timescale, grouping in ts_to_grouping.items():
             species = self.species
             # Update O2 with the proper grouping strategy
             species['O2']['rovib']['grouping'] = grouping
@@ -245,7 +238,6 @@ class DataGenerator(object):
         else:
             return [ic]
 
-
     # Training/Validation Data
     ###########################################################################
     def training_data(
@@ -253,14 +245,11 @@ class DataGenerator(object):
         ic_train
     ):
         # Generate data
-        # data_list = jl.Parallel(n_jobs=-1)(
-        #     jl.delayed(self.single_train_scenario)(i, ic_i) \
-        #         for i, ic_i in enumerate(tqdm(ic_train))
-        # )
-        data_list = [
-            self.single_train_scenario(i, ic_i) \
+        inputs_list = jl.Parallel(n_jobs=-1)(
+            jl.delayed(self.get_inputs)(i, ic_i) \
                 for i, ic_i in enumerate(tqdm(ic_train))
-        ]
+        )
+        data_list = [self.get_data(x) for x in enumerate(tqdm(inputs_list))]
         # Concatenate data
         data = {}
         for i, data_i in enumerate(data_list):
@@ -298,7 +287,7 @@ class DataGenerator(object):
         # Return data
         return data['train'], data['valid']
 
-    def single_train_scenario(self, scenario_num, ic):
+    def get_inputs(self, scenario_num, ic):
         # Define data type
         pts = self.train_pts if (scenario_num % 2) == 0 else self.valid_pts
         # Get sampling indices
@@ -311,12 +300,37 @@ class DataGenerator(object):
         # Compose inputs
         idx = np.concatenate(list(indices.values()))
         x = self.compose_inputs(ic, indices=idx)
-        # Get target data
-        y = self.data_single_scenario(x=[ic, t])
         return {
-            obj: tf.nest.map_structure (lambda x: x[i], [x, y]) \
+            obj: tf.nest.map_structure(lambda x: x[i], x) \
                 for obj, i in indices.items()
         }
+
+    def get_data(self, inputs):
+        data = {}
+        for obj, x in inputs.items():
+            y = self.get_targets(x)
+            data[obj] = [x, y]
+        return data
+
+    # def single_train_scenario(self, scenario_num, ic):
+    #     # Define data type
+    #     pts = self.train_pts if (scenario_num % 2) == 0 else self.valid_pts
+    #     # Get sampling indices
+    #     indices = {}
+    #     for obj, n in pts.items():
+    #         if obj == 'ics':
+    #             indices[obj] = np.array([0])
+    #         else:
+    #             indices[obj] = self.sampling(1, self.max_num_pts, n)
+    #     # Compose inputs
+    #     idx = np.concatenate(list(indices.values()))
+    #     x = self.compose_inputs(ic, indices=idx)
+    #     # Get target data
+    #     y = self.data_single_scenario(x=[ic, t])
+    #     return {
+    #         obj: tf.nest.map_structure (lambda x: x[i], [x, y]) \
+    #             for obj, i in indices.items()
+    #     }
 
     def unpack_data(self, data):
         d = []
@@ -399,7 +413,7 @@ class DataGenerator(object):
         return ic
 
     # Handling target data ----------------------------------------------------
-    def data_single_scenario(
+    def get_targets(
         self,
         x
     ):
