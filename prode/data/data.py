@@ -47,6 +47,7 @@ class Data(object):
         # Defining multi-objective loss function identifiers
         self.multi_obj_loss = False
         self.objectives = None
+        self.physics_informed = False
 
     def build(self, model):
         self.built = True

@@ -22,7 +22,9 @@ import argparse
 from prode.utilities import utils
 
 
-FOLDERS = ['data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots']
+FOLDERS = [
+    'data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots'
+]
 
 def get_opts():
     parser = argparse.ArgumentParser(
@@ -64,7 +66,10 @@ def main():
     # paths = [ opts.dir+'/'+ f for f in FOLDERS ]
     
     for fld in FOLDERS:
-        dirs = glob.glob(opts.dir+'/**/'+fld, recursive=True)
+        if fld in {'data', 'saving'}:
+            dirs = glob.glob(opts.dir+'/'+fld)
+        else:
+            dirs = glob.glob(opts.dir+'/**/'+fld, recursive=True)
         if len(dirs) > 0:
             exists = True
             if opts.verbose and fld in {'data', 'saving'}:

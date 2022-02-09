@@ -18,7 +18,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 10000
+epochs = 100
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -32,9 +32,8 @@ decay = ["exponential", decay_steps, decay_rate]
 axis = None # -1 0 None
 reduction = 'sum_over_batch_size' # 'auto' 'sum_over_batch_size' 'sum'
 loss = {
-    'ics': 'malpe',
-    'pts': 'malpe',
-    'res': 'mae'
+    'ics': 'mse',
+    'pts': 'mse'
 }
 
 # Callbacks
@@ -74,34 +73,9 @@ callbacks = {
     'weighted_loss': {
         'name': 'ConstantWeightsAdapter',
         'multi_obj_loss_weights': {
-            'ics': 128,
-            'pts': 128,
-            'res': 512
+            'ics': 1,
+            'pts': 8
         }
     }
-
-    # 'weighted_loss': {
-    #     'name':         'EmpiricalWeightsAdapter',
-    #     'multi_obj_loss_weights': {
-    #         'ics': 128,
-    #         'pts': 128,
-    #         'res': 512
-    #     }
-    #     'alpha':        0.9,
-    #     'freq':         50,
-    #     'max_samples':  20000
-    # }
-
-    # 'weighted_loss': {
-    #     'name': 'SoftAttentionWeightsAdapter',
-    #     'rank': 1,
-    #     'limits': {
-    #         'ics': [1.,1.],
-    #         'pts': [1.,1.],
-    #         'res': [1.,1.]
-    #     },
-    #     'mask': 'sigmoid',
-    #     'q': [1.e2, 1.]
-    # }
 
 }

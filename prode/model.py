@@ -68,7 +68,7 @@ class Model(object):
         if self.data:
             self.net.multi_obj_loss = self.data.multi_obj_loss
             self.net.objectives = self.data.objectives
-            if self.net.multi_obj_loss:
+            if self.data.physics_informed:
                 self.net.residual = self.data.res_fn(self.net)
 
         # Build the network ---------------------------------------------------

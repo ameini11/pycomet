@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import itertools
 import numpy as np
 import pandas as pd
@@ -15,7 +16,9 @@ from pyDOE import lhs
 from physics.ode_solver import ODESolver
 from prode.utilities import utils
 from prode.physics.general import const
+from prode.apps import functionObjects as fun
 
+from prode.physics.thermochemistry import specie as specieMdl
 import prode.physics.database as db
 kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
 grouping_db = os.path.dirname(db.__file__) + '/air/grouping/'
@@ -27,7 +30,6 @@ class DataGenerator(object):
     ###########################################################################
     def __init__(
         self,
-        dim,
         train_pts,
         validation_split,
         distribution,
@@ -56,6 +58,8 @@ class DataGenerator(object):
                 self.valid_pts[k] = 1
 
         self.distribution = distribution    # Training pts distribution
+        self.max_num_pts = 1000
+        self.norm_order = 2
 
         # Testing scenarios
         self.test_cases = test_cases        # Number of testing cases
@@ -93,7 +97,10 @@ class DataGenerator(object):
         }
 
         # Model ---------------------------------------------------------------
-        self.model = self.get_model(trained_model)
+        # self.trained_model = self.get_model(trained_model)
+        # self.ts_out_dim = [
+        #     list(ts.out_dim) for ts in self.trained_model.net.timescales
+        # ]
 
         # Timescale to species ------------------------------------------------
         self.ts_to_grouping = ts_to_grouping
@@ -107,7 +114,7 @@ class DataGenerator(object):
             if i+1 == len(ts_to_grouping):
                 continue
             self.data_label_out += [
-                f'e_{i+1}{j+1}' for j in range(spTh['O2'].specie.num_bins)
+                f'e_{i+1}{j+1}' for j in range(spTh['O2'].specie.n_bins)
             ]
         self.data_label = self.data_label_inp + self.data_label_out
 
@@ -149,15 +156,23 @@ class DataGenerator(object):
         self,
         path
     ):
-        # Input module
-        sys.path.append(path)
-        import inputs
-        from inputs.general import flags
+        # Get current working directory
+        cwd = os.getcwd()
+        # Input modules
+        from trained_model.inputs import engine, general, network
+        input_modules = {
+            'engine': engine,
+            'general': general,
+            'network': network
+        }
+        # Change working directory
+        os.chdir(path)
         # Network
         net = fun._net(
-            input_module=inputs
+            input_modules=input_modules
         )
         # Model
+        flags = input_modules['general'].flags
         for k in ('train', 'save'):
             flags[k] = 0
         if flags['load'] not in (1, 2):
@@ -166,11 +181,14 @@ class DataGenerator(object):
                 "or a checkpointed one. Modified the 'load' "
                 "entry in the `flags` input variable."
             )
-        return fun._model(
+        trained_model = fun._model(
             flags=flags,
-            input_module=inputs,
+            input_modules=input_modules,
             net=net
         )
+        # Move to the previous working directory
+        os.chdir(cwd)
+        return trained_model
 
     def get_species_thermos(
         self,
@@ -245,26 +263,27 @@ class DataGenerator(object):
         ic_train
     ):
         # Generate data
-        inputs_list = jl.Parallel(n_jobs=-1)(
-            jl.delayed(self.get_inputs)(i, ic_i) \
+        # inputs_list = jl.Parallel(n_jobs=-1)(
+        #     jl.delayed(self.get_inputs)(i, ic_i) \
+        #         for i, ic_i in enumerate(tqdm(ic_train))
+        # )
+        data_list = [
+            self.single_train_scenario(i, ic_i) \
                 for i, ic_i in enumerate(tqdm(ic_train))
-        )
-        data_list = [self.get_data(x) for x in enumerate(tqdm(inputs_list))]
+        ]
         # Concatenate data
         data = {}
         for i, data_i in enumerate(data_list):
             # Define data type
             data_type = 'train' if (i % 2) == 0 else 'valid'
             # if (i % 2) == 0:
-            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                         fillstyle='full', markersize=2)
-            #     plt.xscale('log')
-            #     plt.yscale('log')
-            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style, label=self.data_label_out)
-            #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
-            #     plt.legend()
-            #     plt.grid()
-            #     plt.show()
+            #     for yi in data_i['pts'][1]:
+            #         marker_style = dict(marker='o', lw=0.5, ls='none', \
+            #                             fillstyle='full', markersize=2)
+            #         plt.xscale('log')
+            #         plt.plot(data_i['pts'][0][1], yi/np.amax(yi), **marker_style)
+            #         plt.grid()
+            #         plt.show()
             if data_type not in data.keys():
                 data[data_type] = data_i
             else:
@@ -287,7 +306,8 @@ class DataGenerator(object):
         # Return data
         return data['train'], data['valid']
 
-    def get_inputs(self, scenario_num, ic):
+    def single_train_scenario(self, scenario_num, ic):
+    # def get_inputs(self, scenario_num, ic):
         # Define data type
         pts = self.train_pts if (scenario_num % 2) == 0 else self.valid_pts
         # Get sampling indices
@@ -297,40 +317,21 @@ class DataGenerator(object):
                 indices[obj] = np.array([0])
             else:
                 indices[obj] = self.sampling(1, self.max_num_pts, n)
-        # Compose inputs
+        # Compose/sample inputs
         idx = np.concatenate(list(indices.values()))
-        x = self.compose_inputs(ic, indices=idx)
-        return {
-            obj: tf.nest.map_structure(lambda x: x[i], x) \
-                for obj, i in indices.items()
-        }
-
-    def get_data(self, inputs):
+        inputs = self.compose_inputs(ic, indices=idx)
+        # Get target data
         data = {}
-        for obj, x in inputs.items():
+        for obj, idx in indices.items():
+            if obj == 'ics':
+                x = tf.nest.map_structure(lambda x: x[idx], inputs)
+            else:
+                x = tf.nest.map_structure(
+                    lambda x: np.delete(x, indices['ics'], axis=0), inputs
+                )
             y = self.get_targets(x)
             data[obj] = [x, y]
         return data
-
-    # def single_train_scenario(self, scenario_num, ic):
-    #     # Define data type
-    #     pts = self.train_pts if (scenario_num % 2) == 0 else self.valid_pts
-    #     # Get sampling indices
-    #     indices = {}
-    #     for obj, n in pts.items():
-    #         if obj == 'ics':
-    #             indices[obj] = np.array([0])
-    #         else:
-    #             indices[obj] = self.sampling(1, self.max_num_pts, n)
-    #     # Compose inputs
-    #     idx = np.concatenate(list(indices.values()))
-    #     x = self.compose_inputs(ic, indices=idx)
-    #     # Get target data
-    #     y = self.data_single_scenario(x=[ic, t])
-    #     return {
-    #         obj: tf.nest.map_structure (lambda x: x[i], [x, y]) \
-    #             for obj, i in indices.items()
-    #     }
 
     def unpack_data(self, data):
         d = []
@@ -375,17 +376,16 @@ class DataGenerator(object):
         #     jl.delayed(self.single_test_scenario)(i, ic_i) \
         #         for i, ic_i in enumerate(tqdm(ic_test))
         # )
-        data_list = [
-            self.single_test_scenario(i, ic_i) \
-                for i, ic_i in enumerate(tqdm(ic_test))
+        data = [
+            self.single_test_scenario(ic_i) for ic_i in tqdm(ic_test)
         ]
-        return data_test
+        return data
 
     def single_test_scenario(self, ic):
         # Compose inputs
         x = self.compose_inputs(ic)
         # Get target data
-        y = self.data_single_scenario(x=[ic, t])
+        y = self.get_targets(x)
         return [x, y]
 
     # Single scenario
@@ -394,11 +394,11 @@ class DataGenerator(object):
     def compose_inputs(self, ic, indices=None):
         ic = self.update_ic(ic)
         t = np.logspace(
-            np.log10(self.t0), np.log10(self.t_end), num=self.max_num_pts
+            [np.log10(self.t0)], [np.log10(self.t_end)], num=self.max_num_pts
         )
-        if indices:
-            ic = np.tile(ic, (len(idx),1))
-            t = t[idx]
+        if indices is not None:
+            ic = np.tile(ic, (len(indices),1))
+            t = t[indices]
         else:
             ic = np.tile(ic, (self.max_num_pts,1))
         return ic, t
@@ -408,9 +408,10 @@ class DataGenerator(object):
         # Solving the ODE
         mat = self.build_matrices(T)
         t, y = self.ODE_sol.solve(rho * Y, mat)
-        # Update ic (reasonable numerical values + exclude Y_O)
-        ic[2:] = y[1,:-1] / rho
-        return ic
+        # Update ic (reasonable numerical values)
+        ic[2:] = y[1] / rho
+        # Return ic (exclude Y_O)
+        return ic[:-1]
 
     # Handling target data ----------------------------------------------------
     def get_targets(
@@ -418,9 +419,9 @@ class DataGenerator(object):
         x
     ):
         # Get nonequilibrium factor
-        y = self.model.net.call(x, training=False, noneq_factor=True)
+        y = self.trained_model.net.call(x, training=False, noneq_factor=True)
         # Get temperature
-        T = x[0][0:1,0:1]
+        T = np.take(x[0], [0], axis=1)
         # Get noneq. and eq. internal partition functions
         Q_noneq, Q_eq = self.get_partition_functions(noneq_factor=y, T=T)
         # Evaluate differential offset `alpha`
@@ -430,7 +431,14 @@ class DataGenerator(object):
             Q_eq=Q_eq
         )
         # Evaluate and return noneq. level data
-        return self.eval_noneq_level(delta_alpha)
+        data = self.eval_noneq_level(delta_alpha)
+        for i, d in enumerate(data):
+            if len(self.ts_out_dim[i]) > 1:
+                data[i] = tf.split(d, self.ts_out_dim[i], axis=1)
+        data = tf.nest.map_structure(
+            lambda x: x.numpy()/np.amax(x.numpy()), tf.nest.flatten(data)
+        )
+        return data
 
     def get_partition_functions(
         self,
@@ -450,16 +458,16 @@ class DataGenerator(object):
             # Get split noneq. internal partition function
             Q_noneq_ = tf.split(
                 tf.math.exp(noneq_factor[i]) * Q,
-                self.out_dim[timescale],
-                axis=-1
+                self.ts_out_dim[i],
+                axis=1
             )
             Q_noneq[timescale] = [
-                tf.reduce_sum(Q_i, axis=-1, keepdims=True) for Q_i in Q_noneq_
+                tf.reduce_sum(Q_i, axis=1, keepdims=True) for Q_i in Q_noneq_
             ]
             # Get split eq. internal partition function
-            Q_eq_ = tf.split(Q, self.out_dim[timescale], axis=-1)
+            Q_eq_ = tf.split(Q, self.ts_out_dim[i], axis=1)
             Q_eq[timescale] = [
-                tf.reduce_sum(Q_i, axis=-1, keepdims=True) for Q_i in Q_eq_
+                tf.reduce_sum(Q_i, axis=1, keepdims=True) for Q_i in Q_eq_
             ]
         return Q_noneq, Q_eq
 
@@ -474,11 +482,11 @@ class DataGenerator(object):
             if i == 0:
                 # Skip dissociation timescale with only 1 group
                 continue
-            y = tf.split(noneq_factor[i], self.out_dim[i], axis=-1)
+            y = tf.split(noneq_factor[i], self.ts_out_dim[i], axis=1)
             delta_alpha[timescale] = []
-            for j in range(len(y_)):
+            for j in range(len(y)):
                 ratio = Q_noneq[timescale][j] / Q_eq[timescale][j]
-                delta_alpha.append(tf.math.log(ratio) - y_[j])
+                delta_alpha[timescale].append(tf.math.log(ratio) - y[j])
         return delta_alpha
 
     def eval_noneq_level(
@@ -486,36 +494,33 @@ class DataGenerator(object):
         delta_alpha
     ):
         # Evaluate the L2 norm of the differential offset `alpha`
-        dalpha_norm = {}
-        for timescale, dalpha_ts in enumerate(delta_alpha.items()):
-            dalpha_norm[timescale] = [
-                tf.norm(da, ord=2, axis=-1, keepdims=True) for da in dalpha_ts
+        dalpha_norm = []
+        for dalpha_ts in delta_alpha.values():
+            norms = [
+                tf.math.pow(tf.norm(
+                    da, ord=self.norm_order, axis=1, keepdims=True
+                ), self.norm_order) for da in dalpha_ts
             ]
+            dalpha_norm.append(tf.concat(norms, axis=1))
         # Handle timescale names and indices
-        timescale_names = tuple(dalpha_norm.keys())
-        timescale_indeces = list(range(len(timescale_names)))
+        timescale_indeces = list(range(len(dalpha_norm)))
         timescale_indeces.reverse()
         # Construct the noneq. level from `delta_alpha` norms
-        neq_lev = [dalpha_norm[timescale_names[-1]]]
+        neq_lev = [dalpha_norm[-1]]
         for i in timescale_indeces[1:]:
             # Get constructed noneq. level from previous timescale
-            neq_lev_i = tf.concat(
-                [
-                    tf.math.reduce_sum(l, axis=-1, keepdims=True) \
-                        for l in neq_lev[-1]
-                ], axis=-1
-            )
-            neq_lev_i = tf.split(
-                neq_lev_i, self.out_dim[timescale_names[i]], axis=-1
-            )
+            if len(self.ts_out_dim[i+1]) > 1:
+                neq_lev_i = tf.split(neq_lev[-1], self.ts_out_dim[i+1], axis=1)
+            else:
+                neq_lev_i = tf.nest.flatten(neq_lev[-1])
+            # Reduce dimensions by summing: previous to current timescale
+            neq_lev_i = tf.concat([
+                tf.math.reduce_sum(l, axis=1, keepdims=True) \
+                    for l in neq_lev_i
+            ], axis=1)
             # Add the noneq. level from previous timescale to the L2 norm
             # of the differential offset `alpha` of the current timescale
-            da_i = dalpha_norm[timescale_names[i]]
-            neq_lev_i = [ neq_lev_i[j] + da_i[j] for j in range(len(da_i)) ]
-            # Append the current timescale noneq. level
-            neq_lev.append(neq_lev_i)
-        # Concatenate and return noneq. level data
-        neq_lev = [tf.concat(d, axis=-1) for d in neq_lev]
+            neq_lev.append(neq_lev_i + dalpha_norm[i])
         neq_lev.reverse()
         return neq_lev
 

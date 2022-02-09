@@ -96,6 +96,8 @@ class ODE(Data):
         self.time_idx = time_idx
         self.ode_order = ode_order
         self.ode_func = ode_func
+        if self.ode_func is not None:
+            self.physics_informed = True
 
     def build(self, model):
         self.train.build(model)
@@ -120,9 +122,11 @@ class ODE(Data):
             )
 
     def data_as_dict(self, data):
-        return {
-            obj: self.get_data(data[obj], obj) for obj in self.obj_list
-        }
+        d = {}
+        for obj in self.obj_list:
+            if obj in data.keys():
+                d[obj] = self.get_data(data[obj], obj)
+        return d
 
     def get_data(self, data, obj):
         if data is None:

@@ -87,11 +87,16 @@ def main():
     sys.path.append(opts.dir)
     # Input module
     import inputs
+    input_modules = {
+        'data': inputs.data,
+        'engine': inputs.engine,
+        'general': inputs.general,
+        'network': inputs.network,
+        'post': inputs.postprocessing
+    }
     from inputs.general import flags
+
     # Physics-related module
-    physics_informed = False
-    if importlib.util.find_spec('physics.physical_model'):
-        physics_informed = True
     from physics.data_generator import DataGenerator
 
     # Data
@@ -130,8 +135,7 @@ def main():
     # Data Class --------------------------------------------------------------
     data = fun._data(
         flags=flags,
-        input_module=inputs,
-        physics_informed=physics_informed,
+        input_modules=input_modules,
         train_data=train_data,
         valid_data=valid_data,
         test_data=test_data or None,
@@ -140,14 +144,14 @@ def main():
     # Network 
     ###########################################################################
     net = fun._net(
-        input_module=inputs
+        input_modules=input_modules
     )
 
     # Model 
     ###########################################################################
     model = fun._model(
         flags=flags,
-        input_module=inputs,
+        input_modules=input_modules,
         net=net,
         data=data,
         graph=opts.graph,

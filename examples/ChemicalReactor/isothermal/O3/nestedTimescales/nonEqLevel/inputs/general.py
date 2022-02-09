@@ -17,17 +17,17 @@ import os
 
 # Model/architecture properties
 # =============================================================================
-model_name = 'IsoThermChemReact_MMOpNN'
+model_name = 'NonEqLevel_MMOpNN'
 
 dim = {
     "inp": [2+27, 1],
-    "out": [2, 3, 9, 27]
+    "out": [1, 3, 3, 3, 3]
 }
 
 # Execution Flags
 # =============================================================================
 flags = {
-    'load':  1,       # Loading model       0: no, 1: saved model, 2: ckpt
+    'load':  0,       # Loading model       0: no, 1: saved model, 2: ckpt
     'train': 1,       # Training model      0: no, 1: yes
     'test':  1,       # Evaluating          0: no, 1: yes
     'plot':  2,       # Plotting            0: no, 1: offline, 2: online
@@ -44,91 +44,17 @@ input_space = {
     'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
 }
 
-# Temperature (limit values)
-temperature_limits = input_space['Ttr']
-
-# Input log-scaled mass fractions
-log_mass_frac = False
-
 # Time (limit values)
 time_limit = [1.e-14, 1.e-3]
 
 # Timescales thermochemistry --------------------------------------------------
-ts_thermochem = {
+trained_model = './trained_model/'
 
-    'TS0': {
-        'species': {
-            'O2': {
-                'rovib': {
-                    'system': 'O3',
-                    'PES': 'UMN',
-                    'grouping': None
-                }
-            },
-            'O': None
-        },
-        'reaction': None #'diss'
-    },
-
-    'TS1': {
-        'species': {
-            'O2': {
-                'rovib': {
-                    'system': 'O3',
-                    'PES': 'UMN',
-                    'grouping': 'RVE3'
-                }
-            }
-        },
-        'reaction': 'excit'
-    },
-
-    'TS2': {
-        'species': {
-            'O2': {
-                'rovib': {
-                    'system': 'O3',
-                    'PES': 'UMN',
-                    'grouping': 'RVE9'
-                }
-            }
-        },
-        'reaction': 'excit'
-    },
-
-    'TS3': {
-        'species': {
-            'O2': {
-                'rovib': {
-                    'system': 'O3',
-                    'PES': 'UMN',
-                    'grouping': 'RVE27'
-                }
-            }
-        },
-        'reaction': 'excit'
-    }
-
-}
-
-groups_graph = {
-    0: {
-        0: {
-            0: [0,1,2],
-            1: [3,4,5],
-            2: [6,7,8]
-        },
-        1: {
-            3: [9,10,11],
-            4: [12,13,14],
-            5: [15,16,17]
-        },
-        2: {
-            6: [18,19,20],
-            7: [21,22,23],
-            8: [24,25,26]
-        }
-    }
+ts_to_grouping = {
+    'TS0': 'RVE1',
+    'TS1': 'RVE3',
+    'TS2': 'RVE9',
+    'TS3': 'RVE27'
 }
 
 # Thermochemistry -------------------------------------------------------------

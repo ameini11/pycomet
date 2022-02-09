@@ -32,6 +32,9 @@ class MMOpNN(Net):
         weight_norm=False,
         block='FFBlock',
         block_linear_out=True,
+        cross_encoder=False,
+        cross_encoder_layer_size=None,
+        augmented=False,
         name='mmopnn',
         *args,
         **kwargs
@@ -68,6 +71,9 @@ class MMOpNN(Net):
         self.opnn_out_trans = opnn_out_trans
         self.opnn_end_scale = opnn_end_scale
         self.stacked = stacked
+        self.cross_encoder = cross_encoder
+        self.cross_encoder_layer_size = cross_encoder_layer_size
+        self.augmented = augmented
 
         self.opnns = {
             name: OpNN(
@@ -83,6 +89,9 @@ class MMOpNN(Net):
                 weight_norm=self.weight_norm,
                 block=self.block,
                 block_linear_out=self.block_linear_out,
+                cross_encoder=self.cross_encoder,
+                cross_encoder_layer_size=self.cross_encoder_layer_size,
+                augmented=self.augmented,
                 name='opnn_'+name
             ) for name in self.names
         }
@@ -109,9 +118,10 @@ class MMOpNN(Net):
 
         ### Final Scaling -----------------------------------------------------
         if end_scale not in {None, "bias", "dense"}:
-            utils.raise_value_err("Invalid `end_scale` argument "
-                "passed into `{}`. Available choices: {{None|'bias'|"
-                "'dense'}}.".format(self.name))
+            utils.raise_value_err(
+                "Invalid `end_scale` argument passed into `{}`. Available "
+                "choices: {{None|'bias'|'dense'}}.".format(self.name)
+            )
         self.end_scale = end_scale
 
         if self.end_scale == 'bias':
@@ -141,7 +151,10 @@ class MMOpNN(Net):
             'stacked': self.stacked,
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
-            'weight_norm': self.weight_norm
+            'weight_norm': self.weight_norm,
+            'cross_encoder': self.cross_encoder,
+            'cross_encoder_layer_size': self.cross_encoder_layer_size,
+            'augmented': self.augmented
         }
         base_config = super(MMOpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -154,7 +167,7 @@ class MMOpNN(Net):
     ###########################################################################
     def call(self, x, training=False, mask=None):
 
-        # Inputs
+        # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
