@@ -26,12 +26,13 @@ def output_ops(y):
 var_names = [
     [
         r'$\epsilon^{({%s},{%s})}$' % (i+1, j+1) for j in range(d)
-    ] for i, d in enumerate(inp_gen.dim['out'])
+    ] for i, d in enumerate([1, 3, 9])
 ]
 
 plot_style = {
     'output_ops':   output_ops,
     'var_names':    var_names,
     'labels':       [r'$t\quad[s]$', r'$\epsilon$'],
-    'scales':       ['log', 'linear']
+    'scales':       ['log', 'linear'],
+    'fig_name':     ['NEQ1', 'NEQ2', 'NEQ3']
 }

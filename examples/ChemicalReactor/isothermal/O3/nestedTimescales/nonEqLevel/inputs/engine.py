@@ -18,7 +18,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 100
+epochs = 10000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------

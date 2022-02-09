@@ -47,7 +47,7 @@ input_space = {
 # Time (limit values)
 time_limit = [1.e-14, 1.e-3]
 
-# Timescales thermochemistry --------------------------------------------------
+# Isothermal Chemical Reactor -------------------------------------------------
 trained_model = './trained_model/'
 
 ts_to_grouping = {
