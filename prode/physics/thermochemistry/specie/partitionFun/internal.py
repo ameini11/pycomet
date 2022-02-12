@@ -81,3 +81,19 @@ class Internal(Basic):
             return tf.concat(_dQdT, 1)
         else:
             return tf.zeros_like(T, dtype=backend.floatx())
+
+    # Levels distribution -----------------------------------------------------
+    def levels_distribution(self, T=0.):
+        # [J/mol]
+        n, g, E = [], [], []
+        if self.specie.n_at > 1:
+            g_sp = self.specie.rv_lev['g']
+            E_sp = self.specie.rv_lev['E'] / const.EV_to_J
+            n_over_Q = self.specie.n / self.Q
+            for bin_i in range(self.specie.n_bins):
+                mask = self.specie.lev_to_bin == bin_i
+                n_over_Q_i = tf.gather(n_over_Q, [bin_i], axis=1)
+                n.append(n_over_Q_i * tf.boolean_mask(self.q, mask, axis=1))
+                g.append(tf.boolean_mask(g_sp, mask))
+                E.append(tf.boolean_mask(E_sp, mask))
+        return n, g, E

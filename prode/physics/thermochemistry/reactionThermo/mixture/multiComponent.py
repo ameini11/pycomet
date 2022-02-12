@@ -75,3 +75,19 @@ class MultiComponent(Basic):
         for spTh_ in self.spTh.values():
             sp = spTh_.specie
             sp.X = sp.Y * self.M / sp.M
+
+    def n_(self, rho=None, n=None, var='Y'):
+        for spTh_ in self.spTh.values():
+            sp = spTh_.specie
+            if var == 'Y':
+                sp.n = sp.Y * rho / sp.M * const.UNA
+            elif var == 'X':
+                sp.n = sp.X * n
+
+    def rho_(self, rho=None, n=None, var='Y'):
+        for spTh_ in self.spTh.values():
+            sp = spTh_.specie
+            if var == 'Y':
+                sp.rho = sp.Y * rho
+            elif var == 'X':
+                sp.rho = sp.X * n * sp.M / const.UNA
