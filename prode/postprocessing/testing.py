@@ -1,44 +1,59 @@
 import numpy as np
+import matplotlib as mpl
 
 from matplotlib import pyplot as plt
+
+colors = mpl.rcParams['axes.prop_cycle'].by_key()['color']
 
 
 def plot_test(
     path,
     x,
     y,
-    y_pred,
-    var_names,
+    y_pred=None,
+    var_names=None,
     fig_name=None,
     labels=[None, None],
-    scales=['log', 'linear']
+    scales=['log', 'linear'],
+    title=None,
+    xlim=None,
+    ylim=None,
+    save=True,
+    fig_ax=None
 ):
-    """Variable plotting."""
-
-    fig = plt.figure()
+    if fig_ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = fig_ax
 
     # Set up figure -----------------------------------------------------------
+    if title is not None:
+        ax.set_title(title)
     x_label, y_label = labels
     x_scale, y_scale = scales
-
     # X axis
     if x_label is not None:
-        plt.xlabel(x_label)
+        ax.set_xlabel(x_label)
     if x_scale is not None:
-        plt.xscale(x_scale)
-    if x_scale != 'log':
-        plt.xlim([min(x), max(x)])
-
+        ax.set_xscale(x_scale)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    elif x_scale != 'log':
+        ax.set_xlim([min(x), max(x)])
     # Y axis
     if y_label is not None:
-        plt.ylabel(y_label)
+        ax.set_ylabel(y_label)
     if y_scale == 'log':
-        plt.yscale(y_scale)
-        plt.ylim([np.amin(y)*5.e-1, np.amax(y)*5.e+0])
+        ax.set_yscale(y_scale)
+        if ylim is None:
+            ax.set_ylim([np.amin(y)*5.e-1, np.amax(y)*5.e+0])
     else:
         delta = np.amax(y)*0.1
-        plt.ylim([np.amin(y)-delta, np.amax(y)+delta])
-
+        if ylim is None:
+            ax.set_ylim([np.amin(y)-delta, np.amax(y)+delta])
+    if ylim is not None:
+        ax.set_ylim(ylim)
+    # Check 2nd dim: looping over columns
     if len(y.shape) < 2:
         y = np.expand_dims(y, 1)
 
@@ -67,35 +82,39 @@ def plot_test(
         plt.plot(
             x,
             y[:,d],
+            c=colors[d],
             **true_style
         )
-        colors.append(plt.gca().lines[-1].get_color())
 
         # >> Plot predicted values
         plt.plot(
             x,
             y_pred[:,d],
             **pred_style,
-            label=var_names[d],
-            c=colors[-1]
+            c=colors[d],
+            label=var_names[d]
+        )
+    # Add legend
+    if var_names is not None:
+        if n > 12:
+            fs = 'x-small'
+        elif n > 6:
+            fs = 'small'
+        else:
+            fs = 'medium'
+        ax.legend(
+            [plt.plot([], [], c=colors[i])[0] for i in range(len(var_names))],
+            var_names,
+            fontsize=fs,
+            ncol=int(np.ceil(n/3))
         )
 
-    # Plot color legends
-    if n > 12:
-        fs = 'x-small'
-    elif n > 6:
-        fs = 'small'
-    else:
-        fs = 'medium'
-    plt.legend(
-        [plt.plot([], [], c=colors[i])[0] for i in range(len(var_names))],
-        var_names,
-        fontsize=fs,
-        ncol=int(np.ceil(n/3))
-    )
-
     # Save figure -------------------------------------------------------------
-    name = y_scale if fig_name == None else fig_name + '_' + y_scale
-    fig_path = path + '/' + name + '.pdf'
-    fig.savefig(fig_path)
-    plt.close()
+    if save:
+        # Save figure
+        name = y_scale if fig_name == None else fig_name + '_' + y_scale
+        fig_path = path + '/' + name + '.pdf'
+        fig.savefig(fig_path)
+        
+    if fig_ax is not None:
+        return fig, ax

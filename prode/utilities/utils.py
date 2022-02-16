@@ -221,6 +221,18 @@ def get_key_from_value(d, v):
     raise_value_err(f"A key for value `{v}` doesn't exist in the dictionary.")
 
 
+def reshape_to_2DArray(x):
+    if x is not None:
+        if len(x.shape) == 0:
+            return tf.reshape(x, [1,1])
+        elif len(x.shape) == 1:
+            return tf.reshape(x, [-1,1])
+        elif len(x.shape) == 2:
+            return x
+        elif len(x.shape) == 3:
+            return tf.squeeze(x, axis=0)
+
+
 # Others
 ###############################################################################
 def kill_process():
