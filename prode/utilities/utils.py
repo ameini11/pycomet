@@ -220,7 +220,6 @@ def get_key_from_value(d, v):
              return key
     raise_value_err(f"A key for value `{v}` doesn't exist in the dictionary.")
 
-
 def reshape_to_2DArray(x):
     if x is not None:
         if len(x.shape) == 0:
@@ -231,7 +230,6 @@ def reshape_to_2DArray(x):
             return x
         elif len(x.shape) == 3:
             return tf.squeeze(x, axis=0)
-
 
 # Others
 ###############################################################################

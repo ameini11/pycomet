@@ -33,7 +33,7 @@ class ChemistryModel(Basic):
 
         # Master Equation matrices
         self.spExcitIdx = self.reactions.spProcessIdx['inel']
-        self.K_indices = {
+        self.mat_indices = {
             'excit': tf.constant(
                 [ [i * self.n_species + j] for (i,j) in self.spExcitIdx ] + \
                 [ [j * self.n_species + i] for (i,j) in self.spExcitIdx ]
@@ -43,6 +43,16 @@ class ChemistryModel(Basic):
                 [ [i + (self.n_species * n_bins)] for i in range(n_bins) ]
             )
         }
+        self.n_bins = n_bins
+        print(self.mat_indices)
+
+        self.paddings = {
+            'excit': tf.constant([
+                [0, 1],
+                [0, 1]
+            ])
+        }
+
 
     # Methods
     ###########################################################################
@@ -87,85 +97,106 @@ class ChemistryModel(Basic):
                 for name, spTh_ in self.spTh.items()
         }
         return PFdot[self.atom]**2 / PFdot[self.molecule]
-        
-    # Rates matrices ----------------------------------------------------------
-    def K_(self, T):
-        placeholder = tf.zeros_like(T, dtype=backend.floatx())
 
+    # Rates matrices ----------------------------------------------------------
+    def rates_mat_(self):
+        rates_mat = {
+            'diss': self.kf['diss'],
+            'recom': self.kb['diss']
+        }
+
+        # Build excitation rates matrix
         kf_e = self.kf['exch'] + self.kf['inel']
         kb_e = self.kb['exch'] + self.kb['inel']
 
-        Ke = self.Ke_(placeholder, kf_e, kb_e) / self.m \
+        rates_mat['excit'] = self.excit_rates_mat(kf_e, kb_e)
+
+        return rates_mat
+
+    # Excitation/Relaxation
+    def excit_rates_mat(self, kf, kb):
+        '''Excit. & Relax. rates matrix'''
+
+        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
+        dummy_mat = tf.zeros([1, 1, self.n_species**2])
+
+        # Concatenate forward and reverse reaction rates: shape=(n,num_reac)
+        rates_mat = tf.concat([kf, kb], -1)
+
+        # Fill the Excit. & Relax. Master Eq. matrix with rates
+        rates_mat = tf.transpose(
+            tf.tensor_scatter_nd_update(
+                tf.transpose(dummy_mat),
+                self.mat_indices['excit'],
+                tf.transpose(rates_mat)
+            )
+        )[:,:-1,:-1]
+
+        # Reshape the Excit. & Relax. Master Eq. matrix
+        rates_mat = tf.reshape(rates_mat, [self.n_bins,self.n_bins])
+
+        return rates_mat
+
+    # Master Equation matrices ------------------------------------------------
+    def K_(self):
+
+        Ke = self.Ke_(self.rates_mat['excit'], T) / self.m \
             if self.processFlags['excit'] else None
-        Kd = self.Kd_(placeholder, self.kf['diss']) / self.m \
+        Kd = self.Kd_(self.rates_mat['diss'], T) / self.m \
             if self.processFlags['diss'] else None
-        Kr = self.Kr_(placeholder, self.kb['diss']) / self.m**2*2 \
+        Kr = self.Kr_(self.rates_mat['recom'], T) / self.m**2*2 \
             if self.processFlags['diss'] else None
 
         return Ke, Kd, Kr
 
-    # Porcesses matrices ------------------------------------------------------
     # Excitation/Relaxation
-    def Ke_(self, placeholder, Kf, Kb):
+    def Ke_(self, rates_mat):
         '''Excit. & Relax. rates matrix'''
 
-        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
-        K = tf.tile(placeholder, [1,self.n_species**2])
-
-        # Concatenate forward and reverse reaction rates: shape=(n,num_reac)
-        Kfb = tf.concat([Kf, Kb], -1)
-
-        # Fill the Excit. & Relax. Master Eq. matrix with rates
-        K = tf.transpose(
-            tf.tensor_scatter_nd_update(
-                tf.transpose(K), self.K_indices['excit'], tf.transpose(Kfb)
-            )
-        )
-
         # Reshape the Excit. & Relax. Master Eq. matrix
-        K = tf.reshape(K, [-1,self.n_species,self.n_species])
-
-        print(K.shape)
-        print(K)
+        me_mat = tf.pad(rates_mat, self.paddings['excit'], "CONSTANT")
 
         # Rearrange the Excit. & Relax. Master Eq. matrix to respect the
         # system of equations
-        K = - tf.linalg.diag(tf.reduce_sum(K, axis=2)) \
-            + tf.transpose(K, perm=[0, 2, 1])
+        me_mat = - tf.linalg.diag(tf.reduce_sum(me_mat, axis=1)) \
+            + tf.transpose(me_mat)
 
-        return K
+        return me_mat
 
     # Dissociation
-    def Kd_(self, placeholder, Kf):
+    def Kd_(self, rates_mat):
         '''Dissociation rates matrix'''
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
-        K = tf.tile(placeholder, [1, self.n_species**2])
+        me_mat = tf.zeros([1, 1, self.n_species**2])
 
         # Rearrange rates to respect the Master Eq. system of equations
-        Kf = tf.concat([-Kf, Kf], -1)
+        rates_mat = tf.concat([-rates_mat, rates_mat], -1)
 
         # Fill the Dissociation Master Eq. matrix with rearranged rates
-        K = tf.transpose(
+        me_mat = tf.transpose(
             tf.tensor_scatter_nd_update(
-                tf.transpose(K), self.K_indices['diss'], tf.transpose(Kf)
+                tf.transpose(me_mat),
+                self.mat_indices['diss'],
+                tf.transpose(rates_mat)
             )
         )
 
         # Reshape the Dissociation Master Eq. matrix
-        K = tf.reshape(K, [-1,self.n_species,self.n_species])
+        me_mat = tf.reshape(me_mat, [self.n_species,self.n_species])
 
-        return K
+        return me_mat
 
     # Recombination
-    def Kr_(self, placeholder, Kb):
+    def Kr_(self, rates_mat):
         '''Recombination rates matrix'''
+
         # Rearrange rates to respect the Master Eq. system of equations
-        Kb = tf.concat(
-            [Kb, -tf.reduce_sum(Kb, axis=1, keepdims=True)], -1
+        rates_mat = tf.concat(
+            [rates_mat, -tf.reduce_sum(rates_mat, axis=1, keepdims=True)], -1
         )
 
         # Reshape the Recombination Master Eq. matrix
-        K = tf.reshape(Kb, [-1,self.n_species,1])
+        me_mat = tf.reshape(rates_mat, [self.n_species,1])
 
-        return K
+        return me_mat

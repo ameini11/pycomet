@@ -3,7 +3,7 @@ import matplotlib as mpl
 
 from matplotlib import pyplot as plt
 
-colors = mpl.rcParams['axes.prop_cycle'].by_key()['color']
+COLORS = mpl.rcParams['axes.prop_cycle'].by_key()['color']
 
 
 def plot_test(
@@ -19,7 +19,10 @@ def plot_test(
     xlim=None,
     ylim=None,
     save=True,
-    fig_ax=None
+    fig_ax=None,
+    max_num_var=10,
+    plt_context=10,
+
 ):
     if fig_ax is None:
         fig, ax = plt.subplots()
@@ -70,24 +73,24 @@ def plot_test(
         ls='--',
         lw=1.
     )
-
     # Define parameters
-    colors = []
     n = y.shape[1]
-
+    # Check number of colors available
+    if n > len(COLORS):
+        colors = COLORS*int(np.ceil(n/len(COLORS)))
+    else:
+        colors = COLORS
     # Loop over features
     for d in range(n):
-
         # >> Plot true values
-        plt.plot(
+        ax.plot(
             x,
             y[:,d],
             c=colors[d],
             **true_style
         )
-
         # >> Plot predicted values
-        plt.plot(
+        ax.plot(
             x,
             y_pred[:,d],
             **pred_style,
@@ -96,15 +99,18 @@ def plot_test(
         )
     # Add legend
     if var_names is not None:
-        if n > 12:
-            fs = 'x-small'
-        elif n > 6:
+        idx = np.arange(0,n)
+        if n > 6:
+            if n > max_num_var:
+                step = int(np.ceil(n/max_num_var))
+                idx = np.arange(0,n,step)
+                n = max_num_var
             fs = 'small'
         else:
             fs = 'medium'
         ax.legend(
-            [plt.plot([], [], c=colors[i])[0] for i in range(len(var_names))],
-            var_names,
+            [plt.plot([], [], c=colors[i])[0] for i in idx],
+            [var_names[i] for i in idx],
             fontsize=fs,
             ncol=int(np.ceil(n/3))
         )

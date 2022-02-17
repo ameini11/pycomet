@@ -92,27 +92,27 @@ class ODESolver(object):
             else:
                 # Get grouped partition functions ratio
                 Q_i = chem.spTh['O2'].intPF.Q
-                Q_i = tf.split(Q_i, Q_i.shape, axis=1)
+                Q_i = tf.split(Q_i, Q_i.shape[1], axis=1)
                 Q_i = tf.concat(
                     tf.gather(Q, self.ts_fast_conn[i][j], axis=1) / Q_i[j] \
                         for j in range(len(Q_i)), axis=1
                 )
                 # Get number of bins ratio
-                ratio = int(self.max_n_bins/chem.spTh['O2'].specie.n_bins)
+                bins_ratio = int(self.max_n_bins/chem.spTh['O2'].specie.n_bins)
                 # Loop over reaction processes
                 rec_rates_mats_i = {}
                 for process, rates_mat in chem.rates_mats:
                     if process == 'excit':
-                        kron_shape = (ratio, ratio)
+                        kron_shape = (bins_ratio, bins_ratio)
                         Q_ = Q_i
                     elif process == 'diss':
-                        kron_shape = (1, ratio)
+                        kron_shape = (1, bins_ratio)
                         Q_ =  tf.ones_like(Q_i)
                     elif process == 'recom':
-                        kron_shape = (1, ratio)
+                        kron_shape = (1, bins_ratio)
                         Q_ = Q_i
                     rec_rates_mats_i[process] = tf.experimental.numpy.kron(
-                        K_mat, tf.ones(kron_shape)
+                        rates_mat, tf.ones(kron_shape)
                     ) * Q_
             rec_rates_mats.append(rec_rates_mats_i)
         return rec_rates_mats
@@ -131,10 +131,10 @@ class ODESolver(object):
 
     def get_grouping_mask(self, noneq_dist):
         # Get mask for deeper level of group splitting
-        masks = tf.nest.map_structure(lambda x: x > self.tol, noneq_dist)
+        ts_masks = tf.nest.map_structure(lambda x: x > self.tol, noneq_dist)
         grouping_mask = np.array([None]*self.max_n_bins)
         # Loop over timescales
-        for i, masks_i in enumerate(masks):
+        for i, masks_i in enumerate(ts_masks):
             # Loop over groups in each timescale
             for j, masks_ij in enumerate(masks_i):
                 if not masks_ij:
@@ -142,8 +142,7 @@ class ODESolver(object):
                     m2 = np.isin(
                         np.arange(self.max_n_bins), self.ts_fast_conn[i][j]
                     )
-                    idx = np.where(np.logical_and(m1, m2))
-                    grouping_mask[idx] = i
+                    grouping_mask[np.where(np.logical_and(m1, m2))] = i
         # grouping_mask[np.where(grouping_mask == None)] = i+1
         return grouping_mask
 
