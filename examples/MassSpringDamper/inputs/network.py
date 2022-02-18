@@ -35,14 +35,9 @@ activation = {
 
 kernel_initializer = 'GlorotNormal'
 
-block = 'ResPIBlock' #'FFBlock'
+block = 'FFBlock' #'FFBlock' 'ResPIBlock'
 
 stacked = True
-
-cross_encoder = {
-    "branch": True,
-    "trunk": False
-}
 
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
@@ -52,8 +47,8 @@ batch_norm = {
 
 regularization = {
     'name': 'l1+l2',
-    'l1': 1.e-4,
-    'l2': 1.e-4
+    'l1':   1.e-4,
+    'l2':   1.e-4
 }
 
 dropout_rate = 0

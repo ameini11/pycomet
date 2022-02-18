@@ -13,7 +13,7 @@
 headers = {
     'main':    '[PrODE]: ',
     'warning': '[PrODE]:   WARNING! ',
-    'val_err': 'from PrODE\n>>> '
+    'err':     'from PrODE\n>>> '
 }
 
 # TensorFlow ------------------------------------------------------------------

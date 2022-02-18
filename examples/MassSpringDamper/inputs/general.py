@@ -26,7 +26,7 @@ dim = {
 flags = {
     'load':  0,       # Loading model       0: no, 1: saved model, 2: ckpt
     'train': 1,       # Training model      0: no, 1: yes
-    'test':  1,       # Evaluating          0: no, 1: yes
+    'test':  1,       # Testing model       0: no, 1: yes
     'plot':  2,       # Plotting            0: no, 1: offline, 2: online
     'save':  1        # Saving model        0: no, 1: yes
 }
@@ -37,6 +37,8 @@ paths = None
 
 # Physical model
 # =============================================================================
+physics_informed = True
+
 ode_order = 1
 params = [1., 3., 0.5]  # m, k, c
 

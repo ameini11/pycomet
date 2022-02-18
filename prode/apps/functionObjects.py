@@ -148,15 +148,15 @@ from prode.utilities import utils
 def _data(
     flags,
     input_module,
-    physics_informed=False,
     train_data=None,
     valid_data=None,
     test_data=None,
+    wdir=None
 ):
     # Get data class ----------------------------------------------------------
     data_cls = utils.get_class(prode.data, input_module.data.data_type)
     utils.print_main(
-        "Initializing '{}' data ...".format(input_module.data.data_type)
+        f"Initializing '{input_module.data.data_type}' data ..."
     )
     data_args = utils.get_args_values(
         args=utils.get_args(data_cls.__init__),
@@ -164,17 +164,30 @@ def _data(
     )
 
     # Add information from physics --------------------------------------------
-    if physics_informed and input_module.data.data_type == 'ODE':
-        from physics.physical_model import PhysicalModel
+    if getattr(input_module.general, 'physics_informed', False):
         utils.print_main("Initializing physical model ...")
-        PhysicalModel_args = utils.get_args_values(
-            args=utils.get_args(PhysicalModel.__init__),
-            modules=input_module.general
-        )
-        physicalMdl = PhysicalModel(
-            **PhysicalModel_args
-        )
-        data_args.update(dict(ode_func=physicalMdl.ode))
+        try:
+            from physics.physical_model import PhysicalModel
+        except:
+            utils.raise_module_not_found_error(
+                'The model is physics-informed, but no '
+                '`PhysicalModel` object has been found in '
+                f'"{wdir}/physics/physical_model.py" file.'
+            )
+        if input_module.data.data_type == 'ODE':
+            PhysicalModel_args = utils.get_args_values(
+                args=utils.get_args(PhysicalModel.__init__),
+                modules=input_module.general
+            )
+            physicalMdl = PhysicalModel(
+                **PhysicalModel_args
+            )
+            data_args.update(dict(ode_func=physicalMdl.ode))
+        else:
+            utils.raise_value_err(
+                "For physics-informed models, 'ODE' data type has to be "
+                f"chosen. Modify your '{wdir}/inputs/data.py' file."
+            )
 
     # Initialize class --------------------------------------------------------
     data = data_cls(
@@ -189,12 +202,12 @@ def _data(
 
 
 def _net(
-    input_module,
+    input_module
 ):
     # Initialize network ------------------------------------------------------
     net_cls = utils.get_class(prode.networks, input_module.network.architecture)
     utils.print_main(
-        "Initializing '{}' network ...".format(input_module.network.architecture)
+        f"Initializing '{input_module.network.architecture}' network ..."
     )
     net_args = utils.get_args_values(
         args=utils.get_args(net_cls.__init__),
@@ -226,7 +239,7 @@ def _model(
 
     # Build model -------------------------------------------------------------
     utils.print_main(
-        "Building '{}' network ...".format(input_module.network.architecture)
+        f"Building '{input_module.network.architecture}' network ..."
     )
     model.build(
         load_net=flags['load'],
@@ -236,7 +249,7 @@ def _model(
 
     # Compile model -----------------------------------------------------------
     utils.print_main(
-        "Compiling '{}' network ...".format(input_module.network.architecture)
+        f"Compiling '{input_module.network.architecture}' network ..."
     )
     compile_args = utils.get_args_values(
         args=utils.get_args(model.compile),
@@ -246,18 +259,14 @@ def _model(
 
     # Fit Model ---------------------------------------------------------------
     if flags['train'] > 0:
-        if hasattr(input_module.engine, 'callbacks'):
-            if 'plotter' in input_module.engine.callbacks \
-                and flags['plot'] != 2:
-                input_module.engine.callbacks.pop('plotter')
-        else:
-            input_module.engine.callbacks = None
+        callbacks = getattr(input_module.engine, 'callbacks', None)
+        if callbacks is not None:
+            if 'plotter' in callbacks and flags['plot'] != 2:
+                callbacks.pop('plotter')
 
         model.fit(
             epochs=input_module.engine.epochs,
-            callbacks=input_module.engine.callbacks if hasattr(
-                input_module.engine, 'callbacks'
-            ) else None
+            callbacks=callbacks
         )
     
     # Save Model --------------------------------------------------------------

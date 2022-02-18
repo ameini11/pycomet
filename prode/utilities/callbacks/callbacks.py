@@ -8,8 +8,8 @@ from prode.utilities.callbacks import weighted_loss
 from prode.utilities import utils
 
 
-def get_cb_list(model, callbacks):
-    if callbacks:
+def get_cb_list(model, callbacks=None):
+    if callbacks is not None:
         return [
             get_callback(model, identifier, kwargs) for identifier, kwargs \
                 in callbacks.items() if kwargs is not None

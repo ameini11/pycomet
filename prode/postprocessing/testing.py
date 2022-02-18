@@ -20,9 +20,7 @@ def plot_test(
     ylim=None,
     save=True,
     fig_ax=None,
-    max_num_var=10,
-    plt_context=10,
-
+    max_num_var=10
 ):
     if fig_ax is None:
         fig, ax = plt.subplots()

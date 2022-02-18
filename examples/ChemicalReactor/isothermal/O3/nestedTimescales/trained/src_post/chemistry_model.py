@@ -44,7 +44,6 @@ class ChemistryModel(Basic):
             )
         }
         self.n_bins = n_bins
-        print(self.mat_indices)
 
         self.paddings = {
             'excit': tf.constant([
@@ -53,15 +52,18 @@ class ChemistryModel(Basic):
             ])
         }
 
-
     # Methods
     ###########################################################################
     # Update method -----------------------------------------------------------
     def update(self, T):
+        # Update specie thermodynamics
         for spTh_ in self.spTh.values():
             spTh_.update(T)
+        # Update rates coefficients
         self.kf = self.kf_(T)
         self.kb = self.kb_()
+        # Update rates matrices
+        self.rates_mat = self.rates_mat_()
 
     # Rates coefficients ------------------------------------------------------
     def kf_(self, T):
@@ -106,10 +108,11 @@ class ChemistryModel(Basic):
         }
 
         # Build excitation rates matrix
-        kf_e = self.kf['exch'] + self.kf['inel']
-        kb_e = self.kb['exch'] + self.kb['inel']
-
-        rates_mat['excit'] = self.excit_rates_mat(kf_e, kb_e)
+        k = {
+            'kf': self.kf['exch'] + self.kf['inel'],
+            'kb': self.kf['exch'] + self.kf['inel']
+        }
+        rates_mat['excit'] = self.excit_rates_mat(**k)
 
         return rates_mat
 
@@ -117,34 +120,39 @@ class ChemistryModel(Basic):
     def excit_rates_mat(self, kf, kb):
         '''Excit. & Relax. rates matrix'''
 
-        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
-        dummy_mat = tf.zeros([1, 1, self.n_species**2])
-
         # Concatenate forward and reverse reaction rates: shape=(n,num_reac)
         rates_mat = tf.concat([kf, kb], -1)
 
+        # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
+        dummy_mat = tf.zeros([1, self.n_species**2], dtype=rates_mat.dtype)
+
         # Fill the Excit. & Relax. Master Eq. matrix with rates
-        rates_mat = tf.transpose(
-            tf.tensor_scatter_nd_update(
-                tf.transpose(dummy_mat),
-                self.mat_indices['excit'],
-                tf.transpose(rates_mat)
+        if len(self.mat_indices['excit']) > 0:
+            rates_mat = tf.transpose(
+                tf.tensor_scatter_nd_update(
+                    tf.transpose(dummy_mat),
+                    self.mat_indices['excit'],
+                    tf.transpose(rates_mat)
+                )
             )
-        )[:,:-1,:-1]
+        else:                                                                                               
+            rates_mat = dummy_mat
 
         # Reshape the Excit. & Relax. Master Eq. matrix
-        rates_mat = tf.reshape(rates_mat, [self.n_bins,self.n_bins])
+        rates_mat = tf.reshape(
+            rates_mat, [self.n_species,self.n_species]
+        )[:-1,:-1]
 
         return rates_mat
 
     # Master Equation matrices ------------------------------------------------
     def K_(self):
 
-        Ke = self.Ke_(self.rates_mat['excit'], T) / self.m \
+        Ke = self.Ke_(self.rates_mat['excit']) / self.m \
             if self.processFlags['excit'] else None
-        Kd = self.Kd_(self.rates_mat['diss'], T) / self.m \
+        Kd = self.Kd_(self.rates_mat['diss']) / self.m \
             if self.processFlags['diss'] else None
-        Kr = self.Kr_(self.rates_mat['recom'], T) / self.m**2*2 \
+        Kr = self.Kr_(self.rates_mat['recom']) / self.m**2*2 \
             if self.processFlags['diss'] else None
 
         return Ke, Kd, Kr
@@ -168,7 +176,7 @@ class ChemistryModel(Basic):
         '''Dissociation rates matrix'''
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
-        me_mat = tf.zeros([1, 1, self.n_species**2])
+        me_mat = tf.zeros([1, self.n_species**2], dtype=rates_mat.dtype)
 
         # Rearrange rates to respect the Master Eq. system of equations
         rates_mat = tf.concat([-rates_mat, rates_mat], -1)

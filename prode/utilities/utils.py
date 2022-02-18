@@ -36,8 +36,12 @@ def warning(text, start='', *args, **kwargs):
     print(start + headers['warning'] + text, *args, **kwargs)
 
 def raise_value_err(text):
-    message = ''.join([headers['val_err'], text])
+    message = ''.join([headers['err'], text])
     raise ValueError(message)
+
+def raise_module_not_found_error(text):
+    message = ''.join([headers['err'], text])
+    raise ModuleNotFoundError(message)
 
 # Decorators
 ###############################################################################

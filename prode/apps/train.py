@@ -87,13 +87,13 @@ def main():
     sys.path.append(opts.dir)
     # Input module
     import inputs
-    input_modules = {
-        'data': inputs.data,
-        'engine': inputs.engine,
-        'general': inputs.general,
-        'network': inputs.network,
-        'post': inputs.postprocessing
-    }
+    # input_module = {
+    #     'data': inputs.data,
+    #     'engine': inputs.engine,
+    #     'general': inputs.general,
+    #     'network': inputs.network,
+    #     'post': inputs.postprocessing
+    # }
     from inputs.general import flags
 
     # Physics-related module
@@ -135,23 +135,24 @@ def main():
     # Data Class --------------------------------------------------------------
     data = fun._data(
         flags=flags,
-        input_modules=input_modules,
+        input_module=inputs,
         train_data=train_data,
         valid_data=valid_data,
         test_data=test_data or None,
+        wdir=opts.dir
     )
 
     # Network 
     ###########################################################################
     net = fun._net(
-        input_modules=input_modules
+        input_module=inputs
     )
 
     # Model 
     ###########################################################################
     model = fun._model(
         flags=flags,
-        input_modules=input_modules,
+        input_module=inputs,
         net=net,
         data=data,
         graph=opts.graph,
