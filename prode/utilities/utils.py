@@ -226,6 +226,7 @@ def get_key_from_value(d, v):
 
 def reshape_to_2DArray(x):
     if x is not None:
+        x = tf.convert_to_tensor(x, dtype=K.floatx())
         if len(x.shape) == 0:
             return tf.reshape(x, [1,1])
         elif len(x.shape) == 1:

@@ -1,8 +1,5 @@
-import numpy as np
 import tensorflow as tf
 
-from tensorflow.python.keras import backend
-from prode.utilities import utils
 from prode.physics.thermochemistry.chemistry.chemistryModel import Basic
 
 
@@ -45,6 +42,7 @@ class ChemistryModel(Basic):
         }
         self.n_bins = n_bins
 
+        # Matrices padding
         self.paddings = {
             'excit': tf.constant([
                 [0, 1],
@@ -110,7 +108,7 @@ class ChemistryModel(Basic):
         # Build excitation rates matrix
         k = {
             'kf': self.kf['exch'] + self.kf['inel'],
-            'kb': self.kf['exch'] + self.kf['inel']
+            'kb': self.kb['exch'] + self.kb['inel']
         }
         rates_mat['excit'] = self.excit_rates_mat(**k)
 
@@ -135,7 +133,7 @@ class ChemistryModel(Basic):
                     tf.transpose(rates_mat)
                 )
             )
-        else:                                                                                               
+        else:
             rates_mat = dummy_mat
 
         # Reshape the Excit. & Relax. Master Eq. matrix
@@ -146,13 +144,14 @@ class ChemistryModel(Basic):
         return rates_mat
 
     # Master Equation matrices ------------------------------------------------
-    def K_(self):
+    def K_(self, rates_mat=None):
+        rates_mat_ = rates_mat if rates_mat is not None else self.rates_mat
 
-        Ke = self.Ke_(self.rates_mat['excit']) / self.m \
+        Ke = self.Ke_(rates_mat_['excit']) / self.m \
             if self.processFlags['excit'] else None
-        Kd = self.Kd_(self.rates_mat['diss']) / self.m \
+        Kd = self.Kd_(rates_mat_['diss']) / self.m \
             if self.processFlags['diss'] else None
-        Kr = self.Kr_(self.rates_mat['recom']) / self.m**2*2 \
+        Kr = self.Kr_(rates_mat_['recom']) / self.m**2*2 \
             if self.processFlags['diss'] else None
 
         return Ke, Kd, Kr
