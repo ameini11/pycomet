@@ -61,7 +61,7 @@ class ChemistryModel(Basic):
         self.kf = self.kf_(T)
         self.kb = self.kb_()
         # Update rates matrices
-        self.rates_mat = self.rates_mat_()
+        self.rates_mats = self.rates_mats_()
 
     # Rates coefficients ------------------------------------------------------
     def kf_(self, T):
@@ -99,20 +99,22 @@ class ChemistryModel(Basic):
         return PFdot[self.atom]**2 / PFdot[self.molecule]
 
     # Rates matrices ----------------------------------------------------------
-    def rates_mat_(self):
-        rates_mat = {
+    def rates_mats_(self):
+        # Get dissociation/recombination rates matrix
+        rates_mats = {
             'diss': self.kf['diss'],
             'recom': self.kb['diss']
         }
-
         # Build excitation rates matrix
         k = {
             'kf': self.kf['exch'] + self.kf['inel'],
             'kb': self.kb['exch'] + self.kb['inel']
         }
-        rates_mat['excit'] = self.excit_rates_mat(**k)
+        rates_mats['excit'] = self.excit_rates_mat(**k)
+        # Convert to numpy.array
+        rates_mats = tf.nest.map_structure(lambda x: x.numpy(), rates_mats)
+        return rates_mats
 
-        return rates_mat
 
     # Excitation/Relaxation
     def excit_rates_mat(self, kf, kb):
@@ -144,20 +146,20 @@ class ChemistryModel(Basic):
         return rates_mat
 
     # Master Equation matrices ------------------------------------------------
-    def K_(self, rates_mat=None):
-        rates_mat_ = rates_mat if rates_mat is not None else self.rates_mat
+    def me_mats_(self, rates_mats=None):
+        rates_mats_ = rates_mats if rates_mats is not None else self.rates_mats
 
-        Ke = self.Ke_(rates_mat_['excit']) / self.m \
+        exc_mat_ = self.exc_mat(rates_mats_['excit']) / self.m \
             if self.processFlags['excit'] else None
-        Kd = self.Kd_(rates_mat_['diss']) / self.m \
+        dis_mat_ = self.dis_mat(rates_mats_['diss']) / self.m \
             if self.processFlags['diss'] else None
-        Kr = self.Kr_(rates_mat_['recom']) / self.m**2*2 \
+        rec_mat_ = self.rec_mat(rates_mats_['recom']) / self.m**2*2 \
             if self.processFlags['diss'] else None
 
-        return Ke, Kd, Kr
+        return exc_mat_, dis_mat_, rec_mat_
 
     # Excitation/Relaxation
-    def Ke_(self, rates_mat):
+    def exc_mat(self, rates_mat):
         '''Excit. & Relax. rates matrix'''
 
         # Reshape the Excit. & Relax. Master Eq. matrix
@@ -168,10 +170,10 @@ class ChemistryModel(Basic):
         me_mat = - tf.linalg.diag(tf.reduce_sum(me_mat, axis=1)) \
             + tf.transpose(me_mat)
 
-        return me_mat
+        return me_mat.numpy()
 
     # Dissociation
-    def Kd_(self, rates_mat):
+    def dis_mat(self, rates_mat):
         '''Dissociation rates matrix'''
 
         # Create a `zeros` 2D tensor: shape=[n,d**2] (flatten dimensions)
@@ -192,10 +194,10 @@ class ChemistryModel(Basic):
         # Reshape the Dissociation Master Eq. matrix
         me_mat = tf.reshape(me_mat, [self.n_species,self.n_species])
 
-        return me_mat
+        return me_mat.numpy()
 
     # Recombination
-    def Kr_(self, rates_mat):
+    def rec_mat(self, rates_mat):
         '''Recombination rates matrix'''
 
         # Rearrange rates to respect the Master Eq. system of equations
@@ -206,4 +208,4 @@ class ChemistryModel(Basic):
         # Reshape the Recombination Master Eq. matrix
         me_mat = tf.reshape(rates_mat, [self.n_species,1])
 
-        return me_mat
+        return me_mat.numpy()

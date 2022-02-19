@@ -13,13 +13,23 @@ class NoneqController(object):
     def __init__(
         self,
         species_thermos,
-        ts_fast_conn
+        ts_fast_conn,
+        mep_order=0,
+        norm_order=2,
+        mean=True,
+        tol=0.1
     ):
         # Get species thermodynamics
         self.species_thermos = species_thermos
 
         # Groups connectivity between each timescale to the fastest one
         self.ts_fast_conn = ts_fast_conn
+
+        # Evaluate noneq. distance
+        self.norm_order = norm_order
+        self.mep_order = mep_order
+        self.mean = mean
+        self.tol = tol
 
     # # Initialization
     # ###########################################################################
@@ -63,12 +73,9 @@ class NoneqController(object):
     ###########################################################################
     def eval_df_norm(
         self,
-        data=None,
-        norm_order=1,
-        mep_order=0,
-        mean=True
+        data=None
     ):
-        t, f = self.mep_reconstruction(data, order=mep_order)
+        t, f = self.mep_reconstruction(data, order=self.mep_order)
         df_norm = []
         for ts, f_ts in enumerate(f):
             df_norm_ts = []
@@ -79,12 +86,12 @@ class NoneqController(object):
                 f_fast = tf.concat(list(map(f[-1].__getitem__, idx)), axis=1)
                 f_slow = f_ts[i]
                 norm = tf.norm(
-                    f_fast - f_slow, ord=norm_order, axis=1, keepdims=True
+                    f_fast - f_slow, ord=self.norm_order, axis=1, keepdims=True
                 )
-                if mean:
+                if self.mean:
                     norm = norm / f_fast.shape[1]
                 df_norm_ts.append(norm)
-            df_norm.append(tf.concat(df_norm_ts, axis=1))
+            df_norm.append(tf.concat(df_norm_ts, axis=1).numpy())
         return t, df_norm
 
     # Maximum Entropy Principle reconstruction
@@ -94,7 +101,7 @@ class NoneqController(object):
         data,
         order=1
     ):
-        # Extract data
+        # Extract data scenario
         (ic, t), Y = data
 
         # Get temperature and density from initial condition

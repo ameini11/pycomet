@@ -236,6 +236,22 @@ def reshape_to_2DArray(x):
         elif len(x.shape) == 3:
             return tf.squeeze(x, axis=0)
 
+
+def replace(x, y, indices, axis=0):
+    # Preprocess inputs
+    x, y = tf.nest.map_structure(lambda x: np.array(x), [x,y])
+    indices = tf.nest.flatten(indices)
+    if axis not in (0,1):
+        raise_value_err(f"The 'axis' input as to be 0 or 1.")
+    # Replace 1D vectors
+    if axis == 1:
+        x, y = x.T, y.T
+    for i in indices:
+        x[i] = y[i]
+    if axis == 1:
+        x, y = x.T, y.T
+    return x
+
 # Others
 ###############################################################################
 def kill_process():
