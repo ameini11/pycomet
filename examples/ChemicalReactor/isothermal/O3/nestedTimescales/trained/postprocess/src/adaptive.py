@@ -21,6 +21,8 @@ class AdaptiveSolver(object):
         self.noneqController = noneqController
         self.chemModels = chemModels
 
+        self.atol = 1.e-20
+
     # Solve adaptive ODE
     ###########################################################################
     def fun(self, t, y):
@@ -53,7 +55,7 @@ class AdaptiveSolver(object):
         T, rho = ic[0][:2]
         Y_O2 = ic[0][2:]
         rho_0 = np.concatenate((Y_O2, 1. - np.sum(Y_O2, keepdims=True))) * rho
-        t_vec = t.squeeze()
+        self.t_vec = t.squeeze()
 
         # Thermochemical models -----------------------------------------------
         for chem in self.chemModels:
@@ -61,25 +63,28 @@ class AdaptiveSolver(object):
         # Get rates
         self.me_mats = self.chemModels[-1].me_mats_()
         # Get reconstructed rates
+        self.rec_groups = []
         self.rec_rates_mats = self.grouped_reconstructed_rates()
 
         # Integrator ----------------------------------------------------------
         r = ode(self.fun, self.jac).set_integrator(
-            'vode', method='bdf', with_jacobian=True, atol=1.e-12
+            'vode', method='bdf', with_jacobian=True, atol=self.atol
         )
-        r.set_initial_value(rho_0, t_vec[0])
+        r.set_initial_value(rho_0, self.t_vec[0])
 
         # Initialize solution
         y = np.expand_dims(rho_0,0)
 
         # Itegrate
         it = 1
-        while r.successful() and r.t < t_vec[-1]:
-            self.apply_noneq_control(r.t, t_vec, df_norm)
-            r.integrate(t_vec[it])
+        while r.successful() and r.t < self.t_vec[-1]:
+            self.apply_noneq_control(r.t, df_norm)
+            r.integrate(self.t_vec[it])
             y = np.vstack((y, np.expand_dims(r.y,0)))
             it += 1
         assert (y > 0.).all()
+
+        self.eval_group_res()
 
         return [t, y/rho]
 
@@ -129,9 +134,9 @@ class AdaptiveSolver(object):
 
     # Nonequilibrium controller
     ###########################################################################
-    def apply_noneq_control(self, t, t_vec, df_norm):
+    def apply_noneq_control(self, t, df_norm):
         # Get nonequilibrium distance at specific time instant
-        idx = tf.math.argmin(tf.math.abs(t_vec - t), axis=0)
+        idx = tf.math.argmin(tf.math.abs(self.t_vec - t), axis=0)
         df_norm_ = tf.nest.map_structure(lambda x: x[idx], df_norm)
         # Update rates matrices
         rates_mats = self.update_rates_mats(df_norm_)
@@ -174,4 +179,112 @@ class AdaptiveSolver(object):
                     )
                     grouping_mask[np.where(np.logical_and(m1, m2))] = i
         grouping_mask[np.where(grouping_mask == None)] = i+1
+        self.rec_groups.append(grouping_mask)
         return grouping_mask
+
+    # Reconstructed groups
+    ###########################################################################
+    def eval_group_res(self):
+        self.group_res = []
+        self.rec_groups = np.vstack(self.rec_groups)
+        for i in range(len(self.chemModels)):
+            self.group_res.append(
+                np.sum(self.rec_groups == i, axis=1, keepdims=True)
+            )
+        self.group_res = np.hstack(self.group_res)
+
+    def plot_group_res(self):
+        self.group_res = []
+        self.rec_groups = np.vstack(self.rec_groups)
+        for i in range(len(self.chemModels)):
+            self.group_res.append(
+                np.sum(self.rec_groups == i, axis=1, keepdims=True)
+            )
+        self.group_res = np.hstack(self.group_res)
+
+
+
+
+    def plot_test(
+        path,
+        var_names=None,
+        fig_name=None,
+        labels=[r'$t$ [s]', r'\# of groups'],
+        scales=['log', 'linear'],
+        title=r'$\epsilon_{tol} = {%s}$' % self.tol,
+        xlim=None,
+        ylim=None,
+        save=True,
+        fig_ax=None,
+        # max_num_var=10
+    ):
+        if fig_ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig, ax = fig_ax
+
+        # Manipulate variable -------------------------------------------------
+        y = [self.group_res[:,0:1]]
+        for j in range(1,self.group_res.shape[1]):
+            y.append(y[-1]+self.group_res[:,j:j+1])
+
+        # Set up figure -------------------------------------------------------
+        if title is not None:
+            ax.set_title(title)
+        x_label, y_label = labels
+        x_scale, y_scale = scales
+        # X axis
+        if x_label is not None:
+            ax.set_xlabel(x_label)
+        if x_scale is not None:
+            ax.set_xscale(x_scale)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        # Y axis
+        if y_label is not None:
+            ax.set_ylabel(y_label)
+        if y_scale is not None:
+            ax.set_yscale(y_scale)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+        # Plot figure ---------------------------------------------------------
+        # Define parameters
+        n = s.shape[1]
+        # Loop over features
+        for d in range(n):
+            # >> Plot true values
+            ax.plot(
+                self.t_vec,
+                y[d],
+                lw=1.,
+                label=var_names[d]
+            )
+        # # Add legend
+        # if var_names is not None:
+        #     idx = np.arange(0,n)
+        #     if n > 6:
+        #         if n > max_num_var:
+        #             step = int(np.ceil(n/max_num_var))
+        #             idx = np.arange(0,n,step)
+        #             n = max_num_var
+        #         fs = 'small'
+        #     else:
+        #         fs = 'medium'
+        #     ax.legend(
+        #         [plt.plot([], [], c=colors[i])[0] for i in idx],
+        #         [var_names[i] for i in idx],
+        #         fontsize=fs,
+        #         ncol=int(np.ceil(n/3))
+        #     )
+        plt.show()
+
+        # # Save figure -------------------------------------------------------------
+        # if save:
+        #     # Save figure
+        #     name = y_scale if fig_name == None else fig_name + '_' + y_scale
+        #     fig_path = path + '/' + name + '.pdf'
+        #     fig.savefig(fig_path)
+            
+        # if fig_ax is not None:
+        #     return fig, ax
