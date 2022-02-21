@@ -344,7 +344,8 @@ class DataGenerator(object):
         eval_jac=False,
         eval_f=False,
         exec_time=False,
-        header=None
+        header=None,
+        save=True
     ):
         if isinstance(ic_test, str):
             ic_test = pd.read_csv(ic_test, sep=',', header=header).values
@@ -364,21 +365,22 @@ class DataGenerator(object):
                 self.X_test = np.vstack((self.X_test, self.X_train[idx]))
 
             # Print ics
-            df = pd.DataFrame(
-                ic_test, columns=['T','rho'] + self.groups_label + ['Y_O']
-            )
-            df.to_csv(
-                path+"ics.csv", index=False, float_format='{:e}'.format
-            )
+            if save:
+                df = pd.DataFrame(
+                    ic_test, columns=['T','rho'] + self.groups_label + ['Y_O']
+                )
+                df.to_csv(
+                    path+"ics.csv", index=False, float_format='{:e}'.format
+                )
 
-            # Print and plot input space
-            path = path+"input_space/"
-            if not os.path.exists(path):
-                os.makedirs(path)
-            pd.DataFrame(self.X_test, columns=self.input_space.keys(), \
-                index=list(range(1,self.test_cases*2+1))).to_csv( \
-                path+"data.csv", float_format='{:e}'.format)
-            self.plot_inp_space(path)
+                # Print and plot input space
+                path = path+"input_space/"
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                pd.DataFrame(self.X_test, columns=self.input_space.keys(), \
+                    index=list(range(1,self.test_cases*2+1))).to_csv( \
+                    path+"data.csv", float_format='{:e}'.format)
+                self.plot_inp_space(path)
 
         # Generate data
         if exec_time:
@@ -390,7 +392,7 @@ class DataGenerator(object):
         else:
             data_test = jl.Parallel(n_jobs=-1)(
                 jl.delayed(self.single_test_scenario)(i, ic_i, eval_jac, eval_f) \
-                    for i, ic_i in enumerate(tqdm(ic_test[2:3]))
+                    for i, ic_i in enumerate(tqdm(ic_test[:2]))
             )
 
         return data_test

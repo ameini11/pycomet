@@ -51,7 +51,7 @@ temperature_limits = input_space['Ttr']
 log_mass_frac = False
 
 # Time (limit values)
-time_limit = [0., 1.e-2]
+time_limit = [1.e-12, 1.e-3]
 
 # Timescales thermochemistry --------------------------------------------------
 ts_thermochem = {

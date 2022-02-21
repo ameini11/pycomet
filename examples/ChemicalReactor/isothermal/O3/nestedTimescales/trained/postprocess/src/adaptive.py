@@ -82,6 +82,7 @@ class AdaptiveSolver(object):
             r.integrate(self.t_vec[it])
             y = np.vstack((y, np.expand_dims(r.y,0)))
             it += 1
+        self.apply_noneq_control(self.t_vec[-1], df_norm)
         assert (y > 0.).all()
 
         self.eval_group_res()
@@ -193,30 +194,18 @@ class AdaptiveSolver(object):
             )
         self.group_res = np.hstack(self.group_res)
 
-    def plot_group_res(self):
-        self.group_res = []
-        self.rec_groups = np.vstack(self.rec_groups)
-        for i in range(len(self.chemModels)):
-            self.group_res.append(
-                np.sum(self.rec_groups == i, axis=1, keepdims=True)
-            )
-        self.group_res = np.hstack(self.group_res)
-
-
-
-
-    def plot_test(
-        path,
+    def plot_group_res(
+        self,
+        path=None,
         var_names=None,
         fig_name=None,
         labels=[r'$t$ [s]', r'\# of groups'],
         scales=['log', 'linear'],
-        title=r'$\epsilon_{tol} = {%s}$' % self.tol,
+        title=None,
         xlim=None,
         ylim=None,
         save=True,
-        fig_ax=None,
-        # max_num_var=10
+        fig_ax=None
     ):
         if fig_ax is None:
             fig, ax = plt.subplots()
@@ -224,13 +213,16 @@ class AdaptiveSolver(object):
             fig, ax = fig_ax
 
         # Manipulate variable -------------------------------------------------
-        y = [self.group_res[:,0:1]]
-        for j in range(1,self.group_res.shape[1]):
-            y.append(y[-1]+self.group_res[:,j:j+1])
+        x = self.t_vec.squeeze()
+        y = [self.group_res[:,0]]
+        for i in range(1,self.group_res.shape[1]):
+            y.append(y[-1]+self.group_res[:,i])
+        y = tf.nest.map_structure(lambda x: x.astype(self.t_vec.dtype), y)
 
         # Set up figure -------------------------------------------------------
         if title is not None:
             ax.set_title(title)
+            (?# ax.set_title(r'$\epsilon_{tol} = {%s}$' % self.noneqController.tol))
         x_label, y_label = labels
         x_scale, y_scale = scales
         # X axis
@@ -249,42 +241,31 @@ class AdaptiveSolver(object):
             ax.set_ylim(ylim)
 
         # Plot figure ---------------------------------------------------------
-        # Define parameters
-        n = s.shape[1]
-        # Loop over features
-        for d in range(n):
-            # >> Plot true values
-            ax.plot(
-                self.t_vec,
-                y[d],
-                lw=1.,
-                label=var_names[d]
-            )
-        # # Add legend
-        # if var_names is not None:
-        #     idx = np.arange(0,n)
-        #     if n > 6:
-        #         if n > max_num_var:
-        #             step = int(np.ceil(n/max_num_var))
-        #             idx = np.arange(0,n,step)
-        #             n = max_num_var
-        #         fs = 'small'
-        #     else:
-        #         fs = 'medium'
-        #     ax.legend(
-        #         [plt.plot([], [], c=colors[i])[0] for i in idx],
-        #         [var_names[i] for i in idx],
-        #         fontsize=fs,
-        #         ncol=int(np.ceil(n/3))
-        #     )
-        plt.show()
+        n = len(y)
+        colors = []
+        # Loop over variables
+        for i in range(n):
+            y1 = y[i]
+            if i == 0:
+                y2 = np.zeros_like(y1)
+            else:
+                y2 = y[i-1]
+            ax.plot(x, y1, alpha=0.3)
+            ax.fill_between(x, y1=y1, y2=y2, alpha=0.3)
+            colors.append(plt.gca().lines[-1].get_color())
 
-        # # Save figure -------------------------------------------------------------
-        # if save:
-        #     # Save figure
-        #     name = y_scale if fig_name == None else fig_name + '_' + y_scale
-        #     fig_path = path + '/' + name + '.pdf'
-        #     fig.savefig(fig_path)
+        # Add legend
+        if var_names is not None:
+            ax.legend(
+                [ax.plot([], [], c=colors[i])[0] for i in range(n)],
+                [var_names[i] for i in range(n)],
+                fontsize='medium'
+            )
+
+        # Save figure ---------------------------------------------------------
+        if save:
+            fig_path = path + '/' + fig_name + '.pdf'
+            fig.savefig(fig_path)
             
-        # if fig_ax is not None:
-        #     return fig, ax
+        if fig_ax is not None:
+            return fig, ax
