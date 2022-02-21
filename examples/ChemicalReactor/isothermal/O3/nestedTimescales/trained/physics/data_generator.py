@@ -392,7 +392,7 @@ class DataGenerator(object):
         else:
             data_test = jl.Parallel(n_jobs=-1)(
                 jl.delayed(self.single_test_scenario)(i, ic_i, eval_jac, eval_f) \
-                    for i, ic_i in enumerate(tqdm(ic_test[:2]))
+                    for i, ic_i in enumerate(tqdm(ic_test))
             )
 
         return data_test
