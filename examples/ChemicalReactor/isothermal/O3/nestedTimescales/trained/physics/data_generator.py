@@ -345,7 +345,8 @@ class DataGenerator(object):
         eval_f=False,
         exec_time=False,
         header=None,
-        save=True
+        save=True,
+        indices=None
     ):
         if isinstance(ic_test, str):
             ic_test = pd.read_csv(ic_test, sep=',', header=header).values
@@ -381,6 +382,8 @@ class DataGenerator(object):
                     index=list(range(1,self.test_cases*2+1))).to_csv( \
                     path+"data.csv", float_format='{:e}'.format)
                 self.plot_inp_space(path)
+        if indices is not None:
+            ic_test = ic_test[indices]
 
         # Generate data
         if exec_time:
