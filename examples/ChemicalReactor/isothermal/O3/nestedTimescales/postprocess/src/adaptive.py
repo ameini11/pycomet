@@ -1,12 +1,9 @@
 import numpy as np
 import tensorflow as tf
-
-from scipy.integrate import ode
-from prode.physics.general import const
-from prode.utilities import utils
-
-
 import matplotlib.pyplot as plt
+
+from matplotlib.ticker import MaxNLocator
+from prode.utilities import utils
 
 
 class AdaptiveSolver(object):
@@ -21,140 +18,105 @@ class AdaptiveSolver(object):
         self.noneqController = noneqController
         self.chemModels = chemModels
 
-    # Solve adaptive ODE
+    # Solve adaptive technique
     ###########################################################################
-    def fun(self, t, y):
-        w = np.zeros_like(y)
-        if self.chemModels[-1].processFlags['excit']:
-            w = w + np.matmul(self.me_mats[0], y) * y[-1]
-        w = w + np.matmul(self.me_mats[1], y) * y[-1]
-        w = w + np.squeeze(self.me_mats[2]) * np.power(y[-1], 3)
-        return w
-
-    def jac(self, t, y):
-        '''Jacobian calculation: jac[i,j] = df[i] / dy[j].'''
-        d = np.shape(y)[0]
-        J = np.zeros((d,d), dtype=np.float64)
-        J[:,:-1] = (self.me_mats[0][:,:-1] + self.me_mats[1][:,:-1]) * y[-1]
-        J[:, -1] = np.matmul(self.me_mats[0][:,:-1], y[:-1]) \
-            + np.matmul(self.me_mats[1][:,:-1], y[:-1]) \
-            + 3*np.squeeze(self.me_mats[2])*np.power(y[-1], 2)
-        return J
-
     def solve(
         self,
-        data
+        x,
+        Y,
+        Y_pred
     ):
         # Nonequilibrium controller -------------------------------------------
-        df_norm = self.noneqController.eval_df_norm(data)[-1]
+        self.df_norm = self.noneqController.eval_df_norm([x, Y])[-1]
 
         # Data scenario -------------------------------------------------------
-        (ic, t), Y = data
-        T, rho = ic[0][:2]
-        Y_O2 = ic[0][2:]
-        rho_0 = np.concatenate((Y_O2, 1. - np.sum(Y_O2, keepdims=True))) * rho
-        t_vec = t.squeeze()
+        ic, self.t = x
+        T = ic[0][:1]
+        Y_pred[0] = np.take(Y_pred[0], [0], axis=1)
 
         # Thermochemical models -----------------------------------------------
         for chem in self.chemModels:
             chem.update(utils.reshape_to_2DArray(T))
-        # Get rates
-        self.me_mats = self.chemModels[-1].me_mats_()
-        # Get reconstructed rates
-        self.rec_rates_mats = self.grouped_reconstructed_rates()
+        # Get reconstructed groups
+        self.rec_groups = []
+        self.Y_rec = self.reconstruct_Y(Y_pred)
+        # print('Y_rec', tf.nest.map_structure(lambda x: x.shape, self.Y_rec))
 
-        # Integrator ----------------------------------------------------------
-        r = ode(self.fun, self.jac).set_integrator(
-            'vode', method='bdf', with_jacobian=True, atol=1.e-12
-        )
-        r.set_initial_value(rho_0, t_vec[0])
+        # Integrate -----------------------------------------------------------
+        y = []
+        # print('time', tf.nest.map_structure(lambda x: x.shape, self.t))
+        for i in range(len(self.t)):
+            y.append(self.apply_noneq_control(i))
+        y = np.vstack(y)
+        # print(y.shape)
+        # yO = 1.-np.sum(y, axis=1, keepdims=True)
+        # print(yO.shape)
+        y = np.concatenate((1.-np.sum(y, axis=1, keepdims=True), y), axis=1)
 
-        # Initialize solution
-        y = np.expand_dims(rho_0,0)
+        self.eval_group_res()
 
-        # Itegrate
-        it = 1
-        while r.successful() and r.t < t_vec[-1]:
-            self.apply_noneq_control(r.t, t_vec, df_norm)
-            r.integrate(t_vec[it])
-            y = np.vstack((y, np.expand_dims(r.y,0)))
-            it += 1
-        assert (y > 0.).all()
+        return [self.t, y]
 
-        return [t, y/rho]
-
-    # Reconstructed rates
+    # Reconstructed mass fractions
     ###########################################################################
-    def grouped_reconstructed_rates(self):
+    def reconstruct_Y(self, Y):
         # Get partition functions of the high-resolved grouping
         Q = self.chemModels[-1].spTh['O2'].intPF.Q
-        # Reconstruct rates for the high-resolved grouping from
+        # Reconstruct groups for the high-resolved grouping from
         # the low-resolved ones
-        rec_rates_mats = []
+        Y_rec = []
         for i, chem in enumerate(self.chemModels):
             if i == len(self.chemModels)-1:
-                rec_rates_mats_i = chem.rates_mats
+                Y_rec.append(Y[i])
             else:
                 # Get grouped partition functions ratio
                 Q_i = chem.spTh['O2'].intPF.Q
                 Q_i = tf.split(Q_i, Q_i.shape[1], axis=1)
-                Q_i = tf.concat(
-                    [tf.gather(
+                Q_i = [tf.gather(
                         Q, self.noneqController.ts_fast_conn[i][j], axis=1
-                    ) / Q_i[j] for j in range(len(Q_i))], axis=1
-                )
-                # Get number of bins ratio
-                bins_ratio = int(self.chemModels[-1].n_bins / chem.n_bins)
-                # Loop over reaction processes
-                rec_rates_mats_i = {}
-                for process, rates_mat in chem.rates_mats.items():
-                    if process == 'excit':
-                        kron_shape = (bins_ratio, bins_ratio)
-                        Q_ = Q_i
-                    elif process == 'diss':
-                        kron_shape = (1, bins_ratio)
-                        Q_ =  tf.ones_like(Q_i)
-                    elif process == 'recom':
-                        kron_shape = (1, bins_ratio)
-                        Q_ = Q_i
-                    rec_rates_mats_i[process] = tf.experimental.numpy.kron(
-                        rates_mat, tf.ones(kron_shape)
-                    ) * Q_
-            rec_rates_mats.append(rec_rates_mats_i)
+                    ) / Q_i[j] for j in range(len(Q_i))]
+                # Reconstruct groups
+                Y_rec.append(tf.concat(
+                    tf.nest.map_structure(
+                        lambda x, y: x*y, Q_i, tf.split(Y[i], Y[i].shape[1], 1)
+                    ), axis=1
+                ))
         # Convert to numpy.array
-        rec_rates_mats = tf.nest.map_structure(
-            lambda x: np.array(x), rec_rates_mats
-        )
-        return rec_rates_mats
+        Y_rec = tf.nest.map_structure(lambda x: np.array(x), Y_rec)
+        return Y_rec
 
     # Nonequilibrium controller
     ###########################################################################
-    def apply_noneq_control(self, t, t_vec, df_norm):
+    def apply_noneq_control(self, idx):
         # Get nonequilibrium distance at specific time instant
-        idx = tf.math.argmin(tf.math.abs(t_vec - t), axis=0)
-        df_norm_ = tf.nest.map_structure(lambda x: x[idx], df_norm)
-        # Update rates matrices
-        rates_mats = self.update_rates_mats(df_norm_)
-        # Update Master Equation matrices
-        self.me_mats = self.chemModels[-1].me_mats_(rates_mats=rates_mats)
+        df_norm_ = tf.nest.map_structure(lambda x: x[idx], self.df_norm)
+        # print('df_norm', tf.nest.map_structure(lambda x: x.shape, df_norm_))
+        # Update O2 mass fractions
+        Y_ = self.update_Y(df_norm_, idx)
+        # print('Y updated', tf.nest.map_structure(lambda x: x.shape, Y_))
+        return Y_
 
-    def update_rates_mats(self, df_norm):
+    def update_Y(self, df_norm, idx):
+        # Get reconstructed mass fractions at specific time instant
+        Y_rec_ = tf.nest.map_structure(
+            lambda x: x[idx].reshape(1,-1), self.Y_rec
+        )
         # Get grouping mask
         grouping_mask = self.get_grouping_mask(df_norm)
-        # Initialize new rates matrices
-        rates_mats = self.rec_rates_mats[-1]
+        # Initialize new mass fractions vector
+        Y = Y_rec_[-1]
         if all(grouping_mask == len(self.chemModels)-1):
-            return rates_mats
+            return Y
         else:
             for i, chem in enumerate(self.chemModels):
                 if i in grouping_mask:
                     idx = np.where(grouping_mask == i)
-                    rates_mats = tf.nest.map_structure(
+                    Y = tf.nest.map_structure(
                         lambda x, y: utils.replace(x, y, idx, axis=1),
-                        rates_mats,
-                        self.rec_rates_mats[i]
+                        Y,
+                        Y_rec_[i]
                     )
-            return rates_mats
+            return Y
 
     def get_grouping_mask(self, df_norm):
         # Get mask for deeper level of group splitting
@@ -174,4 +136,102 @@ class AdaptiveSolver(object):
                     )
                     grouping_mask[np.where(np.logical_and(m1, m2))] = i
         grouping_mask[np.where(grouping_mask == None)] = i+1
+        self.rec_groups.append(grouping_mask)
         return grouping_mask
+
+    # Groups resolution
+    ###########################################################################
+    def eval_group_res(self):
+        self.group_res = []
+        self.rec_groups = np.vstack(self.rec_groups)
+        for i in range(len(self.chemModels)):
+            bins_ratio = int(
+                self.chemModels[-1].n_bins / self.chemModels[i].n_bins
+            )
+            self.group_res.append(
+                np.sum(self.rec_groups == i, axis=1, keepdims=True) / bins_ratio
+            )
+        self.group_res = np.hstack(self.group_res)
+
+    def plot_group_res(
+        self,
+        path=None,
+        var_names=['RVE1', 'RVE3', 'RVE9', 'RVE27', 'Total'],
+        fig_name=None,
+        labels=[r'$t$ [s]', r'\# of groups'],
+        scales=['log', 'linear'],
+        title=None,
+        xlim=None,
+        ylim=None,
+        save=True,
+        fig_ax=None
+    ):
+        if fig_ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig, ax = fig_ax
+
+        # # Manipulate variable -------------------------------------------------
+        # x = self.t
+        # y = [self.group_res[:,0]]
+        # for i in range(1,self.group_res.shape[1]):
+        #     y.append(y[-1]+self.group_res[:,i])
+        # y = tf.nest.map_structure(lambda x: x.astype(self.t_vec.dtype), y)
+
+        # Set up figure -------------------------------------------------------
+        if title is not None:
+            ax.set_title(title)
+            # ax.set_title(r'$\epsilon_{tol} = {%s}$' % self.noneqController.tol))
+        x_label, y_label = labels
+        x_scale, y_scale = scales
+        # X axis
+        if x_label is not None:
+            ax.set_xlabel(x_label)
+        if x_scale is not None:
+            ax.set_xscale(x_scale)
+        if xlim is not None:
+            ax.set_xlim(xlim)
+        # Y axis
+        if y_label is not None:
+            ax.set_ylabel(y_label)
+        if y_scale is not None:
+            ax.set_yscale(y_scale)
+        if ylim is not None:
+            ax.set_ylim(ylim)
+
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+        # Plot figure ---------------------------------------------------------
+        style = dict(
+            marker='^',
+            fillstyle='none',
+            markersize=5,
+            markevery=self.t.shape[0]//20,
+            ls='--',
+            lw=1.
+        )
+        n = self.group_res.shape[1]
+        colors = []
+        # Loop over variables
+        for i in range(n):
+            ax.plot(self.t, self.group_res[:,i], **style)
+            colors.append(plt.gca().lines[-1].get_color())
+        # Total number of groups
+        ax.plot(self.t, np.sum(self.group_res, axis=1), c='k', lw=1.)
+        colors.append(plt.gca().lines[-1].get_color())
+
+        # Add legend
+        if var_names is not None:
+            ax.legend(
+                [ax.plot([], [], c=colors[i])[0] for i in range(n+1)],
+                [var_names[i] for i in range(n+1)],
+                fontsize=12
+            )
+
+        # Save figure ---------------------------------------------------------
+        if save:
+            fig_path = path + '/' + fig_name + '.pdf'
+            fig.savefig(fig_path)
+
+        if fig_ax is not None:
+            return fig, ax
