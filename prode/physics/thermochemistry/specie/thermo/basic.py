@@ -1,7 +1,5 @@
 import abc
 
-from prode.physics.general import const
-
 
 class Basic(object):
 
@@ -47,6 +45,7 @@ class Basic(object):
     def e_(self, T):
         # [J/kg]
         pass
+
     @abc.abstractmethod
     def cv_(self, T):
         # [J/(kg K)]

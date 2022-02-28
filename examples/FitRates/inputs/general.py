@@ -5,7 +5,7 @@
 
 # -------------------------------- INPUT FILE ------------------------------- #
 # Description:
-# >> Defining global input parameters.
+# >> Defining global input parameters for the `fitRates` app
 # --------------------------------------------------------------------------- #
 
 

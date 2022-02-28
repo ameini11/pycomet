@@ -17,6 +17,7 @@ class Translational(Basic):
         **kwargs
     ):
         super(Translational, self).__init__(specie)
+        # Constant basis
         self.basis = 2.*np.pi*const.UKB*self.specie.m/const.UH**2
 
     # Translational partition functions ---------------------------------------

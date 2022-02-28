@@ -8,7 +8,7 @@
 
 # -------------------------------- EXEC FILE -------------------------------- #
 # Description:
-# >> Fit reactions rates following the Arrhenius law.
+# >> Fit reactions rates following the Arrhenius law
 # --------------------------------------------------------------------------- #
 
 
@@ -94,7 +94,6 @@ def plot_rates(
     """Variable plotting."""
 
     fig = plt.figure()
-    plt.grid()
     plt.title(title)
 
     x_label, y_label = labels
@@ -126,7 +125,6 @@ def plot_rates(
     colors = []
     n = y_true.shape[1]
     for d in range(n):
-
         # >> Plot true values
         plt.plot(
             x_true,
@@ -134,7 +132,6 @@ def plot_rates(
             **true_style
         )
         colors.append(plt.gca().lines[-1].get_color())
-
         # >> Plot predicted values
         plt.plot(
             x_pred,
@@ -145,28 +142,25 @@ def plot_rates(
         )
 
     # >> Plot legends
-    fontsize = 'x-small'
-    if n > 6:
-        fontsize = 'xx-small'
-
-    legend = plt.legend(
-        [plt.plot([], [], c=colors[i])[0] for i in range(len(var_name))],
-        var_name,
-        fontsize=fontsize,
-        loc=3,
-        ncol=int(np.ceil(n/8))
-    )
-
-    plt.legend(
-        [
-            plt.plot([], [], c="k", **true_style)[0],
-            plt.plot([], [], c="k", **pred_style)[0]
-        ],
-        ["True", "Pred"],
-        fontsize=fontsize,
-        loc=1
-    )
-    plt.gca().add_artist(legend)
+    if n < 9:
+        fontsize = 'x-small'
+        legend = plt.legend(
+            [plt.plot([], [], c=colors[i])[0] for i in range(len(var_name))],
+            var_name,
+            fontsize=fontsize,
+            loc=3,
+            ncol=int(np.ceil(n/8))
+        )
+        plt.legend(
+            [
+                plt.plot([], [], c="k", **true_style)[0],
+                plt.plot([], [], c="k", **pred_style)[0]
+            ],
+            ["True", "Pred"],
+            fontsize=fontsize,
+            loc=1
+        )
+        plt.gca().add_artist(legend)
 
     # >> Save figure
     fig.savefig(fig_name)

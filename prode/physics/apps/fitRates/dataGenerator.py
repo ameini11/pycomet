@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 
 from prode.utilities import utils
-from prode.physics.general import const
 
 import prode.physics.database as db
 kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'

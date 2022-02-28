@@ -222,7 +222,7 @@ class AdaptiveSolver(object):
         # Set up figure -------------------------------------------------------
         if title is not None:
             ax.set_title(title)
-            (?# ax.set_title(r'$\epsilon_{tol} = {%s}$' % self.noneqController.tol))
+            # ax.set_title(r'$\epsilon_{tol} = {%s}$' % self.noneqController.tol))
         x_label, y_label = labels
         x_scale, y_scale = scales
         # X axis
