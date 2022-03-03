@@ -149,7 +149,14 @@ class IsoThermChemReacNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None, noneq_factor=False):
+    def call(
+        self,
+        x,
+        training=False,
+        mask=None,
+        noneq_factor=False,
+        max_ts=None
+    ):
 
         # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
@@ -171,9 +178,16 @@ class IsoThermChemReacNN(Net):
         x = tf.nest.flatten(x)
 
         # Kernel - Timescales NN ----------------------------------------------
-        y = [ ts(x, training, mask, noneq_factor) for ts in self.timescales ]
+        y = []
+        for i, ts in enumerate(self.timescales):
+            y.append(ts(x, training, mask, noneq_factor))
+            if i == max_ts:
+                break
         if training is False and noneq_factor is True:
             return y if len(y) > 1 else y[-1]
+        # y = [ ts(x, training, mask, noneq_factor) for ts in self.timescales ]
+        # if training is False and noneq_factor is True:
+        #     return y if len(y) > 1 else y[-1]
 
         # Outputs manipulation ------------------------------------------------
         if len(y) > 1:
@@ -197,6 +211,8 @@ class IsoThermChemReacNN(Net):
                         for ys, yf in zip(y_slow, y_fast) ]
                     y[ts+1] = tf_layers.Concatenate()(y_mul) \
                         if len(y_mul) > 1 else y_mul[-1]
+                if ts+1 == max_ts:
+                    break
             return y
         else:
             return y[-1]

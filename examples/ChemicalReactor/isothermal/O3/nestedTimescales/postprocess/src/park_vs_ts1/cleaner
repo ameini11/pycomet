@@ -1,0 +1,7 @@
+#!/bin/bash -i
+
+vars=( components elements species output_* *.pyc *.bak .ipynb_checkpoints )
+
+for v in ${vars[@]}; do
+	find . -name $v -prune -exec rm -rf {} \;
+done
