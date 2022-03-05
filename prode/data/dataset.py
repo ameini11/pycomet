@@ -71,7 +71,7 @@ class DataSet(Data):
             # Data from lists of `numpy.ndarray`
             if isinstance(data, (list,tuple)):
                 self.check_data_consistency(data)
-                return data
+                return tuple(data)
             else:
                 utils.raise_value_err(
                     "'{}' data passed into `{}` has to be a list or "

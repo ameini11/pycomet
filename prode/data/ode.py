@@ -133,29 +133,28 @@ class ODE(Data):
             return None
         if self.from_file:
             # Data from a `.csv` file
-            x, y = self.read_datafile(data)
-            if any(i.size == 0 for i in x):
+            data = self.read_datafile(data)
+            if any(i.size == 0 for i in data[0]):
                 utils.raise_value_err(
                     "No input data (see `columns['x']`) can be extracted "
                     "from file '{}'.".format(os.path.normpath(data))
                 )
-            if any(i.size == 0 for i in y):
+            if any(i.size == 0 for i in data[1]):
                 if obj != 'res':
                     utils.raise_value_err(
                         "No target data (see `columns['y']`) can be extracted "
                         "from file '{}'.".format(os.path.normpath(data))
                     )
-            return x, y
+            return data
         else:
             # Data from lists of `numpy.array`
             if isinstance(data, (list,tuple)):
                 self.check_data_consistency(data)
-                if obj == 'res':
+                if obj == 'res' and len(data) == 1:
                     x = data[0]
                     y = np.zeros((utils.get_cardinality(x),0))
-                    return x, y
-                else:
-                    return data
+                    data = [x, y]
+                return tuple(data)
             else:
                 utils.raise_value_err(
                     "Data passed into `{}` has to be a list or "
@@ -175,7 +174,7 @@ class ODE(Data):
 
     # Handling Residual Loss
     ###########################################################################
-    def res_fn(self, model):
+    def make_residual_function(self, model):
         '''Residual loss function definition.'''
 
         def residual(inputs, training=True):

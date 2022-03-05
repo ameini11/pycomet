@@ -210,7 +210,7 @@ def check_file_extension(file, extension):
 
 def zip_dict_of_lists(d):
     keys = d.keys()
-    return [dict(zip(keys, v)) for v in zip(*(d[k] for k in keys))]
+    return tuple(dict(zip(keys, v)) for v in zip(*(d[k] for k in keys)))
 
 
 def convert_struct_to_tf(x):
@@ -328,9 +328,9 @@ def unpack_x_y_sample_weight_index(data):
         error_msg = (
             "Data is expected to be in format `x`, `(x,)`, "
             "`(x, y)`, `(x, y, sample_weight)`, or "
-            "`(x, y, sample_weight, sample_index)`, found: {}"
-        ).format(data)
-    raise raise_value_err(error_msg)
+            f"`(x, y, sample_weight, sample_index)`, found: {data}"
+        )
+        raise raise_value_err(error_msg)
 
 
 # def apply(func, args=None, kwds=None):

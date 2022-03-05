@@ -261,7 +261,7 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
             for obj in self.model.objectives['train']:
                 x, y = self.dataset[obj][:2]
                 # Get predictions
-                y_pred = self.model.predict_step(x, objective=obj)
+                y_pred = self.model.multi_obj_pred(x, objective=obj)
                 # Evaluate each objective function loss
                 losses[obj] = self.model.compiled_loss[obj](y, y_pred)
         # Evaluate each objective function loss

@@ -94,7 +94,7 @@ class MultiObjData(tf.keras.utils.Sequence):
         for obj in self.objectives:
             # Get true and pred values
             y = self.data[obj][1]
-            y_pred = model.predict_step(
+            y_pred = model.multi_obj_pred(
                 tf.nest.map_structure(
                     lambda d: tf.random.normal((1, d), dtype=K.floatx()),
                     model.input_dim

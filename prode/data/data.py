@@ -69,21 +69,31 @@ class Data(object):
         if not isinstance(self.columns, dict):
             utils.raise_value_err(
                 "`columns` provided in `{}` has to be a `dict` with keys "
-                "['x', 'y']. The corresponding values are doublets "
-                "(start, end) columns (or a list of those if "
+                "['x', 'y', 'sample_weight']. The corresponding values are "
+                "doublets (start, end) columns (or a list of those if "
                 "multi I/O) for extracting input and target data "
                 "from file.".format(self.name)
             )
         elif None in self.columns.values():
             utils.raise_value_err(
-                "In `columns` dictionary, provided in `{}`, both 'x' and "
-                "'y' keys have to be not `None`.".format(self.name)
+                "In `columns` dictionary, provided in `{}`, all the provided "
+                "values have to be not `None`.".format(self.name)
             )
         df = pd.read_csv(file, sep=',', header=self.header)
         df = df.to_numpy(dtype=K.floatx())
         if self.preproc_fn is not None:
             df = self.preproc_fn(df)
-        return [self.read_dataframe(df, self.columns[i]) for i in ['x', 'y']]
+        # Collect data from file
+        data = []
+        for i in ('x', 'y', 'sample_weight'):
+            if i in ('x', 'y') and i not in self.columns.keys():
+                utils.raise_value_err(
+                    f"'{i}' values have not been "
+                    "provided in `columns` dictionary."
+                )
+            if i in self.columns.keys():
+                data.append(self.read_dataframe(df, self.columns[i]))
+        return tuple(data)
 
     def read_dataframe(self, df, col):
         if any(isinstance(i, (list,tuple)) for i in col):
@@ -97,7 +107,7 @@ class Data(object):
         net_dim = list(self.dim.values())
         data_dim = utils.get_struct_shape(data, axis=1)
         for i, IO in enumerate(data_dim):
-            if data_dim[i]:
+            if i <= 2 and data_dim[i]:
                 if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
                     utils.raise_value_err(
                         "Data and network '{}' dimensions not "

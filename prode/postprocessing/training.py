@@ -14,62 +14,88 @@ def plot_loss(
     title='Loss',
     var=['loss','val_loss'],
     fig_name='loss',
-    label=['Training', 'Validation'],
-    smoothed=True,
-    weight=0.9
+    label=['Training', 'Validation']
 ):
     """Loss History plotting."""
     fig = plt.figure()
-
     plt.yscale(scale)
-
-    if smoothed:
-        for i, var_i in enumerate(var):
-            if var_i in history:
-                plt.plot(
-                    history[var_i],
-                    lw=0.5,
-                    alpha=0.4
-                )
-                plt.plot(
-                    smooth(history[var_i].to_numpy(), weight),
-                    lw=1,
-                    label=label[i],
-                    color=plt.gca().lines[-1].get_color()
-                )
-#                 h = history[var_i].to_numpy()
-#                 h = np.array_split(h, np.ceil(len(h)/cv))
-#                 _mean, _std = [], []
-#                 for h_i in h:
-#                     _mean.append(np.tile(np.mean(h_i), len(h_i)))
-#                     _std.append(np.tile(np.std(h_i), len(h_i)))
-#                 _mean, _std = np.concatenate(_mean), np.concatenate(_std)
-#                 plt.plot(
-#                     _mean,
-#                     lw=2,
-#                     label=label[i]
-#                 )
-#                 plt.fill_between(
-#                     np.arange(len(_mean)),
-#                     _mean - _std,
-#                     _mean + _std,
-#                     alpha=0.2,
-#                     color=plt.gca().lines[-1].get_color(),
-#                 )
-    else:
-        for i, var_i in enumerate(var):
-            if var_i in history:
-                plt.plot(
-                    history[var_i],
-                    lw=1,
-                    label=label[i]
-                )
-
+    for i, var_i in enumerate(var):
+        if var_i in history:
+            plt.plot(
+                history[var_i],
+                lw=1,
+                label=label[i]
+            )
     plt.xlabel('Epoch')
     plt.legend()
     plt.title(title + ' History')
     fig.savefig(path + '/' + fig_name + '.pdf')
     plt.close()
+
+
+# def plot_loss(
+#     history=None,
+#     path=None,
+#     scale='log',
+#     title='Loss',
+#     var=['loss','val_loss'],
+#     fig_name='loss',
+#     label=['Training', 'Validation'],
+#     smoothed=True,
+#     weight=0.9
+# ):
+#     """Loss History plotting."""
+#     fig = plt.figure()
+
+#     plt.yscale(scale)
+
+#     if smoothed:
+#         for i, var_i in enumerate(var):
+#             if var_i in history:
+#                 plt.plot(
+#                     history[var_i],
+#                     lw=0.5,
+#                     alpha=0.4
+#                 )
+#                 plt.plot(
+#                     smooth(history[var_i].to_numpy(), weight),
+#                     lw=1,
+#                     label=label[i],
+#                     color=plt.gca().lines[-1].get_color()
+#                 )
+# #                 h = history[var_i].to_numpy()
+# #                 h = np.array_split(h, np.ceil(len(h)/cv))
+# #                 _mean, _std = [], []
+# #                 for h_i in h:
+# #                     _mean.append(np.tile(np.mean(h_i), len(h_i)))
+# #                     _std.append(np.tile(np.std(h_i), len(h_i)))
+# #                 _mean, _std = np.concatenate(_mean), np.concatenate(_std)
+# #                 plt.plot(
+# #                     _mean,
+# #                     lw=2,
+# #                     label=label[i]
+# #                 )
+# #                 plt.fill_between(
+# #                     np.arange(len(_mean)),
+# #                     _mean - _std,
+# #                     _mean + _std,
+# #                     alpha=0.2,
+# #                     color=plt.gca().lines[-1].get_color(),
+# #                 )
+#     else:
+#         for i, var_i in enumerate(var):
+#             if var_i in history:
+#                 plt.plot(
+#                     history[var_i],
+#                     lw=1,
+#                     label=label[i]
+#                 )
+
+#     plt.xlabel('Epoch')
+#     plt.legend()
+#     plt.title(title + ' History')
+#     fig.savefig(path + '/' + fig_name + '.pdf')
+#     plt.close()
 
 
 def plot_composite_loss(
@@ -92,8 +118,8 @@ def plot_composite_loss(
         history=history,
         path=path,
         scale=scale,
-        smoothed=smoothed,
-        weight=weight
+        # smoothed=smoothed,
+        # weight=weight
     )
 
     composite_loss = {'var': [], 'label': []}

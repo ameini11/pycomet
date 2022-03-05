@@ -69,7 +69,7 @@ class Model(object):
             self.net.multi_obj_loss = self.data.multi_obj_loss
             self.net.objectives = self.data.objectives
             if self.data.physics_informed:
-                self.net.residual = self.data.res_fn(self.net)
+                self.net.residual = self.data.make_residual_function(self.net)
 
         # Build the network ---------------------------------------------------
         input_shape = tf.nest.map_structure(
@@ -175,7 +175,8 @@ class Model(object):
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
         # Initializing loss functions
-        self.loss = losses_module.get(loss, axis=axis, reduction=reduction)
+        # self.loss = losses_module.get(loss, axis=axis, reduction=reduction)
+        self.loss = losses_module.get(loss, axis=axis)
 
         # Initializing loss weights
         self.loss_weights = self.get_loss_weights(loss_weights)
@@ -222,9 +223,11 @@ class Model(object):
             self.data.get_num_pts(identifier, verbose)
 
         # Fit the model
+
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(
             self.data.train
         )
+
         self.net.fit(
             x=x,
             y=y,
