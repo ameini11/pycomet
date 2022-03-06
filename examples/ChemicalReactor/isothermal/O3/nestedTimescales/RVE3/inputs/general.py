@@ -38,6 +38,8 @@ flags = {
 # =============================================================================
 physics_informed = True
 
+ode_order = 2
+
 # Input space (limit values)
 input_space = {
     'Ttr':  [8.e3,   1.5e4],        # Tanslational temperature [K]

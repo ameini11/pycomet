@@ -147,19 +147,16 @@ class Net(tf.keras.Model):
 
     @property
     def metrics(self):
-        metrics = []
-        if self._is_compiled:
-            if self.compiled_loss is not None:
-                if isinstance(self.compiled_loss, dict):
-                    for container in self.compiled_loss.values():
-                        metrics += container.metrics
-                else:
-                    metrics += self.compiled_loss.metrics
-            if self.compiled_metrics is not None:
-                metrics += self.compiled_metrics.metrics
-        for l in self._flatten_layers():
-            metrics.extend(l._metrics)
-        return metrics
+        if self.multi_obj_loss:
+            metrics = []
+            if self._is_compiled and self.compiled_loss is not None:
+                for container in self.compiled_loss.values():
+                    metrics += container.metrics[:1]
+            for l in self._flatten_layers():
+                metrics.extend(l._metrics)
+            return metrics
+        else:
+            return super(Net, self).metrics()
 
     # Steps
     ###########################################################################

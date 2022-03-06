@@ -18,7 +18,8 @@ class PhysicalModel(object):
         mixture='MultiComponent',
         thermo='CoupledEnergyModes',
         constVP='V',
-        boxCase='isothermal'
+        boxCase='isothermal',
+        ode_order=1
     ):
         # Initilizing thermophysical models -----------------------------------
         # Species thermo
@@ -44,6 +45,9 @@ class PhysicalModel(object):
             processFlags=processFlags,
             boxCase='isothermal'
         )
+
+        # Order of differentiation
+        self.ode_order = ode_order
 
     # ODEs Residual
     ###########################################################################
@@ -72,18 +76,36 @@ class PhysicalModel(object):
         T, mass = tf.split(tf.gather(ic, [0,1], axis=1), [1,1], axis=1)
 
         # Extract gradients
-        Y, dY = grads
+        if self.ode_order > 1:
+            Y, dY, d2Y = grads
+        else:
+            Y, dY = grads
 
         # Update rates and thermos
         self.chem.update(Y, T, mass)
 
-        # Compute residual (Master Equations)
-        res_k = dY*mass - self.chem.dr(Y, mass)
+        # Compute residuals ---------------------------------------------------
+        res = []
+        # Compute 0-th order residuals:
+        # - Master Equations
+        res.append(
+            dY*mass - self.chem.dr(Y, mass)
+        )
 
-        # Compute mass residual
-        res_m = tf.reduce_sum(dY*mass, axis=1, keepdims=True)
+        # Compute 1-th order residuals:
+        # - Mass conservation
+        res.append(
+            tf.reduce_sum(dY*mass, axis=1, keepdims=True)
+        )
+        # - Master Equations
+        if self.ode_order > 1:
+            res.append(
+                d2Y*mass - self.chem.d2r(Y, dY, mass)
+            )
+        # - Energy conservation
+        # res.append(
+        #     self.chem.dhe(dY)*mass
+        # )
 
-        # Compute energy residual
-        # res_e = self.chem.dhe(dY)*mass
+        return res
 
-        return res_k, res_m #, res_e

@@ -87,6 +87,44 @@ class ChemistrySolver(object):
             dr_ = dr_ + tf.einsum('nij,nj->ni', Kr, tf.math.pow(r_atom, 3))
         return dr_
 
+    def d2r(self, Y, dY, mass):
+        if self.boxCase != 'isothermal':
+            raise NotImplementedError
+        # Get partial densities
+        r = Y * mass
+        dr = dY * mass
+        r_atom = tf.gather(
+            r, self.specieIndices[self.chemModel.atom], axis=1
+        )
+        dr_atom = tf.gather(
+            dr, self.specieIndices[self.chemModel.atom], axis=1
+        )
+        # Get Master Equation matrices
+        Ke, Kd, Kr = self.chemModel.K
+        # Evaluate contributions from each process
+        d2r_ = tf.zeros_like(r, dtype=backend.floatx())
+        if self.processFlags['excit']:
+            # Excitation
+            d2r_ = d2r_ + tf.math.multiply(
+                tf.einsum('nij,nj->ni', Ke, dr), r_atom
+            )
+            d2r_ = d2r_ + tf.math.multiply(
+                tf.einsum('nij,nj->ni', Ke, r), dr_atom
+            )
+        if self.processFlags['diss']:
+            # Dissociation
+            d2r_ = d2r_ + tf.math.multiply(
+                tf.einsum('nij,nj->ni', Kd, dr), r_atom
+            )
+            d2r_ = d2r_ + tf.math.multiply(
+                tf.einsum('nij,nj->ni', Kd, r), dr_atom
+            )
+            # Recombination
+            d2r_ = d2r_ + tf.einsum(
+                'nij,nj->ni', Kr, 3.*tf.math.pow(r_atom, 2)*dr_atom
+            )
+        return d2r_
+
     def dhe(self, dY, dT=0.):
         # Get mass fractions derivative
         dY = {

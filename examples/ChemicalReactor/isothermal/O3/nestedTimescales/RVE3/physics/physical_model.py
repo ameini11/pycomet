@@ -18,7 +18,8 @@ class PhysicalModel(object):
         mixture='MultiComponent',
         thermo='CoupledEnergyModes',
         constVP='V',
-        boxCase='isothermal'
+        boxCase='isothermal',
+        ode_order=1
     ):
         # Initilizing thermophysical models -----------------------------------
         # Species thermo
@@ -44,6 +45,9 @@ class PhysicalModel(object):
             processFlags=processFlags,
             boxCase='isothermal'
         )
+
+        # Order of differentiation
+        self.ode_order = ode_order
 
     # ODEs Residual
     ###########################################################################
@@ -74,20 +78,39 @@ class PhysicalModel(object):
         # Extract gradients
         Y_O2, Y_O = tf.split(grads[0][0], grads[0][0].shape[1], axis=1)
         dY_O2, dY_O = tf.split(grads[1][0], grads[1][0].shape[1], axis=1)
+        if self.ode_order > 1:
+            d2Y_O2, d2Y_O = tf.split(grads[2][0], grads[2][0].shape[1], axis=1)
 
         Y = tf.concat([grads[0][-1], Y_O], axis=1)      # 0-th order derivative
         dY = tf.concat([grads[1][-1], dY_O], axis=1)    # 1-st order derivative
+        if self.ode_order > 1:
+            # 2-nd order derivative
+            d2Y = tf.concat([grads[2][-1], d2Y_O], axis=1)
 
         # Update rates and thermos
         self.chem.update(Y, T, mass)
 
-        # Compute residual (Master Equations)
-        res_k = dY*mass - self.chem.dr(Y, mass)
+        # Compute residuals ---------------------------------------------------
+        res = []
+        # Compute 0-th order residuals:
+        # - Master Equations
+        res.append(
+            dY*mass - self.chem.dr(Y, mass)
+        )
 
-        # Compute mass residual
-        res_m = tf.reduce_sum(dY*mass, axis=1, keepdims=True)
+        # Compute 1-th order residuals:
+        # - Mass conservation
+        res.append(
+            tf.reduce_sum(dY*mass, axis=1, keepdims=True)
+        )
+        # - Master Equations
+        if self.ode_order > 1:
+            res.append(
+                d2Y*mass - self.chem.d2r(Y, dY, mass)
+            )
+        # - Energy conservation
+        # res.append(
+        #     self.chem.dhe(dY)*mass
+        # )
 
-        # Compute energy residual
-        # res_e = self.chem.dhe(dY)*mass
-
-        return res_k, res_m #, res_e
+        return res
