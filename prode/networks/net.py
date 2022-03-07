@@ -151,7 +151,7 @@ class Net(tf.keras.Model):
             metrics = []
             if self._is_compiled and self.compiled_loss is not None:
                 for container in self.compiled_loss.values():
-                    metrics += container.metrics[:1]
+                    metrics += [container._loss_metric]
             for l in self._flatten_layers():
                 metrics.extend(l._metrics)
             return metrics
