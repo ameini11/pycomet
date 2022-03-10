@@ -9,8 +9,8 @@ from prode.utilities import utils
 
 def get(
     loss='mse',
-    axis=None,
-    reduction='sum_over_batch_size'
+    axis=0,
+    reduction='auto'
 ):
     # Check `axis` variable
     if axis not in {0, -1, None}:
@@ -31,7 +31,7 @@ def get(
     )
 
 
-def get_loss_fn(identifier=None, axis=-1, reduction=None):
+def get_loss_fn(identifier=None, axis=0, reduction='auto'):
     """Get Keras callable/readable object for the specific loss function
     identifier.
 

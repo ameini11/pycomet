@@ -28,6 +28,8 @@ decay = ["exponential", decay_steps, decay_rate]
 
 # Loss & Metrics
 # =============================================================================
+axis = 0 # -1 0 None
+reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
 loss = {
     'ics': 'mse',
     'pts': 'mse',
