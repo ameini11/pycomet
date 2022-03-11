@@ -450,8 +450,6 @@ class DataGenerator(object):
         else:
             return data_i
 
-        return data_i
-
     def plot_inp_space(self, path):
         lbl = [ r'$T_0$', r'$P_0$', r'${X_O}_2$' ]
         X_tr = self.X_train[range(0,len(self.X_train),2)]

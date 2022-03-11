@@ -108,7 +108,7 @@ class Net(tf.keras.Model):
                     loss_weights[obj] if loss_weights else None
                 )
                 self.compiled_loss[obj]._loss_metric = metrics_mod.Mean(
-                    name=obj + '_loss'
+                    name=obj + '_loss', dtype=K.floatx()
                 )
             # Build metrics container
             if metrics is not None:

@@ -21,7 +21,7 @@ model_name = 'NonEqLevel_MMOpNN'
 
 dim = {
     "inp": [2+27, 1],
-    "out": [1, 3, 3, 3, 3]
+    "out": [1, 3, 9]
 }
 
 # Execution Flags
@@ -36,27 +36,45 @@ flags = {
 
 # Physical model
 # =============================================================================
-physics_informed = True
+physics_informed = False
 
 # Input space (limit values)
+# input_space = {
+#     'Ttr':  [8.e3,   1.5e4],        # Tanslational temperature [K]
+#     'T0':   [1.e3,   8.e3],         # Initial temperature [K]
+#     'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
+#     'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
+# }
+
 input_space = {
-    'Ttr':  [8.e3,   1.5e4],        # Tanslational temperature [K]
-    'T0':   [1.e3,   8.e3],         # Initial temperature [K]
-    'P0':   [1.e3,   1.e4],         # Initial pressure [Pa]
-    'XO2':  [0.05e0, 1.e0]          # Initial O2 mole fraction
+    'Ttr':  [1.2e4, 1.2e4],         # Tanslational temperature [K]
+    'T0':   [3.e3,  3.e3],          # Initial temperature [K]
+    'P0':   [4.5e3, 4.5e3],         # Initial pressure [Pa]
+    'XO2':  [0.4,   0.4]            # Initial O2 mole fraction
 }
 
 # Time (limit values)
 time_limit = [1.e-14, 1.e-3]
 
-# Isothermal Chemical Reactor -------------------------------------------------
-trained_model = './trained_model/'
-
-ts_to_grouping = {
-    'TS0': 'RVE1',
-    'TS1': 'RVE3',
-    'TS2': 'RVE9',
-    'TS3': 'RVE27'
+# Timescales thermochemistry --------------------------------------------------
+groups_graph = {
+    0: {
+        0: {
+            0: [0,1,2],
+            1: [3,4,5],
+            2: [6,7,8]
+        },
+        1: {
+            3: [9,10,11],
+            4: [12,13,14],
+            5: [15,16,17]
+        },
+        2: {
+            6: [18,19,20],
+            7: [21,22,23],
+            8: [24,25,26]
+        }
+    }
 }
 
 # Thermochemistry -------------------------------------------------------------

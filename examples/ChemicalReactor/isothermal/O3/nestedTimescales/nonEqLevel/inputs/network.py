@@ -21,30 +21,32 @@ from prode.utilities.model import layers as pro_layers
 
 # Architecture properties
 # =============================================================================
-architecture = 'MMOpNN'
+architecture = 'NoneqControllerNN'
 
 # TimeScaleNNs characterization -----------------------------------------------
-names = ['NEQ1', 'NEQ2', 'NEQ3_1', 'NEQ3_2', 'NEQ3_3']
+names = ['NEQ1', 'NEQ2', 'NEQ3']
 
 opnn_dim = {
-    names[i]: {
+    names[0]: {
         "inp": inp_gen.dim['inp'],
-        "out": d
-    } for i, d in enumerate(inp_gen.dim['out'])
+        "out": 1
+    },
+    names[1]: {
+        "inp": inp_gen.dim['inp'],
+        "out": 3
+    },
+    names[2]: {
+        "inp": inp_gen.dim['inp'],
+        "out": [3]*3
+    }
 }
 
 layer_size = {
-    names[0]: {
-        "branch": [2+27, 32, 32, 8],
-        "trunk":  [1, 32, 32, 8]
-    }
-}
-layer_size.update({
     name: {
-        "branch": [2+27, 32, 32, 16],
-        "trunk":  [1, 32, 32, 16]
-    } for name in names[1:]
-})
+        "branch": [2+27, 32, 32, 32],
+        "trunk":  [1, 64, 64, 32]
+    } for name in names
+}
 
 activation = {
     name: {
@@ -55,7 +57,7 @@ activation = {
 
 kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
 
-block = 'FFBlock' # 'FFBlock' 'ResPIBlock'
+block = 'ResPIBlock' # 'FFBlock' 'ResPIBlock'
 block_linear_out = False
 
 opnn_end_scale = 'dense'
@@ -67,7 +69,7 @@ cross_encoder = {
     "trunk": False
 }
 
-augmented = True
+augmented = False
 
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
@@ -104,3 +106,6 @@ input_fn = {
     #     base='e', slope=1.e7, offset=1.e-15, name='trunk_fn', trainable=False
     # )
 }
+
+# OpNNs -----------------------------------------------------------------------
+opnn_out_trans = tf_layers.Lambda(tf.math.exp, name='output_fn')

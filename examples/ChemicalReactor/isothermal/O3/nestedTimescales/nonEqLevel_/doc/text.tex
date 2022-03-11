@@ -1,0 +1,116 @@
+\documentclass{article}
+\usepackage[letterpaper, margin=1in]{geometry}
+\usepackage[parfill]{parskip}
+\usepackage{hyperref}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,commath,dsfont}
+\usepackage{enumitem}
+\usepackage{framed}
+\usepackage{xspace}
+\usepackage{microtype}
+\usepackage{float}
+\usepackage[numbers]{natbib}
+\usepackage{cleveref}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{mathtools}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{nicefrac}
+\usepackage{tikz}
+\usepackage{cancel}
+
+\usepackage{titlesec}
+\titleformat*{\section}{\large\bfseries}
+\titleformat*{\subsection}{\normalsize\bfseries}
+\titleformat*{\subsubsection}{\large\bfseries}
+
+\title{On the equivalence between Multi-Nested Timescales DeepONet and Maximum Entropy Principle}
+\author{\large Zanardi Ivan}
+
+
+\begin{document}
+	
+	\maketitle
+	A linear form for the distribution function, which results in a thermalized local Boltzmann distribution within individual bins, has been employed. This function is defined as follows
+	\begin{equation*}
+		\mathcal{F}_b\left(\epsilon_i\right):\qquad\log\left(\frac{g_i}{n_i}\right)=\alpha_b+\beta_b\epsilon_i
+		\qquad\forall\quad i\in\mathcal{I}_b
+	\end{equation*}
+	where
+	\begin{align}
+		\alpha_b&=\log\left(\frac{Q_b}{n_b}\right)\label{eq:alpha}\\
+		\beta_b&=\frac{1}{k_BT_b}\nonumber
+	\end{align}
+	For now, let assume $T_b=T$.
+	
+	\section{Timescale 1}
+	The mass fraction of group $\mathcal{I}_P\in\mathcal{I}$ will assume the following formulation
+	\begin{equation*}
+		Y_P=\frac{\exp(-x_P)Q_P}{\widetilde{Q}}Y_{O_2}\qquad\forall\quad\mathcal{I}_P\in\mathcal{I}
+	\end{equation*}
+	where $x_P$ is the single output of the DeepONet for \textit{Timescale 1}.\\
+	The following partition functions can also be defined
+	\begin{equation*}
+		\widetilde{Q}=\sum_{\mathcal{I}_P\in \mathcal{I}} \exp(-x_P)Q_P
+		\quad,\quad
+		Q=\sum_{\mathcal{I}_P\in \mathcal{I}} Q_P
+	\end{equation*}
+	and
+	\begin{equation*}
+		Q_P=\sum_{i\in\mathcal{I}_P}q_i=\sum_{i\in\mathcal{I}_P}g_eg_i\exp\left(-\frac{\epsilon_i}{k_BT}\right)
+		\qquad\forall\quad\mathcal{I}_P\in\mathcal{I}
+	\end{equation*}
+	The number density of group $\mathcal{I}_P\in\mathcal{I}$ can be expressed as follows
+	\begin{align}\label{eq:n_P}
+		n_P&=Y_P\frac{\rho}{m}\nonumber\\
+		&=\frac{\exp(-x_P)Q_P}{\widetilde{Q}}Y_{O_2}\frac{\rho}{m}\nonumber\\
+		&=\frac{\exp(-x_P)Q_P}{\widetilde{Q}}n_{O_2}
+	\end{align}
+	Substituting Eq. \eqref{eq:n_P} into Eq. \eqref{eq:alpha}, we obtain
+	\begin{align*}
+		\alpha_P&=\log\left(\frac{Q_P}{n_P}\right)\\
+		&=\log\left(\frac{\cancel{Q_P}}{\dfrac{\exp(-x_P)\cancel{Q_P}}{\widetilde{Q}}n_{O_2}}\right)\\
+		&=\log\left(\frac{\widetilde{Q}}{\exp(-x_P)}\frac{1}{n_{O_2}}\right)\\
+		&=\log\left(\frac{1}{n_{O_2}}\right)+\log\left(\frac{\widetilde{Q}}{\exp(-x_P)}\right)\\
+		&=\log\left(\frac{1}{n_{O_2}}\right)+\log\left(\widetilde{Q}\right)+x_P\\
+		&=\log\left(\frac{\widetilde{Q}}{n_{O_2}}\right)+x_P
+	\end{align*}
+	where $n_{O_2}$ is information coming from the \textit{Timescale 0}.
+
+	\section{Timescale 2}
+	The mass fraction of group $\mathcal{I}_S\in\mathcal{I}_P$ will assume the following formulation
+	\begin{equation*}
+		Y_{S_P}=\frac{\exp(-x_{S_P})Q_{S_P}}{\widetilde{Q}_P}Y_P\qquad\forall\quad\mathcal{I}_S\in \mathcal{I}_P
+	\end{equation*}
+	where $x_{S_P}$ is the single output of the DeepONet for \textit{Timescale 2}.\\
+	The following partition functions can also be defined
+	\begin{equation*}
+		\widetilde{Q}_P=\sum_{{I}_S\in\mathcal{I}_P} \exp(-x_{S_P})Q_{S_P}
+		\quad,\quad
+		Q_P=\sum_{{I}_S\in\mathcal{I}_P}Q_{S_P}
+		\qquad
+		\forall\quad\mathcal{I}_P\in \mathcal{I}
+	\end{equation*}
+	and
+	\begin{equation*}
+		Q_{S_P}=\sum_{i\in\mathcal{I}_S}q_i=\sum_{i\in\mathcal{I}_S}g_eg_i\exp\left(-\frac{\epsilon_i}{k_BT}\right)
+		\qquad\forall\quad\mathcal{I}_S\in\mathcal{I}_P
+	\end{equation*}
+	The number density of group $\mathcal{I}_S\in\mathcal{I}_P$ can be expressed as follows
+	\begin{align}\label{eq:n_{S_P}}
+		n_{S_P}&=Y_{S_P}\frac{\rho}{m}\nonumber\\
+		&=\frac{\exp(-x_{S_P})Q_{S_P}}{\widetilde{Q}_P}Y_P\frac{\rho}{m}\nonumber\\
+		&=\frac{\exp(-x_{S_P})Q_{S_P}}{\widetilde{Q}_P}n_P
+	\end{align}
+	Substituting Eq. \eqref{eq:n_{S_P}} into Eq. \eqref{eq:alpha}, we obtain
+	\begin{align*}
+		\alpha_{S_P}&=\log\left(\frac{Q_{S_P}}{n_{S_P}}\right)\\
+		&=\log\left(\frac{\cancel{Q_{S_P}}}{\dfrac{\exp(-x_{S_P})\cancel{Q_{S_P}}}{\widetilde{Q}_P}n_P}\right)\\
+		&=\log\left(\frac{\widetilde{Q}_P}{\exp(-x_{S_P})}\frac{1}{n_P}\right)\\
+		&=\log\left(\frac{1}{n_P}\right)+\log\left(\frac{\widetilde{Q}_P}{\exp(-x_{S_P})}\right)\\
+		&=\alpha_P-\log\left(Q_P\right)+\log\left(\widetilde{Q}_P\right)+x_{S_P}\\
+		&=\alpha_P+\log\left(\frac{\widetilde{Q}_P}{Q_P}\right)+x_{S_P}
+	\end{align*}
+
+\end{document}

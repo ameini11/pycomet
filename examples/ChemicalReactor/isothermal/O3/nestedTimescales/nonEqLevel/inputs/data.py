@@ -17,7 +17,7 @@
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = True
+from_file = False
 
 # *** From file
 file = {
@@ -29,12 +29,12 @@ file = {
         'ics': './data/valid/ics.csv',
         'pts': './data/train/pts.csv'
     },
-    'test': './data/test/cases/'
+    'test': './data/test/ics.csv'
 }
 
 columns = {
     'x': [[0,29],[29,30]],
-    'y': [[30,31],[31,34],[34,37],[37,40],[40,43]]
+    'y': [[30,31],[31,34],[34,43]]
 }
 
 header = 0
@@ -42,21 +42,21 @@ header = 0
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 2048,            # Number of training scenarios
-    'pts': 320               # Number of total anchor pts for each scenario
+    'ics': 5,            # Number of training scenarios
+    'pts': 160               # Number of total anchor pts for each scenario
 }
 validation_split = 0.2      # % of Validation pts
 distribution = 'uniform'    # Training pts distribution
 
 # Testing data
-test_cases = 50             # Number of testing cases
+test_cases = 1             # Number of testing cases
 test_training = True        # Test training cases
 
 # Batching --------------------------------------------------------------------
 batch_size = {
     'train': {
         'ics': 128,
-        'pts': 1024
+        'pts': 512
     },
     'valid': {
         'ics': 256,

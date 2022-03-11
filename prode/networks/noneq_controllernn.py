@@ -8,8 +8,8 @@ from prode.networks.net import Net
 from tensorflow.python.keras import backend as K
 
 
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='NoneqController')
-class NoneqController(Net):
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='NoneqControllerNN')
+class NoneqControllerNN(Net):
     """Multi-Physics Multi-Scale Deep Operator neural network."""
 
     # Initialization
@@ -22,6 +22,8 @@ class NoneqController(Net):
         layer_size,
         activation,
         kernel_initializer,
+        opnn_inp_trans=None,
+        opnn_out_trans=None,
         opnn_end_scale='bias',
         stacked=True,
         regularization=None,
@@ -33,11 +35,11 @@ class NoneqController(Net):
         cross_encoder=False,
         cross_encoder_layer_size=None,
         augmented=False,
-        name='noneq_controller',
+        name='noneq_controllernn',
         *args,
         **kwargs
     ):
-        super(NoneqController, self).__init__(
+        super(NoneqControllerNN, self).__init__(
             dim=dim,
             block=block,
             block_linear_out=block_linear_out,
@@ -48,19 +50,17 @@ class NoneqController(Net):
 
         self.sub_nets = ("branch", "trunk")
 
-        self.names = names
+        self.names = tuple(tf.nest.flatten(names))
         self.num_mmopnns = len(self.names)
 
         ### Dimensionality ----------------------------------------------------
-        # Outputs
-        if not isinstance(self.out_dim, (list,tuple)):
-            self.out_dim = [self.out_dim]
-
         # MMOpNNs
-        self.mmopnn_dim = [{
-            "inp": self.inp_dim,
-            "out": self.out_dim[i]
-        } for name in self.names]
+        self.mmopnn_dim = {
+            name: {
+                "inp": self.inp_dim,
+                "out": tf.nest.flatten(self.out_dim)[i]
+            } for i, name in enumerate(self.names)
+        }
 
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size = utils.value_to_dict(layer_size, self.names)
@@ -78,16 +78,20 @@ class NoneqController(Net):
 
         ### TimeScaleNNs Initialization ---------------------------------------
         self.opnn_dim = opnn_dim
+        self.opnn_inp_trans = utils.value_to_dict(opnn_inp_trans, self.names)
+        self.opnn_out_trans = utils.value_to_dict(opnn_out_trans, self.names)
         self.opnn_end_scale = utils.value_to_dict(opnn_end_scale, self.names)
         self.stacked = stacked
 
-        self.mmopnns = [
-            MMOpNNController(
+        self.mmopnns = {
+            name: MMOpNNController(
                 dim=self.mmopnn_dim[name],
                 opnn_dim=self.opnn_dim[name],
                 layer_size=self.layer_size[name],
                 activation=self.activation[name],
                 kernel_initializer=self.kernel_initializer[name],
+                opnn_inp_trans=self.opnn_inp_trans[name],
+                opnn_out_trans=self.opnn_out_trans[name],
                 opnn_end_scale=self.opnn_end_scale[name],
                 stacked=self.stacked,
                 regularization=self.regularization,
@@ -101,7 +105,7 @@ class NoneqController(Net):
                 augmented=self.augmented,
                 name=name
             ) for i, name in enumerate(self.names)
-        ]
+        }
 
 
     # Configuration update
@@ -114,6 +118,8 @@ class NoneqController(Net):
             'layer_size': self.layer_size,
             'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
+            'opnn_inp_trans': self.opnn_inp_trans,
+            'opnn_out_trans': self.opnn_out_trans,
             'opnn_end_scale': self.opnn_end_scale,
             'regularization': self.regularization,
             'stacked': self.stacked,
@@ -124,7 +130,7 @@ class NoneqController(Net):
             'cross_encoder_layer_size': self.cross_encoder_layer_size,
             'augmented': self.augmented
         }
-        base_config = super(NoneqController, self).get_config()
+        base_config = super(NoneqControllerNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
@@ -133,7 +139,7 @@ class NoneqController(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None, tol=0.1):
+    def call(self, x, training=False, mask=None, tol=None):
 
         # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
@@ -155,12 +161,12 @@ class NoneqController(Net):
         x = tf.nest.flatten(x)
 
         # MMOpNNs
-        if training:
-            y = [ mmopnn(x) for mmopnn in self.mmopnns ]
+        if training or tol is None:
+            y = [ self.mmopnns[name](x) for name in self.names ]
         else:
             y = []
             n = utils.get_cardinality(x)
-            for i, mmopnn in enumerate(self.mmopnns):
+            for i, (name, mmopnn) in enumerate(self.mmopnns.items()):
                 if i == 0:
                     y.append(mmopnn(x))
                 else:
@@ -172,9 +178,11 @@ class NoneqController(Net):
                         y_i = []
                         y_iminus1 = tf.split(y[-1], y[-1].shape[1], axis=1)
                         for j, y_j in enumerate(y_iminus1):
+                            # OpNN name
+                            name = mmopnn.names[j]
                             # Create a dummy `zeros` tensor
                             y_ij = tf.zeros(
-                                (n, mmopnn.opnns[j].out_dim),
+                                (n, mmopnn.opnns[name].out_dim),
                                 dtype=K.floatx()
                             )
                             # If any values from previuos timescale is greater
@@ -188,10 +196,13 @@ class NoneqController(Net):
                                 )
                                 # Update the dummy `zeros` tensor with the
                                 # actual evaluation of the DeepONet `j`
-                                y_ij = tf.scatter_nd(
-                                    idx,
-                                    mmopnn.opnns[j](tf.gather(x, idx, axis=0)),
-                                    y_ij
+                                x_j = tf.nest.map_structure(
+                                    lambda x: tf.gather(x, idx, axis=0), x
+                                )
+                                y_ij = tf.tensor_scatter_nd_update(
+                                    y_ij,
+                                    tf.expand_dims(idx, 1),
+                                    mmopnn.opnns[name](x_j)
                                 )
                             # Append output DeepONet `j` for the current
                             # timescale `i` 
@@ -204,8 +215,9 @@ class NoneqController(Net):
         return y
 
 
-
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='MMOpNNControllerler')
+@tf.keras.utils.register_keras_serializable(
+    package='PrODE', name='MMOpNNController'
+)
 class MMOpNNController(Net):
     """Multi-Physics Multi-Scale Deep Operator neural network."""
 
@@ -219,6 +231,8 @@ class MMOpNNController(Net):
         layer_size=None,
         activation=None,
         kernel_initializer=None,
+        opnn_inp_trans=None,
+        opnn_out_trans=None,
         opnn_end_scale='bias',
         stacked=True,
         regularization=None,
@@ -243,6 +257,31 @@ class MMOpNNController(Net):
             **kwargs
         )
 
+        ### Dimensionality ----------------------------------------------------
+        # Flatten output dimension
+        opnn_dim["out"] = tf.nest.flatten(opnn_dim["out"])
+
+        # Names
+        if names == None:
+            self.names = tuple([
+                f'opnn_{o+1}' for o in range(len(opnn_dim["out"]))
+            ])
+        else:
+            if len(names) <= 1:
+                utils.raise_value_err(
+                    "The number of `names` passed into `{}` has to be "
+                    "grater than 1 (multiple DeepONets).".format(self.name))
+            else:
+                self.names = names
+
+        # OpNNs
+        self.opnn_dim = {
+            name: {
+                "inp": opnn_dim["inp"],
+                "out": opnn_dim["out"][i]
+            } for i, name in enumerate(self.names)
+        }
+
         ### Hyperparameters Initialization ------------------------------------
         self.layer_size = layer_size
         self.activation = activation
@@ -253,27 +292,19 @@ class MMOpNNController(Net):
         self.weight_norm = weight_norm
 
         ### OpNNs Initialization ----------------------------------------------
-        if names == None:
-            self.names = [f'output_{o+1}' for o in range(len(self.out_dim))]
-        else:
-            if len(names) <= 1:
-                utils.raise_value_err(
-                    "The number of `names` passed into `{}` has to be "
-                    "grater than 1 (multiple DeepONets).".format(self.name))
-            else:
-                self.names = names
-        self.opnn_dim = opnn_dim
+        self.opnn_inp_trans = opnn_inp_trans
+        self.opnn_out_trans = opnn_out_trans
         self.opnn_end_scale = opnn_end_scale
         self.stacked = stacked
         self.cross_encoder = cross_encoder
         self.cross_encoder_layer_size = cross_encoder_layer_size
         self.augmented = augmented
 
-        self.opnns = [
-            OpNN(
+        self.opnns = {
+            name: OpNN(
                 self.opnn_dim[name],
-                self.layer_size[name],
-                self.activation[name],
+                self.layer_size,
+                self.activation,
                 self.kernel_initializer,
                 regularization=self.regularization,
                 end_scale=self.opnn_end_scale,
@@ -286,29 +317,16 @@ class MMOpNNController(Net):
                 cross_encoder=self.cross_encoder,
                 cross_encoder_layer_size=self.cross_encoder_layer_size,
                 augmented=self.augmented,
-                name='opnn_'+name
+                name=name
             ) for name in self.names
-        ]
+        }
 
         # Apply I/O Transformation
-        if self.opnn_inp_trans:
-            if not isinstance(self.opnn_inp_trans, dict):
-                utils.raise_value_err(
-                    "`opnn_inp_trans` passed into `{}` has to be a `dict` in "
-                    "which a specific input transform function is defined "
-                    "for each DeepONet: {'name': fun}".format(self.name)
-                )
-            for i, (name, fun) in self.opnn_inp_trans.items():
-                self.opnns[i].inp_trans = fun
-        if self.opnn_out_trans:
-            if not isinstance(self.opnn_out_trans, dict):
-                utils.raise_value_err(
-                    "`opnn_out_trans` passed into `{}` has to be a `dict` in "
-                    "which a specific output transform function is defined "
-                    "for each DeepONet: {'name': fun}".format(self.name)
-                )
-            for i, (name, fun) in self.opnn_out_trans.items():
-                self.opnns[i].out_trans = fun
+        for name, opnn in self.opnns.items():
+            if self.opnn_inp_trans is not None:
+                opnn.inp_trans = self.opnn_inp_trans
+            if self.opnn_out_trans is not None:
+                opnn.out_trans = self.opnn_out_trans
 
     # Configuration update
     ###########################################################################
@@ -319,6 +337,8 @@ class MMOpNNController(Net):
             'layer_size': self.layer_size,
             'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
+            'opnn_inp_trans': self.opnn_inp_trans,
+            'opnn_out_trans': self.opnn_out_trans,
             'opnn_end_scale': self.opnn_end_scale,
             'regularization': self.regularization,
             'stacked': self.stacked,
@@ -346,10 +366,9 @@ class MMOpNNController(Net):
         opnn_index=None
     ):
         # OpNNs
-        G_uy = [ g_uy(x) for g_uy in self.opnns ]
+        G_uy = [ self.opnns[name](x) for name in self.names ]
 
         # Concatenate if single output or if final scaling is applied
-        if not isinstance(self.out_dim, (list,tuple)):
-            G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
+        G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
 
         return G_uy

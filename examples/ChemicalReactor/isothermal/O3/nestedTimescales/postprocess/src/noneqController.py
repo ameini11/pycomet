@@ -1,9 +1,9 @@
-# import copy
+import copy
 import numpy as np
 import tensorflow as tf
 
 from prode.physics.general import const
-# from prode.physics.thermochemistry import specie as specieMdl
+from prode.physics.thermochemistry import specie as specieMdl
 
 
 class NoneqController(object):
@@ -12,18 +12,22 @@ class NoneqController(object):
     ###########################################################################
     def __init__(
         self,
-        species_thermos,
+        species,
         ts_fast_conn,
+        grouping_list=['RVE1', 'RVE3', 'RVE9', 'RVE27'],
         mep_order=0,
         norm_order=2,
         mean=True,
         tol=0.1
     ):
-        # Get species thermodynamics
-        self.species_thermos = species_thermos
+        self.grouping_list = grouping_list
+        self.species = species
 
         # Groups connectivity between each timescale to the fastest one
         self.ts_fast_conn = ts_fast_conn
+
+        # Get species thermodynamics
+        self.species_thermos = self.get_species_thermos()
 
         # Evaluate noneq. distance
         self.norm_order = norm_order
@@ -31,43 +35,26 @@ class NoneqController(object):
         self.mean = mean
         self.tol = tol
 
-    # # Initialization
-    # ###########################################################################
-    # def __init__(
-    #     self,
-    #     species_thermos,
-    #     ts_fast_conn,
-    #     species
-    # ):
-    #     self.grouping_list = grouping_list
-    #     self.species = species
-
-    #     # Groups connectivity between each timescale to the fastest one
-    #     self.ts_fast_conn = ts_fast_conn
-
-    #     # Get species thermodynamics
-    #     self.species_thermos = self.get_species_thermos()
-
-    # # Species thermodynamics
-    # ###########################################################################
-    # def get_species_thermos(
-    #     self
-    # ):
-    #     species_thermos = []
-    #     for grouping in self.grouping_list:
-    #         # Update O2 with the proper grouping strategy
-    #         sp = copy.deepcopy(self.species)
-    #         sp['O2']['rovib']['grouping'] = grouping
-    #         # Initialize species thermodynamics
-    #         spTh = {
-    #             name: specieMdl.specieThermos.SpecieThermos(
-    #                 name,
-    #                 info
-    #             ) for name, info in sp.items()
-    #         }
-    #         # Add species thermodynamics to the corresponding timescale
-    #         species_thermos.append(spTh)
-    #     return species_thermos
+    # Species thermodynamics
+    ###########################################################################
+    def get_species_thermos(
+        self
+    ):
+        species_thermos = []
+        for grouping in self.grouping_list:
+            # Update O2 with the proper grouping strategy
+            sp = copy.deepcopy(self.species)
+            sp['O2']['rovib']['grouping'] = grouping
+            # Initialize species thermodynamics
+            spTh = {
+                name: specieMdl.specieThermos.SpecieThermos(
+                    name,
+                    info
+                ) for name, info in sp.items()
+            }
+            # Add species thermodynamics to the corresponding timescale
+            species_thermos.append(spTh)
+        return species_thermos
 
     # Differential MEP reconstruction Norm
     ###########################################################################
