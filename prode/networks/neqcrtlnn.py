@@ -35,7 +35,7 @@ class NoneqControllerNN(Net):
         cross_encoder=False,
         cross_encoder_layer_size=None,
         augmented=False,
-        name='noneq_controllernn',
+        name='neqcrtlnn',
         *args,
         **kwargs
     ):
