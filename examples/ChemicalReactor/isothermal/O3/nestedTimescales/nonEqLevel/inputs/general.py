@@ -47,10 +47,10 @@ physics_informed = False
 # }
 
 input_space = {
-    'Ttr':  [1.2e4, 1.2e4],         # Tanslational temperature [K]
-    'T0':   [3.e3,  3.e3],          # Initial temperature [K]
-    'P0':   [4.5e3, 4.5e3],         # Initial pressure [Pa]
-    'XO2':  [0.4,   0.4]            # Initial O2 mole fraction
+    'Ttr':  [1.22e4, 1.22e4],         # Tanslational temperature [K]
+    'T0':   [2.9e3,  2.9e3],          # Initial temperature [K]
+    'P0':   [4.6e3, 4.6e3],         # Initial pressure [Pa]
+    'XO2':  [0.38,   0.38]            # Initial O2 mole fraction
 }
 
 # Time (limit values)

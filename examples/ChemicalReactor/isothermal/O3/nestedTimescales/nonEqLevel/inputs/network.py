@@ -43,8 +43,8 @@ opnn_dim = {
 
 layer_size = {
     name: {
-        "branch": [2+27, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
+        "branch": [2+27, 32, 32, 16],
+        "trunk":  [1, 64, 64, 16]
     } for name in names
 }
 
@@ -79,8 +79,8 @@ batch_norm = {
 
 regularization = {
     'name':         'l1+l2',                                      # 'fine_tuning'
-    'l1':           1.e-4,
-    'l2':           1.e-4,
+    'l1':           1.e-3,
+    'l2':           1.e-3,
     'weights_path': './saving/'+inp_gen.model_name+'_weights.h5'  # For `FineTuningRegularizer`
 }
 

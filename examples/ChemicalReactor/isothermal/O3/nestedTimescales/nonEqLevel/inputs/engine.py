@@ -18,22 +18,22 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 100
+epochs = 30000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 512*200
+decay_steps = 512*300
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
 # Loss & Metrics
 # =============================================================================
-axis = 0 # -1 0 None
+axis = None # -1 0 None
 reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
 loss = {
-    'ics': 'malpe',
-    'pts': 'malpe'
+    'ics': 'mse',
+    'pts': 'mse'
 }
 
 # Callbacks

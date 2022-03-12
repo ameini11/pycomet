@@ -42,7 +42,7 @@ header = 0
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 5,            # Number of training scenarios
+    'ics': 10,            # Number of training scenarios
     'pts': 160               # Number of total anchor pts for each scenario
 }
 validation_split = 0.2      # % of Validation pts
@@ -55,11 +55,11 @@ test_training = True        # Test training cases
 # Batching --------------------------------------------------------------------
 batch_size = {
     'train': {
-        'ics': 128,
-        'pts': 512
+        'ics': 16,
+        'pts': 64
     },
     'valid': {
-        'ics': 256,
-        'pts': 256
+        'ics': 16,
+        'pts': 64
     }
 }
