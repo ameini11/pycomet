@@ -5,6 +5,7 @@ from prode.utilities.model import layers
 from prode.utilities import utils
 from prode.networks.opnn import OpNN
 from prode.networks.net import Net
+from tensorflow.python.keras import backend as K
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='TimeScaleNN')
