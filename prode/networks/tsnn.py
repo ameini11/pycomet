@@ -144,8 +144,12 @@ class TimeScaleNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None, noneq_factor=False):
-
+    def call(
+        self,
+        x,
+        training=False,
+        neq_mask=None
+    ):
         # Inputs manipulation -------------------------------------------------
         # Extract inputs
         ic, t = x
@@ -176,12 +180,42 @@ class TimeScaleNN(Net):
         # Recompose ICs
         ic = tf_layers.Concatenate()([T_norm, rho, Y])
 
-        # Kernel - OpNNs ------------------------------------------------------
-        y = [ g_uy([ic, t], training, mask) for g_uy in self.opnns ]
+        # Recompose inputs
+        x = [ic, t]
 
-        # Equilibrium layer ---------------------------------------------------
-        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-        if training is False and noneq_factor is True:
-            return y
+        # Kernel - Timescales NN ----------------------------------------------
+        if training and neq_mask is None:
+            y = [ opnn(x, training=training) for opnn in self.opnns ]
         else:
-            return self.equilibrium([y, T, rho])
+            y = []
+            # Get number of input data
+            n = utils.get_cardinality(x)
+            # Split `neq_mask` columnwise and loop over each column
+            neq_mask = tf.split(neq_mask, neq_mask.shape[1], axis=1)
+            for i, mask_i in enumerate(neq_mask):
+                # Create a dummy `zeros` tensor
+                y_i = tf.zeros((n, self.out_dim[i]), dtype=K.floatx())
+                # If any values of `mask_i` is `True`, evaluate the specific
+                # data points
+                if any(mask_i):
+                    # Get indices for the actual data to be evaluated
+                    idx = tf.reshape(tf.where(mask_i)[:,0], shape=[-1])
+                    # Extract inputs given specific indices
+                    x_i = tf.nest.map_structure(
+                        lambda x: tf.gather(x, idx, axis=0), x
+                    )
+                    # Update the dummy `zeros` tensor with the actual
+                    # evaluation of the DeepONet `i`
+                    y_i = tf.tensor_scatter_nd_update(
+                        y_i,
+                        tf.expand_dims(idx, 1),
+                        self.opnns[i](x_i, training=training)
+                    )
+                y.append(y_i)
+
+        # Outputs manipulation ------------------------------------------------
+        # Equilibrium layer
+        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        y = self.equilibrium([y, T, rho])
+
+        return y

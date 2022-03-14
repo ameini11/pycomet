@@ -8,8 +8,8 @@ from prode.networks.net import Net
 from tensorflow.python.keras import backend as K
 
 
-@tf.keras.utils.register_keras_serializable(package='PrODE', name='NoneqControllerNN')
-class NoneqControllerNN(Net):
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='NeqCtrlNN')
+class NeqCtrlNN(Net):
     """Multi-Physics Multi-Scale Deep Operator neural network."""
 
     # Initialization
@@ -39,7 +39,7 @@ class NoneqControllerNN(Net):
         *args,
         **kwargs
     ):
-        super(NoneqControllerNN, self).__init__(
+        super(NeqCtrlNN, self).__init__(
             dim=dim,
             block=block,
             block_linear_out=block_linear_out,
@@ -84,7 +84,7 @@ class NoneqControllerNN(Net):
         self.stacked = stacked
 
         self.mmopnns = {
-            name: MMOpNNController(
+            name: MMOpNNCtrl(
                 dim=self.mmopnn_dim[name],
                 opnn_dim=self.opnn_dim[name],
                 layer_size=self.layer_size[name],
@@ -106,7 +106,6 @@ class NoneqControllerNN(Net):
                 name=name
             ) for i, name in enumerate(self.names)
         }
-
 
     # Configuration update
     ###########################################################################
@@ -130,7 +129,7 @@ class NoneqControllerNN(Net):
             'cross_encoder_layer_size': self.cross_encoder_layer_size,
             'augmented': self.augmented
         }
-        base_config = super(NoneqControllerNN, self).get_config()
+        base_config = super(NeqCtrlNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
@@ -139,8 +138,12 @@ class NoneqControllerNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None, tol=None):
-
+    def call(
+        self,
+        x,
+        training=False,
+        tol=None
+    ):
         # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
@@ -160,15 +163,17 @@ class NoneqControllerNN(Net):
         # Input flattening
         x = tf.nest.flatten(x)
 
-        # MMOpNNs
+        # Kernel - MMOpNNs ----------------------------------------------------
         if training or tol is None:
-            y = [ self.mmopnns[name](x) for name in self.names ]
+            y = [
+                self.mmopnns[name](x, training=training) for name in self.names
+            ]
         else:
             y = []
             n = utils.get_cardinality(x)
             for i, (name, mmopnn) in enumerate(self.mmopnns.items()):
                 if i == 0:
-                    y.append(mmopnn(x))
+                    y.append(mmopnn(x, training=training))
                 else:
                     if i != self.num_mmopnns-1 and all(y[-1] <= tol):
                         y.append(
@@ -202,7 +207,7 @@ class NoneqControllerNN(Net):
                                 y_ij = tf.tensor_scatter_nd_update(
                                     y_ij,
                                     tf.expand_dims(idx, 1),
-                                    mmopnn.opnns[name](x_j)
+                                    mmopnn.opnns[name](x_j, training=training)
                                 )
                             # Append output DeepONet `j` for the current
                             # timescale `i` 
@@ -215,10 +220,8 @@ class NoneqControllerNN(Net):
         return y
 
 
-@tf.keras.utils.register_keras_serializable(
-    package='PrODE', name='MMOpNNController'
-)
-class MMOpNNController(Net):
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='MMOpNNCtrl')
+class MMOpNNCtrl(Net):
     """Multi-Physics Multi-Scale Deep Operator neural network."""
 
     # Initialization
@@ -248,7 +251,7 @@ class MMOpNNController(Net):
         *args,
         **kwargs
     ):
-        super(MMOpNNController, self).__init__(
+        super(MMOpNNCtrl, self).__init__(
             dim=dim,
             block=block,
             block_linear_out=block_linear_out,
@@ -349,7 +352,7 @@ class MMOpNNController(Net):
             'cross_encoder_layer_size': self.cross_encoder_layer_size,
             'augmented': self.augmented
         }
-        base_config = super(MMOpNNController, self).get_config()
+        base_config = super(MMOpNNCtrl, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
@@ -361,12 +364,10 @@ class MMOpNNController(Net):
     def call(
         self,
         x,
-        training=False,
-        mask=None,
-        opnn_index=None
+        training=False
     ):
         # OpNNs
-        G_uy = [ self.opnns[name](x) for name in self.names ]
+        G_uy = [self.opnns[name](x, training=training) for name in self.names]
 
         # Concatenate if single output or if final scaling is applied
         G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]

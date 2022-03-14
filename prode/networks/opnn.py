@@ -268,9 +268,12 @@ class OpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None):
-
-        # Inputs
+    def call(
+        self,
+        x,
+        training=False
+    ):
+        # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
@@ -286,6 +289,7 @@ class OpNN(Net):
                 else:
                     x[k] = self.inp_trans(x[k])
 
+        # Kernel - Cross-encoding ---------------------------------------------
         # Cross-encoding
         A, b = {}, {}
         for k in self.sub_nets:
@@ -308,6 +312,7 @@ class OpNN(Net):
             u = self.U(x["branch"], training=training)
             v = self.V(x["trunk"], training=training)
 
+        # Kernel - OpNN -------------------------------------------------------
         # Branch/-es & Trunk
         args = dict(training=training)
         if self.augmented:
@@ -315,7 +320,8 @@ class OpNN(Net):
         G_u = [ branch(x["branch"], **args) for branch in self._branches ]
         G_y = self._trunk(x["trunk"], **args)
 
-        # Output layer - Dot product
+        # Outputs manipulation ------------------------------------------------
+        # Dot product
         if self.stacked:
             G_uy = [ tf_layers.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]
         else:
@@ -324,12 +330,12 @@ class OpNN(Net):
             )
             G_uy = [tf.math.reduce_sum(g, axis=1, keepdims=True) for g in G_uy]
 
-        # Output layer - Concatenation
+        # Concatenation
         G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
         if self.end_scale is not None:
             G_uy = self.end_scale_lay(G_uy)
 
-        # Output transformation
+        # Transformation
         if self.out_trans is not None:
             G_uy = self.out_trans(G_uy)
         

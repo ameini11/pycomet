@@ -84,17 +84,21 @@ class FFNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False):
-
-        # Input Transform
+    def call(
+        self,
+        x,
+        training=False
+    ):
+        # Inputs manipulation -------------------------------------------------
         y = x
         if self.inp_trans is not None:
             y = self.inp_trans(y)
 
+        # Kernel --------------------------------------------------------------
         # Block Hidden Layer
         y = self.hidden_blk(y, training=training)
 
-        # Output Transform
+        # Outputs manipulation ------------------------------------------------
         if self.out_trans is not None:
             y = self.out_trans(y)
 

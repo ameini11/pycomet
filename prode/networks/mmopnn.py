@@ -165,8 +165,11 @@ class MMOpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False, mask=None):
-
+    def call(
+        self,
+        x,
+        training=False
+    ):
         # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
@@ -186,11 +189,13 @@ class MMOpNN(Net):
         # Input flattening
         x = tf.nest.flatten(x)
 
-        # OpNNs
-        G_uy = [ g_uy(x) for g_uy in self.opnns.values() ]
+        # Kernel - OpNNs ------------------------------------------------------
+        G_uy = [self.opnns[name](x, training=training) for name in self.names]
 
+        # Outputs manipulation ------------------------------------------------
         # Concatenate if single output or if final scaling is applied
-        if not isinstance(self.out_dim, (list,tuple)) or self.end_scale != None:
+        if not isinstance(self.out_dim, (list,tuple)) \
+            or self.end_scale is not None:
             G_uy = tf_layers.Concatenate()(G_uy)
 
         # Final scaling

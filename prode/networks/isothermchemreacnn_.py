@@ -153,7 +153,9 @@ class IsoThermChemReacNN(Net):
         self,
         x,
         training=False,
-        neq_mask=None
+        mask=None,
+        noneq_factor=False,
+        max_ts=None
     ):
 
         # Inputs manipulation -------------------------------------------------
@@ -165,7 +167,7 @@ class IsoThermChemReacNN(Net):
                 "or a `tuple`: [u, y]".format(self.name))
 
         # Input transformation
-        if self.inp_trans is not None:
+        if self.inp_trans != None:
             for k in self.sub_nets:
                 if isinstance(self.inp_trans, dict):
                     x[k] = self.inp_trans[k](x[k])
@@ -176,15 +178,16 @@ class IsoThermChemReacNN(Net):
         x = tf.nest.flatten(x)
 
         # Kernel - Timescales NN ----------------------------------------------
-        if training and neq_mask is None:
-            y = [ ts(x) for ts in self.timescales ]
-        else:
-            y = []
-            for i, ts in enumerate(self.timescales):
-                if i == 0:
-                    y.append(ts(x))
-                else:
-                    y.append(ts(x, neq_mask[i-1]))
+        y = []
+        for i, ts in enumerate(self.timescales):
+            y.append(ts(x, training, mask, noneq_factor))
+            if i == max_ts:
+                break
+        if training is False and noneq_factor is True:
+            return y if len(y) > 1 else y[-1]
+        # y = [ ts(x, training, mask, noneq_factor) for ts in self.timescales ]
+        # if training is False and noneq_factor is True:
+        #     return y if len(y) > 1 else y[-1]
 
         # Outputs manipulation ------------------------------------------------
         if len(y) > 1:
