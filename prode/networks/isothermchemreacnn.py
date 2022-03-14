@@ -175,7 +175,7 @@ class IsoThermChemReacNN(Net):
         x = tf.nest.flatten(x)
 
         # Kernel - Timescales NN ----------------------------------------------
-        if training and neq_mask is None:
+        if training or neq_mask is None:
             y = [ ts(x, training=training) for ts in self.timescales ]
         else:
             y = []

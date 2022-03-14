@@ -184,7 +184,7 @@ class TimeScaleNN(Net):
         x = [ic, t]
 
         # Kernel - Timescales NN ----------------------------------------------
-        if training and neq_mask is None:
+        if training or neq_mask is None:
             y = [ opnn(x, training=training) for opnn in self.opnns ]
         else:
             y = []
