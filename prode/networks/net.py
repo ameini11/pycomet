@@ -156,7 +156,7 @@ class Net(tf.keras.Model):
                 metrics.extend(l._metrics)
             return metrics
         else:
-            return super(Net, self).metrics()
+            return super(Net, self).metrics
 
     # Steps
     ###########################################################################

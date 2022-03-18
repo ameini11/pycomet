@@ -74,10 +74,8 @@ class DataSet(Data):
                 return tuple(data)
             else:
                 utils.raise_value_err(
-                    "'{}' data passed into `{}` has to be a list or "
-                    "a tuple of arrays: [x, y]".format(
-                        identifier, self.name
-                    )
+                    f"'{identifier}' data passed into `{self.name}` has "
+                    "to be a list or a tuple of arrays: [x, y]"
                 )
 
     def get_num_pts(self, identifier='training', verbose=1):
