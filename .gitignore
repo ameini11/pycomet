@@ -5,5 +5,5 @@ build/
 dist/
 *.egg-info/
 .DS_Store
-park_ts1*
+sts_cg_park*
 .ipynb_checkpoints
