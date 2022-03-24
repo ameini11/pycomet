@@ -2,6 +2,10 @@
 **Physics-informed mAchine learning foR SciEntific Computations**
 <!-- # PrODE -->
 <!-- **Machine-Learning-Based Approximators for Ordinary Differential Equations (ODEs)** -->
+<!-- # PYSMART -->
+<!-- # PhYSics-informed Machine leArning foR scientific compuTations -->
+<!-- # PICHAOS -->
+<!-- # Physics-Informed maCHine leArning fOr Scientific compuTations -->
 
 [![Build Status](https://travis-ci.org/ivanZanardi/prode.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/prode)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/prode/blob/main/LICENSE)
