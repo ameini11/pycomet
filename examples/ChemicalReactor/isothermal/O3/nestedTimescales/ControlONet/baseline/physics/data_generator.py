@@ -324,7 +324,11 @@ class DataGenerator(object):
                 data[k] = self.extract_data_scenario(idx_k, ic, t, y)
         # Evaluate underpredicted noneq. metrics
         for k, d in data.items():
-            data[k][1] = self.noneqController.eval_df_norm(d)[-1]
+            data[k][1] = tf.nest.map_structure(
+                lambda x: np.maximum(x, 1.e-5),
+                self.noneqController.eval_df_norm(d)[-1]
+            )
+
         return data
 
     def stack_data(self, data, data_new, data_type):
@@ -454,7 +458,10 @@ class DataGenerator(object):
             data_i.append(f_rhs[ii[0]:ii[1],:])
 
         # Evaluate underpredicted noneq. metrics
-        data_i[1] = self.noneqController.eval_df_norm(data_i)[-1]
+        data_i[1] = tf.nest.map_structure(
+            lambda x: np.maximum(x, 1.e-5),
+            self.noneqController.eval_df_norm(data_i)[-1]
+        )
 
         if exec_time:
             return *data_i, sol[-1]

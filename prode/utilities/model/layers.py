@@ -16,6 +16,128 @@ from prode.physics.thermochemistry.specie import specie
 from prode.utilities import utils
 
 
+
+# =========================================================================== #
+# TrainableAct Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='TrainableAct')
+class TrainableAct(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        activation=None,
+        kernel_initializer='glorot_uniform',
+        kernel_regularizer=None,
+        stretch_axis={'x': False, 'y': True},
+        name='trainable_act',
+        **kwargs
+    ):
+        super(TrainableAct, self).__init__(name=name, **kwargs)
+
+        self.activation = activations.get(activation)
+        self.kernel_initializer = initializers.get(kernel_initializer)
+        self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.stretch_axis = stretch_axis
+
+    # Building
+    ###########################################################################
+    def build(self, input_shape):
+        dtype = tf.as_dtype(self.dtype or K.floatx())
+        if not (dtype.is_floating or dtype.is_complex):
+            raise TypeError(
+                'A Dense layer can only be built with a floating-point '
+                f'dtype. Received: dtype={dtype}'
+            )
+        input_shape = tf.TensorShape(input_shape)
+        last_dim = tf.compat.dimension_value(input_shape[-1])
+        if last_dim is None:
+            utils.raise_value_err(
+                'The last dimension of the inputs to a Dense layer '
+                'should be defined. Found None. '
+                f'Full input shape received: {input_shape}'
+            )
+
+        if self.stretch_axis['y']:
+            self.a = self.add_weight(
+                'a',
+                shape=[last_dim, last_dim],
+                initializer=self.kernel_initializer,
+                regularizer=self.kernel_regularizer,
+                dtype=self.dtype,
+                trainable=True
+            )
+
+        if self.stretch_axis['x']:
+            self.b = self.add_weight(
+                'b',
+                shape=[last_dim, last_dim],
+                initializer=self.kernel_initializer,
+                regularizer=self.kernel_regularizer,
+                dtype=self.dtype,
+                trainable=True
+            )
+
+        self.built = True
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'activation': activations.serialize(self.activation),
+            'kernel_initializer': initializers.serialize(self.kernel_initializer),
+            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+            'stretch_axis': self.stretch_axis
+        }
+        base_config = super(TrainableAct, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None):
+        if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
+            inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
+
+        outputs = inputs
+
+        # First matrix multiplication (x-axis stretching)
+        if self.stretch_axis['x']:
+            rank = outputs.shape.rank
+            if rank == 2 or rank is None:
+                outputs = tf.matmul(a=outputs, b=self.b)
+            else:
+                outputs = tf.tensordot(outputs, self.b, [[rank - 1], [0]])
+            # Reshape the output back to the original ndim of the input.
+            if not tf.executing_eagerly():
+                shape = outputs.shape.as_list()
+                output_shape = shape[:-1] + [self.b.shape[-1]]
+                outputs.set_shape(output_shape)
+
+        # Apply activation function
+        if self.activation is not None:
+            outputs = self.activation(outputs)
+
+        # Second matrix multiplication (y-axis stretching)
+        if self.stretch_axis['y']:
+            rank = outputs.shape.rank
+            if rank == 2 or rank is None:
+                outputs = tf.matmul(a=outputs, b=self.a)
+            else:
+                outputs = tf.tensordot(outputs, self.a, [[rank - 1], [0]])
+            # Reshape the output back to the original ndim of the input.
+            if not tf.executing_eagerly():
+                shape = outputs.shape.as_list()
+                output_shape = shape[:-1] + [self.a.shape[-1]]
+                outputs.set_shape(output_shape)
+
+        return outputs
+
+
 # =========================================================================== #
 # Scaling Layer
 # =========================================================================== #

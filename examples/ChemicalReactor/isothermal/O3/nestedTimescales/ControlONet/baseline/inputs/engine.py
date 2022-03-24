@@ -18,7 +18,7 @@ import inputs.postprocessing as inp_post
 
 # Training
 # =============================================================================
-epochs = 30000
+epochs = 10
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -73,8 +73,8 @@ callbacks = {
     'weighted_loss': {
         'name': 'ConstantWeightsAdapter',
         'multi_obj_loss_weights': {
-            'ics': 128,
-            'pts': 512
+            'ics': 1,
+            'pts': 4
         }
     }
 

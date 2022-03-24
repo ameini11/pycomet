@@ -43,7 +43,7 @@ opnn_dim = {
 
 layer_size = {
     name: {
-        "branch": [2+27, 32, 32, 16],
+        "branch": [2+27, 64, 64, 16],
         "trunk":  [1, 64, 64, 16]
     } for name in names
 }
@@ -57,7 +57,7 @@ activation = {
 
 kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
 
-block = 'ResPIBlock' # 'FFBlock' 'ResPIBlock'
+block = 'FFBlock' # 'FFBlock' 'ResPIBlock'
 block_linear_out = False
 
 opnn_end_scale = 'dense'
@@ -69,7 +69,7 @@ cross_encoder = {
     "trunk": False
 }
 
-augmented = False
+augmented = True
 
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
@@ -108,4 +108,11 @@ input_fn = {
 }
 
 # OpNNs -----------------------------------------------------------------------
-opnn_out_trans = tf_layers.Lambda(tf.math.exp, name='output_fn')
+# opnn_out_trans = tf_layers.Lambda(tf.math.exp, name='output_fn')
+opnn_out_trans = {
+    name: [
+        pro_layers.TrainableAct(
+            activation='sigmoid', name=f'output_fn_{name}_opnn_{i+1}'
+        ) for i in range(len(tf.nest.flatten(opnn_dim[name]["out"])))
+    ] for name in names
+}

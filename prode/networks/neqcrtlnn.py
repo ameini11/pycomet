@@ -325,11 +325,11 @@ class MMOpNNCtrl(Net):
         }
 
         # Apply I/O Transformation
-        for name, opnn in self.opnns.items():
+        for i, (name, opnn) in enumerate(self.opnns.items()):
             if self.opnn_inp_trans is not None:
-                opnn.inp_trans = self.opnn_inp_trans
+                opnn.inp_trans = self.opnn_inp_trans[i]
             if self.opnn_out_trans is not None:
-                opnn.out_trans = self.opnn_out_trans
+                opnn.out_trans = self.opnn_out_trans[i]
 
     # Configuration update
     ###########################################################################
