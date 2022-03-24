@@ -1,12 +1,12 @@
 # PARSEC
-**Physics-informed mAchine foR SciEntific Computations**
-%# PrODE
-%**Machine-Learning-Based Approximators for Ordinary Differential Equations (ODEs)**
+**Physics-informed mAchine learning foR SciEntific Computations**
+<!-- # PrODE -->
+<!-- **Machine-Learning-Based Approximators for Ordinary Differential Equations (ODEs)** -->
 
 [![Build Status](https://travis-ci.org/ivanZanardi/prode.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/prode)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/prode/blob/main/LICENSE)
 
-PrODE is a deep learning library written on top of the deep learning API [Keras](https://keras.io/), which in turn runs on top of the machine learning platform [TensorFlow](https://www.tensorflow.org/).
+PARSEC is a deep learning library written on top of the deep learning API [Keras](https://keras.io/), which in turn runs on top of the machine learning platform [TensorFlow](https://www.tensorflow.org/).
 PrODE has been designed to 
 - solve forward and inverse ordinary differential equations (ODEs) via physics-informed neural network (PINN);
 - approximate nonlinear operators via deep operator network (DeepONet);
@@ -14,7 +14,7 @@ PrODE has been designed to
 
 ## Features
 
-PrODE supports
+PARSEC supports
 
 - two types of neural networks: unstacked fully connected neural network, and residual neural network;
 - many different losses, metrics, optimizers, learning rate schedules, initializations, regularizations, etc.;
