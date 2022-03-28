@@ -144,10 +144,6 @@ class TrainableAct(tf_layers.Layer):
                 output_shape = shape[:-1] + [a.shape[-1]]
                 outputs.set_shape(output_shape)
 
-        if pos_output:
-            outputs = tf.matmul(a=outputs, b=a)
-
-
         return outputs
 
 
