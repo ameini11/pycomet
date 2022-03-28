@@ -31,6 +31,7 @@ class TrainableAct(tf_layers.Layer):
         kernel_initializer='glorot_uniform',
         kernel_regularizer=None,
         stretch_axis={'x': False, 'y': True},
+        pos_output=False,
         name='trainable_act',
         **kwargs
     ):
@@ -40,6 +41,7 @@ class TrainableAct(tf_layers.Layer):
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.stretch_axis = stretch_axis
+        self.pos_output = pos_output
 
     # Building
     ###########################################################################
@@ -88,7 +90,8 @@ class TrainableAct(tf_layers.Layer):
             'activation': activations.serialize(self.activation),
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'stretch_axis': self.stretch_axis
+            'stretch_axis': self.stretch_axis,
+            'pos_output': self.pos_output
         }
         base_config = super(TrainableAct, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -122,18 +125,28 @@ class TrainableAct(tf_layers.Layer):
         if self.activation is not None:
             outputs = self.activation(outputs)
 
+        # Check if output is positive
+        if self.pos_output and self.stretch_axis['y']:
+            a = self.a**2
+        else:
+            a = self.a
+
         # Second matrix multiplication (y-axis stretching)
         if self.stretch_axis['y']:
             rank = outputs.shape.rank
             if rank == 2 or rank is None:
-                outputs = tf.matmul(a=outputs, b=self.a)
+                outputs = tf.matmul(a=outputs, b=a)
             else:
-                outputs = tf.tensordot(outputs, self.a, [[rank - 1], [0]])
+                outputs = tf.tensordot(outputs, a, [[rank - 1], [0]])
             # Reshape the output back to the original ndim of the input.
             if not tf.executing_eagerly():
                 shape = outputs.shape.as_list()
-                output_shape = shape[:-1] + [self.a.shape[-1]]
+                output_shape = shape[:-1] + [a.shape[-1]]
                 outputs.set_shape(output_shape)
+
+        if pos_output:
+            outputs = tf.matmul(a=outputs, b=a)
+
 
         return outputs
 

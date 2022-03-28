@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-GRAD_OPT = 1
+GRAD_OPT = 2
 
 
 # Gradient functions
@@ -17,7 +17,6 @@ def order_0(time_idx, order, model, ic, t, training):
     return [y]
 
 if GRAD_OPT == 1:
-
     def order_n(time_idx, order, model, ic, t, training):
         grad_fn = order_0 if order == 1 else order_n
         with tf.GradientTape(persistent=True) as tape:
@@ -31,23 +30,6 @@ if GRAD_OPT == 1:
         return grads
 
 elif GRAD_OPT == 2:
-
-    def order_n(time_idx, order, model, ic, t, training):
-        grad_fn = order_0 if order == 1 else order_n
-        with tf.GradientTape(persistent=True) as tape:
-            tape.watch(t)
-            grads = grad_fn(time_idx, order-1, model, ic, t, training)
-            # Get `n-1`-th order gradients
-            y = tf.split(grads[-1], grads[-1].shape[1], axis=1)
-        # Evaluate `n`-th order gradients
-        dy = tape.batch_jacobian(grads[-1], t)
-        dy = tf.squeeze(dy, axis=-1)
-        # Collect `n`-th order gradients
-        grads.append(dy)
-        return grads
-
-elif GRAD_OPT == 3:
-
     def order_n(time_idx, order, model, ic, t, training):
         grad_fn = order_0 if order == 1 else order_n
         with tf.GradientTape(persistent=True) as tape:
@@ -63,7 +45,6 @@ elif GRAD_OPT == 3:
 
 # Gradient evaluation
 ###############################################################################
-@tf.function
 def eval(time_idx, order, model, ic, t, training):
     grad_fn = order_0 if order == 0 else order_n
     grads = grad_fn(time_idx, order, model, ic, t, training)

@@ -219,16 +219,16 @@ class DataGenerator(object):
             # Define data type
             data_type = 'train' if (i % 2) == 0 else 'valid'
 
-            if (i % 2) == 0:
-                marker_style = dict(marker='o', lw=0.5, ls='none', \
-                                    fillstyle='full', markersize=2)
-                plt.xscale('log')
-                # plt.yscale('log')
-                # plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style, label=self.data_label_out)
-                plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
-                # plt.legend()
-                plt.grid()
-                plt.show()
+            # if (i % 2) == 0:
+            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
+            #                         fillstyle='full', markersize=2)
+            #     plt.xscale('log')
+            #     # plt.yscale('log')
+            #     # plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style, label=self.data_label_out)
+            #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
+            #     # plt.legend()
+            #     plt.grid()
+            #     plt.show()
 
             data = self.stack_data(data, data_i, data_type)
 
@@ -324,9 +324,9 @@ class DataGenerator(object):
                 data[k] = self.extract_data_scenario(idx_k, ic, t, y)
         # Evaluate underpredicted noneq. metrics
         for k, d in data.items():
-            delta = self.noneqController.eval_df_norm(d)[-1]
             data[k][1] = tf.nest.map_structure(
-                lambda x: np.maximum(x, 1.e-5), delta
+                lambda x: np.maximum(x, 1.e-5),
+                self.noneqController.eval_df_norm(d)[-1]
             )
 
         return data
@@ -458,10 +458,9 @@ class DataGenerator(object):
             data_i.append(f_rhs[ii[0]:ii[1],:])
 
         # Evaluate underpredicted noneq. metrics
-        delta = self.noneqController.eval_df_norm(data_i)[-1]
-            delta = self.noneqController.eval_df_norm(d)[-1]
         data_i[1] = tf.nest.map_structure(
-            lambda x: np.maximum(x, 1.e-5), delta
+            lambda x: np.maximum(x, 1.e-5),
+            self.noneqController.eval_df_norm(data_i)[-1]
         )
 
         if exec_time:
