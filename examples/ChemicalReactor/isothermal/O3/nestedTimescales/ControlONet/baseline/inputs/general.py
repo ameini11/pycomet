@@ -47,7 +47,7 @@ input_space = {
 }
 
 # Time (limit values)
-time_limit = [1.e-14, 1.e-3]
+time_limit = [1.e-14, 1.e-4]
 
 # Timescales thermochemistry --------------------------------------------------
 groups_graph = {
