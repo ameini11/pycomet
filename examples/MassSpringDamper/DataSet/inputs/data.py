@@ -22,7 +22,7 @@ from_file = False
 # *** From file
 file = {
     'train': './data/train/pts.csv',
-    'valid': './data/train/pts.csv',
+    'valid': './data/valid/pts.csv',
     'test': './data/test/ics.csv'
 }
 

@@ -28,7 +28,7 @@ file = {
     },
     'valid': {
         'ics': './data/valid/ics.csv',
-        'pts': './data/train/pts.csv',
+        'pts': './data/valid/pts.csv',
         'res': './data/valid/res.csv'
     },
     'test': './data/test/ics.csv'
