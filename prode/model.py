@@ -25,6 +25,7 @@ class Model(object):
         net=None,
         name='model',
         path='./',
+        save_path=None,
         save_format='h5'
     ):
         self.data = data
@@ -121,7 +122,7 @@ class Model(object):
         no saved model/checkpoint available."""
         if load_net == 0:
             utils.print_submain("Making a new network")
-            return
+            path = None
         elif load_net in [1,2]:
             if load_net == 1:
                 path = self.save_path
@@ -146,16 +147,27 @@ class Model(object):
                     utils.print_submain(
                         "No checkpoints available: making a new network"
                     )
-                    return
-            self.net.load_weights(path, by_name=True, skip_mismatch=True)
+                    path = None
+        elif isinstance(load_net, str) or isinstance(load_net, (list,tuple)):
+            path = load_net
+            utils.print_submain(
+                f"Restoring network from the following provided paths: {path}"
+            )
         else:
             utils.raise_value_err(
                 "In `model.compile` you should pass as `load_net` argument "
-                "one of these 3 values:\n"
+                "one of these 4 options:\n"
                 "   >> 0: making new network;\n"
                 "   >> 1: restoring network from saved one (with same name);\n"
-                "   >> 2: restoring network from last checkpoint."
-            )
+                "   >> 2: restoring network from last checkpoint;\n"
+                "   >> <path>: `.h5` file (`str`) or list of `.h5` file "
+                "where the network weights are saved."
+            )    
+        # Loading the weights
+        if path is not None:
+            path = tf.nest.flatten(path)
+            for p in path:
+                self.net.load_weights(p, by_name=True, skip_mismatch=True)
 
     # Compiling Model
     ###########################################################################
@@ -223,7 +235,6 @@ class Model(object):
             self.data.get_num_pts(identifier, verbose)
 
         # Fit the model
-
         x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(
             self.data.train
         )

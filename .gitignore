@@ -7,5 +7,5 @@ dist/
 .DS_Store
 .ipynb_checkpoints
 
-trained
+trained*
 sts_cg_park*
