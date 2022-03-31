@@ -1,3 +1,4 @@
+import copy
 import tensorflow as tf
 import tensorflow.python.keras.layers as tf_layers
 
@@ -35,6 +36,7 @@ class NeqCtrlNN(Net):
         cross_encoder=False,
         cross_encoder_layer_size=None,
         augmented=False,
+        branch_out_scaler=False,
         name='neqcrtlnn',
         *args,
         **kwargs
@@ -82,6 +84,7 @@ class NeqCtrlNN(Net):
         self.opnn_out_trans = utils.value_to_dict(opnn_out_trans, self.names)
         self.opnn_end_scale = utils.value_to_dict(opnn_end_scale, self.names)
         self.stacked = stacked
+        self.branch_out_scaler = branch_out_scaler
 
         self.mmopnns = {
             name: MMOpNNCtrl(
@@ -103,6 +106,7 @@ class NeqCtrlNN(Net):
                 cross_encoder=self.cross_encoder,
                 cross_encoder_layer_size=self.cross_encoder_layer_size,
                 augmented=self.augmented,
+                branch_out_scaler=self.branch_out_scaler,
                 name=name
             ) for i, name in enumerate(self.names)
         }
@@ -127,7 +131,8 @@ class NeqCtrlNN(Net):
             'weight_norm': self.weight_norm,
             'cross_encoder': self.cross_encoder,
             'cross_encoder_layer_size': self.cross_encoder_layer_size,
-            'augmented': self.augmented
+            'augmented': self.augmented,
+            'branch_out_scaler': self.branch_out_scaler
         }
         base_config = super(NeqCtrlNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -247,6 +252,7 @@ class MMOpNNCtrl(Net):
         cross_encoder=False,
         cross_encoder_layer_size=None,
         augmented=False,
+        branch_out_scaler=False,
         name='mmopnn_controller',
         *args,
         **kwargs
@@ -302,11 +308,12 @@ class MMOpNNCtrl(Net):
         self.cross_encoder = cross_encoder
         self.cross_encoder_layer_size = cross_encoder_layer_size
         self.augmented = augmented
+        self.branch_out_scaler = branch_out_scaler
 
         self.opnns = {
             name: OpNN(
                 self.opnn_dim[name],
-                self.layer_size,
+                copy.deepcopy(self.layer_size),
                 self.activation,
                 self.kernel_initializer,
                 regularization=self.regularization,
@@ -320,6 +327,7 @@ class MMOpNNCtrl(Net):
                 cross_encoder=self.cross_encoder,
                 cross_encoder_layer_size=self.cross_encoder_layer_size,
                 augmented=self.augmented,
+                branch_out_scaler=self.branch_out_scaler,
                 name=name
             ) for name in self.names
         }
@@ -327,9 +335,15 @@ class MMOpNNCtrl(Net):
         # Apply I/O Transformation
         for i, (name, opnn) in enumerate(self.opnns.items()):
             if self.opnn_inp_trans is not None:
-                opnn.inp_trans = self.opnn_inp_trans[i]
+                if isinstance(self.opnn_inp_trans, (list,tuple)):
+                    opnn.inp_trans = self.opnn_inp_trans[i]
+                else:
+                    opnn.inp_trans = self.opnn_inp_trans
             if self.opnn_out_trans is not None:
-                opnn.out_trans = self.opnn_out_trans[i]
+                if isinstance(self.opnn_inp_trans, (list,tuple)):
+                    opnn.out_trans = self.opnn_out_trans[i]
+                else:
+                    opnn.out_trans = self.opnn_out_trans
 
     # Configuration update
     ###########################################################################
@@ -350,7 +364,8 @@ class MMOpNNCtrl(Net):
             'weight_norm': self.weight_norm,
             'cross_encoder': self.cross_encoder,
             'cross_encoder_layer_size': self.cross_encoder_layer_size,
-            'augmented': self.augmented
+            'augmented': self.augmented,
+            'branch_out_scaler': self.branch_out_scaler
         }
         base_config = super(MMOpNNCtrl, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

@@ -17,7 +17,7 @@
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = True
+from_file = False
 
 # *** From file
 file = {
@@ -49,7 +49,7 @@ validation_split = 0.2      # % of Validation pts
 distribution = 'uniform'    # Training pts distribution
 
 # Testing data
-test_cases = 50             # Number of testing cases
+test_cases = 1#50             # Number of testing cases
 test_training = True        # Test training cases
 
 # Batching --------------------------------------------------------------------

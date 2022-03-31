@@ -34,6 +34,7 @@ class OpNN(Net):
         cross_encoder=False,
         cross_encoder_layer_size=None,
         augmented=False,
+        branch_out_scaler=False,
         name='opnn',
         *args,
         **kwargs
@@ -60,6 +61,10 @@ class OpNN(Net):
             self.layer_size = {k: layer_size for k in self.sub_nets}
         else:
             self.layer_size = layer_size
+
+        self.branch_out_scaler = branch_out_scaler
+        if self.branch_out_scaler == True:
+            self.layer_size["branch"][-1] = self.layer_size["branch"][-1] + 2
 
         # Activation functions
         activation = tf.nest.map_structure(activations.get, activation)
@@ -257,7 +262,8 @@ class OpNN(Net):
             'end_scale': self.end_scale,
             'cross_encoder': self.cross_encoder,
             'ce_layer_size': self.ce_layer_size,
-            'augmented': self.augmented
+            'augmented': self.augmented,
+            'branch_out_scaler': self.branch_out_scaler
         }
         base_config = super(OpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -321,6 +327,19 @@ class OpNN(Net):
         G_y = self._trunk(x["trunk"], **args)
 
         # Outputs manipulation ------------------------------------------------
+        # Scaler
+        if self.branch_out_scaler == True:
+            G_u_scaler = tf.nest.map_structure(
+                lambda x: tf.split(
+                    x,
+                    [self.layer_size["branch"][-1]-2,1,1],
+                    axis=1
+                ),
+                G_u
+            )
+            G_u, a, b = list(zip(*G_u_scaler))
+            a, b = tf.concat(list(a), 1), tf.concat(list(b), 1)
+
         # Dot product
         if self.stacked:
             G_uy = [ tf_layers.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]
@@ -338,5 +357,9 @@ class OpNN(Net):
         # Transformation
         if self.out_trans is not None:
             G_uy = self.out_trans(G_uy)
-        
+
+        # Scaler
+        if self.branch_out_scaler == True:
+            G_uy = a**2*G_uy + b**2
+
         return G_uy
