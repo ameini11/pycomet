@@ -63,7 +63,7 @@ class OpNN(Net):
             self.layer_size = layer_size
 
         self.branch_out_scaler = branch_out_scaler
-        if self.branch_out_scaler == True:
+        if self.branch_out_scaler:
             self.layer_size["branch"][-1] = self.layer_size["branch"][-1] + 2
 
         # Activation functions
@@ -328,7 +328,7 @@ class OpNN(Net):
 
         # Outputs manipulation ------------------------------------------------
         # Scaler
-        if self.branch_out_scaler == True:
+        if self.branch_out_scaler:
             G_u_scaler = tf.nest.map_structure(
                 lambda x: tf.split(
                     x,
@@ -359,7 +359,7 @@ class OpNN(Net):
             G_uy = self.out_trans(G_uy)
 
         # Scaler
-        if self.branch_out_scaler == True:
+        if self.branch_out_scaler:
             G_uy = a**2*G_uy + b**2
 
         return G_uy
