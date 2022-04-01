@@ -360,6 +360,6 @@ class OpNN(Net):
 
         # Scaler
         if self.branch_out_scaler == True:
-            G_uy = a**2*G_uy + b
+            G_uy = a**2*G_uy + b**2
 
         return G_uy
