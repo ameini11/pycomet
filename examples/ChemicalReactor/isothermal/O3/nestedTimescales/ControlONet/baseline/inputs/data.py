@@ -49,7 +49,7 @@ validation_split = 0.2      # % of Validation pts
 distribution = 'uniform'    # Training pts distribution
 
 # Testing data
-test_cases = 1#50             # Number of testing cases
+test_cases = 50             # Number of testing cases
 test_training = True        # Test training cases
 
 # Batching --------------------------------------------------------------------
