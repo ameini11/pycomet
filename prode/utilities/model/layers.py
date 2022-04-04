@@ -127,7 +127,7 @@ class TrainableAct(tf_layers.Layer):
 
         # Check if output is positive
         if self.pos_output and self.stretch_axis['y']:
-            a = self.a**2
+            a = tf.math.exp(self.a)
         else:
             a = self.a
 
