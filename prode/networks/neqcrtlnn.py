@@ -340,7 +340,7 @@ class MMOpNNCtrl(Net):
                 else:
                     opnn.inp_trans = self.opnn_inp_trans
             if self.opnn_out_trans is not None:
-                if isinstance(self.opnn_inp_trans, (list,tuple)):
+                if isinstance(self.opnn_out_trans, (list,tuple)):
                     opnn.out_trans = self.opnn_out_trans[i]
                 else:
                     opnn.out_trans = self.opnn_out_trans
