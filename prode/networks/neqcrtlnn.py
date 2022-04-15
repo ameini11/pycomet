@@ -2,7 +2,6 @@ import copy
 import tensorflow as tf
 import tensorflow.python.keras.layers as tf_layers
 
-from prode.utilities.model import layers
 from prode.utilities import utils
 from prode.networks.opnn import OpNN
 from prode.networks.net import Net
@@ -26,17 +25,15 @@ class NeqCtrlNN(Net):
         opnn_inp_trans=None,
         opnn_out_trans=None,
         opnn_end_scale='bias',
-        stacked=True,
+        stacked_blocks={"branch": True, "trunk": False},
         regularization=None,
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
         block_linear_out=True,
-        cross_encoder=False,
-        cross_encoder_layer_size=None,
+        shifter=None,
         augmented=False,
-        branch_out_scaler=False,
         name='neqcrtlnn',
         *args,
         **kwargs
@@ -74,17 +71,15 @@ class NeqCtrlNN(Net):
         self.dropout_rate = dropout_rate
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
-        self.cross_encoder = cross_encoder
-        self.cross_encoder_layer_size = cross_encoder_layer_size
+        self.shifter = utils.value_to_dict(shifter, self.names)
         self.augmented = augmented
 
-        ### TimeScaleNNs Initialization ---------------------------------------
-        self.opnn_dim = opnn_dim
+        ### MMOpNNCtrl Initialization -----------------------------------------
+        self.opnn_dim = utils.value_to_dict(opnn_dim, self.names)
         self.opnn_inp_trans = utils.value_to_dict(opnn_inp_trans, self.names)
         self.opnn_out_trans = utils.value_to_dict(opnn_out_trans, self.names)
         self.opnn_end_scale = utils.value_to_dict(opnn_end_scale, self.names)
-        self.stacked = stacked
-        self.branch_out_scaler = branch_out_scaler
+        self.stacked_blocks = stacked_blocks
 
         self.mmopnns = {
             name: MMOpNNCtrl(
@@ -96,17 +91,15 @@ class NeqCtrlNN(Net):
                 opnn_inp_trans=self.opnn_inp_trans[name],
                 opnn_out_trans=self.opnn_out_trans[name],
                 opnn_end_scale=self.opnn_end_scale[name],
-                stacked=self.stacked,
+                stacked_blocks=self.stacked_blocks,
                 regularization=self.regularization,
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
                 block=self.block,
                 block_linear_out=self.block_linear_out,
-                cross_encoder=self.cross_encoder,
-                cross_encoder_layer_size=self.cross_encoder_layer_size,
+                shifter=self.shifter[name],
                 augmented=self.augmented,
-                branch_out_scaler=self.branch_out_scaler,
                 name=name
             ) for i, name in enumerate(self.names)
         }
@@ -125,14 +118,12 @@ class NeqCtrlNN(Net):
             'opnn_out_trans': self.opnn_out_trans,
             'opnn_end_scale': self.opnn_end_scale,
             'regularization': self.regularization,
-            'stacked': self.stacked,
+            'stacked_blocks': self.stacked_blocks,
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
-            'cross_encoder': self.cross_encoder,
-            'cross_encoder_layer_size': self.cross_encoder_layer_size,
-            'augmented': self.augmented,
-            'branch_out_scaler': self.branch_out_scaler
+            'shifter': self.shifter,
+            'augmented': self.augmented
         }
         base_config = super(NeqCtrlNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -149,80 +140,89 @@ class NeqCtrlNN(Net):
         training=False,
         tol=None
     ):
-        # Inputs manipulation -------------------------------------------------
+        # Inputs manipulation
+        x = self._manipulate_input(x)
+        # Inputs flattening
+        x = tf.nest.flatten(x)
+        # Kernel - MMOpNNs
+        if training or tol is None:
+            y = [self.mmopnns[n](x, training=training) for n in self.names]
+        else:
+            y = self._adaptive_call(x)
+        return y
+
+    def _manipulate_input(self, x):
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
-
-        # Input transformation
         if self.inp_trans is not None:
             for k in self.sub_nets:
                 if isinstance(self.inp_trans, dict):
                     x[k] = self.inp_trans[k](x[k])
                 else:
                     x[k] = self.inp_trans(x[k])
+        return x
 
-        # Input flattening
-        x = tf.nest.flatten(x)
-
-        # Kernel - MMOpNNs ----------------------------------------------------
-        if training or tol is None:
-            y = [
-                self.mmopnns[name](x, training=training) for name in self.names
-            ]
-        else:
-            y = []
-            n = utils.get_cardinality(x)
-            for i, (name, mmopnn) in enumerate(self.mmopnns.items()):
-                if i == 0:
-                    y.append(mmopnn(x, training=training))
+    def _adaptive_call(self, x):
+        y = []
+        n = utils.get_cardinality(x)
+        # Looping over each Timescale
+        for i, (name, mmopnn) in enumerate(self.mmopnns.items()):
+            if i == 0:
+                # First Timescale
+                y.append(mmopnn(x))
+            else:
+                # Second and higher Timescales
+                if i != self.num_mmopnns-1 and all(y[-1] <= tol):
+                    y.append(
+                        tf.zeros((n, mmopnn.out_dim), dtype=K.floatx())
+                    )
                 else:
-                    if i != self.num_mmopnns-1 and all(y[-1] <= tol):
-                        y.append(
-                            tf.zeros((n, mmopnn.out_dim), dtype=K.floatx())
+                    y_i = []
+                    # Get split values from previous Timescale
+                    y_im1 = tf.split(y[-1], y[-1].shape[1], axis=1)
+                    # Looping over each OpNN in the current i-th Timescale
+                    for j, y_j in enumerate(y_im1):
+                        # Get j-th OpNN name
+                        name = mmopnn.names[j]
+                        # Create a dummy `zeros` tensor with the j-th OpNN
+                        # dimensions
+                        y_ij = tf.zeros(
+                            (n, mmopnn.opnns[name].out_dim),
+                            dtype=K.floatx()
                         )
-                    else:
-                        y_i = []
-                        y_iminus1 = tf.split(y[-1], y[-1].shape[1], axis=1)
-                        for j, y_j in enumerate(y_iminus1):
-                            # OpNN name
-                            name = mmopnn.names[j]
-                            # Create a dummy `zeros` tensor
-                            y_ij = tf.zeros(
-                                (n, mmopnn.opnns[name].out_dim),
-                                dtype=K.floatx()
+                        # If any values from previuos timescale is greater
+                        # than the `tol`, evaluates the current timescale
+                        if any(y_j > tol):
+                            # Get indices for the actual values to be
+                            # evaluated
+                            idx = tf.reshape(
+                                tf.where(y_j > tol)[:,0], shape=[-1]
                             )
-                            # If any values from previuos timescale is greater
-                            # than the `tol`, evaluates the new values at the
-                            # new timescale
-                            if any(y_j > tol):
-                                # Get indices for the actual values to be
-                                # evaluated
-                                idx = tf.reshape(
-                                    tf.where(y_j > tol)[:,0], shape=[-1]
-                                )
-                                # Update the dummy `zeros` tensor with the
-                                # actual evaluation of the DeepONet `j`
-                                x_j = tf.nest.map_structure(
-                                    lambda x: tf.gather(x, idx, axis=0), x
-                                )
-                                y_ij = tf.tensor_scatter_nd_update(
-                                    y_ij,
-                                    tf.expand_dims(idx, 1),
-                                    mmopnn.opnns[name](x_j, training=training)
-                                )
-                            # Append output DeepONet `j` for the current
-                            # timescale `i` 
-                            y_i.append(y_ij)
-                        # Append output timescale `i` for the final output
-                        y.append(
-                            tf_layers.Concatenate()(y_i) \
-                                if len(y_i) > 1 else y_i[-1]
-                        )
+                            # Update the dummy `zeros` tensor with the
+                            # actual evaluation of the j-th OpNN
+                            x_j = tf.nest.map_structure(
+                                lambda x: tf.gather(x, idx, axis=0), x
+                            )
+                            y_ij = tf.tensor_scatter_nd_update(
+                                y_ij,
+                                tf.expand_dims(idx, 1),
+                                mmopnn.opnns[name](x_j)
+                            )
+                        # Append outputs of the j-th OpNN for the current
+                        # i-th Timescale
+                        y_i.append(y_ij)
+                    # Append output of the current i-th Timescale
+                    # for the final output
+                    y.append(
+                        tf_layers.Concatenate()(y_i) \
+                            if len(y_i) > 1 else y_i[-1]
+                    )
         return y
+
 
 
 @tf.keras.utils.register_keras_serializable(package='PrODE', name='MMOpNNCtrl')
@@ -242,17 +242,15 @@ class MMOpNNCtrl(Net):
         opnn_inp_trans=None,
         opnn_out_trans=None,
         opnn_end_scale='bias',
-        stacked=True,
+        stacked_blocks={"branch": True, "trunk": False},
         regularization=None,
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
         block_linear_out=True,
-        cross_encoder=False,
-        cross_encoder_layer_size=None,
+        shifter=None,
         augmented=False,
-        branch_out_scaler=False,
         name='mmopnn_controller',
         *args,
         **kwargs
@@ -273,7 +271,7 @@ class MMOpNNCtrl(Net):
         # Names
         if names == None:
             self.names = tuple([
-                f'opnn_{o+1}' for o in range(len(opnn_dim["out"]))
+                f'opnn_{i+1}' for i in range(len(opnn_dim["out"]))
             ])
         else:
             if len(names) <= 1:
@@ -304,30 +302,26 @@ class MMOpNNCtrl(Net):
         self.opnn_inp_trans = opnn_inp_trans
         self.opnn_out_trans = opnn_out_trans
         self.opnn_end_scale = opnn_end_scale
-        self.stacked = stacked
-        self.cross_encoder = cross_encoder
-        self.cross_encoder_layer_size = cross_encoder_layer_size
+        self.stacked_blocks = stacked_blocks
+        self.shifter = shifter
         self.augmented = augmented
-        self.branch_out_scaler = branch_out_scaler
 
         self.opnns = {
             name: OpNN(
                 self.opnn_dim[name],
-                copy.deepcopy(self.layer_size),
+                self.layer_size,
                 self.activation,
                 self.kernel_initializer,
                 regularization=self.regularization,
                 end_scale=self.opnn_end_scale,
-                stacked=self.stacked,
+                stacked_blocks=self.stacked_blocks,
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
                 block=self.block,
                 block_linear_out=self.block_linear_out,
-                cross_encoder=self.cross_encoder,
-                cross_encoder_layer_size=self.cross_encoder_layer_size,
+                shifter=self.shifter,
                 augmented=self.augmented,
-                branch_out_scaler=self.branch_out_scaler,
                 name=name
             ) for name in self.names
         }
@@ -358,14 +352,12 @@ class MMOpNNCtrl(Net):
             'opnn_out_trans': self.opnn_out_trans,
             'opnn_end_scale': self.opnn_end_scale,
             'regularization': self.regularization,
-            'stacked': self.stacked,
+            'stacked_blocks': self.stacked_blocks,
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
-            'cross_encoder': self.cross_encoder,
-            'cross_encoder_layer_size': self.cross_encoder_layer_size,
-            'augmented': self.augmented,
-            'branch_out_scaler': self.branch_out_scaler
+            'shifter': self.shifter,
+            'augmented': self.augmented
         }
         base_config = super(MMOpNNCtrl, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -382,9 +374,7 @@ class MMOpNNCtrl(Net):
         training=False
     ):
         # OpNNs
-        G_uy = [self.opnns[name](x, training=training) for name in self.names]
-
+        y = [self.opnns[n](x, training=training) for n in self.names]
         # Concatenate if single output or if final scaling is applied
-        G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
-
-        return G_uy
+        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        return y

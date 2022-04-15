@@ -1,4 +1,3 @@
-import copy
 import tensorflow as tf
 import tensorflow.python.keras.layers as tf_layers
 
@@ -25,16 +24,14 @@ class OpNN(Net):
         kernel_initializer,
         regularization=None,
         end_scale=None,
-        stacked=True,
+        stacked_blocks={"branch": True, "trunk": False},
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
-        block_linear_out=True,
-        cross_encoder=False,
-        cross_encoder_layer_size=None,
+        block_linear_out=False,
+        shifter=None,
         augmented=False,
-        branch_out_scaler=False,
         name='opnn',
         *args,
         **kwargs
@@ -62,10 +59,6 @@ class OpNN(Net):
         else:
             self.layer_size = layer_size
 
-        self.branch_out_scaler = branch_out_scaler
-        if self.branch_out_scaler:
-            self.layer_size["branch"][-1] = self.layer_size["branch"][-1] + 2
-
         # Activation functions
         activation = tf.nest.map_structure(activations.get, activation)
         if not isinstance(activation, dict):
@@ -88,64 +81,15 @@ class OpNN(Net):
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.dropout_rate = dropout_rate
         self.weight_norm = weight_norm
-        self.stacked = stacked
+        self.stacked_blocks = stacked_blocks
 
-        ### Cross-encoding between branch and trunk ---------------------------
-        # Cross-encoding block
-        if isinstance(cross_encoder, dict):
-            if any(k not in self.sub_nets for k in cross_encoder.keys()):
-                utils.raise_value_err(
-                    f"Invalid `cross_encoder` dictionary "
-                    f"keys passed into into `{self.name}`. "
-                    f"Available choices: {{'branch'|'trunk'}}."
-                )
-            else:
-                self.cross_encoder = cross_encoder
-        elif isinstance(cross_encoder, bool):
-            self.cross_encoder = {k: cross_encoder for k in self.sub_nets}
-        else:
-            utils.raise_value_err(
-                f"Invalid `cross_encoder` argument passed into `{self.name}`. "
-                f"It has to be a `bool` or a `dict` of `bool`."
-            )
-
-        # Cross-encoding block layer sizes
-        self.ce_layer_size = {}
-        if isinstance(cross_encoder_layer_size, dict):
-            if any(k not in self.sub_nets for k in cross_encoder.keys()):
-                utils.raise_value_err(
-                    f"Invalid `cross_encoder_layer_size` dictionary "
-                    f"keys passed into into `{self.name}`. "
-                    f"Available choices: {{'branch'|'trunk'}}."
-                )
-            else:
-                self.ce_layer_size = cross_encoder_layer_size
-        elif isinstance(cross_encoder_layer_size, (list, tuple)):
-            for k, v in self.cross_encoder.items():
-                if v:
-                    self.ce_layer_size[k] = cross_encoder_layer_size
-        else:
-            k_rev = list(self.cross_encoder.keys())[::-1]
-            for i, (k, v) in enumerate(self.cross_encoder.items()):
-                if v:
-                    d = self.inp_dim[i-1]
-                    self.ce_layer_size[k] = copy.deepcopy(self.layer_size[k])
-                    self.ce_layer_size[k][-1] = d * (d + 1)
-
-        # Array manipulation layers
-        self.reshape_lay, self.split_dim = {}, {}
-        for i, (k, v) in enumerate(self.cross_encoder.items()):
-            if v:
-                self.reshape_lay[k] = tf_layers.Reshape([self.inp_dim[i-1]]*2)
-                self.split_dim[k] = self.inp_dim[i-1]
-        self.einsum_lay = tf_layers.Lambda(
-            lambda y: tf.einsum('nij,nj->ni', y[0], y[1])
-        )
-
-        ### Augmented cross-encoding ------------------------------------------
+        # Augmentation
         self.augmented = augmented
         if self.augmented and self.block.name != 'cross_encoded_block':
             self.block = utils.get_class(blocks, 'CrossEncodedBlock')
+
+        # Shifter
+        self.shifter = shifter
 
         ### Final scaling ----------------------------------------------------
         if end_scale not in {None, "bias", "dense"}:
@@ -156,7 +100,27 @@ class OpNN(Net):
         self.end_scale = end_scale
 
         ### Blocks Initialization ---------------------------------------------
-        # Arguments
+        # Branch/Trunk
+        self.init_blocks()
+        # Shifter
+        if self.shifter is not None:
+            self.init_shifter()
+        # Augmentation
+        if self.augmented:
+            self.init_uv()
+        # Final scaling
+        if self.end_scale == 'bias':
+            self.end_scale_lay = layers.Bias(name='end_scale')
+        elif self.end_scale == 'dense':
+            self.end_scale_lay = tf_layers.Dense(
+                units=self.out_dim,
+                kernel_initializer=self.kernel_initializer,
+                name='end_scale'
+            )
+
+    # Blocks Initialization
+    ###########################################################################
+    def init_blocks(self):
         shared_args = dict(
             kernel_initializer=self.kernel_initializer,
             regularizer=self.regularizer,
@@ -182,70 +146,75 @@ class OpNN(Net):
         }
 
         # Branches
-        num_branches = self.out_dim if self.stacked else 1
+        self.n_branches = self.out_dim if self.stacked_blocks["branch"] else 1
         self._branches = [ self.block(
             **args["branch"],
             layer_size=self.layer_size["branch"],
-            name='branch_' + str(i) if i != 0 else 'branch'
-        ) for i in range(num_branches) ]
+            name=f'branch_{i}' if i != 0 else 'branch'
+        ) for i in range(self.n_branches) ]
 
-        # Trunk
-        self._trunk = self.block(
+        # Trunks
+        self.n_trunks = self.out_dim if self.stacked_blocks["trunk"] else 1
+        self._trunks = [ self.block(
             **args["trunk"],
             layer_size=self.layer_size["trunk"],
-            name='trunk'
-        )
+            name=f'trunk_{i}' if i != 0 else 'trunk'
+        ) for i in range(self.n_trunks) ]
 
-        # Cross-encoding blocks -----------------------------------------------
-        self._cross_encoder = {}
-        # Branch encoder
-        if self.cross_encoder["branch"]:
-            self._cross_encoder["branch"] = self.block(
-                **args["branch"],
-                layer_size=self.ce_layer_size["branch"],
-                name='cross_encoder_branch'
+    def init_shifter(self):
+        # Check 'shifter' network
+        if isinstance(self.shifter, dict):
+            for k in ('layer_size', 'activation'):
+                if k not in self.shifter:
+                    utils.raise_value_err(
+                        f"'{k}' missing in `shifter` dictionary"
+                    )
+            if any(k not in ('layer_size', 'activation') \
+                for k in self.shifter.keys()):
+                utils.raise_value_err(
+                    f"Invalid `shifter` dictionary "
+                    f"keys passed into into `{self.name}`. "
+                    f"Available choices: {{'layer_size'|'activation'}}."
+                )
+        else:
+            utils.raise_value_err(
+                f"Input `shifter` has to be a dictionary with "
+                f"keys: {{'layer_size', 'activation'}}."
             )
-        # Trunk encoder
-        if self.cross_encoder["trunk"]:
-            self._cross_encoder["trunk"] = self.block(
-                **args["trunk"],
-                layer_size=self.ce_layer_size["trunk"],
-                name='cross_encoder_trunk'
-            )
+        # Shifter block
+        self._shifter = [utils.get_class(blocks, 'FFBlock')(
+            kernel_initializer=self.kernel_initializer,
+            regularizer=self.regularizer,
+            dropout_rate=self.dropout_rate,
+            weight_norm=self.weight_norm,
+            linear_out=True,
+            activation=self.shifter["activation"],
+            layer_size=self.shifter["layer_size"],
+            name=f'shifter_{i}'
+        ) for i in range(2)]
 
+    def init_uv(self):
         # Augmented cross-encoding layers
-        if self.augmented:
-            self.U = blocks.MultiLayerBlock(
-                units=self.layer_size["branch"][1],
-                activation=self.activation["branch"],
-                kernel_initializer=self.kernel_initializer,
-                regularizer=self.regularizer,
-                weight_norm=self.weight_norm,
-                batch_norm=self.batch_norm["branch"],
-                dropout_rate=self.dropout_rate,
-                name='U'
-            )
-
-            self.V = blocks.MultiLayerBlock(
-                units=self.layer_size["trunk"][1],
-                activation=self.activation["trunk"],
-                kernel_initializer=self.kernel_initializer,
-                regularizer=self.regularizer,
-                weight_norm=self.weight_norm,
-                batch_norm=self.batch_norm["trunk"],
-                dropout_rate=self.dropout_rate,
-                name='V'
-            )
-
-        # Final scaling -------------------------------------------------------
-        if self.end_scale == 'bias':
-            self.end_scale_lay = layers.Bias(name='end_scale')
-        elif self.end_scale == 'dense':
-            self.end_scale_lay = tf_layers.Dense(
-                units=self.out_dim,
-                kernel_initializer=self.kernel_initializer,
-                name='end_scale'
-            )
+        self.U = blocks.MultiLayerBlock(
+            units=self.layer_size["branch"][1],
+            activation=self.activation["branch"],
+            kernel_initializer=self.kernel_initializer,
+            regularizer=self.regularizer,
+            weight_norm=self.weight_norm,
+            batch_norm=self.batch_norm["branch"],
+            dropout_rate=self.dropout_rate,
+            name='U'
+        )
+        self.V = blocks.MultiLayerBlock(
+            units=self.layer_size["trunk"][1],
+            activation=self.activation["trunk"],
+            kernel_initializer=self.kernel_initializer,
+            regularizer=self.regularizer,
+            weight_norm=self.weight_norm,
+            batch_norm=self.batch_norm["trunk"],
+            dropout_rate=self.dropout_rate,
+            name='V'
+        )
 
     # Configuration update
     ###########################################################################
@@ -260,10 +229,8 @@ class OpNN(Net):
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
             'end_scale': self.end_scale,
-            'cross_encoder': self.cross_encoder,
-            'ce_layer_size': self.ce_layer_size,
-            'augmented': self.augmented,
-            'branch_out_scaler': self.branch_out_scaler
+            'shifter': self.shifter,
+            'augmented': self.augmented
         }
         base_config = super(OpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -274,92 +241,79 @@ class OpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(
-        self,
-        x,
-        training=False
-    ):
-        # Inputs manipulation -------------------------------------------------
+    def call(self, x, training=False):
+        # Inputs manipulation
+        x = self._manipulate_input(x)
+        # Kernel - OpNN
+        G_u, G_y = self._eval_kernel(x, training)
+        # Outputs manipulation
+        y = self._dot_product(G_u, G_y)
+        y = self._manipulate_output(y)
+        return y
+
+    def _manipulate_input(self, x):
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
-
-        # Input transformation
         if self.inp_trans is not None:
             for k in self.sub_nets:
                 if isinstance(self.inp_trans, dict):
                     x[k] = self.inp_trans[k](x[k])
                 else:
                     x[k] = self.inp_trans(x[k])
+        return x
 
-        # Kernel - Cross-encoding ---------------------------------------------
-        # Cross-encoding
-        A, b = {}, {}
-        for k in self.sub_nets:
-            if self.cross_encoder[k]:
-                A[k], b[k] = tf.split(
-                    self._cross_encoder[k](x[k]),
-                    [self.split_dim[k]**2, self.split_dim[k]],
-                    axis=1
-                )
-                A[k] = self.reshape_lay[k](A[k])
-        for k in self.sub_nets:
-            if self.cross_encoder[k]:
-                j = "branch" if k == "trunk" else "trunk"
-                x[j] = tf.keras.layers.Add()(
-                    [self.einsum_lay([A[k], x[j]]), b[k]]
-                )
-
-        # Augmented cross-encoding
+    def _eval_kernel(self, x, training):
+        # Shifter
+        if self.shifter is not None:
+            a = self._shifter[0](x["branch"], training=training)
+            b = self._shifter[1](x["branch"], training=training)
+            x["trunk"] = tf_layers.Add()(
+                [tf_layers.Multiply()([a, x["trunk"]]), b]
+            )
+        # Augmentation
+        args = dict(training=training)
         if self.augmented:
             u = self.U(x["branch"], training=training)
             v = self.V(x["trunk"], training=training)
-
-        # Kernel - OpNN -------------------------------------------------------
-        # Branch/-es & Trunk
-        args = dict(training=training)
-        if self.augmented:
             args.update(dict(u=u, v=v))
-        G_u = [ branch(x["branch"], **args) for branch in self._branches ]
-        G_y = self._trunk(x["trunk"], **args)
+        # Kernel - OpNN
+        G_u = [br(x["branch"], **args) for br in self._branches]
+        G_y = [tr(x["trunk"], **args) for tr in self._trunks]
+        return G_u, G_y
 
-        # Outputs manipulation ------------------------------------------------
-        # Scaler
-        if self.branch_out_scaler:
-            G_u_scaler = tf.nest.map_structure(
-                lambda x: tf.split(
-                    x,
-                    [self.layer_size["branch"][-1]-2,1,1],
-                    axis=1
-                ),
-                G_u
-            )
-            G_u, a, b = list(zip(*G_u_scaler))
-            a, b = tf.concat(list(a), 1), tf.concat(list(b), 1)
-
-        # Dot product
-        if self.stacked:
-            G_uy = [ tf_layers.Dot(axes=1)([G_u_i, G_y]) for G_u_i in G_u ]
+    def _dot_product(self, G_u, G_y):
+        if self.stacked_blocks["branch"] or self.stacked_blocks["trunk"]:
+            n = max(self.n_branches, self.n_trunks)
+            if self.n_branches == self.n_trunks:
+                G_uy = [
+                    tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) for i in range(n)
+                ]
+            elif self.n_branches > self.n_trunks:
+                G_uy = [
+                    tf_layers.Dot(axes=1)([G_u[i], G_y[-1]]) for i in range(n)
+                ]
+            elif self.n_branches < self.n_trunks:
+                G_uy = [
+                    tf_layers.Dot(axes=1)([G_u[-1], G_y[i]]) for i in range(n)
+                ]
         else:
             G_uy = tf.split(
-                tf_layers.Dot(axes=1)([*G_u, G_y]), self.out_dim, axis=1
+                tf_layers.Dot(axes=1)([G_u[-1], G_y[-1]]), self.out_dim, axis=1
             )
             G_uy = [tf.math.reduce_sum(g, axis=1, keepdims=True) for g in G_uy]
+        return G_uy
 
+    def _manipulate_output(self, y):
         # Concatenation
-        G_uy = tf_layers.Concatenate()(G_uy) if len(G_uy) > 1 else G_uy[-1]
+        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        # End scaling
         if self.end_scale is not None:
-            G_uy = self.end_scale_lay(G_uy)
-
+            y = self.end_scale_lay(y)
         # Transformation
         if self.out_trans is not None:
-            G_uy = self.out_trans(G_uy)
-
-        # Scaler
-        if self.branch_out_scaler:
-            G_uy = a**2*G_uy + b**2
-
-        return G_uy
+            y = self.out_trans(y)
+        return y

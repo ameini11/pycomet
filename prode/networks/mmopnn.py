@@ -25,15 +25,14 @@ class MMOpNN(Net):
         opnn_inp_trans=None,
         opnn_out_trans=None,
         opnn_end_scale='bias',
-        stacked=True,
+        stacked_blocks={"branch": True, "trunk": False},
         regularization=None,
         dropout_rate=0,
         batch_norm=None,
         weight_norm=False,
         block='FFBlock',
         block_linear_out=True,
-        cross_encoder=False,
-        cross_encoder_layer_size=None,
+        shifter=None,
         augmented=False,
         name='mmopnn',
         *args,
@@ -70,9 +69,8 @@ class MMOpNN(Net):
         self.opnn_inp_trans = opnn_inp_trans
         self.opnn_out_trans = opnn_out_trans
         self.opnn_end_scale = opnn_end_scale
-        self.stacked = stacked
-        self.cross_encoder = cross_encoder
-        self.cross_encoder_layer_size = cross_encoder_layer_size
+        self.stacked_blocks = stacked_blocks
+        self.shifter = shifter
         self.augmented = augmented
 
         self.opnns = {
@@ -83,14 +81,13 @@ class MMOpNN(Net):
                 self.kernel_initializer,
                 regularization=self.regularization,
                 end_scale=self.opnn_end_scale,
-                stacked=self.stacked,
+                stacked_blocks=self.stacked_blocks,
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
                 block=self.block,
                 block_linear_out=self.block_linear_out,
-                cross_encoder=self.cross_encoder,
-                cross_encoder_layer_size=self.cross_encoder_layer_size,
+                shifter=self.shifter,
                 augmented=self.augmented,
                 name='opnn_'+name
             ) for name in self.names
@@ -148,12 +145,11 @@ class MMOpNN(Net):
             'opnn_end_scale': self.opnn_end_scale,
             'regularization': self.regularization,
             'end_scale': self.end_scale,
-            'stacked': self.stacked,
+            'stacked_blocks': self.stacked_blocks,
             'dropout_rate': self.dropout_rate,
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
-            'cross_encoder': self.cross_encoder,
-            'cross_encoder_layer_size': self.cross_encoder_layer_size,
+            'shifter': self.shifter,
             'augmented': self.augmented
         }
         base_config = super(MMOpNN, self).get_config()
@@ -170,44 +166,43 @@ class MMOpNN(Net):
         x,
         training=False
     ):
-        # Inputs manipulation -------------------------------------------------
+        # Inputs manipulation
+        x = self._manipulate_input(x)
+        # Inputs flattening
+        x = tf.nest.flatten(x)
+        # Kernel - OpNNs
+        y = [self.opnns[name](x, training=training) for name in self.names]
+        # Outputs manipulation
+        y = self._manipulate_output(y)
+        return y
+
+    def _manipulate_input(self, x):
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
-
-        # Input transformation
         if self.inp_trans is not None:
             for k in self.sub_nets:
                 if isinstance(self.inp_trans, dict):
                     x[k] = self.inp_trans[k](x[k])
                 else:
                     x[k] = self.inp_trans(x[k])
+        return x
 
-        # Input flattening
-        x = tf.nest.flatten(x)
-
-        # Kernel - OpNNs ------------------------------------------------------
-        G_uy = [self.opnns[name](x, training=training) for name in self.names]
-
-        # Outputs manipulation ------------------------------------------------
+    def _manipulate_output(self, y):
         # Concatenate if single output or if final scaling is applied
         if not isinstance(self.out_dim, (list,tuple)) \
             or self.end_scale is not None:
-            G_uy = tf_layers.Concatenate()(G_uy)
-
+            y = tf_layers.Concatenate()(y)
         # Final scaling
         if self.end_scale is not None:
-            G_uy = self.end_scale_lay(G_uy)
-
+            y = self.end_scale_lay(y)
         # Split if multiple output
-        if isinstance(self.out_dim, (list,tuple)) and tf.is_tensor(G_uy):
-            G_uy = tf.split(G_uy, self.out_dim, axis=1)
-
+        if isinstance(self.out_dim, (list,tuple)) and tf.is_tensor(y):
+            y = tf.split(y, self.out_dim, axis=1)
         # Output transformation
         if self.out_trans is not None:
-            G_uy = self.out_trans(G_uy)
-
-        return G_uy
+            y = self.out_trans(y)
+        return y

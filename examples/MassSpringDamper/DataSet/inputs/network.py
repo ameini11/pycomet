@@ -23,9 +23,11 @@ architecture = 'OpNN'
 end_scale = 'bias'
 
 # DeepONet characterization ---------------------------------------------------
+p = 2 # Number of modes
+
 layer_size = {
-    "branch": [inp_gen.dim['inp'][0], 16, 16, 2],
-    "trunk":  [inp_gen.dim['inp'][1], 16, 16, 2]
+    "branch": [inp_gen.dim['inp'][0], 16, 16, p],
+    "trunk":  [inp_gen.dim['inp'][1], 16, 16, p]
 }
 
 activation = {
@@ -37,7 +39,19 @@ kernel_initializer = 'GlorotNormal'
 
 block = 'FFBlock' #'FFBlock' 'ResPIBlock'
 
-stacked = True
+stacked_blocks = {
+    "branch": True,
+    "trunk": False
+}
+
+# Shifter
+shifter = {
+    "layer_size": [inp_gen.dim['inp'][0], 8, 8, 8, p],
+    "activation": 'sigmoid'
+}
+
+# Augmentation
+augmented = False
 
 # Regularizers ----------------------------------------------------------------
 batch_norm = {

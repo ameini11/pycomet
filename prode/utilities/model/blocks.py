@@ -349,7 +349,7 @@ class CrossEncodedBlock(FFBlock):
 
     # Calling
     ###########################################################################
-    def call(self, x, u, v, training=None):
+    def call(self, x, u, v, training=False):
         # Hidden layers
         y = self.multi_lays[0](x, training=training)
         for i in range(1, len(self.layer_size) - 2):

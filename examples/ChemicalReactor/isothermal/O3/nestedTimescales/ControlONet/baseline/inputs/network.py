@@ -41,11 +41,13 @@ opnn_dim = {
     }
 }
 
+p = [8, 16, 16] # Number of modes
+
 layer_size = {
     name: {
-        "branch": [2+27, 64, 64, 16],
-        "trunk":  [1, 64, 64, 16]
-    } for name in names
+        "branch": [2+27] + [2*p[i]]*2 + [p[i]],
+        "trunk":  [1] + [2*p[i]]*2 + [p[i]]
+    } for i, name in enumerate(names)
 }
 
 activation = {
@@ -62,16 +64,21 @@ block_linear_out = False
 
 opnn_end_scale = 'dense'
 
-stacked = True
-
-cross_encoder = {
-    "branch": False,
+stacked_blocks = {
+    "branch": True,
     "trunk": False
 }
 
-augmented = True
+# Shifter
+shifter = {
+    name: {
+        "layer_size": [inp_gen.dim['inp'][0]] + [2*p[i]]*3 + [p[i]],
+        "activation": 'sigmoid'
+    } for i, name in enumerate(names)
+}
 
-branch_out_scaler = True
+# Augmentation
+augmented = True
 
 # Regularizers ----------------------------------------------------------------
 batch_norm = {
@@ -102,25 +109,24 @@ def branch_fn(x):
 
 input_fn = {
     "branch": tf_layers.Lambda(branch_fn, name='branch_fn'),
-    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
-    # "trunk": tf_layers.Lambda(lambda x: tf.math.reciprocal((x+1.e-15)*1.e7))
-    # "trunk": pro_layers.Log(
-    #     base='e', slope=1.e7, offset=1.e-15, name='trunk_fn', trainable=False
-    # )
+    #"trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
+    #"trunk": tf_layers.Lambda(lambda x: tf.math.reciprocal((x+1.e-15)*1.e7))
+    "trunk": pro_layers.Log(
+        base='e', slope=1.e7, offset=1.e-14, name='trunk_fn', trainable=False
+    )
 }
 
 # OpNNs -----------------------------------------------------------------------
-
 # opnn_out_trans = tf_layers.Lambda(tf.math.exp, name='output_fn')
 
-# opnn_out_trans = {
-#     name: [
-#         pro_layers.TrainableAct(
-#             activation='sigmoid',
-#             pos_output=True,
-#             name=f'output_fn_{name}_opnn_{i+1}'
-#         ) for i in range(len(tf.nest.flatten(opnn_dim[name]["out"])))
-#     ] for name in names
-# }
+# opnn_out_trans = tf_layers.Lambda(tf.math.sigmoid, name='output_fn')
 
-opnn_out_trans = tf_layers.Lambda(tf.math.sigmoid, name='output_fn')
+opnn_out_trans = {
+    name: [
+        pro_layers.TrainableAct(
+            activation='sigmoid',
+            pos_output=True,
+            name=f'output_fn_{name}_opnn_{i+1}'
+        ) for i in range(len(tf.nest.flatten(opnn_dim[name]["out"])))
+    ] for name in names
+}
