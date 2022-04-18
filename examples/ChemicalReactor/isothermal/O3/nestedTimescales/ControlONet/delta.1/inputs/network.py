@@ -33,12 +33,10 @@ opnn_dim = {
     }
 }
 
-p = [8] # Number of modes
-
 layer_size = {
     name: {
-        "branch": [2+27] + [2*p[i]]*2 + [p[i]],
-        "trunk":  [1] + [2*p[i]]*2 + [p[i]]
+        "branch": [2+27, 24, 24, 6],
+        "trunk":  [1, 24, 24, 6]
     } for i, name in enumerate(names)
 }
 
@@ -64,8 +62,9 @@ stacked_blocks = {
 # Shifter
 shifter = {
     name: {
-        "layer_size": [inp_gen.dim['inp'][0]] + [2*p[i]]*3 + [p[i]],
-        "activation": 'sigmoid'
+        "layer_size": [inp_gen.dim['inp'][0], 16, 16, 16, 2],
+        "activation": 'sigmoid',
+        "stacked": False
     } for i, name in enumerate(names)
 }
 

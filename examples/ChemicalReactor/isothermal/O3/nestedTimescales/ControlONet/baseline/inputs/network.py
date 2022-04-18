@@ -72,8 +72,9 @@ stacked_blocks = {
 # Shifter
 shifter = {
     name: {
-        "layer_size": [inp_gen.dim['inp'][0]] + [2*p[i]]*3 + [p[i]],
-        "activation": 'sigmoid'
+        "layer_size": [inp_gen.dim['inp'][0], 16, 16, 16, 2],
+        "activation": 'sigmoid',
+        "stacked": False
     } for i, name in enumerate(names)
 }
 

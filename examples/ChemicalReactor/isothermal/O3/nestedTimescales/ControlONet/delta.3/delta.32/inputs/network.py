@@ -33,12 +33,10 @@ opnn_dim = {
     }
 }
 
-p = [16] # Number of modes
-
 layer_size = {
     name: {
-        "branch": [2+27] + [2*p[i]]*2 + [p[i]],
-        "trunk":  [1] + [2*p[i]]*2 + [p[i]]
+        "branch": [2+27, 36, 36, 12],
+        "trunk":  [1, 36, 36, 12]
     } for i, name in enumerate(names)
 }
 
@@ -64,8 +62,9 @@ stacked_blocks = {
 # Shifter
 shifter = {
     name: {
-        "layer_size": [inp_gen.dim['inp'][0]] + [2*p[i]]*3 + [p[i]],
-        "activation": 'sigmoid'
+        "layer_size": [inp_gen.dim['inp'][0], 16, 16, 16, 2],
+        "activation": 'sigmoid',
+        "stacked": False
     } for i, name in enumerate(names)
 }
 
@@ -116,7 +115,7 @@ opnn_out_trans = {
         pro_layers.TrainableAct(
             activation='sigmoid',
             pos_output=True,
-            name=f'output_fn_{name}_opnn_{i+1}'
-        ) for i in range(len(tf.nest.flatten(opnn_dim[name]["out"])))
+            name=f'output_fn_{name}_opnn_2'
+        ) for _ in range(len(tf.nest.flatten(opnn_dim[name]["out"])))
     ] for name in names
 }

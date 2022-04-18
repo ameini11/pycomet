@@ -133,18 +133,17 @@ class OpNN(Net):
                 **shared_args,
                 **dict(
                     activation=self.activation["branch"],
-                    batch_norm=self.batch_norm["branch"],
+                    batch_norm=self.batch_norm["branch"]
                 )
             },
             "trunk": {
                 **shared_args,
                 **dict(
                     activation=self.activation["trunk"],
-                    batch_norm=self.batch_norm["trunk"],
+                    batch_norm=self.batch_norm["trunk"]
                 )
             }
         }
-
         # Branches
         self.n_branches = self.out_dim if self.stacked_blocks["branch"] else 1
         self._branches = [ self.block(
@@ -152,7 +151,6 @@ class OpNN(Net):
             layer_size=self.layer_size["branch"],
             name=f'branch_{i}' if i != 0 else 'branch'
         ) for i in range(self.n_branches) ]
-
         # Trunks
         self.n_trunks = self.out_dim if self.stacked_blocks["trunk"] else 1
         self._trunks = [ self.block(
@@ -164,24 +162,25 @@ class OpNN(Net):
     def init_shifter(self):
         # Check 'shifter' network
         if isinstance(self.shifter, dict):
-            for k in ('layer_size', 'activation'):
+            for k in ('layer_size', 'activation', 'stacked'):
                 if k not in self.shifter:
                     utils.raise_value_err(
                         f"'{k}' missing in `shifter` dictionary"
                     )
-            if any(k not in ('layer_size', 'activation') \
+            if any(k not in ('layer_size', 'activation', 'stacked') \
                 for k in self.shifter.keys()):
                 utils.raise_value_err(
-                    f"Invalid `shifter` dictionary "
-                    f"keys passed into into `{self.name}`. "
-                    f"Available choices: {{'layer_size'|'activation'}}."
+                    f"Invalid `shifter` dictionary keys passed into "
+                    f"`{self.name}`. Available choices: "
+                    "{{'layer_size'|'activation'|'stacked'}}."
                 )
         else:
             utils.raise_value_err(
                 f"Input `shifter` has to be a dictionary with "
-                f"keys: {{'layer_size', 'activation'}}."
+                f"keys: {{'layer_size'|'activation'|'stacked'}}."
             )
         # Shifter block
+        n = 2 if self.shifter['stacked'] else 1
         self._shifter = [utils.get_class(blocks, 'FFBlock')(
             kernel_initializer=self.kernel_initializer,
             regularizer=self.regularizer,
@@ -190,8 +189,8 @@ class OpNN(Net):
             linear_out=True,
             activation=self.shifter["activation"],
             layer_size=self.shifter["layer_size"],
-            name=f'shifter_{i}'
-        ) for i in range(2)]
+            name=f'shifter_{i}'# if i != 0 else 'shifter'
+        ) for i in range(n)]
 
     def init_uv(self):
         # Augmented cross-encoding layers
@@ -269,8 +268,12 @@ class OpNN(Net):
     def _eval_kernel(self, x, training):
         # Shifter
         if self.shifter is not None:
-            a = self._shifter[0](x["branch"], training=training)
-            b = self._shifter[1](x["branch"], training=training)
+            if self.shifter['stacked']:
+                a = self._shifter[0](x["branch"], training=training)
+                b = self._shifter[1](x["branch"], training=training)
+            else:
+                s = self._shifter[0](x["branch"], training=training)
+                a, b = tf.split(s, 2, axis=1)
             x["trunk"] = tf_layers.Add()(
                 [tf_layers.Multiply()([a, x["trunk"]]), b]
             )

@@ -23,11 +23,9 @@ architecture = 'OpNN'
 end_scale = 'bias'
 
 # DeepONet characterization ---------------------------------------------------
-p = 2 # Number of modes
-
 layer_size = {
-    "branch": [inp_gen.dim['inp'][0], 16, 16, p],
-    "trunk":  [inp_gen.dim['inp'][1], 16, 16, p]
+    "branch": [inp_gen.dim['inp'][0], 16, 16, 2],
+    "trunk":  [inp_gen.dim['inp'][1], 16, 16, 2]
 }
 
 activation = {
@@ -46,8 +44,9 @@ stacked_blocks = {
 
 # Shifter
 shifter = {
-    "layer_size": [inp_gen.dim['inp'][0], 8, 8, 8, p],
-    "activation": 'sigmoid'
+    "layer_size": [inp_gen.dim['inp'][0], 8, 8, 8, 2],
+    "activation": 'sigmoid',
+    "stacked": False
 }
 
 # Augmentation
