@@ -115,11 +115,17 @@ class Model(object):
             if visualize_graph:
                 utils.print_submain("", end=""); netron.stop()
         # Loading network weights
-        self.make_or_restore(load_net)
+        load_net = tf.nest.flatten(load_net)
+        if isinstance(load_net[-1], bool):
+            *load_net, forced = load_net
+        else:
+            *load_net, forced = load_net, False
+        self.make_or_restore(load_net, forced)
 
-    def make_or_restore(self, load_net):
+    def make_or_restore(self, load_net, forced=False):
         """Either restore the latest model, or create a fresh one if there is 
         no saved model/checkpoint available."""
+        # Retrieve weights
         if load_net == 0:
             utils.print_submain("Making a new network")
             path = None
@@ -167,7 +173,16 @@ class Model(object):
         if path is not None:
             path = tf.nest.flatten(path)
             for p in path:
-                self.net.load_weights(p, by_name=True, skip_mismatch=True)
+                if not forced:
+                    self.net.load_weights(p, by_name=True, skip_mismatch=True)
+                else:
+                    w = tf.nest.map_structure(
+                        lambda x: tf.convert_to_tensor(x, dtype=tf.float64),
+                        utils.H5DataSet(p, no_group=True).data
+                    )
+                    for v in self.net.weights:
+                        if v.name in w:
+                            v.assign(w[v.name])
 
     # Compiling Model
     ###########################################################################

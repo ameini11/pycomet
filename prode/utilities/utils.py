@@ -268,15 +268,20 @@ def close_all_hdf5():
                 pass
 
 class H5DataSet:
-    def __init__(self, path):
+    def __init__(self, path, no_group=False):
         self.data = {}
+        self.no_group = no_group
         self.df = h5py.File(path,'r')
         self.df.visititems(self)
         self.df.close()
 
     def __call__(self, name, node):
         if isinstance(node, h5py.Dataset):
-            self.data[name] = self.df[name][()]
+            if self.no_group:
+                name_ = os.path.join(*(name.split(os.path.sep)[1:]))
+            else:
+                name_ = name
+            self.data[name_] = self.df[name][()]
 
 
 # Environment setup -----------------------------------------------------------
