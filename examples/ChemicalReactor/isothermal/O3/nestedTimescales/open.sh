@@ -5,7 +5,7 @@
 
 # Default arguments
 DIR='./'
-FILE='log'
+FILE='TS1'
 
 # Parsing arguments
 while [[ $# -gt 0 ]]; do
