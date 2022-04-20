@@ -142,13 +142,11 @@ class NeqCtrlNN(Net):
     ):
         # Inputs manipulation
         x = self._manipulate_input(x)
-        # Inputs flattening
-        x = tf.nest.flatten(x)
         # Kernel - MMOpNNs
         if training or tol is None:
             y = [self.mmopnns[n](x, training=training) for n in self.names]
         else:
-            y = self._adaptive_call(x)
+            y = self._adaptive_call(x, tol)
         return y
 
     def _manipulate_input(self, x):
@@ -164,9 +162,11 @@ class NeqCtrlNN(Net):
                     x[k] = self.inp_trans[k](x[k])
                 else:
                     x[k] = self.inp_trans(x[k])
+        # Inputs flattening
+        x = tf.nest.flatten(x)
         return x
 
-    def _adaptive_call(self, x):
+    def _adaptive_call(self, x, tol):
         y = []
         n = utils.get_cardinality(x)
         # Looping over each Timescale

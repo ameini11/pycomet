@@ -29,11 +29,10 @@ class TimeScaleNN(Net):
         batch_norm=None,
         weight_norm=False,
         opnn_end_scale='bias',
-        stacked=True,
+        stacked_blocks={"branch": True, "trunk": False},
         block='FFBlock',
         block_linear_out=True,
-        cross_encoder=False,
-        cross_encoder_layer_size=None,
+        shifter=None,
         augmented=False,
         name='tsnn',
         *args,
@@ -79,13 +78,12 @@ class TimeScaleNN(Net):
         self.dropout_rate = dropout_rate
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
-        self.cross_encoder = cross_encoder
-        self.cross_encoder_layer_size = cross_encoder_layer_size
+        self.stacked_blocks = stacked_blocks
+        self.shifter = shifter
         self.augmented = augmented
 
         ### OpNNs Initialization ----------------------------------------------
         self.opnn_end_scale = opnn_end_scale
-        self.stacked = stacked
         self.opnns = [
             OpNN(
                 self.opnn_dim[i],
@@ -94,14 +92,13 @@ class TimeScaleNN(Net):
                 self.kernel_initializer,
                 regularization=self.regularization,
                 end_scale=self.opnn_end_scale,
-                stacked=self.stacked,
+                stacked_blocks=self.stacked_blocks,
                 dropout_rate=self.dropout_rate,
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
                 block=self.block,
                 block_linear_out=self.block_linear_out,
-                cross_encoder=self.cross_encoder,
-                cross_encoder_layer_size=self.cross_encoder_layer_size,
+                shifter=self.shifter,
                 augmented=self.augmented,
                 name='opnn_' + str(i)
             ) for i in range(len(self.out_dim))
@@ -129,11 +126,10 @@ class TimeScaleNN(Net):
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
             'opnn_end_scale': self.opnn_end_scale,
-            'stacked': self.stacked,
+            'stacked_blocks': self.stacked_blocks,
             'reaction': self.reaction,
             'species': self.species,
-            'cross_encoder': self.cross_encoder,
-            'cross_encoder_layer_size': self.cross_encoder_layer_size,
+            'shifter': self.shifter,
             'augmented': self.augmented
         }
         base_config = super(TimeScaleNN, self).get_config()
@@ -151,18 +147,28 @@ class TimeScaleNN(Net):
         training=False,
         neq_mask=None
     ):
-        # Inputs manipulation -------------------------------------------------
+        # Inputs manipulation
+        x, T, rho = self._manipulate_input(x)
+        # Kernel - MMOpNNs
+        if training or neq_mask is None:
+            y = [opnn(x, training=training) for opnn in self.opnns]
+        else:
+            y = self._adaptive_call(x, neq_mask)
+        # Outputs manipulation
+        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        # Equilibrium layer
+        y = self.equilibrium([y, T, rho])
+        return y
+
+    def _manipulate_input(self, x):
         # Extract inputs
         ic, t = x
-
         # Extract physical inputs
         T, rho, Y = tf.split(
             ic, num_or_size_splits=[1,1,self.inp_dim[0]-2], axis=1
         )
-
         # Normalize temperature
         T_norm = self.temperature_norm_lay(T)
-
         # Add mass fractions (micro-bins to macro-bins)
         if self.ts_fast_conn != None:
             Y_ = []
@@ -173,50 +179,39 @@ class TimeScaleNN(Net):
                     )
                 )
             Y = tf_layers.Concatenate()(Y_) if len(Y_) > 1 else Y_[-1]
-
         # Log-scaled mass fractions
         if self.log_mass_frac:
             Y = self.log_mass_frac_lay(Y)
-
         # Recompose ICs
         ic = tf_layers.Concatenate()([T_norm, rho, Y])
-
         # Recompose inputs
         x = [ic, t]
+        return x, T, rho
 
-        # Kernel - Timescales NN ----------------------------------------------
-        if training or neq_mask is None:
-            y = [ opnn(x, training=training) for opnn in self.opnns ]
-        else:
-            y = []
-            # Get number of input data
-            n = utils.get_cardinality(x)
-            # Split `neq_mask` columnwise and loop over each column
-            neq_mask = tf.split(neq_mask, neq_mask.shape[1], axis=1)
-            for i, mask_i in enumerate(neq_mask):
-                # Create a dummy `zeros` tensor
-                y_i = tf.zeros((n, self.out_dim[i]), dtype=K.floatx())
-                # If any values of `mask_i` is `True`, evaluate the specific
-                # data points
-                if any(mask_i):
-                    # Get indices for the actual data to be evaluated
-                    idx = tf.reshape(tf.where(mask_i)[:,0], shape=[-1])
-                    # Extract inputs given specific indices
-                    x_i = tf.nest.map_structure(
-                        lambda x: tf.gather(x, idx, axis=0), x
-                    )
-                    # Update the dummy `zeros` tensor with the actual
-                    # evaluation of the DeepONet `i`
-                    y_i = tf.tensor_scatter_nd_update(
-                        y_i,
-                        tf.expand_dims(idx, 1),
-                        self.opnns[i](x_i, training=training)
-                    )
-                y.append(y_i)
-
-        # Outputs manipulation ------------------------------------------------
-        # Equilibrium layer
-        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-        y = self.equilibrium([y, T, rho])
-
+    def _adaptive_call(self, x, neq_mask):
+        y = []
+        # Get number of input data
+        n = utils.get_cardinality(x)
+        # Split `neq_mask` columnwise and loop over each column
+        neq_mask = tf.split(neq_mask, neq_mask.shape[1], axis=1)
+        for i, mask_i in enumerate(neq_mask):
+            # Create a dummy `zeros` tensor
+            y_i = tf.zeros((n, self.out_dim[i]), dtype=K.floatx())
+            # If any values of `mask_i` is `True`, evaluate the specific
+            # data points
+            if any(mask_i):
+                # Get indices for the actual data to be evaluated
+                idx = tf.reshape(tf.where(mask_i)[:,0], shape=[-1])
+                # Extract inputs given specific indices
+                x_i = tf.nest.map_structure(
+                    lambda x: tf.gather(x, idx, axis=0), x
+                )
+                # Update the dummy `zeros` tensor with the actual
+                # evaluation of the DeepONet `i`
+                y_i = tf.tensor_scatter_nd_update(
+                    y_i,
+                    tf.expand_dims(idx, 1),
+                    self.opnns[i](x_i, training=training)
+                )
+            y.append(y_i)
         return y

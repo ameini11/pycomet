@@ -116,10 +116,11 @@ class Model(object):
                 utils.print_submain("", end=""); netron.stop()
         # Loading network weights
         load_net = tf.nest.flatten(load_net)
+        forced = False
         if isinstance(load_net[-1], bool):
             *load_net, forced = load_net
         else:
-            *load_net, forced = load_net, False
+            load_net = load_net[-1]
         self.make_or_restore(load_net, forced)
 
     def make_or_restore(self, load_net, forced=False):
@@ -194,7 +195,7 @@ class Model(object):
         decay=None,
         loss="mse",
         axis=None,
-        reduction='sum_over_batch_size',
+        reduction='auto',
         metrics=None,
         loss_weights=None
     ):
@@ -202,8 +203,7 @@ class Model(object):
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
         # Initializing loss functions
-        # self.loss = losses_module.get(loss, axis=axis, reduction=reduction)
-        self.loss = losses_module.get(loss, axis=axis)
+        self.loss = losses_module.get(loss, axis=axis, reduction=reduction)
 
         # Initializing loss weights
         self.loss_weights = self.get_loss_weights(loss_weights)

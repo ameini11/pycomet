@@ -5,7 +5,7 @@
 
 # Default arguments
 DIR='./'
-FILE='TS4_log'
+FILE='log'
 
 # Parsing arguments
 while [[ $# -gt 0 ]]; do
@@ -32,5 +32,5 @@ done
 for d in $DIR/*;
 do
     echo "Showing '$d'"
-    evince $d/log/$FILE'.pdf'
+    evince $d/$FILE'.pdf'
 done
