@@ -33,6 +33,8 @@ $ ./install -a install
 
 - Dependencies
 
+  - [h5py](https://www.h5py.org/)
+  - [Joblib](https://joblib.readthedocs.io/)
   - [Matplotlib](https://matplotlib.org/)
   - [Netron](https://netron.app/)
   - [NumPy](http://www.numpy.org/)
