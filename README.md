@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pytor/blob/main/LICENSE)
 
 PyTOR is a deep learning library, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends.
+
 PyTOR currently includes the following algorithms:
 - solving forward/inverse ordinary differential equations (ODEs) via neural networks;
 - approximating nonlinear operators via deep operator networks (DeepONets);
