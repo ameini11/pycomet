@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/ivanZanardi/prode.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/prode)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/prode/blob/main/LICENSE)
 
-PARSEC is a deep learning library written on top of the deep learning API [Keras](https://keras.io/), which in turn runs on top of the machine learning platform [TensorFlow](https://www.tensorflow.org/).
+PyTOR is a deep learning library written on top of the deep learning API [Keras](https://keras.io/), which in turn runs on top of the machine learning platform [TensorFlow](https://www.tensorflow.org/).
 PyTOR has been designed to 
 - solve forward and inverse ordinary differential equations (ODEs) via physics-informed neural network (PINN);
 - approximate nonlinear operators via deep operator network (DeepONet);
