@@ -1,24 +1,18 @@
-# PARSEC
-**Physics-informed mAchine learning foR SciEntific Computations**
-<!-- # PrODE -->
-<!-- **Machine-Learning-Based Approximators for Ordinary Differential Equations (ODEs)** -->
-<!-- # PYSMART -->
-<!-- # PhYSics-informed Machine leArning foR scientific compuTations -->
-<!-- # PICHAOS -->
-<!-- # Physics-Informed maCHine leArning fOr Scientific compuTations -->
+# PyTOR
+**Physics-informed machine learning for scientific computations and operator discovery**
 
 [![Build Status](https://travis-ci.org/ivanZanardi/prode.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/prode)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/prode/blob/main/LICENSE)
 
 PARSEC is a deep learning library written on top of the deep learning API [Keras](https://keras.io/), which in turn runs on top of the machine learning platform [TensorFlow](https://www.tensorflow.org/).
-PrODE has been designed to 
+PyTOR has been designed to 
 - solve forward and inverse ordinary differential equations (ODEs) via physics-informed neural network (PINN);
 - approximate nonlinear operators via deep operator network (DeepONet);
 - approximate functions from a dataset.
 
 ## Features
 
-PARSEC supports
+PyTOR supports
 
 - two types of neural networks: unstacked fully connected neural network, and residual neural network;
 - many different losses, metrics, optimizers, learning rate schedules, initializations, regularizations, etc.;
@@ -26,11 +20,11 @@ PARSEC supports
 - callbacks to monitor the internal states and statistics of the model during training;
 - enables the user code to be compact, resembling closely the mathematical formulation.
 
-All the components of PrODE are loosely coupled, and thus PrODE is well-structured and highly configurable. It is easy to customize PrODE to meet new demands.
+All the components of PyTOR are loosely coupled, and thus PyTOR is well-structured and highly configurable. It is easy to customize PyTOR to meet new demands.
 
 ## Installation
 
-To install PrODE simply type the following commands in your Unix shell:
+To install PyTOR simply type the following commands in your Unix shell:
 
 ```
 $ git clone https://github.com/ivanZanardi/prode.git
@@ -61,7 +55,7 @@ $ sudo apt-get install graphviz ffmpeg
 
 ## Use with Docker
 
-If you have downloaded a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), you can build an image of PrODE by following the instructions given in `docker/build_image.sh` and then typing the following command:
+If you have downloaded a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), you can build an image of PyTOR  by following the instructions given in `docker/build_image.sh` and then typing the following command:
 
 ```
 $ ./docker/build_image.sh
@@ -71,8 +65,8 @@ Afterwards, you can run your `main.py` script by running the new built image. To
 
 ## Explore more
 
-- [Examples](https://github.com/ivanZanardi/PrODE/tree/main/examples)
+- [Examples](https://github.com/ivanZanardi/pytor/tree/main/examples)
 
 ## License
 
-[Apache license 2.0](https://github.com/ivanZanardi/prode/blob/main/LICENSE)
+[Apache license 2.0](https://github.com/ivanZanardi/pytor/blob/main/LICENSE)
