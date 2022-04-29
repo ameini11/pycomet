@@ -1,24 +1,17 @@
-# PARSEC
-**Physics-informed mAchine learning foR SciEntific Computations**
-<!-- # PyCOMET -->
-<!-- **Machine-Learning-Based Approximators for Ordinary Differential Equations (ODEs)** -->
-<!-- # PYSMART -->
-<!-- # PhYSics-informed Machine leArning foR scientific compuTations -->
-<!-- # PICHAOS -->
-<!-- # Physics-Informed maCHine leArning fOr Scientific compuTations -->
+# PyTOR
+**Physics-informed machine learning for scientific computations and operator discovery**
 
-[![Build Status](https://travis-ci.org/ivanZanardi/pycomet.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/pycomet)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
+[![Build Status](https://travis-ci.org/ivanZanardi/pytor.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/pytor)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pytor/blob/main/LICENSE)
 
-PARSEC is a deep learning library written on top of the deep learning API [Keras](https://keras.io/), which in turn runs on top of the machine learning platform [TensorFlow](https://www.tensorflow.org/).
-PyCOMET has been designed to 
-- solve forward and inverse ordinary differential equations (ODEs) via physics-informed neural network (PINN);
-- approximate nonlinear operators via deep operator network (DeepONet);
-- approximate functions from a dataset.
+PyTOR is a deep learning library API, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyTOR currently includes the following algorithms:
+- solving forward/inverse ordinary differential equations (ODEs) via neural networks;
+- approximating nonlinear operators via deep operator networks (DeepONets);
+- multi-objectives function loss optimization (data-driven and physics-informed learning).
 
 ## Features
 
-PARSEC supports
+PyTOR supports
 
 - two types of neural networks: unstacked fully connected neural network, and residual neural network;
 - many different losses, metrics, optimizers, learning rate schedules, initializations, regularizations, etc.;
@@ -26,15 +19,15 @@ PARSEC supports
 - callbacks to monitor the internal states and statistics of the model during training;
 - enables the user code to be compact, resembling closely the mathematical formulation.
 
-All the components of PyCOMET are loosely coupled, and thus PyCOMET is well-structured and highly configurable. It is easy to customize PyCOMET to meet new demands.
+All the components of PyTOR are loosely coupled, and thus PyTOR is well-structured and highly configurable. It is easy to customize PyTOR to meet new demands.
 
 ## Installation
 
-To install PyCOMET simply type the following commands in your Unix shell:
+To install PyTOR simply type the following commands in your Unix shell:
 
 ```
-$ git clone https://github.com/ivanZanardi/pycomet.git
-$ cd pycomet
+$ git clone https://github.com/ivanZanardi/prode.git
+$ cd prode
 $ ./install -a install
 ```
 
@@ -61,7 +54,7 @@ $ sudo apt-get install graphviz ffmpeg
 
 ## Use with Docker
 
-If you have downloaded a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), you can build an image of PyCOMET by following the instructions given in `docker/build_image.sh` and then typing the following command:
+If you have downloaded a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), you can build an image of PyTOR  by following the instructions given in `docker/build_image.sh` and then typing the following command:
 
 ```
 $ ./docker/build_image.sh
@@ -71,8 +64,8 @@ Afterwards, you can run your `main.py` script by running the new built image. To
 
 ## Explore more
 
-- [Examples](https://github.com/ivanZanardi/PyCOMET/tree/main/examples)
+- [Examples](https://github.com/ivanZanardi/pytor/tree/main/examples)
 
 ## License
 
-[Apache license 2.0](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
+[Apache license 2.0](https://github.com/ivanZanardi/pytor/blob/main/LICENSE)
