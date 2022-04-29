@@ -2,7 +2,7 @@ import time
 import numpy as np
 from scipy.integrate import ode
 
-from prode.physics.general import const
+from pycomet.physics.general import const
 
 
 class ODESolver(object):

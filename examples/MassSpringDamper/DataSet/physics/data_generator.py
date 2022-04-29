@@ -34,7 +34,7 @@ class DataGenerator(object):
         *args,
         **kwargs
     ):
-        self.header = '[PrODE - Data Gen]: '
+        self.header = '[PyCOMET - Data Gen]: '
         self.data_dir = "./data/"
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)

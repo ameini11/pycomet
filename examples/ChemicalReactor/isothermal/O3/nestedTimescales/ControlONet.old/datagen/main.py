@@ -1,5 +1,5 @@
 # *************************************************************************** #
-#                                    PrODE                                    #
+#                                    PyCOMET                                    #
 # --------------------------------------------------------------------------- #
 #                     Machine-Learning-Based Approximators                    #
 #                  for Ordinary Differential Equations (ODEs)                 #
@@ -23,9 +23,9 @@ import os
 import sys
 import tensorflow as tf
 
-# PrODE module
-sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PrODE/prode/'))
-from prode.utilities import utils
+# PyCOMET module
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PyCOMET/pycomet/'))
+from pycomet.utilities import utils
 
 # Data generator module
 sys.path.append(os.path.abspath('./'))

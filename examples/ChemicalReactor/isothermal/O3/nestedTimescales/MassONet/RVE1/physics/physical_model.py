@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 from tensorflow.python.keras import backend
-from prode.physics.thermochemistry import specie as specieMdl
-from prode.physics.thermochemistry.reactionThermo import mixture as mixMdl
-from prode.physics.thermochemistry.chemistry import chemistrySolver as chemSol
-from prode.utilities import utils
+from pycomet.physics.thermochemistry import specie as specieMdl
+from pycomet.physics.thermochemistry.reactionThermo import mixture as mixMdl
+from pycomet.physics.thermochemistry.chemistry import chemistrySolver as chemSol
+from pycomet.utilities import utils
 
 
 class PhysicalModel(object):

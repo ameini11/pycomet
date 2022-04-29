@@ -10,7 +10,7 @@
 cp -r $(pwd)/../../database .
 cp -r $(pwd)/../../utils .
 # >> define the following variables:
-parent=tf-prode		# Parent image on top of which the new one is created
+parent=tf-pycomet		# Parent image on top of which the new one is created
 tag=latest			# Tag of the parent image
 run_num=0			# Running number
 # =========================================================================== #

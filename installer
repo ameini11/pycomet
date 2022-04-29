@@ -8,7 +8,7 @@ cat << EOF
 
 usage: ./install [-h] [-a ACTION]
 
-PrODE installation file
+PyCOMET installation file
 
 optional arguments:
 -a | --action    (Required)      Action to take: install/uninstall

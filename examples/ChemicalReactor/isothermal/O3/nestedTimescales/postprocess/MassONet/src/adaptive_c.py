@@ -3,7 +3,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from matplotlib.ticker import MaxNLocator
-from prode.utilities import utils
+from pycomet.utilities import utils
 
 
 class AdaptiveSolver(object):

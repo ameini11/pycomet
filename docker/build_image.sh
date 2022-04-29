@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =========================================================================== #
-# Build `prode` docker image
+# Build `pycomet` docker image
 # =========================================================================== #
 # Instructions
 # >> run this script with docker root privileges
@@ -10,7 +10,7 @@ parent=tensorflow/tensorflow	# Parent image on top of which the new one is creat
 tag=latest-gpu					# Tag of the parent image
 # =========================================================================== #
 
-img_name=tf-prode
+img_name=tf-pycomet
 
 # Check if the image already exists -------------------------------------------
 if [[ "$(docker images -q $img_name:latest 2> /dev/null)" != "" ]]; then
@@ -25,7 +25,7 @@ FROM ${parent}:${tag}
 
 LABEL maintainer="zanardi3@illinois.edu"
 
-WORKDIR /app/prode
+WORKDIR /app/pycomet
 
 COPY ./ ./
 

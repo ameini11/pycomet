@@ -2,8 +2,8 @@ import copy
 import numpy as np
 import tensorflow as tf
 
-from prode.physics.general import const
-from prode.physics.thermochemistry import specie as specieMdl
+from pycomet.physics.general import const
+from pycomet.physics.thermochemistry import specie as specieMdl
 
 
 class NoneqController(object):

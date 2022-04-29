@@ -9,12 +9,12 @@ from tqdm import tqdm
 from pyDOE import lhs
 
 from trained_model.physics.ode_solver import ODESolver
-from prode.utilities import utils
-from prode.physics.general import const
-from prode.apps import functionObjects as fun
+from pycomet.utilities import utils
+from pycomet.physics.general import const
+from pycomet.apps import functionObjects as fun
 
-from prode.physics.thermochemistry import specie as specieMdl
-import prode.physics.database as db
+from pycomet.physics.thermochemistry import specie as specieMdl
+import pycomet.physics.database as db
 kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
 grouping_db = os.path.dirname(db.__file__) + '/air/grouping/'
 

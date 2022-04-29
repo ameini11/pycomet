@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from prode.physics.thermochemistry.chemistry.chemistryModel import Basic
+from pycomet.physics.thermochemistry.chemistry.chemistryModel import Basic
 
 
 class ChemistryModel(Basic):

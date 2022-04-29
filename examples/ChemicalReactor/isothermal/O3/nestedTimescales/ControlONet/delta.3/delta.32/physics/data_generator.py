@@ -14,10 +14,10 @@ from pyDOE import lhs
 
 from physics.ode_solver import ODESolver
 from physics.noneq_controller import NoneqController
-from prode.utilities import utils
-from prode.physics.general import const
+from pycomet.utilities import utils
+from pycomet.physics.general import const
 
-import prode.physics.database as db
+import pycomet.physics.database as db
 kinetic_db = os.path.dirname(db.__file__) + '/air/kinetics/'
 grouping_db = os.path.dirname(db.__file__) + '/air/grouping/'
 

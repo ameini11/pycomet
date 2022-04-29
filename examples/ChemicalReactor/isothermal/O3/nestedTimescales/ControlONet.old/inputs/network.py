@@ -1,5 +1,5 @@
 # *************************************************************************** #
-#                                    PrODE                                    #
+#                                    PyCOMET                                    #
 # --------------------------------------------------------------------------- #
 #                     Machine-Learning-Based Approximators                    #
 #                  for Ordinary Differential Equations (ODEs)                 #
@@ -16,7 +16,7 @@ import tensorflow as tf
 import inputs.general as inp_gen
 
 from tensorflow.python.keras import layers as tf_layers
-from prode.utilities.model import layers as pro_layers
+from pycomet.utilities.model import layers as pro_layers
 
 
 # Architecture properties
