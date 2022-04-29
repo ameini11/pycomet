@@ -4,9 +4,7 @@
 [![Build Status](https://travis-ci.org/ivanZanardi/pytor.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/pytor)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pytor/blob/main/LICENSE)
 
-PyTOR is a deep learning library, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends.
-
-PyTOR currently includes the following algorithms:
+PyTOR is a deep learning library, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyTOR currently includes the following algorithms:
 - solving forward/inverse ordinary differential equations (ODEs) via neural networks;
 - approximating nonlinear operators via deep operator networks (DeepONets);
 - multi-objectives function loss optimization (data-driven and physics-informed learning).
