@@ -5,7 +5,7 @@
 
 # Default arguments
 DIR='./'
-FILE='TS1'
+FILE='TS2'
 
 # Parsing arguments
 while [[ $# -gt 0 ]]; do
