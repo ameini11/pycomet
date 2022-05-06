@@ -26,9 +26,9 @@ All the components of PyCOMET are loosely coupled, and thus PyCOMET is well-stru
 To install PyCOMET simply type the following commands in your Unix shell:
 
 ```
-$ git clone https://github.com/ivanZanardi/prode.git
-$ cd prode
-$ ./install -a install
+$ git clone https://github.com/ivanZanardi/pycomet.git
+$ cd pycomet
+$ ./allinstall -a install
 ```
 
 - Dependencies
