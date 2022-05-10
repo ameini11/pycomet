@@ -153,7 +153,7 @@ class TimeScaleNN(Net):
         if training or neq_mask is None:
             y = [opnn(x, training=training) for opnn in self.opnns]
         else:
-            y = self._adaptive_call(x, neq_mask)
+            y = self._adaptive_call(x, neq_mask, training=False)
         # Outputs manipulation
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
         # Equilibrium layer
@@ -188,7 +188,7 @@ class TimeScaleNN(Net):
         x = [ic, t]
         return x, T, rho
 
-    def _adaptive_call(self, x, neq_mask):
+    def _adaptive_call(self, x, neq_mask, training):
         y = []
         # Get number of input data
         n = utils.get_cardinality(x)
