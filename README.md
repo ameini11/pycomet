@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
 
 PyCOMET is a deep learning library API, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyCOMET currently includes the following algorithms:
-- solving forward/inverse ordinary differential equations (ODEs) via neural networks;
+- solving forward partial differential equations (PDEs) via neural networks;
 - approximating nonlinear operators via deep operator networks (DeepONets);
 - multi-objectives function loss optimization (data-driven and physics-informed learning).
 
@@ -26,9 +26,9 @@ All the components of PyCOMET are loosely coupled, and thus PyCOMET is well-stru
 To install PyCOMET simply type the following commands in your Unix shell:
 
 ```
-$ git clone https://github.com/ivanZanardi/prode.git
-$ cd prode
-$ ./install -a install
+$ git clone https://github.com/ivanZanardi/pycomet.git
+$ cd pycomet
+$ ./allinstall -a install
 ```
 
 - Dependencies
