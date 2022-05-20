@@ -93,12 +93,11 @@ class Plotter(CB.Callback):
 
     def testing(self):
         utils.print_submain(" - Plotting test cases ...")
-        for i, data in enumerate(tqdm(copy.deepcopy(self.test_data))):
-            # Get true and pred values
-            x, y = data
+        for name, (x, y) in tqdm(copy.deepcopy(self.test_data).items()):
+            # Get pred values
             y_pred = self.model.predict(x)
             # Define `testing` directory
-            path = self.dir['test'] + '/test_' + str(i+1)
+            path = self.dir['test'] + f'/{name}'
             if not os.path.exists(path):
                 os.makedirs(path)
             # Manipulate model inputs
@@ -141,6 +140,58 @@ class Plotter(CB.Callback):
         if self.log_scale:
             kwargs['scales'] = ['log','log']
             postprocessing.testing.plot_test(**kwargs)
+
+
+    # def testing(self):
+    #     utils.print_submain(" - Plotting test cases ...")
+    #     for i, data in enumerate(tqdm(copy.deepcopy(self.test_data))):
+    #         # Get true and pred values
+    #         x, y = data
+    #         y_pred = self.model.predict(x)
+    #         # Define `testing` directory
+    #         path = self.dir['test'] + '/test_' + str(i+1)
+    #         if not os.path.exists(path):
+    #             os.makedirs(path)
+    #         # Manipulate model inputs
+    #         if isinstance(x, (list,tuple)):
+    #             x = x[self.time_idx] # Time input
+    #         else:
+    #             x = x[:,self.time_idx]
+    #         # Manipulate model outputs
+    #         if self.output_ops:
+    #             y, y_pred = list(map(self.output_ops, [y, y_pred]))
+    #         # Plot true vs. pred values for each single model output
+    #         if isinstance(y, (list,tuple)):
+    #             for j in range(len(y)):
+    #                 kwargs = dict(
+    #                     path=path,
+    #                     x=x,
+    #                     y=y[j],
+    #                     y_pred=y_pred[j],
+    #                     var_names=self.var_names[j],
+    #                     fig_name=self.fig_name[j] if self.fig_name else None,
+    #                     labels=self.labels,
+    #                     scales=self.scales
+    #                 )
+    #                 self.testing_plot_fn(kwargs)
+    #         else:
+    #             kwargs = dict(
+    #                 path=path,
+    #                 x=x,
+    #                 y=y,
+    #                 y_pred=y_pred,
+    #                 var_names=self.var_names,
+    #                 fig_name=self.fig_name,
+    #                 labels=self.labels,
+    #                 scales=self.scales
+    #             )
+    #             self.testing_plot_fn(kwargs)
+
+    # def testing_plot_fn(self, kwargs):
+    #     postprocessing.testing.plot_test(**kwargs)
+    #     if self.log_scale:
+    #         kwargs['scales'] = ['log','log']
+    #         postprocessing.testing.plot_test(**kwargs)
 
 
 # @keras_export('keras.callbacks.MovieDumper')

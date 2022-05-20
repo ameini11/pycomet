@@ -55,7 +55,7 @@ class Data(object):
 
         # Testing data
         if test_data is None:
-            continue
+            pass
         elif isinstance(test_data, str) and os.path.isdir(test_data):
             self.test = {}
             for file in os.listdir(test_data):

@@ -1,5 +1,5 @@
 # *************************************************************************** #
-#                                    PyCOMET                                    #
+#                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
 #                     Machine-Learning-Based Approximators                    #
 #                  for Ordinary Differential Equations (ODEs)                 #
@@ -17,7 +17,7 @@
 data_type = 'ODE'
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
 
 # *** From file
 file = {
@@ -33,24 +33,24 @@ file = {
 }
 
 columns = {
-    'x': [[0,5],[5,6]],
-    'y': [[6,8],[8,11]]
+    'x': [[0,8],[8,9]],
+    'y': [11,12]
 }
 
 header = 0
 
-def preproc_fn(x):
-    """Manipulates data extracted from file.
+# def preproc_fn(x):
+#     """Manipulates data extracted from file.
 
-    Args:
-        x: Array or list of arrays.
+#     Args:
+#         x: Array or list of arrays.
 
-    Returns:
-        An array or list of arrays.
-    """
-    if x.shape[1] == columns['y'][-1][-1]:
-        x[:,columns['y'][0][0]+1] = 1. - x[:,columns['y'][0][0]]
-    return x
+#     Returns:
+#         An array or list of arrays.
+#     """
+#     if x.shape[1] == columns['y'][-1][-1]:
+#         x[:,columns['y'][0][0]+1] = 1. - x[:,columns['y'][0][0]]
+#     return x
 
 # *** From arrays
 # Training data
@@ -69,13 +69,11 @@ test_training = True        # Test training cases
 # Batching --------------------------------------------------------------------
 batch_size = {
     'train': {
-        'ics': 128,
-        'pts': 128,
-        'res': 512
+        'ics': 32,
+        'pts': 128
     },
     'valid': {
-        'ics': 256,
-        'pts': 256,
-        'res': 256
+        'ics': 64,
+        'pts': 64
     }
 }

@@ -12,24 +12,11 @@
 # --------------------------------------------------------------------------- #
 
 
-import tensorflow as tf
-import inputs.general as inp_gen
-
-
 # Plotting quantities
 # =============================================================================
-# Outputs manipulation --------------------------------------------------------
-def output_ops(y):
-    return tf.concat([y[0][:,1:2], y[-1]], 1)
-
 # Style -----------------------------------------------------------------------
-var_names = [r'$O$'] \
-    + [r'$O_2^{(1,{%s})}$' % (i+1) for i in range(inp_gen.dim['out'][1])]
-
 plot_style = {
-    'output_ops':   output_ops,
-    'var_names':    var_names,
-    'labels':       [r'$t\quad[s]$', r'$Y$'],
-    'scales':       ['log', 'linear'],
-    'log_scale':    True
+    'var_names':    [r'$N_2^{(3)}$'],
+    'labels':       [r'$t\quad[s]$', r'$T$ [K]'],
+    'scales':       ['log', 'linear']
 }

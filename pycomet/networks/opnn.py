@@ -160,24 +160,23 @@ class OpNN(Net):
         ) for i in range(self.n_trunks) ]
 
     def init_shifter(self):
+        shifter_prop = ('layer_size', 'activation', 'stacked', 'out_trans')
         # Check 'shifter' network
         if isinstance(self.shifter, dict):
-            for k in ('layer_size', 'activation', 'stacked'):
+            for k in shifter_prop:
                 if k not in self.shifter:
                     utils.raise_value_err(
                         f"'{k}' missing in `shifter` dictionary"
                     )
-            if any(k not in ('layer_size', 'activation', 'stacked') \
-                for k in self.shifter.keys()):
+            if any(k not in shifter_prop for k in self.shifter.keys()):
                 utils.raise_value_err(
                     f"Invalid `shifter` dictionary keys passed into "
-                    f"`{self.name}`. Available choices: "
-                    "{{'layer_size'|'activation'|'stacked'}}."
+                    f"`{self.name}`. Available choices: {shifter_prop}"
                 )
         else:
             utils.raise_value_err(
-                f"Input `shifter` has to be a dictionary with "
-                f"keys: {{'layer_size'|'activation'|'stacked'}}."
+                f"Input `shifter` has to be a dictionary with"
+                f" keys: {shifter_prop}"
             )
         # Shifter block
         n = 2 if self.shifter['stacked'] else 1
@@ -189,8 +188,12 @@ class OpNN(Net):
             linear_out=True,
             activation=self.shifter["activation"],
             layer_size=self.shifter["layer_size"],
-            name=f'shifter_{i}'# if i != 0 else 'shifter'
+            name=f'shifter_{i}'
         ) for i in range(n)]
+        # Shifter output transformation
+        self.shifter_out_trans = None
+        if "out_trans" in self.shifter:
+            self.shifter_out_trans = self.shifter["out_trans"]
 
     def init_uv(self):
         # Augmented cross-encoding layers
@@ -266,7 +269,7 @@ class OpNN(Net):
         return x
 
     def _eval_kernel(self, x, training):
-        # Shifter
+        # Shifter -------------------------------------------------------------
         if self.shifter is not None:
             if self.shifter['stacked']:
                 a = self._shifter[0](x["branch"], training=training)
@@ -277,38 +280,56 @@ class OpNN(Net):
             x["trunk"] = tf_layers.Add()(
                 [tf_layers.Multiply()([a, x["trunk"]]), b]
             )
+        # Shifter output transformation
+        if self.shifter_out_trans is not None:
+            x["trunk"] = self.shifter_out_trans(x["trunk"])
+
+        # Kernel - OpNN -------------------------------------------------------
         # Augmentation
         args = dict(training=training)
         if self.augmented:
             u = self.U(x["branch"], training=training)
             v = self.V(x["trunk"], training=training)
             args.update(dict(u=u, v=v))
-        # Kernel - OpNN
+
         G_u = [br(x["branch"], **args) for br in self._branches]
         G_y = [tr(x["trunk"], **args) for tr in self._trunks]
         return G_u, G_y
 
     def _dot_product(self, G_u, G_y):
-        if self.stacked_blocks["branch"] or self.stacked_blocks["trunk"]:
-            n = max(self.n_branches, self.n_trunks)
-            if self.n_branches == self.n_trunks:
-                G_uy = [
-                    tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) for i in range(n)
-                ]
-            elif self.n_branches > self.n_trunks:
-                G_uy = [
-                    tf_layers.Dot(axes=1)([G_u[i], G_y[-1]]) for i in range(n)
-                ]
+        if self.out_dim > 1:
+            if self.n_branches > self.n_trunks:
+                G_y = [G_y[-1]] * self.n_branches
             elif self.n_branches < self.n_trunks:
-                G_uy = [
-                    tf_layers.Dot(axes=1)([G_u[-1], G_y[i]]) for i in range(n)
-                ]
-        else:
-            G_uy = tf.split(
-                tf_layers.Dot(axes=1)([G_u[-1], G_y[-1]]), self.out_dim, axis=1
-            )
-            G_uy = [tf.math.reduce_sum(g, axis=1, keepdims=True) for g in G_uy]
-        return G_uy
+                G_u = [G_u[-1]] * self.n_trunks
+            elif self.n_branches == self.n_trunks == 1:
+                G_u = tf.split(G_u[-1], self.out_dim, axis=1)
+                G_y = tf.split(G_y[-1], self.out_dim, axis=1)
+        return [
+            tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) for i in range(len(G_u))
+        ]
+
+    # def _dot_product(self, G_u, G_y):
+    #     if self.stacked_blocks["branch"] or self.stacked_blocks["trunk"]:
+    #         n = max(self.n_branches, self.n_trunks)
+    #         if self.n_branches == self.n_trunks:
+    #             G_uy = [
+    #                 tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) for i in range(n)
+    #             ]
+    #         elif self.n_branches > self.n_trunks:
+    #             G_uy = [
+    #                 tf_layers.Dot(axes=1)([G_u[i], G_y[-1]]) for i in range(n)
+    #             ]
+    #         elif self.n_branches < self.n_trunks:
+    #             G_uy = [
+    #                 tf_layers.Dot(axes=1)([G_u[-1], G_y[i]]) for i in range(n)
+    #             ]
+    #     else:
+    #         G_uy = tf.split(
+    #             tf_layers.Dot(axes=1)([G_u[-1], G_y[-1]]), self.out_dim, axis=1
+    #         )
+    #         G_uy = [tf.math.reduce_sum(g, axis=1, keepdims=True) for g in G_uy]
+    #     return G_uy
 
     def _manipulate_output(self, y):
         # Concatenation

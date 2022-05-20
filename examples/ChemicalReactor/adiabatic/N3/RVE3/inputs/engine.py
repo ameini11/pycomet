@@ -1,5 +1,5 @@
 # *************************************************************************** #
-#                                    PyCOMET                                    #
+#                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
 #                     Machine-Learning-Based Approximators                    #
 #                  for Ordinary Differential Equations (ODEs)                 #
@@ -12,29 +12,27 @@
 # --------------------------------------------------------------------------- #
 
 
-import inputs.network as inp_net
 import inputs.postprocessing as inp_post
 
 
 # Training
 # =============================================================================
-epochs = 10000
+epochs = 100000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
-lr = 5.e-4
-decay_steps = 512*200
+lr = 1.e-3
+decay_steps = 50*1000
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
 # Loss & Metrics
 # =============================================================================
-axis = 0 # -1 0 None
-reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
+axis = 0            # -1 0 None
+reduction = 'auto'  # 'auto' 'sum_over_batch_size' 'sum'
 loss = {
     'ics': 'malpe',
-    'pts': 'malpe',
-    'res': 'mae'
+    'pts': 'malpe'
 }
 
 # Callbacks
@@ -57,11 +55,11 @@ callbacks = {
         'monitor':           'val_loss',
         'save_best_only':    True,
         'save_weights_only': True
-    },
+    }, 
 
     'plotter': {
         **inp_post.plot_style,
-        'freq': 500
+        'freq': 1000
     },
 
     'tensorboard': {
@@ -69,39 +67,6 @@ callbacks = {
         'write_graph':    True,
         'write_images':   True,
         'profile_batch':  0
-    },
-
-    'weighted_loss': {
-        'name': 'ConstantWeightsAdapter',
-        'multi_obj_loss_weights': {
-            'ics': 128,
-            'pts': 128,
-            'res': 512
-        }
     }
-
-    # 'weighted_loss': {
-    #     'name':         'EmpiricalWeightsAdapter',
-    #     'multi_obj_loss_weights': {
-    #         'ics': 128,
-    #         'pts': 128,
-    #         'res': 512
-    #     }
-    #     'alpha':        0.9,
-    #     'freq':         50,
-    #     'max_samples':  20000
-    # }
-
-    # 'weighted_loss': {
-    #     'name': 'SoftAttentionWeightsAdapter',
-    #     'rank': 1,
-    #     'limits': {
-    #         'ics': [1.,1.],
-    #         'pts': [1.,1.],
-    #         'res': [1.,1.]
-    #     },
-    #     'mask': 'sigmoid',
-    #     'q': [1.e2, 1.]
-    # }
 
 }

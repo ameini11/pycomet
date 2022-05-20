@@ -96,35 +96,31 @@ def main():
     # }
     from inputs.general import flags
 
-    # Physics-related module
-    from physics.data_generator import DataGenerator
-
     # Data
     ###########################################################################
     # Generate Data -----------------------------------------------------------
-    dataGen_args = utils.get_args_values(
-        args=utils.get_args(DataGenerator.__init__),
-        modules=[inputs.data, inputs.general]
-    )
-    dataGen = DataGenerator(
-        **dataGen_args
-    )
-    dataGen.data_dir = opts.dir + "/data/"
-    if not os.path.exists(dataGen.data_dir):
-        os.makedirs(dataGen.data_dir)
-
     if inputs.data.from_file:
         utils.print_main("Extracting training/validation pts from file ...")
         train_data = inputs.data.file['train']
         valid_data = inputs.data.file['valid']
-        if flags['test'] > 0 and inputs.data.test_cases > 0:
-            utils.print_main('Generating testing pts ...')
-            test_data = dataGen.testing_data(
-                inputs.data.file['test'],
-                header=inputs.data.header
-            )
+        if inputs.data.test_cases > 0 and flags['test'] > 0:
+            test_data = inputs.data.file['test']
     else:
         utils.print_main("Generating initial conditions ...")
+        # Physics-related module
+        from physics.data_generator import DataGenerator
+
+        dataGen_args = utils.get_args_values(
+            args=utils.get_args(DataGenerator.__init__),
+            modules=[inputs.data, inputs.general]
+        )
+        dataGen = DataGenerator(
+            **dataGen_args
+        )
+        dataGen.data_dir = opts.dir + "/data/"
+        if not os.path.exists(dataGen.data_dir):
+            os.makedirs(dataGen.data_dir)
+
         ic = dataGen.initial_cond()
         utils.print_main("Generating training/validation pts ...")
         train_data, valid_data = dataGen.training_data(ic[0])
@@ -167,10 +163,10 @@ def main():
     # Testing phase -----------------------------------------------------------
     if inputs.data.test_cases > 0 and flags['test'] > 0:
         utils.print_main("Postprocessing physical quantities ...")
-        for i, data in enumerate(tqdm(data.test)):
+        for name, data in tqdm(data.test.items()):
             model.predict(
                 data=data,
                 plotting=flags['plot'],
-                path=model.dir['post']+'/testing/test_'+str(i+1),
+                path=model.dir['post'] + f'/testing/{name}',
                 **inputs.postprocessing.plot_style
             )

@@ -271,7 +271,7 @@ class Log(tf_layers.Layer):
     ):
         super(Log, self).__init__(name=name, **kwargs)
 
-        self.base = base
+        self.base = float(base)
         self.slope = slope
         self.offset = offset
 

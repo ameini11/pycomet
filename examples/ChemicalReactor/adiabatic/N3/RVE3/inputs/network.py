@@ -21,54 +21,43 @@ from pycomet.utilities.model import layers as pro_layers
 
 # Architecture properties
 # =============================================================================
-architecture = 'IsoThermChemReacNN'
+architecture = 'OpNN'
 
-# TimeScaleNNs characterization -----------------------------------------------
-names = ['TS0', 'TS1']
+end_scale = 'dense'
 
-tsnn_dim = {
-    names[0]: {
-        "inp": inp_gen.dim['inp'],
-        "out": 2
-    },
-    names[1]: {
-        "inp": inp_gen.dim['inp'],
-        "out": 3
-    }
-}
-
+# DeepONet characterization ---------------------------------------------------
 layer_size = {
-    names[0]: {
-        "branch": [2+1, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
-    },
-    names[1]: {
-        "branch": [2+3, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
-    }
+    "branch": [inp_gen.dim['inp'][0], 16, 16, 16, 1],
+    "trunk":  [inp_gen.dim['inp'][1], 16, 16, 16, 1]
 }
 
 activation = {
-    name: {
-        "branch": 'tanh',   # elu/gelu
-        "trunk":  'sigmoid'
-    } for name in names
+    "branch": 'sigmoid',
+    "trunk": 'sigmoid'
 }
 
-kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
+kernel_initializer = 'GlorotNormal'
 
-block = 'ResPIBlock' # 'FFBlock' 'ResPIBlock'
-block_linear_out = False
+block = 'FFBlock' #'FFBlock' 'ResPIBlock'
+block_linear_out = True
 
-opnn_end_scale = 'dense'
-
-stacked = True
-
-cross_encoder = {
+stacked_blocks = {
     "branch": False,
     "trunk": False
 }
 
+# Shifter
+shifter = {
+    "layer_size": [inp_gen.dim['inp'][0], 32, 32, 32, 2],
+    "activation": 'sigmoid',
+    "stacked": False,
+    # "out_trans": tf_layers.Lambda(tf.math.softplus, name='shifter_out_fn')
+    "out_trans": tf_layers.Lambda(
+        lambda x: tf.math.log(tf.math.softplus(x)), name='shifter_out_fn'
+    )
+}
+
+# Augmentation
 augmented = False
 
 # Regularizers ----------------------------------------------------------------
@@ -78,9 +67,9 @@ batch_norm = {
 }
 
 regularization = {
-    'name':         'fine_tuning',                                      # 'fine_tuning'
-    'l1':           1.e-3,
-    'l2':           1.e-3,
+    'name':         'l1+l2',                              # 'fine_tuning'
+    'l1':           1.e-5,
+    'l2':           1.e-5,
     'weights_path': './saving/'+inp_gen.model_name+'_weights.h5'  # For `FineTuningRegularizer`
 }
 
@@ -91,10 +80,15 @@ dropout_rate = 0
 # Global model ----------------------------------------------------------------
 # *** Inputs
 input_fn = {
-    "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
-    # "trunk": tf_layers.Lambda(lambda x: tf.math.reciprocal((x+1.e-15)*1.e7))
-    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
+    # "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
+    "branch": pro_layers.Log(
+        base=10, slope=1., offset=0., name='branch_fn', trainable=False
+    ),
+    "trunk": tf_layers.Lambda(lambda x: x, name='trunk_fn')
+    # "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
     # "trunk": pro_layers.Log(
     #     base='e', slope=1.e7, offset=1.e-15, name='trunk_fn', trainable=False
     # )
 }
+
+output_fn = tf_layers.Lambda(tf.math.exp, name='output_fn')
