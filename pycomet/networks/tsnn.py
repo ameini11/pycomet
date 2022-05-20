@@ -8,7 +8,9 @@ from pycomet.networks.net import Net
 from tensorflow.python.keras import backend as K
 
 
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='TimeScaleNN')
+@tf.keras.utils.register_keras_serializable(
+    package='PyCOMET', name='TimeScaleNN'
+)
 class TimeScaleNN(Net):
 
     # Initialization

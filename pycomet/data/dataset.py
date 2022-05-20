@@ -30,6 +30,7 @@ class DataSet(Data):
         super(DataSet, self).__init__(
             dim=dim,
             training=training,
+            test_data=test_data,
             batch_size=batch_size,
             from_file=from_file,
             columns=columns,
@@ -49,35 +50,8 @@ class DataSet(Data):
             else:
                 self.train = self.get_data(train_data, 'training')
 
-        # Testing data
-        self.test = test_data
-
     # Handling Data
     ###########################################################################
-    def get_data(self, data, identifier):
-        if data is None:
-            if identifier == 'training':
-                utils.raise_value_err(
-                    "No '{}' data passed into `{}`.".format(
-                        identifier, self.name
-                    )
-                )
-            else:
-                return None
-        if self.from_file:
-            # Data from a `.csv` file
-            return self.read_datafile(data)
-        else:
-            # Data from lists of `numpy.ndarray`
-            if isinstance(data, (list,tuple)):
-                self.check_data_consistency(data)
-                return tuple(data)
-            else:
-                utils.raise_value_err(
-                    f"'{identifier}' data passed into `{self.name}` has "
-                    "to be a list or a tuple of arrays: [x, y]"
-                )
-
     def get_num_pts(self, identifier='training', verbose=1):
 
         def print_fn(dset, identifier, verbose):

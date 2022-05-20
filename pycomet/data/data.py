@@ -1,8 +1,11 @@
+import os
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras import backend as K
 from pycomet.utilities import utils
+from pathlib import Path
 
 
 class Data(object):
@@ -14,6 +17,7 @@ class Data(object):
         self,
         dim,
         training=True,
+        test_data=None,
         batch_size=None,
         from_file=False,
         columns=None,
@@ -36,7 +40,7 @@ class Data(object):
             'valid': None
         }
         if batch_size != None:
-            self.update_batch_size(batch_size)
+            self.set_batch_size(batch_size)
 
         # Extra attributes if `data` extracted from file
         self.from_file = from_file
@@ -49,8 +53,56 @@ class Data(object):
         self.objectives = None
         self.physics_informed = False
 
+        # Testing data
+        if test_data is None:
+            continue
+        elif isinstance(test_data, str) and os.path.isdir(test_data):
+            self.test = {}
+            for file in os.listdir(test_data):
+                self.test[Path(file).stem] = self.get_data(
+                    os.path.join(test_data, file), 'testing'
+                )
+        elif isinstance(test_data, (list,tuple,dict)):
+            self.test = tf.nest.map_structure(lambda x: np.array(x), test_data)
+            if not isinstance(self.test, dict):
+                self.test = {
+                    f'case_'.zfill(3): dset for i, dset in enumerate(self.test)
+                }
+        else:
+            utils.raise_value_err(
+                f"Input 'test_data' passed into `{self.name}` has to be a "
+                "`list`/`tuple`/`dict` of arrays or a `str` pointing at the " 
+                "folder containting all the test cases saved in `.csv` format."
+            )
+
+    # Building Data
+    ###########################################################################
     def build(self, model):
         self.built = True
+
+    # Handling Data
+    ###########################################################################
+    def get_data(self, data, identifier):
+        if data is None:
+            if identifier == 'training':
+                utils.raise_value_err(
+                    f"No '{identifier}' data passed into `{self.name}`."
+                )
+            else:
+                return None
+        if self.from_file:
+            # Data from a `.csv` file
+            return self.read_datafile(data, identifier)
+        else:
+            # Data from lists of `numpy.ndarray`
+            if isinstance(data, (list,tuple)):
+                self.check_data_consistency(data)
+                return tuple(data)
+            else:
+                utils.raise_value_err(
+                    f"'{identifier}' data passed into `{self.name}` has "
+                    "to be a list or a tuple of arrays: [x, y]"
+                )
 
     # Util functions
     ###########################################################################
@@ -64,7 +116,7 @@ class Data(object):
 
     # Reading data from file
     ###########################################################################
-    def read_datafile(self, file):
+    def read_datafile(self, file, identifier=None):
         utils.check_file_extension(file, '.csv')
         if not isinstance(self.columns, dict):
             utils.raise_value_err(
@@ -86,6 +138,8 @@ class Data(object):
         # Collect data from file
         data = []
         for i in ('x', 'y', 'sample_weight'):
+            if i == 'sample_weight' and identifier == 'testing':
+                continue
             if i in ('x', 'y') and i not in self.columns.keys():
                 utils.raise_value_err(
                     f"'{i}' values have not been "
@@ -116,7 +170,7 @@ class Data(object):
 
     # Updating default batch sizes
     ###########################################################################
-    def update_batch_size(self, batch_size):
+    def set_batch_size(self, batch_size):
         if isinstance(batch_size, dict):
             if all(k in batch_size.keys() for k in ['train', 'valid']):
                 self.batch_size = batch_size

@@ -33,6 +33,7 @@ class ODE(Data):
         super(ODE, self).__init__(
             dim=dim,
             training=training,
+            test_data=test_data,
             batch_size=batch_size,
             from_file=from_file,
             columns=columns,
@@ -77,9 +78,6 @@ class ODE(Data):
                     batch_size=self.batch_size['valid'] \
                         or self.batch_size['train']
                 )
-
-        # Testing data
-        self.test = test_data
 
         # Defining multi-objective functions identifiers
         self.objectives = {

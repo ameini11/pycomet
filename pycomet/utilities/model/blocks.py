@@ -300,9 +300,9 @@ class ResPIBlock(FFBlock):
 # ResPIBlock Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(
-    package='PyCOMET', name='CrossEncodedBlock'
+    package='PyCOMET', name='CrossEncoderBlock'
 )
-class CrossEncodedBlock(FFBlock):
+class CrossEncoderBlock(FFBlock):
     """An improved residual block architecture for PINNs.
 
     See:
@@ -323,10 +323,10 @@ class CrossEncodedBlock(FFBlock):
         batch_norm=None,
         weight_norm=False,
         linear_out=True,
-        name='cross_encoded_block',
+        name='cross_encoder_block',
         **kwargs
     ):
-        super(CrossEncodedBlock, self).__init__(
+        super(CrossEncoderBlock, self).__init__(
             layer_size=layer_size,
             activation=activation,
             kernel_initializer=kernel_initializer,
@@ -358,3 +358,94 @@ class CrossEncodedBlock(FFBlock):
         # Output layer
         y = self.multi_lays[-1](y, training=training)
         return y
+
+
+
+# =========================================================================== #
+# ResPIBlock Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(
+    package='PyCOMET', name='PreNetBlock'
+)
+class PreNetBlock(FFBlock):
+    """See: https://arxiv.org/pdf/2204.12670.pdf
+    """
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        hidden_layer_size=None,
+        activation='linear',
+        kernel_initializer=None,
+        regularizer=None,
+        dropout_rate=0,
+        batch_norm=None,
+        weight_norm=False,
+        linear_out=True,
+        out_trans=None,
+        transformation='affine',
+        num_coordinates=1,
+        name='pre_net_block',
+        **kwargs
+    ):
+        self.n_coords = num_coordinates
+
+        self.trans_list = (
+            'translation', 'euclidean', 'similarity', 'affine', 'projective'
+        )
+
+        self.transformation = transformation
+        if self.transformation == 'translation':
+            self.out_dim = self.n_coords
+            self.i, self.j = self.n_coords, 0
+        elif self.transformation in ('euclidean', 'similarity', 'affine'):
+            self.out_dim = self.n_coords * (self.n_coords + 1)
+            # if self.transformation == 'similarity' and self.n_coords > 1:
+            #     out_dim = out_dim + 1
+            self.i, self.j = self.n_coords, self.n_coords
+        elif self.transformation == 'projective':
+            self.out_dim = (self.n_coords + 1) ** 2
+            self.i, self.j = self.n_coords+1, self.n_coords
+        else:
+            utils.raise_value_err(
+                f"The type of transformation available are: {self.trans_list}"
+            )
+
+        self.out_trans = out_trans
+
+        layer_size = list(hidden_layer_size) + [self.out_dim]
+
+        super(PreNetBlock, self).__init__(
+            layer_size=layer_size,
+            activation=activation,
+            kernel_initializer=kernel_initializer,
+            regularizer=regularizer,
+            dropout_rate=dropout_rate,
+            batch_norm=batch_norm,
+            weight_norm=weight_norm,
+            linear_out=linear_out,
+            name=name,
+            **kwargs
+        )
+
+    # Calling
+    ###########################################################################
+    def call(self, x1, x2, training=False):
+        # Kernel --------------------------------------------------------------
+        y = super(PreNetBlock, self).call(x1, training=training)
+
+        # Apply transformation ------------------------------------------------
+        y = tf.split(y, [self.i*self.j, self.i])
+        if self.j > 0:
+            y[0] = tf.reshape(y[0], [-1,self.i,self.j])
+            z = tf.einsum('nij,nj->ni', y[0], x2)
+        else:
+            z = x2
+        z = z + y[1]
+
+        # Outputs manipulation ------------------------------------------------
+        if self.out_trans is not None:
+            z = self.out_trans(z)
+
+        return z
