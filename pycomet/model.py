@@ -101,19 +101,23 @@ class Model(object):
             self.graph.summary(print_fn=lambda x: f.write(x + '\n'))
         if verbose:
             if visualize_graph:
+                # Save model
                 file_name = self.dir['save'] + self.name + '_struct.h5'
                 self.graph.save(file_name, save_format='h5')
-                # graph.save_weights(file_name, save_format='h5')
-                utils.print_submain("", end=""); netron.start(file_name)
+                # Plot model
                 tf.keras.utils.plot_model(
                     self.graph, self.dir['train'] + "/" + self.name + ".png"
                 )
+                # Visualize model
+                utils.print_submain("", end="")
+                netron.start(file_name)
             asw = utils.input_submain("Is the model structure correct? [y/n] ")
             if not asw.lower().startswith('y'):
                 utils.print_submain("All the processes will be stopped.\n")
                 utils.kill_process()
             if visualize_graph:
-                utils.print_submain("", end=""); netron.stop()
+                utils.print_submain("", end="")
+                netron.stop()
         # Loading network weights
         load_net = tf.nest.flatten(load_net)
         forced = False
