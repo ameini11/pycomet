@@ -11,21 +11,19 @@ with open("requirements.txt", "r") as f:
 setup(
     name="pycomet",
     version="0.0.1",
-    description="Machine-Learning-Based Approximators for Ordinary Differential Equations (ODEs)",
+    description="Physics-informed machine learning for scientific computations and operator discovery"
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Ivan Zanardi",
     author_email="zanardi3@illinois.edu",
-    url="https://github.com/ivanZanardi/pyf",
+    url="https://github.com/ivanZanardi/pycomet",
     license="Apache-2.0",
     install_requires=install_requires,
     entry_points ={
         'console_scripts': [
             'cleanPro = pycomet.apps.clean:main',
             'testPro = pycomet.apps.test:main',
-            'trainPro = pycomet.apps.train:main',
-            'fitRatesPro = pycomet.physics.apps.fitRates.main:main',
-            'fitThermosPro = pycomet.physics.apps.fitThermos:main'
+            'trainPro = pycomet.apps.train:main'
         ]
     },
     classifiers=[
@@ -55,6 +53,6 @@ setup(
     ],
     packages=find_packages(),
     include_package_data=True,
-    python_requires=">=3.6",
+    python_requires=">=3.6"
 )
 
