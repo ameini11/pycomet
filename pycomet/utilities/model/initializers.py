@@ -15,7 +15,9 @@ def get(identifier):
         "Orthogonal":    tf_init.Orthogonal()
     }
 
-    if isinstance(identifier, str):
+    if identifier is None:
+        return identifiers["GlorotNormal"]
+    elif isinstance(identifier, str):
         return identifiers[identifier]
     elif callable(identifier):
         if inspect.isclass(identifier):

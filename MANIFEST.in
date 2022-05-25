@@ -2,5 +2,3 @@ include README.md
 include LICENSE
 include requirements.txt
 include setup.py
-
-recursive-include pycomet/physics/database *

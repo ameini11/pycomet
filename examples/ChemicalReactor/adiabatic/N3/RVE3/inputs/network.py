@@ -16,7 +16,7 @@ import tensorflow as tf
 import inputs.general as inp_gen
 
 from tensorflow.python.keras import layers as tf_layers
-from pycomet.utilities.model import layers as pro_layers
+from pycomet.utilities.model import layers as pcm_layers
 
 
 # Architecture properties
@@ -81,12 +81,12 @@ dropout_rate = 0
 # *** Inputs
 input_fn = {
     # "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
-    "branch": pro_layers.Log(
+    "branch": pcm_layers.Log(
         base=10, slope=1., offset=0., name='branch_fn', trainable=False
     ),
     "trunk": tf_layers.Lambda(lambda x: x, name='trunk_fn')
-    # "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
-    # "trunk": pro_layers.Log(
+    # "trunk": pcm_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
+    # "trunk": pcm_layers.Log(
     #     base='e', slope=1.e7, offset=1.e-15, name='trunk_fn', trainable=False
     # )
 }

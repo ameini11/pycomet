@@ -23,3 +23,6 @@ tf_setup = {
     'NUM_THREADS':          16,
     'TF_CPP_MIN_LOG_LEVEL': '3'
 }
+
+# Physics batabase ------------------------------------------------------------
+__DTB__ = '/home/zanardi/WORKSPACE/NeqPlasma/HyperNet/database'

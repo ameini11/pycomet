@@ -420,3 +420,17 @@ class Net(tf.keras.Model):
     @residual.setter
     def residual(self, function):
         self._residual = function
+
+    # Utils
+    ###########################################################################
+    def check_layers(self, layers):
+        if not isinstance(layers, dict):
+            utils.raise_value_err(
+                f"`layers` input passed into `{self.name}` has to be a `dict`."
+            )
+        for k in layers.keys():
+            if k not in self.lays_name:
+                utils.raise_value_err(
+                    f"Layer '{k}' in `layers` input not recognized. "
+                    f"Layers available: {self.lays_name}"
+                )

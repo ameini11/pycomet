@@ -1,7 +1,7 @@
-from pycomet.physics.thermochemistry.chemistry.reactions import reactionRate
+from pycomet.physics.thermochemistry.chemistry.reactions import reaction_rate
 from pycomet.physics.thermochemistry.chemistry.reactions import reactions
 
 __all__ = [
-    "reactionRate",
+    "reaction_rate",
     "reactions"
 ]

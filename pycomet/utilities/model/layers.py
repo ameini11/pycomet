@@ -11,8 +11,8 @@ from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
-from pycomet.physics.thermochemistry.specie import partitionFun
-from pycomet.physics.thermochemistry.specie import specie
+from pycomet.physics.thermochemistry.specie_thermo import partition_fun
+from pycomet.physics.thermochemistry.specie_thermo import specie
 from pycomet.utilities import utils
 
 
@@ -271,14 +271,14 @@ class Log(tf_layers.Layer):
     ):
         super(Log, self).__init__(name=name, **kwargs)
 
-        self.base = float(base)
+        self.base = base
         self.slope = slope
         self.offset = offset
 
         if self.base == 'e':
             self.scale = 1.
         else:
-            self.scale = np.log(self.base)
+            self.scale = np.log(float(self.base))
 
         self.weights_values = {
             'slope': self.slope,
@@ -316,7 +316,7 @@ class Log(tf_layers.Layer):
             'slope': self.slope,
             'offset': self.offset
         }
-        base_config = super(Scaling, self).get_config()
+        base_config = super(Log, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     @classmethod
@@ -456,12 +456,12 @@ class Equilibrium(tf_layers.Layer):
         # Partition functions -------------------------------------------------
         if self.reaction is not None:
             self.intPF = {
-                name: partitionFun.internal.Internal(specie) \
+                name: partition_fun.internal.Internal(specie) \
                     for name, specie in self.species.items()
             }
             if self.reaction == 'diss':
                 self.transPF = {
-                    name: partitionFun.translational.Translational(specie) \
+                    name: partition_fun.translational.Translational(specie) \
                         for name, specie in self.species.items()
                 }
 

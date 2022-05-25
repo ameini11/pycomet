@@ -57,8 +57,9 @@ class DataSet(Data):
         def print_fn(dset, identifier, verbose):
             num_pts = utils.get_cardinality(dset)
             if verbose:
+                text = f"Number of {identifier} pts:"
                 utils.print_submain(
-                    "Number of %s pts:  %10d" % (identifier, num_pts)
+                    text + ' '*(30-len(text)) + "%10d" % num_pts
                 )
 
         super(DataSet, self).get_num_pts(identifier, verbose, print_fn)
