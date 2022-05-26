@@ -39,7 +39,7 @@ class DataSet(Data):
         )
 
         # Training/Validation data
-        if training:
+        if self.training:
             if valid_data:
                 self.train = self.get_data(train_data, 'training')
                 self.valid = self.get_data(valid_data, 'validation')

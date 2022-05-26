@@ -326,8 +326,8 @@ class Log(tf_layers.Layer):
     # Calling
     ###########################################################################
     def call(self, x, training=None):
-        y = self._weights['slope'] + tf.math.log(x + self._weights['offset'])
-        y = y / self._weights['scale']
+        y = tf.math.log(x + self._weights['offset']) / self._weights['scale']
+        y = y + self._weights['slope']
         return y
 
 

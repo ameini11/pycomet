@@ -248,14 +248,15 @@ def _model(
     )
 
     # Compile model -----------------------------------------------------------
-    utils.print_main(
-        f"Compiling '{input_module.network.architecture}' network ..."
-    )
-    compile_args = utils.get_args_values(
-        args=utils.get_args(model.compile),
-        modules=input_module.engine
-    )
-    model.compile(**compile_args)
+    if flags['train'] > 0:
+        utils.print_main(
+            f"Compiling '{input_module.network.architecture}' network ..."
+        )
+        compile_args = utils.get_args_values(
+            args=utils.get_args(model.compile),
+            modules=input_module.engine
+        )
+        model.compile(**compile_args)
 
     # Fit Model ---------------------------------------------------------------
     if flags['train'] > 0:

@@ -48,9 +48,14 @@ class ODE(Data):
             'res'   # Collocation pts (residual)
         )
         self.multi_obj_loss = True
+        # Defining multi-objective functions identifiers
+        self.objectives = {
+            'train': None,
+            'valid': None
+        }
 
         # Training/Validation data
-        if training:
+        if self.training:
             # Extracting/Manipulating data objects
             self.check_data_source(train_data, 'training')
             if valid_data:
@@ -78,12 +83,10 @@ class ODE(Data):
                     batch_size=self.batch_size['valid'] \
                         or self.batch_size['train']
                 )
-
-        # Defining multi-objective functions identifiers
-        self.objectives = {
-            'train': self.train.objectives,
-            'valid': self.valid.objectives if self.valid is not None else None
-        }
+            # Defining multi-objective functions identifiers
+            self.objectives['train'] = self.train.objectives
+            self.objectives['valid'] = self.valid.objectives \
+                if self.valid is not None else None
 
         # ODE properties
         if time_idx not in [0,-1]:
@@ -98,9 +101,10 @@ class ODE(Data):
             self.physics_informed = True
 
     def build(self, model):
-        self.train.build(model)
-        if self.valid is not None:
-            self.valid.build(model)
+        if self.training:
+            self.train.build(model)
+            if self.valid is not None:
+                self.valid.build(model)
         self.built = True
 
     # Handling Data

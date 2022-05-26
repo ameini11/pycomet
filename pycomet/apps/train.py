@@ -163,9 +163,9 @@ def main():
     # Testing phase -----------------------------------------------------------
     if inputs.data.test_cases > 0 and flags['test'] > 0:
         utils.print_main("Postprocessing physical quantities ...")
-        for name, data in tqdm(data.test.items()):
+        for name, d in tqdm(data.test.items()):
             model.predict(
-                data=data,
+                data=d,
                 plotting=flags['plot'],
                 path=model.dir['post'] + f'/testing/{name}',
                 **inputs.postprocessing.plot_style

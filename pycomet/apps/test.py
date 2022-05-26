@@ -87,31 +87,53 @@ def main():
     # Input module
     import inputs
     from inputs.general import flags
-    # Physics-related module
-    from physics.data_generator import DataGenerator
+
+    # Check flags -------------------------------------------------------------
+    for k in ('train', 'save'):
+        flags[k] = 0
+    if flags['load'] not in (1, 2):
+        utils.raise_value_err(
+            "The network has to be restored from a saved or a checkpointed "
+            "one. Modified the 'load' entry in the `flags` input variable."
+        )
 
     # Data
     ###########################################################################
-    # Generate Testing Data ---------------------------------------------------
-    dataGen_args = utils.get_args_values(
-        args=utils.get_args(DataGenerator.__init__),
-        modules=[inputs.data, inputs.general]
-    )
-    dataGen = DataGenerator(
-        **dataGen_args
-    )
-    dataGen.data_dir = opts.dir + "/data/"
-    if not os.path.exists(dataGen.data_dir):
-        os.makedirs(dataGen.data_dir)
-
-    utils.print_main("Generating testing pts ...")
+    # Generate Data -----------------------------------------------------------
     if inputs.data.from_file:
-        test_data = dataGen.testing_data(
-            inputs.data.file['test'],
-            header=inputs.data.header
-        )
+        utils.print_main("Extracting testing pts from file ...")
+        test_data = inputs.data.file['test']
     else:
         raise NotImplementedError
+        # utils.print_main("Generating testing pts ...")
+        # # Physics-related module
+        # from physics.data_generator import DataGenerator
+
+        # dataGen_args = utils.get_args_values(
+        #     args=utils.get_args(DataGenerator.__init__),
+        #     modules=[inputs.data, inputs.general]
+        # )
+        # dataGen = DataGenerator(
+        #     **dataGen_args
+        # )
+        # dataGen.data_dir = opts.dir + "/data/"
+        # if not os.path.exists(dataGen.data_dir):
+        #     os.makedirs(dataGen.data_dir)
+
+        # ic = dataGen.initial_cond()
+        # utils.print_main("Generating training/validation pts ...")
+        # train_data, valid_data = dataGen.training_data(ic[0])
+        # if flags['test'] > 0 and inputs.data.test_cases > 0:
+        #     utils.print_main('Generating testing pts ...')
+        #     test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
+
+    # Data Class --------------------------------------------------------------
+    data = fun._data(
+        flags=flags,
+        input_module=inputs,
+        test_data=test_data or None,
+        wdir=opts.dir
+    )
 
     # Network 
     ###########################################################################
@@ -121,29 +143,27 @@ def main():
 
     # Model 
     ###########################################################################
-    for k in ('train', 'save'):
-        flags[k] = 0
-    if flags['load'] not in (1, 2):
-        utils.raise_value_err(
-            "The network has to be restored from a saved or a checkpointed "
-            "one. Modified the 'load' entry in the `flags` input variable."
-        )
     model = fun._model(
         flags=flags,
         input_module=inputs,
         net=net,
+        data=data,
         graph=opts.graph,
         verbose=opts.verbose
     )
 
-    # Postprocessing - Testing 
+    # Postprocessing
     ###########################################################################
+    # Training phase ----------------------------------------------------------
+    model.visualize_training(history=model.dir['train']+'/history.csv')
+
+    # Testing phase -----------------------------------------------------------
     if flags['test'] > 0:
-        utils.print_main("Testing physical scenarios ...")
-        for i, data in enumerate(tqdm(test_data)):
+        utils.print_main("Postprocessing physical quantities ...")
+        for name, d in tqdm(data.test.items()):
             model.predict(
-                data=data,
+                data=d,
                 plotting=flags['plot'],
-                path=model.dir['post']+'/testing/test_'+str(i+1),
+                path=model.dir['post'] + f'/testing/{name}',
                 **inputs.postprocessing.plot_style
             )

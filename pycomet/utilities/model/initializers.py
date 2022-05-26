@@ -5,7 +5,8 @@ from pycomet.utilities import utils
 
 def get(identifier):
     identifiers = {
-        "zeros":         tf_init.Zeros(),
+        "Ones":          tf_init.Ones(),
+        "Zeros":         tf_init.Zeros(),
         "HeNormal":      tf_init.HeNormal(),
         "HeUniform":     tf_init.HeUniform(),
         "LecunNormal":   tf_init.LecunNormal(),
