@@ -8,13 +8,12 @@ class Total(Basic):
     def __init__(
         self,
         specie,
-        temp_mapping,
         int_pf,
         trans_pf,
         *args,
         **kwargs
     ):
-        super(Total, self).__init__(specie, temp_mapping)
+        super(Total, self).__init__(specie)
         # Partition functions
         self.int_pf = int_pf
         self.trans_pf = trans_pf

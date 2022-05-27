@@ -12,11 +12,10 @@ class Internal(Basic):
     def __init__(
         self,
         specie,
-        temp_mapping,
         *args,
         **kwargs
     ):
-        super(Internal, self).__init__(specie, temp_mapping)
+        super(Internal, self).__init__(specie)
 
     # Methods
     ###########################################################################
