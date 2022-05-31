@@ -27,7 +27,7 @@ class ODE(Data):
         batch_size=None,
         from_file=False,
         columns=None,
-        header=None,
+        header=0,
         preproc_fn=None
     ):
         super(ODE, self).__init__(

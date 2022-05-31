@@ -28,11 +28,11 @@ from pycomet.apps import functionObjects as fun
 
 def dir_path(path):
     if os.path.exists(path+'/inputs'):
-        return path
+        return os.path.abspath(path)
     else:
         raise argparse.ArgumentTypeError(
             "'inputs' folder not found in '{}'".format(
-                os.path.normpath(path)+'/'
+                os.path.abspath(path)+'/'
             )
         )
 
@@ -71,12 +71,15 @@ def get_opts():
 @utils.app_decorator(name=NAME)
 def main():
 
+    cwd = os.getcwd()
+
     # Inizialization
     ###########################################################################
     # Define arguments --------------------------------------------------------
     opts = get_opts()
     if opts.graph:
         opts.verbose = 1
+    os.chdir(opts.dir)
 
     # Configure TensorFlow ----------------------------------------------------
     tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
@@ -103,7 +106,8 @@ def main():
         utils.print_main("Extracting training/validation pts from file ...")
         train_data = inputs.data.file['train']
         valid_data = inputs.data.file['valid']
-        if inputs.data.test_cases > 0 and flags['test'] > 0:
+        test_data = None
+        if flags['test'] > 0 and inputs.data.test_cases > 0:
             test_data = inputs.data.file['test']
     else:
         utils.print_main("Generating initial conditions ...")
@@ -124,6 +128,7 @@ def main():
         ic = dataGen.initial_cond()
         utils.print_main("Generating training/validation pts ...")
         train_data, valid_data = dataGen.training_data(ic[0])
+        test_data = None
         if flags['test'] > 0 and inputs.data.test_cases > 0:
             utils.print_main('Generating testing pts ...')
             test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
@@ -134,7 +139,7 @@ def main():
         input_module=inputs,
         train_data=train_data,
         valid_data=valid_data,
-        test_data=test_data or None,
+        test_data=test_data,
         wdir=opts.dir
     )
 
@@ -161,7 +166,7 @@ def main():
     model.visualize_training(history=model.dir['train']+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
-    if inputs.data.test_cases > 0 and flags['test'] > 0:
+    if flags['test'] > 0 and inputs.data.test_cases > 0:
         utils.print_main("Postprocessing physical quantities ...")
         for name, d in tqdm(data.test.items()):
             model.predict(
@@ -170,3 +175,5 @@ def main():
                 path=model.dir['post'] + f'/testing/{name}',
                 **inputs.postprocessing.plot_style
             )
+
+    os.chdir(cwd)

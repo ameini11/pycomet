@@ -24,7 +24,7 @@ class DataSet(Data):
         batch_size=None,
         from_file=False,
         columns=None,
-        header=None,
+        header=0,
         preproc_fn=None
     ):
         super(DataSet, self).__init__(

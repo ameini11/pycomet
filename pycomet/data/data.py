@@ -21,7 +21,7 @@ class Data(object):
         batch_size=None,
         from_file=False,
         columns=None,
-        header=None,
+        header=0,
         preproc_fn=None
     ):
         self.name = utils.get_class_name(self)

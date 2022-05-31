@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 import tensorflow as tf
-import tensorflow.python.keras.layers as tf_layers
+# import tensorflow.python.keras.layers as tf_layers
+import tensorflow.keras.layers as tf_layers
 
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import tensor_shape
@@ -11,10 +13,10 @@ from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import nn_ops
+from tensorflow.keras.layers.experimental.preprocessing import Normalization 
 from pycomet.physics.thermochemistry.specie_thermo import partition_fun
 from pycomet.physics.thermochemistry.specie_thermo import specie
 from pycomet.utilities import utils
-
 
 
 # =========================================================================== #
@@ -221,6 +223,58 @@ class Scaling(tf_layers.Layer):
         return self.trans_fn(
             x * self._weights['slope'] + self._weights['offset']
         )
+
+
+# =========================================================================== #
+# Normalization Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(
+    package='PrODE', name='Normalization'
+)
+class Normalization(tf_layers.experimental.preprocessing.Normalization):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        file=None,
+        columns=None,
+        header=0,
+        preproc_fn=None,
+        mean=None,
+        variance=None,
+        axis=-1,
+        **kwargs
+    ):
+        super(Normalization, self).__init__(
+            axis=axis, mean=mean, variance=variance, **kwargs
+        )
+        if mean is None and variance is None:
+            self.file = file
+            self.columns = columns
+            self.header = header
+            self.preproc_fn = preproc_fn
+            self.adapt(self.read_datafile(file))
+
+    # Reading data from file --------------------------------------------------
+    def read_datafile(self, file):
+        file = tf.nest.flatten(file)
+        data = []
+        for f in file:
+            utils.check_file_extension(f, '.csv')
+            df = pd.read_csv(f, sep=',', header=self.header)
+            df = df.to_numpy(dtype=K.floatx())
+            if self.preproc_fn is not None:
+                df = self.preproc_fn(df)
+            data.append(self.read_dataframe(df, self.columns))
+        data = np.vstack(data)
+        return data
+
+    def read_dataframe(self, df, col):
+        if any(isinstance(i, (list,tuple)) for i in col):
+            return [df[:,col[i][0]:col[i][1]] for i in range(len(col))]
+        else:
+            return df[:,col[0]:col[1]]
 
 
 # =========================================================================== #
