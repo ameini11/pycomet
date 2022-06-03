@@ -11,7 +11,7 @@ with open("requirements.txt", "r") as f:
 setup(
     name="pycomet",
     version="0.0.1",
-    description="Physics-informed machine learning for scientific computations and operator discovery"
+    description="Physics-informed machine learning for scientific computations and operator discovery",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Ivan Zanardi",
