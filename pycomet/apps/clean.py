@@ -63,7 +63,6 @@ def main():
     # Remove directories ------------------------------------------------------
     utils.print_main("Looking for folders to remove ...", start='')
     exists = False
-    # paths = [ opts.dir+'/'+ f for f in FOLDERS ]
     
     for fld in FOLDERS:
         if fld in {'data', 'saving'}:

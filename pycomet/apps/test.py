@@ -8,7 +8,7 @@
 
 # -------------------------------- EXEC FILE -------------------------------- #
 # Description:
-# >> Test a ML-based approximator for ODEs
+# >> Test a ML-based approximator
 # --------------------------------------------------------------------------- #
 
 
@@ -22,7 +22,7 @@ import tensorflow as tf
 
 from tqdm import tqdm
 from pycomet.utilities import utils
-from pycomet.apps import functionObjects as fun
+from pycomet.apps import functions as fun
 
 
 def dir_path(path):
@@ -31,7 +31,7 @@ def dir_path(path):
     else:
         raise argparse.ArgumentTypeError(
             "'inputs' folder not found in '{}'".format(
-                os.path.normpath(path)+'/'
+                os.path.abspath(path)+'/'
             )
         )
 
@@ -39,7 +39,7 @@ def get_opts():
     parser = argparse.ArgumentParser(
         prog=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Test a ML-based approximator for ODEs.",
+        description="Test a ML-based approximator.",
         epilog=utils.app_epilog(name=NAME)
     )
     parser.add_argument('-j', '--threads',
@@ -70,12 +70,15 @@ def get_opts():
 @utils.app_decorator(name=NAME)
 def main():
 
+    cwd = os.getcwd()
+
     # Inizialization
     ###########################################################################
     # Define arguments --------------------------------------------------------
     opts = get_opts()
     if opts.graph:
         opts.verbose = 1
+    os.chdir(opts.dir)
 
     # Configure TensorFlow ----------------------------------------------------
     tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
@@ -130,7 +133,7 @@ def main():
     # Data Class --------------------------------------------------------------
     data = fun._data(
         flags=flags,
-        input_module=inputs,
+        input_mod=inputs,
         test_data=test_data or None,
         wdir=opts.dir
     )
@@ -138,14 +141,14 @@ def main():
     # Network 
     ###########################################################################
     net = fun._net(
-        input_module=inputs
+        input_mod=inputs
     )
 
     # Model 
     ###########################################################################
     model = fun._model(
         flags=flags,
-        input_module=inputs,
+        input_mod=inputs,
         net=net,
         data=data,
         graph=opts.graph,
@@ -167,3 +170,5 @@ def main():
                 path=model.dir['post'] + f'/testing/{name}',
                 **inputs.postprocessing.plot_style
             )
+
+    os.chdir(cwd)

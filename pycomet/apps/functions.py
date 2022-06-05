@@ -147,24 +147,24 @@ from pycomet.utilities import utils
 
 def _data(
     flags,
-    input_module,
+    input_mod,
     train_data=None,
     valid_data=None,
     test_data=None,
     wdir=None
 ):
     # Get data class ----------------------------------------------------------
-    data_cls = utils.get_class(pycomet.data, input_module.data.data_type)
+    data_cls = utils.get_class(pycomet.data, input_mod.data.data_type)
     utils.print_main(
-        f"Initializing '{input_module.data.data_type}' data ..."
+        f"Initializing '{input_mod.data.data_type}' data ..."
     )
     data_args = utils.get_args_values(
         args=utils.get_args(data_cls.__init__),
-        modules=[input_module.data, input_module.general]
+        modules=[input_mod.data, input_mod.general]
     )
 
     # Add information from physics --------------------------------------------
-    if getattr(input_module.general, 'physics_informed', False):
+    if getattr(input_mod.general, 'physics_informed', False):
         utils.print_main("Initializing physical model ...")
         try:
             from physics.physical_model import PhysicalModel
@@ -174,10 +174,10 @@ def _data(
                 '`PhysicalModel` object has been found in '
                 f'"{wdir}/physics/physical_model.py" file.'
             )
-        if input_module.data.data_type == 'ODE':
+        if input_mod.data.data_type == 'ODE':
             PhysicalModel_args = utils.get_args_values(
                 args=utils.get_args(PhysicalModel.__init__),
-                modules=input_module.general
+                modules=input_mod.general
             )
             physicalMdl = PhysicalModel(
                 **PhysicalModel_args
@@ -202,31 +202,31 @@ def _data(
 
 
 def _net(
-    input_module
+    input_mod
 ):
     # Initialize network ------------------------------------------------------
-    net_cls = utils.get_class(pycomet.networks, input_module.network.architecture)
+    net_cls = utils.get_class(pycomet.networks, input_mod.network.architecture)
     utils.print_main(
-        f"Initializing '{input_module.network.architecture}' network ..."
+        f"Initializing '{input_mod.network.architecture}' network ..."
     )
     net_args = utils.get_args_values(
         args=utils.get_args(net_cls.__init__),
-        modules=[input_module.network, input_module.general]
+        modules=[input_mod.network, input_mod.general]
     )
     net = net_cls(**net_args)
 
     # Apply I/O transformation ------------------------------------------------
-    if hasattr(input_module.network, 'input_fn'):
-        net.inp_trans = input_module.network.input_fn
-    if hasattr(input_module.network, 'output_fn'):
-        net.out_trans = input_module.network.output_fn
+    if hasattr(input_mod.network, 'input_fn'):
+        net.inp_trans = input_mod.network.input_fn
+    if hasattr(input_mod.network, 'output_fn'):
+        net.out_trans = input_mod.network.output_fn
 
     return net
 
 
 def _model(
     flags,
-    input_module,
+    input_mod,
     data=None,
     net=None,
     graph=0,
@@ -234,12 +234,12 @@ def _model(
 ):
     # Initialize model --------------------------------------------------------
     model = pycomet.model.Model(
-        data=data, net=net, name=input_module.general.model_name
+        data=data, net=net, name=input_mod.general.model_name
     )
 
     # Build model -------------------------------------------------------------
     utils.print_main(
-        f"Building '{input_module.network.architecture}' network ..."
+        f"Building '{input_mod.network.architecture}' network ..."
     )
     model.build(
         load_net=flags['load'],
@@ -250,23 +250,23 @@ def _model(
     # Compile model -----------------------------------------------------------
     if flags['train'] > 0:
         utils.print_main(
-            f"Compiling '{input_module.network.architecture}' network ..."
+            f"Compiling '{input_mod.network.architecture}' network ..."
         )
         compile_args = utils.get_args_values(
             args=utils.get_args(model.compile),
-            modules=input_module.engine
+            modules=input_mod.engine
         )
         model.compile(**compile_args)
 
     # Fit Model ---------------------------------------------------------------
     if flags['train'] > 0:
-        callbacks = getattr(input_module.engine, 'callbacks', None)
+        callbacks = getattr(input_mod.engine, 'callbacks', None)
         if callbacks is not None:
             if 'plotter' in callbacks and flags['plot'] != 2:
                 callbacks.pop('plotter')
 
         model.fit(
-            epochs=input_module.engine.epochs,
+            epochs=input_mod.engine.epochs,
             callbacks=callbacks
         )
     
