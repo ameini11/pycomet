@@ -65,6 +65,11 @@ def get_opts():
         choices=[0,1],
         help='visualize model graph'
     )
+    parser.add_argument('-s', '--seed',
+        type=int,
+        default=None,
+        help='set random seed'
+    )
     return parser.parse_args()
 
 
@@ -81,10 +86,13 @@ def main():
         opts.verbose = 1
     os.chdir(opts.dir)
 
-    # Configure TensorFlow ----------------------------------------------------
+    # Configure ---------------------------------------------------------------
+    # TensorFlow
     tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
     tf.config.threading.set_intra_op_parallelism_threads(opts.threads)
     utils.environment()
+    # Seed
+    utils.set_seeds(opts.seed)
 
     # Add modules -------------------------------------------------------------
     sys.path.append(opts.dir)
@@ -166,7 +174,7 @@ def main():
     model.visualize_training(history=model.dir['train']+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
-    if flags['test'] > 0 and inputs.data.test_cases > 0:
+    if flags['test'] > 0 and data.test is not None:
         utils.print_main("Postprocessing physical quantities ...")
         for name, d in tqdm(data.test.items()):
             model.predict(

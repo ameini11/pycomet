@@ -4,6 +4,7 @@ import sys
 import h5py
 import time
 import signal
+import random
 import inspect
 import datetime
 import numpy as np
@@ -336,6 +337,13 @@ def unpack_x_y_sample_weight_index(data):
             f"`(x, y, sample_weight, sample_index)`, found: {data}"
         )
         raise raise_value_err(error_msg)
+
+def set_seeds(seed=None):
+    if seed is not None:
+        os.environ['PYTHONHASHSEED'] = str(seed)
+        random.seed(seed)
+        tf.random.set_seed(seed)
+        np.random.seed(seed)
 
 
 # def apply(func, args=None, kwds=None):

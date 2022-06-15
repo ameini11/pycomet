@@ -77,10 +77,13 @@ def main():
     if opts.graph:
         opts.verbose = 1
 
-    # Configure TensorFlow ----------------------------------------------------
+    # Configure ---------------------------------------------------------------
+    # TensorFlow
     tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
     tf.config.threading.set_intra_op_parallelism_threads(opts.threads)
     utils.environment()
+    # Seed
+    utils.set_seeds(opts.seed)
 
     # Add modules -------------------------------------------------------------
     sys.path.append(opts.dir)
