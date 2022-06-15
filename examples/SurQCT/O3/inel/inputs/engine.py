@@ -19,13 +19,13 @@ optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 1.e-4
-decay_steps = 4413*300
+decay_steps = 200000
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
 # Loss & Metrics
 # =============================================================================
-axis = 0
+axis = -1
 reduction = 'auto'
 loss = 'mape'    
 
@@ -35,8 +35,8 @@ callbacks = {
 
     'early_stopping': {
        'monitor':              'val_loss',
-       'min_delta':            1.e-6,
-       'patience':             1000,
+       'min_delta':            1.e-4,
+       'patience':             300,
        'restore_best_weights': True,
        'verbose':              1
     },

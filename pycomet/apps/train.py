@@ -8,7 +8,7 @@
 
 # -------------------------------- EXEC FILE -------------------------------- #
 # Description:
-# >> Build a ML-based approximator for ODEs
+# >> Build a ML-based approximator
 # --------------------------------------------------------------------------- #
 
 
@@ -23,7 +23,7 @@ import tensorflow as tf
 
 from tqdm import tqdm
 from pycomet.utilities import utils
-from pycomet.apps import functionObjects as fun
+from pycomet.apps import functions as fun
 
 
 def dir_path(path):
@@ -98,13 +98,6 @@ def main():
     sys.path.append(opts.dir)
     # Input module
     import inputs
-    # input_module = {
-    #     'data': inputs.data,
-    #     'engine': inputs.engine,
-    #     'general': inputs.general,
-    #     'network': inputs.network,
-    #     'post': inputs.postprocessing
-    # }
     from inputs.general import flags
 
     # Data
@@ -144,7 +137,7 @@ def main():
     # Data Class --------------------------------------------------------------
     data = fun._data(
         flags=flags,
-        input_module=inputs,
+        input_mod=inputs,
         train_data=train_data,
         valid_data=valid_data,
         test_data=test_data,
@@ -154,14 +147,14 @@ def main():
     # Network 
     ###########################################################################
     net = fun._net(
-        input_module=inputs
+        input_mod=inputs
     )
 
     # Model 
     ###########################################################################
     model = fun._model(
         flags=flags,
-        input_module=inputs,
+        input_mod=inputs,
         net=net,
         data=data,
         graph=opts.graph,

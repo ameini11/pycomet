@@ -56,7 +56,7 @@ callbacks = {
 
     'plotter': {
         **inp_post.plot_style,
-        'freq': 50
+        'freq': 100
     },
 
     'tensorboard': {
