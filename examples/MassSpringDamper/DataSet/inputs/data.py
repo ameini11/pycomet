@@ -37,14 +37,14 @@ header = 0
 # *** From arrays
 # Training data
 train_pts = {
-    'ics': 100,      # Number of training scenarios
+    'ics': 2,      # Number of training scenarios
     'pts': 160      # Number of total collocation pts for each scenario
 }
 validation_split = 0.2                 # % of Validation pts
 distribution = 'uniform'    # Training pts distribution
 
 # Testing data
-test_cases = 10          # Number of testing cases
+test_cases = 1          # Number of testing cases
 test_training = True    # Test training cases
 
 # Batching --------------------------------------------------------------------
