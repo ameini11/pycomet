@@ -20,18 +20,19 @@ from_file = True
 
 # *** From file
 file = {
-    'train': '../data/train/pts.csv',
-    'valid': '../data/valid/pts.csv'
+    'train':'data/train/pts.csv',
+    'valid':'data/valid/pts.csv'
 }
 
 columns = {
-    'x': [[0,5],[5,10]],
-    'y': [10,11],
-    'sample_weight': [13,14]
+    'x': [[0,3],[6,9]],
+    'y': [11,12]
 }
+
+header = 0
 
 # Batching --------------------------------------------------------------------
 batch_size = {
-    'train': 256,
-    'valid': 256
+    'train': 64,
+    'valid': 64
 }

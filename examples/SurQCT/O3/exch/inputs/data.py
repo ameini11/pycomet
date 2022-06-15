@@ -20,8 +20,8 @@ from_file = True
 
 # *** From file
 file = {
-    'train': '../data/train/pts.csv',
-    'valid': '../data/valid/pts.csv'
+    'train':'../data/train/pts.csv',
+    'valid':'../data/valid/pts.csv'
 }
 
 columns = {
@@ -29,8 +29,24 @@ columns = {
     'y': [10,11],
 }
 
+header = 0
+
+## *** From arrays
+## Training data
+#train_pts = {
+#    'ics': 80,      # Number of training scenarios
+#    'pts': 50,       # Number of total anchor pts for each scenario
+#    'res': 160      # Number of total collocation pts for each scenario
+#}
+#validation_split = 0.2                 # % of Validation pts
+#distribution = 'uniform'    # Training pts distribution
+#
+## Testing data
+#test_cases = 5          # Number of testing cases
+#test_training = True    # Test training cases
+
 # Batching --------------------------------------------------------------------
 batch_size = {
-    'train': 256,
-    'valid': 256
+    'train': 64,
+    'valid': 64
 }
