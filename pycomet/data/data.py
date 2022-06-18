@@ -150,10 +150,17 @@ class Data(object):
         return tuple(data)
 
     def read_dataframe(self, df, col):
-        if any(isinstance(i, (list,tuple)) for i in col):
-            return [df[:,col[i][0]:col[i][1]] for i in range(len(col))]
+        if any(isinstance(c, (list,tuple)) for c in col):
+            return [self.extract_data(df, c) for c in col]
         else:
-            return df[:,col[0]:col[1]]
+            return self.extract_data(df, col)
+
+    def extract_data(self, df, col):
+        if len(col) == 2:
+            indeces = np.arange(*col)
+        elif len(col) > 2:
+            indeces = col
+        return np.take(df, indeces, axis=1)
 
     # Checking data - network consistency
     ###########################################################################
