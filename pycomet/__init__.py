@@ -5,13 +5,19 @@ from __future__ import print_function
 # TensorFlow 
 ###############################################################################
 import os
-import pycomet
-from pycomet.config import tf_setup
+import hypernet
+from hypernet.config import tf_setup
+# Setting verbosity level
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = tf_setup['TF_CPP_MIN_LOG_LEVEL']
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
-tf.keras.backend.set_floatx(tf_setup['DTYPE'])
-tf.keras.backend.set_epsilon(tf_setup['EPSILON'])
+# Setting python/keras backends
+from tensorflow.keras import backend as keras_backend
+keras_backend.set_floatx(tf_setup['DTYPE'])
+keras_backend.set_epsilon(tf_setup['EPSILON'])
+from tensorflow.python.keras import backend as python_backend
+python_backend.set_floatx(tf_setup['DTYPE'])
+python_backend.set_epsilon(tf_setup['EPSILON'])
 
 # PyCOMET
 ###############################################################################
@@ -27,7 +33,7 @@ from pycomet import config
 from pycomet import data
 from pycomet import networks
 from pycomet import physics
-from pycomet.model import Model
+from pycomet import model
 from pycomet import postprocessing
 
 __all__ = [
@@ -36,6 +42,6 @@ __all__ = [
     "data",
     "networks",
     "physics",
-    "Model",
+    "model",
     "postprocessing"
 ]

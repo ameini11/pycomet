@@ -4,8 +4,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 
-###########################################################################
-### Plotting Training Quantities
+# Plotting Training Quantities
 ###########################################################################
 def plot_loss(
     history=None,
@@ -14,7 +13,8 @@ def plot_loss(
     title='Loss',
     var=['loss','val_loss'],
     fig_name='loss',
-    label=['Training', 'Validation']
+    label=['Training', 'Validation'],
+    window=1
 ):
     """Loss History plotting."""
     fig = plt.figure()
@@ -22,16 +22,22 @@ def plot_loss(
     for i, var_i in enumerate(var):
         if var_i in history:
             plt.plot(
-                history[var_i],
+                moving_average(history[var_i], w=window),
                 lw=1,
                 label=label[i]
             )
+            if window != 1:
+                plt.plot(
+                    history[var_i],
+                    lw=1,
+                    c=plt.gca().lines[-1].get_color(),
+                    alpha=0.2
+                )
     plt.xlabel('Epoch')
     plt.legend()
     plt.title(title + ' History')
     fig.savefig(path + '/' + fig_name + '.pdf')
     plt.close()
-
 
 # def plot_loss(
 #     history=None,
@@ -63,25 +69,25 @@ def plot_loss(
 #                     label=label[i],
 #                     color=plt.gca().lines[-1].get_color()
 #                 )
-# #                 h = history[var_i].to_numpy()
-# #                 h = np.array_split(h, np.ceil(len(h)/cv))
-# #                 _mean, _std = [], []
-# #                 for h_i in h:
-# #                     _mean.append(np.tile(np.mean(h_i), len(h_i)))
-# #                     _std.append(np.tile(np.std(h_i), len(h_i)))
-# #                 _mean, _std = np.concatenate(_mean), np.concatenate(_std)
-# #                 plt.plot(
-# #                     _mean,
-# #                     lw=2,
-# #                     label=label[i]
-# #                 )
-# #                 plt.fill_between(
-# #                     np.arange(len(_mean)),
-# #                     _mean - _std,
-# #                     _mean + _std,
-# #                     alpha=0.2,
-# #                     color=plt.gca().lines[-1].get_color(),
-# #                 )
+#                 h = history[var_i].to_numpy()
+#                 h = np.array_split(h, np.ceil(len(h)/cv))
+#                 _mean, _std = [], []
+#                 for h_i in h:
+#                     _mean.append(np.tile(np.mean(h_i), len(h_i)))
+#                     _std.append(np.tile(np.std(h_i), len(h_i)))
+#                 _mean, _std = np.concatenate(_mean), np.concatenate(_std)
+#                 plt.plot(
+#                     _mean,
+#                     lw=2,
+#                     label=label[i]
+#                 )
+#                 plt.fill_between(
+#                     np.arange(len(_mean)),
+#                     _mean - _std,
+#                     _mean + _std,
+#                     alpha=0.2,
+#                     color=plt.gca().lines[-1].get_color(),
+#                 )
 #     else:
 #         for i, var_i in enumerate(var):
 #             if var_i in history:
@@ -97,13 +103,11 @@ def plot_loss(
 #     fig.savefig(path + '/' + fig_name + '.pdf')
 #     plt.close()
 
-
 def plot_composite_loss(
     history,
     path,
     scale='log',
-    smoothed=True,
-    weight=0.9
+    window=1
 ):
     """Residual History plotting."""
     identifier = {
@@ -118,8 +122,7 @@ def plot_composite_loss(
         history=history,
         path=path,
         scale=scale,
-        # smoothed=smoothed,
-        # weight=weight
+        window=window
     )
 
     composite_loss = {'var': [], 'label': []}
@@ -142,7 +145,6 @@ def plot_composite_loss(
         **kwargs
     )
 
-
 def plot_loss_weights(history, path, scale='log'):
     """Loss Weights History plotting."""
     fig = plt.figure()
@@ -164,7 +166,6 @@ def plot_loss_weights(history, path, scale='log'):
     fig.savefig(path + '/loss_weights.pdf')
     plt.close()
 
-
 def plot_metric(history, path, metric, scale='log'):
     """Metric History plotting."""
     fig = plt.figure()
@@ -182,7 +183,6 @@ def plot_metric(history, path, metric, scale='log'):
     fig.savefig(path + '/metric_' + metric + '.pdf')
     plt.close()
 
-
 def plot_lr(history, path):
     """Learning Rate plotting."""
     df = pd.read_csv(history)
@@ -195,19 +195,18 @@ def plot_lr(history, path):
     plt.close()
 
 
+# Util Functions
 ###########################################################################
-### Util Functions
-###########################################################################
-# def limits(y):
-#     y = y.to_numpy()
-#     y_min, y_max = np.amin(y[-100:-1,:]), np.amax(y)
-#     if np.log10(y_max)-np.log10(y_min) > 2:
-#         value = np.power(10, np.log10(y_min)+2)
-#         delta = np.absolute(y - value)
-#         index = np.unravel_index(delta.argmin(), delta.shape)
-#         return y_min*0.9, y[index]
-#     else:
-#         return y_min*0.9, y_max*1.1
+def limits(y):
+    y = y.to_numpy()
+    y_min, y_max = np.amin(y[-100:-1,:]), np.amax(y)
+    if np.log10(y_max)-np.log10(y_min) > 2:
+        value = np.power(10, np.log10(y_min)+2)
+        delta = np.absolute(y - value)
+        index = np.unravel_index(delta.argmin(), delta.shape)
+        return y_min*0.9, y[index]
+    else:
+        return y_min*0.9, y_max*1.1
 
 def smooth(scalars, weight):
     weight = np.clip(weight, 0., 1.)
@@ -219,3 +218,6 @@ def smooth(scalars, weight):
         last = smoothed_val
 
     return smoothed
+
+def moving_average(x, w=20):
+    return np.convolve(x, np.ones(w), 'valid') / w

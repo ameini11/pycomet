@@ -1,8 +1,8 @@
 # *************************************************************************** #
-#                                    PyCOMET                                    #
+#                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
-#                     Machine-Learning-Based Approximators                    #
-#                  for Ordinary Differential Equations (ODEs)                 #
+#                    Physics-informed machine learning for                    #
+#                scientific computations and operator discovery               #
 #                                                                             #
 # *************************************************************************** #
 

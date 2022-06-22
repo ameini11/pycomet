@@ -1,8 +1,8 @@
 # *************************************************************************** #
-#                                    PyCOMET                                    #
+#                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
-#                     Machine-Learning-Based Approximators                    #
-#                  for Ordinary Differential Equations (ODEs)                 #
+#                    Physics-informed machine learning for                    #
+#                scientific computations and operator discovery               #
 #                                                                             #
 # *************************************************************************** #
 
@@ -13,7 +13,7 @@
 # from pycomet.apps import train
 
 
-# NAME = 'cleanPro'
+# NAME = 'pycomet'
 
 
 # from argparse import ArgumentParser, FileType
