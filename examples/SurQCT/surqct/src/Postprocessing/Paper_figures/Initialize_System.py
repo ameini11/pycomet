@@ -13,9 +13,10 @@ def Initialize_O3_UMN():
     System.Atom[0].Name  = 'O'
     System.Molecule[0].Name = 'O2'
     System.Box_Header = ['time',System.Atom[0].Name,System.Molecule[0].Name,'Temp','Density','Pressure','NbPart','Energy']
-    System.QCTMEPath = 'Run_0D/'
+    
+    System.QCTMEPath = 'Run0D/'
     System.PathToDiatFile = [Paths.CoarseAir_path+System.Molecule[0].Name+'/UMN/FromUMN_Sorted.inp']
-    System.PathToHDF5Fld  = Paths.Workspace_path + 'Air_Database/HDF5_Database/'
+    System.PathToHDF5Fld  = Paths.Workspace_path + 'AirDatabase/HDF5/Orig'
 
     # Plotting specifications
     System.MoleFractionXLim = [0,3e-6]

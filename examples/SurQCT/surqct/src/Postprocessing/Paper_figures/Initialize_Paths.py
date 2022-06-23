@@ -1,3 +1,4 @@
-Workspace_path = '/home/venturi/WORKSPACE/'
-Surqct_path    = Workspace_path + 'SurQCT/'
-CoarseAir_path = Workspace_path + 'CoarseAIR/coarseair/dtb/Molecules/'
+Workspace_path = '/home/zanardi/WORKSPACE/'
+# Surqct_path    = Workspace_path + '/ML/SurQCT/'
+Surqct_path    = Workspace_path + '/ML/PyCOMET/pycomet/examples/SurQCT/'
+CoarseAir_path = Workspace_path + '/NeqPlasma/CoarseAIR/coarseair/dtb/Molecules/'
