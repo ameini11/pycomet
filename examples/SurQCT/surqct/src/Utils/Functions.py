@@ -33,8 +33,14 @@ def compute_rotenergy(EInt, vqn, jqn):
 
 def compute_degeneracy(jqn, molecule):
     g = 2*jqn + 1
-    if molecule in ('O2', 'NO', 'CO', 'CN'):
-        return g
+    if (molecule == 'CN'):
+        return 2*g
+    elif (molecule == 'HN'):
+        return 3*g
+    elif (molecule == 'CH'):
+        return 4*g
+    elif (molecule == 'O2'):
+        return 1/2*g
     elif (molecule == 'N2'):
         return 1/2*g
 #         for i in range(len(jqn)):
@@ -43,6 +49,8 @@ def compute_degeneracy(jqn, molecule):
 #             else:
 #                 g[i] = 3*g[i]
 #         return g
+    elif (molecule == 'NO'):
+        return g
     else:
         raise ValueError(
             f"Degeneracy not implemented for molecule '{molecule}'."

@@ -56,6 +56,8 @@ def get_opts():
 
 
 def main():
+
+    print('\n[SurQCT]: START')
     
     cwd = os.getcwd()
 
@@ -97,8 +99,12 @@ def main():
         # Generating
         TrainData, ValidData, AllData = RatesType.generate_trainingdata(InputData)
         # Saving
-        pd.concat(TrainData, axis=1).to_csv(opts.dir+'/data/train/pts.csv', index=False, float_format='%.6e')
-        pd.concat(ValidData, axis=1).to_csv(opts.dir+'/data/valid/pts.csv', index=False, float_format='%.6e')
+        TrainData = pd.concat(TrainData, axis=1)
+        TrainData.to_csv(opts.dir+'/data/train/pts.csv', index=False, float_format='%.10e')
+        print('\n[SurQCT]:    Number of training pts:   %10d' % len(TrainData))
+        ValidData = pd.concat(ValidData, axis=1)
+        ValidData.to_csv(opts.dir+'/data/valid/pts.csv', index=False, float_format='%.10e')
+        print('[SurQCT]:    Number of validation pts: %10d' % len(ValidData))
     
     # Testing -----------------------------------------------------------------
     if opts.testing:
@@ -108,11 +114,17 @@ def main():
         # Generating
         TestData = RatesType.generate_testingdata(InputData, Labeled=True)
         # Saving
-        pd.concat(TestData, axis=1).to_csv(opts.dir+'/data/test/labeled.csv', index=False, float_format='%.6e')
+        TestData = pd.concat(TestData, axis=1)
+        TestData.to_csv(opts.dir+'/data/test/labeled.csv', index=False, float_format='%.10e')
+        print('\n[SurQCT]:    Number of labeled testing pts:   %10d' % len(TestData))
         
         # Generating
         TestData = RatesType.generate_testingdata(InputData, Labeled=False)
         # Saving
-        pd.concat(TestData, axis=1).to_csv(opts.dir+'/data/test/unlabeled.csv', index=False, float_format='%.6e')
+        TestData = pd.concat(TestData, axis=1)
+        TestData.to_csv(opts.dir+'/data/test/unlabeled.csv', index=False, float_format='%.10e')
+        print('[SurQCT]:    Number of unlabeled testing pts: %10d' % len(TestData))
+
+    print('\n[SurQCT]: END\n')
     
     os.chdir(cwd)

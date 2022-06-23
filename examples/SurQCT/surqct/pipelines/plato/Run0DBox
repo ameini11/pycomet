@@ -17,7 +17,7 @@ export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$System/SurQCT/
 # Heat Bath Conditions
 export P0=1.38064852d+03
 export T0=300.d0
-export TTranVec=(1500) #(1500 5000 10000 20000)
+export TTranVec=(1500 5000 10000 20000)
 # Processes
 export DissFlg=0
 export InelFlg=1

@@ -108,6 +108,6 @@ def save_diat_data(InputData, diat_data):
         if not os.path.exists(path):
             os.mkdir(path)
         data.to_csv(
-            path + f'/{file[1:]}.csv', index=False, float_format='%.6e'
+            path + f'/{file[1:]}.csv', index=False, float_format='%.10e'
         )
 

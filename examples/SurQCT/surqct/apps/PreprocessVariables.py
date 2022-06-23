@@ -43,6 +43,9 @@ def get_opts():
 
 
 def main():
+
+    print('\n[SurQCT]: START')
+    print('\n[SurQCT]:  Preprocessing diatomic potential input features')
     
     cwd = os.getcwd()
 
@@ -73,4 +76,6 @@ def main():
     diat_data = InputManip.get_diat_data(InputData)
     InputManip.save_diat_data(InputData, diat_data)
     
+    print('\n[SurQCT]: END\n')
+
     os.chdir(cwd)

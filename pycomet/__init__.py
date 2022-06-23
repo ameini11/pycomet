@@ -5,8 +5,8 @@ from __future__ import print_function
 # TensorFlow 
 ###############################################################################
 import os
-import hypernet
-from hypernet.config import tf_setup
+import pycomet
+from pycomet.config import tf_setup
 # Setting verbosity level
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = tf_setup['TF_CPP_MIN_LOG_LEVEL']
 import tensorflow as tf

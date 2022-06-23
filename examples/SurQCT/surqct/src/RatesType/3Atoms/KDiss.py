@@ -82,7 +82,7 @@ def generate_trainingdata(InputData):
         TTranData   = TTranData.append(pd.DataFrame({'TTran': TTran}))
         KDissData   = KDissData.append(pd.DataFrame({'KDiss': KDiss[iIdxVec]}))
 
-        print(f'[SurQCT]:      Now the Data Matrix contains {len(KDissData)} Data Points')
+        print(f'[SurQCT]:      Data Matrix currently contains {len(KDissData)} Data Points')
 
     # Resetting Data Frames Indexing
     indexNew           = np.arange(len(TTranData))
@@ -216,8 +216,8 @@ def plot_prediction(InputData, CaseType, TTran, x, yTrue, yPred):
     plt.xlabel('$E_{Int}$ [eV]')
     plt.ylabel('$K_i^D$ [cm$^3$/s]')
     if (len(yTrue) == len(yPred)):
-        plt.scatter(x['EInt_i'], np.exp(yTrue)/InputData.MultFact, c='k', marker='+', linewidths =0.5, label='Data')
-    plt.scatter(x['EInt_i'], np.exp(yPred)/InputData.MultFact, c='r', marker='x', linewidths =0.5, label='Predicted')
+        plt.scatter(x['EInt_i'], np.exp(yTrue)/InputData.MultFact, c='k', marker='+', linewidths=0.5, label='Data')
+    plt.scatter(x['EInt_i'], np.exp(yPred)/InputData.MultFact, c='r', marker='x', linewidths=0.5, label='Predicted')
     plt.yscale('log')
     plt.legend()
     plt.title(f'Dissociation Rates at T = {int(TTran)}K')
