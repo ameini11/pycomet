@@ -79,10 +79,10 @@ def app_decorator(name=None):
                 "\n" + compose(text='PyCOMET ', start='# ') +
                 "\n" + compose(start='# ', between='-') +
                 "\n" + compose(
-                    text='Machine-Learning-Based Approximators', start='# '
+                    text='Physics-informed machine learning for', start='# '
                 ) +
                 "\n" + compose(
-                    text='for Ordinary Differential Equations (ODEs)',
+                    text='scientific computations and operator discovery',
                     start='# '
                 ) +
                 "\n" + compose(start='# ') +

@@ -1,0 +1,165 @@
+#!/bin/bash -i
+
+set -e
+
+# Loading Plato
+###############################################################################
+source ~/.profile
+load_plato
+
+# Inputs
+###############################################################################
+# Paths
+export System='O3_UMN'
+export FldrName='inel/run.ref'
+export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
+export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$System/SurQCT/
+# Heat Bath Conditions
+export P0=1.38064852d+03
+export T0=300.d0
+export TTranVec=(1500) #(1500 5000 10000 20000)
+# Processes
+export DissFlg=0
+export InelFlg=1
+export ExchFlg1=0
+export ExchFlg2=0
+# Sources
+export SourceGlobal='QCT'
+export SourceDiss='QCT'
+export SourceInel='QCT'
+export SourceExch1='SurQCT'
+export SourceExch2='SurQCT'
+
+# Initializing Database
+###############################################################################
+Initialize_0D_Database () {
+
+    Header=">>  [Initialize_0D_Database]: "
+
+    # Defining Kinetics File
+    export KineticsFileInDtb=$SourceGlobal"/"$System"/T"$TTran"K/KineticsFile.dat"
+    export KineticsFile=`realpath $PathToDtbFldr"/kinetics/"$KineticsFileInDtb`
+    touch $KineticsFile
+
+    # Adding Unit of Measure
+    echo "Units=cm^3/s" > $KineticsFile
+
+    # Adding Dissociation Processes
+    # ------------------------------------------------------------------------- 
+    if [ $DissFlg -eq 1 ] || [ $DissFlg -eq 13 ]; then
+        DissFile="Diss.dat"
+    elif [ $DissFlg -eq 2 ]; then
+        # Only for O3 system
+        DissFile="Diss_Corrected.dat"
+    fi
+    if [ $DissFlg -ne 0 ]; then
+        DissFile=`realpath $PathToDtbFldr"/kinetics/"$SourceDiss"/"$System"/T"$TTran"K/"$DissFile`
+        echo $Header"Adding Dissociation Kinetics from File "$DissFile" to File "$KineticsFile
+        cat $DissFile >> $KineticsFile
+    fi
+
+    # Adding Inelastic Processes
+    # ------------------------------------------------------------------------- 
+    if [ $InelFlg -eq 1 ]; then
+        InelFile=`realpath $PathToDtbFldr"/kinetics/"$SourceInel"/"$System"/T"$TTran"K/Inel.dat"`
+        echo $Header"Adding Inelastic Kinetics from File "$InelFile" to File "$KineticsFile
+        cat $InelFile >> $KineticsFile
+    fi
+
+    # Adding Exchange Processes
+    # ------------------------------------------------------------------------- 
+    if [ $ExchFlg1 -eq 1 ]; then
+        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch1"/"$System"/T"$TTran"K/Exch_Type1.dat"`
+        echo $Header"Adding Exchange Kinetics from File "$ExchFile" to File "$KineticsFile
+        cat $ExchFile >> $KineticsFile
+    fi
+
+    if [ $ExchFlg2 -eq 1 ]; then
+        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch2"/"$System"/T"$TTran"K/Exch_Type2.dat"`
+        echo $Header"Adding Exchange Kinetics from File "$ExchFile" to File "$KineticsFile
+        cat $ExchFile >> $KineticsFile
+    fi
+
+}
+
+# Initializing Running Case
+###############################################################################
+Initialize_0D_Case () {
+
+    Header=">>  [Initialize_0D_Case]: "
+
+    if [ ! -d ${PathToRunFldr} ]
+    then
+        mkdir -p ${PathToRunFldr}
+    fi
+
+    # Output Folder
+    # ------------------------------------------------------------------------- 
+    export OutputFldr=`realpath ${PathToRunFldr}'/'${FldrName}'/T'${TTran}'K_'${DissFlg}'_'${InelFlg}'_'${ExchFlg1}'_'${ExchFlg2}`
+    if [ ! -d ${OutputFldr} ]
+    then
+        mkdir -p ${OutputFldr}
+    fi
+    echo $Header"App 'box' will be executed in "`realpath ${OutputFldr}`
+
+    # Input File
+    # -------------------------------------------------------------------------
+    export InputFile=${OutputFldr}/input
+    echo $Header"Initialize Input File: "${OutputFldr}/input
+    \cp -rf ${PathToDtbFldr}/inputs/$System/input ${OutputFldr}
+
+    sed -i '/^REACTION.*/c\REACTION = '${KineticsFileInDtb} $InputFile
+    sed -i '/^P0.*/c\P0 = '${P0} $InputFile
+    sed -i '/^T0.*/c\T0 = '${T0} $InputFile
+    sed -i '/^T_BATH.*/c\T_BATH = '${TTran}'.d0' $InputFile
+}
+
+# Main
+###############################################################################
+echo '------------------------------------------------------'
+echo '  Paths:'
+echo '------------------------------------------------------'
+echo '  Plato         = '`realpath ${PLATO_LIB}`
+echo '  Database      = '`realpath ${PathToDtbFldr}`
+echo '  Running Case  = '`realpath ${PathToRunFldr}`
+echo '------------------------------------------------------'
+echo ' '
+
+echo '------------------------------------------------------'
+echo '  Inputs:'
+echo '------------------------------------------------------'
+echo '  System                        = '${System}
+echo '  Vector of Translational Temp. = '${TTranVec}
+echo '  Writing Dissociation?         = '${DissFlg}
+echo '  Writing Inelastic?            = '${InelFlg}
+echo '  Writing First Exchanges?      = '${ExchFlg1}
+echo '  Writing Last Exchanges?       = '${ExchFlg2}
+echo '------------------------------------------------------'
+echo ' '
+
+HeaderMain="[Run0D]: "
+for TTran in "${TTranVec[@]}"; do
+
+    cwd=$(pwd)
+
+    echo $HeaderMain"Translational Temperature: "${TTran}" K"
+    echo " "
+
+    echo $HeaderMain"Initialize 0D Simulation Database"
+    Initialize_0D_Database
+    echo " "
+
+    echo $HeaderMain"Initialize 0D Simulation Case"
+    Initialize_0D_Case
+    echo " "
+
+    echo $HeaderMain"Compute 0D Simulation Case"
+    cd ${OutputFldr}
+    # box ${OPENBLAS_NUM_THREADS} ${InputFile}
+    box input
+    cd ${cwd}
+    echo " "
+
+    rm -rf $KineticsFile
+
+done
