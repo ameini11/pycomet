@@ -15,7 +15,7 @@ from surqct.src.Utils import Paths
 # Training/Validation data ----------------------------------------------------
 def generate_trainingdata(InputData):
     
-    print('[SurQCT]:  Generating Training and Validation Data Points')
+    print('\n[SurQCT]:  Generating Training and Validation Data Points')
 
     # Defining min rate value
     MinValueTrain    = InputData.MinRateValue * InputData.MultFact
@@ -26,7 +26,7 @@ def generate_trainingdata(InputData):
     NTTran           = len(InputData.TTranVecTrain)
 
     # Reading Levels Info of Initial and Final Molecules
-    print('[SurQCT]:    Reading Variables: ', InputData.xDiatVars)
+    print('\n[SurQCT]:    Reading Variables: ', InputData.xDiatVars)
     LevelsData = []
     DiatData   = []
     NLevels    = []
@@ -60,7 +60,7 @@ def generate_trainingdata(InputData):
         InputData.iLevelsSeedsVec = tf.nest.flatten(InputData.iLevelsSeedsVec)
 
     for iT in range(NTTran):
-        print(f'[SurQCT]:    Translational Temperature: T = {int(TTranVec[iT])} K')
+        print(f'\n[SurQCT]:    Translational Temperature: T = {int(TTranVec[iT])} K')
 
         # Reading Rates at Temperature TTranVec[iT]
         KInelMat, KExchMatList = read_kexcitdata(InputData, Dtb, TTranVec[iT], TTranVec[iT], InputData.NbProcesses)
@@ -89,7 +89,7 @@ def generate_trainingdata(InputData):
         q_T = 'q_'+str(int(TTranVec[iT]))
         for iIdx in tqdm(iIdxVec):
 
-            # Selecting only Final States with Exothermic Rate > MinValueTrain 
+            # Selecting only Final States with Endothermic Rate > MinValueTrain 
             if (InputData.ExoEndoFlg):
                 jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and DiatData[1]['EInt'].to_numpy()[jIdx] <= DiatData[0]['EInt'].to_numpy()[iIdx])]
                 jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and DiatData[1]['EInt'].to_numpy()[jIdx] >  DiatData[0]['EInt'].to_numpy()[iIdx])]
@@ -165,7 +165,7 @@ def generate_trainingdata(InputData):
                     DeltaLevelsDataTemp   = iLevelsDataTemp.subtract(jLevelsDataTemp)
                     DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
 
-        print(f'[SurQCT]:      The Data Matrix contains {len(KExcitData)} Data Points for T = {int(TTranVec[iT])} K')
+        print(f'[SurQCT]:      Data Matrix currently contains {len(KExcitData)} Data Points')
         
     # Resetting Data Frames Indexing
     indexNew            = np.arange(len(TTranData))
