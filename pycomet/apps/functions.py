@@ -145,6 +145,17 @@ from tqdm import tqdm
 from pycomet.utilities import utils
 
 
+
+def dir_path(path):
+    if os.path.exists(path+'/inputs'):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(
+            "'inputs' folder not found in '{}'".format(
+                os.path.abspath(path)+'/'
+            )
+        )
+
 def _data(
     flags,
     input_mod,

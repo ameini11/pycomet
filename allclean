@@ -1,11 +1,11 @@
 #!/bin/bash -i
 
-vars=( __pycache__ .DS_Store *.pyc *.bak .ipynb_checkpoints )
+names=( __pycache__ .DS_Store *.pyc *.bak .ipynb_checkpoints *.aux )
+types=( d f )
 
-for v in ${vars[@]}; do
-	find . -type d -name $v -prune -exec rm -rf {} \;
+for t in ${types[@]}; do
+    for n in ${names[@]}; do
+        find . -type $t -name $n -prune -exec rm -rf {} \;
+    done
 done
 
-for v in ${vars[@]}; do
-        find . -type f -name $v -prune -exec rm -rf {} \;
-done

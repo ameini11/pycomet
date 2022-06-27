@@ -15,6 +15,7 @@ from pathlib import PurePath
 from functools import wraps
 from pycomet.config import headers
 from tensorflow.python.keras import backend as K
+from pycomet import config as cfg
 
 
 # Printing functions
@@ -46,68 +47,45 @@ def raise_module_not_found_error(text):
 
 # Decorators
 ###############################################################################
-def timing(f):
+def timing(fun):
     """Decorator for measuring the execution time of methods."""
-    @wraps(f)
+    @wraps(fun)
     def wrapper(*args, **kwargs):
         ts = time.time()
-        result = f(*args, **kwargs)
+        result = fun(*args, **kwargs)
         te = time.time()
         delta = datetime.timedelta(seconds=(te - ts))
-        print_submain(">> Function %r took %s" % (f.__name__, delta))
+        print_submain(">> Function %r took %s" % (fun.__name__, delta))
         sys.stdout.flush()
         return result
     return wrapper
 
 # Decorator for applications --------------------------------------------------
-LEN = 98
-
-def compose(text='', start='', between=' '):
-    end = ''.join(reversed(start))
-    l = len(text)
-    return start + between*int((LEN-len(start)*2-l)/2) \
-        + text + between*int((LEN-len(start)*2-l)/2) + end
+def main_decorator(fun):
+    @wraps(fun)
+    def wrapper():
+        print(cfg.PKG_HEADER + '\n')
+        result = fun()
+        return result
+    return wrapper
 
 def app_decorator(name=None):
     def dec(fun):
         @wraps(fun)
         def wrapper(name=name, *args, **kwargs):
             ts = time.time()
-            start = '# '
-            print(
-                "\n" + compose(start='# ', between='*') +
-                "\n" + compose(text='PyCOMET ', start='# ') +
-                "\n" + compose(start='# ', between='-') +
-                "\n" + compose(
-                    text='Physics-informed machine learning for', start='# '
-                ) +
-                "\n" + compose(
-                    text='scientific computations and operator discovery',
-                    start='# '
-                ) +
-                "\n" + compose(start='# ') +
-                "\n" + compose(start='# ', between='*')
-            )
-            print_main('App `{}` starts\n'.format(name) + "="*LEN + "\n")
+            print_main(f'App `{name}` starts' + cfg.EPILOG, start='')
             result = fun(*args, **kwargs)
             te = time.time()
             delta = datetime.timedelta(seconds=(te - ts))
             if not name:
                 name = fun.__name__
-            print(app_epilog(name=name, delta=delta))
-            # print("\n" + "=" * LEN)
-            # print_main('App `{}` terminates'.format(name), start='')
-            # print_submain(">> It took {}\n".format(delta))
+            print(cfg.EPILOG[:-2])
+            print_main('App `{}` terminates'.format(name), start='')
+            print_submain('>> It took %s\n' % delta)
             return result
         return wrapper
     return dec
-
-def app_epilog(name=None, delta=None):
-    s = '\n'+'='*LEN+'\n'+headers['main']+'App `{}` terminates\n'.format(name)
-    if delta:
-        return s + headers['main'] + '  ' + '>> It took {}\n'.format(delta)
-    else:
-        return s + ' '
 
 # Handling data types
 ###############################################################################
@@ -344,6 +322,11 @@ def set_seeds(seed=None):
         random.seed(seed)
         tf.random.set_seed(seed)
         np.random.seed(seed)
+
+def set_num_threads(n):
+    tf.config.threading.set_inter_op_parallelism_threads(n)
+    tf.config.threading.set_intra_op_parallelism_threads(n)
+
 
 
 # def apply(func, args=None, kwds=None):

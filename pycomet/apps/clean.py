@@ -12,26 +12,30 @@
 # --------------------------------------------------------------------------- #
 
 
-NAME = 'cleanPro'
+NAME = 'clean'
 
 import os
 import glob
 import shutil
 import argparse
 
+from pycomet import config as cfg
 from pycomet.utilities import utils
-
+from pycomet.apps import functions as fun
 
 FOLDERS = [
     'data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots'
 ]
 
-def get_opts():
-    parser = argparse.ArgumentParser(
-        prog=NAME,
+
+# Parse arguments
+###############################################################################
+def get_parser(subparsers):
+    parser = subparsers.add_parser(
+        name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Clean the working directory.',
-        epilog=utils.app_epilog(name=NAME)
+        epilog=cfg.EPILOG
     )
     parser.add_argument('-d', '--dir',
         type=str,
@@ -44,7 +48,8 @@ def get_opts():
         choices=[0,1],
         help='verbose mode'
     )
-    return parser.parse_args()
+    parser.set_defaults(process=main)
+    return parser
 
 def rmdirs(dirs):
     for d in dirs:
@@ -53,12 +58,10 @@ def rmdirs(dirs):
         except:
             continue
 
-
-@utils.app_decorator(name=NAME)
-def main():
-
-    # Define arguments --------------------------------------------------------
-    opts = get_opts()
+# Main
+###############################################################################
+@utils.app_decorator()
+def main(args):
 
     # Remove directories ------------------------------------------------------
     utils.print_main("Looking for folders to remove ...", start='')
@@ -66,12 +69,12 @@ def main():
     
     for fld in FOLDERS:
         if fld in {'data', 'saving'}:
-            dirs = glob.glob(opts.dir+'/'+fld)
+            dirs = glob.glob(args.dir+'/'+fld)
         else:
-            dirs = glob.glob(opts.dir+'/**/'+fld, recursive=True)
+            dirs = glob.glob(args.dir+'/**/'+fld, recursive=True)
         if len(dirs) > 0:
             exists = True
-            if opts.verbose and fld in {'data', 'saving'}:
+            if args.verbose and fld in {'data', 'saving'}:
                 asw = utils.input_submain(
                     ">> Do you want to delete the '{}' folder? [y/n] ".format(
                         fld
@@ -85,10 +88,10 @@ def main():
     # Exit --------------------------------------------------------------------
     if not exists:
         exit_str = "The working directory '{}' is already cleaned.".format(
-                os.path.normpath(opts.dir)+'/'
+                os.path.normpath(args.dir)+'/'
             )
     else:
         exit_str = "The working directory '{}' has been cleaned.".format(
-                os.path.normpath(opts.dir)+'/'
+                os.path.normpath(args.dir)+'/'
             )
     utils.print_main(exit_str, start='')

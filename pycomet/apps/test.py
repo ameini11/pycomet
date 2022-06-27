@@ -12,7 +12,7 @@
 # --------------------------------------------------------------------------- #
 
 
-NAME = 'testPro'
+NAME = 'test'
 
 import os
 import sys
@@ -21,26 +21,19 @@ import argparse
 import tensorflow as tf
 
 from tqdm import tqdm
+from pycomet import config as cfg
 from pycomet.utilities import utils
 from pycomet.apps import functions as fun
 
 
-def dir_path(path):
-    if os.path.exists(path+'/inputs'):
-        return path
-    else:
-        raise argparse.ArgumentTypeError(
-            "'inputs' folder not found in '{}'".format(
-                os.path.abspath(path)+'/'
-            )
-        )
-
-def get_opts():
-    parser = argparse.ArgumentParser(
-        prog=NAME,
+# Parse arguments
+###############################################################################
+def get_parser(subparsers):
+    parser = subparsers.add_parser(
+        name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Test a ML-based approximator.",
-        epilog=utils.app_epilog(name=NAME)
+        epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',
         type=int,
@@ -48,7 +41,7 @@ def get_opts():
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=dir_path,
+        type=fun.dir_path,
         default="./",
         help='path to the working directory (with `inputs` folder)'
     )
@@ -64,32 +57,29 @@ def get_opts():
         choices=[0,1],
         help='visualize model graph'
     )
-    return parser.parse_args()
+    parser.add_argument('-s', '--seed',
+        type=int,
+        default=None,
+        help='set random seed'
+    )
+    parser.set_defaults(process=main)
+    return parser
 
-
-@utils.app_decorator(name=NAME)
-def main():
-
-    cwd = os.getcwd()
+# Main
+###############################################################################
+@utils.app_decorator()
+def main(args):
 
     # Inizialization
     ###########################################################################
-    # Define arguments --------------------------------------------------------
-    opts = get_opts()
-    if opts.graph:
-        opts.verbose = 1
-    os.chdir(opts.dir)
-
-    # Configure ---------------------------------------------------------------
-    # TensorFlow
-    tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
-    tf.config.threading.set_intra_op_parallelism_threads(opts.threads)
+    if args.graph:
+        args.verbose = 1
+    os.chdir(args.dir)
+    # Environment
     utils.environment()
-    # Seed
-    utils.set_seeds(opts.seed)
 
     # Add modules -------------------------------------------------------------
-    sys.path.append(opts.dir)
+    sys.path.append(args.dir)
     # Input module
     import inputs
     from inputs.general import flags
@@ -122,7 +112,7 @@ def main():
         # dataGen = DataGenerator(
         #     **dataGen_args
         # )
-        # dataGen.data_dir = opts.dir + "/data/"
+        # dataGen.data_dir = args.dir + "/data/"
         # if not os.path.exists(dataGen.data_dir):
         #     os.makedirs(dataGen.data_dir)
 
@@ -138,7 +128,7 @@ def main():
         flags=flags,
         input_mod=inputs,
         test_data=test_data or None,
-        wdir=opts.dir
+        wdir=args.dir
     )
 
     # Network 
@@ -154,8 +144,8 @@ def main():
         input_mod=inputs,
         net=net,
         data=data,
-        graph=opts.graph,
-        verbose=opts.verbose
+        graph=args.graph,
+        verbose=args.verbose
     )
 
     # Postprocessing
@@ -173,5 +163,3 @@ def main():
                 path=model.dir['post'] + f'/testing/{name}',
                 **inputs.postprocessing.plot_style
             )
-
-    os.chdir(cwd)
