@@ -1,10 +1,10 @@
 # Case Name
 # -----------------------------------------------------------------------------
-NbAtoms   = 3
-RatesType = 'KExcit'
-ExcitType = 'KInel' # ['KInel', 'KExch', 'KExcit']
-System    = 'O3_UMN'
-CaseNum   = '01'
+NbAtoms             = 3
+RatesType           = 'KExcit'
+ExcitType           = 'KInel' # ['KInel', 'KExch', 'KExcit']
+System              = 'O3_UMN'
+CaseNum             = '01'
 
 # Paths
 # -----------------------------------------------------------------------------
@@ -17,15 +17,15 @@ PathToHDF5File      = WORKSPACE_PATH + '/AirDatabase/HDF5/Orig/O3_UMN.hdf5'
 # Molecules dtb
 Molecules           = [('O2','UMN')]*2
 PathToLevelsFld     = WORKSPACE_PATH + '/AirDatabase/Run0D/database/levels/modified/'
-PathToLevelsFile    = [PathToLevelsFld + f'/{System}/VMin_VMax.csv']*2
+PathToLevelsFile    = [PathToLevelsFld + f'/O2_UMN/VMin_VMax.csv']*2
 PathToGrouping      = WORKSPACE_PATH + f'/AirDatabase/Run0D/database/grouping/{System}/O2/LevelsMap_DPM45.csv'
-PathToSampledLevels = WORKSPACE_PATH + '/AirDatabase/Run0D/database/levels/samples/46DPM_Sampled/O2_Sampled_'
+PathToSampledLevels = WORKSPACE_PATH + '/AirDatabase/Run0D/database/levels/samples/Active_Sampled_with4580/O2_T'
 
 # Training Quanties
 # -----------------------------------------------------------------------------
-HighFidelityData    = False
+HighFidelityData    = True
 # Input variables for i-th and j-th state
-xDiatVars           = ['EVib','ERot','rMin','rMax','VMin','VMax','Tau','ri','ro']
+xDiatVars           = ['log_EVib','log_ERot','log_VMax','log_ro']
 xTTranVar           = {'i': True, 'j': True}
 DeltaProperties     = True
 NSamplesNoise       = 0    # Adding noise to data
@@ -50,10 +50,10 @@ iLevelsIntFlg       = 4
 ValidPerc           = 20.
 
 # Rates specs
-NbProcesses         = 2 # Options: [2,3,4] <=> [Elastic + Inelastic, Exchange Type 1, Exchange Type 2]
+NbProcesses         = 2 # 2 or 3: [Elastic, Inelastic, Exchange Type 1]
 HomoExchNb          = 0
 
-ExoEndoFlg          = True    # Only Exothermic Rates
+ExoEndoFlg          = True   # Only Exothermic Rates
 PartFnRatioFlg      = False   # Only qj > qi
 ReconstructExoth    = True   # Reconstruct Exothermic Rates
 
@@ -65,7 +65,7 @@ RatesLogScale       = True
 
 # Testing Quantities
 # -----------------------------------------------------------------------------
-TTranVecTest        = [6000.0, 10000.0]
+TTranVecTest        = [1500.0]
 iLevelsVecTest      = [4580, 4581, 6058, 6097, 6105, 6108, 6111]
 TTranVecExtra       = [300.0, 50000.0]
 
@@ -77,8 +77,8 @@ TTranVecExtra       = [300.0, 50000.0]
 #     'MinMax': {'ref':   None, 'norm': None},
 # }
 InpManip = {
-    'Var': {'ref': 'VMin', 'norm': 'VMax'},
-    'MinMax': {'ref': min, 'norm': min},
+    'Var':      {'ref': 'VMin', 'norm': 'VMax'},
+    'MinMax':   {'ref':    min, 'norm':    min}
 }
 # InpManip = {
 #     'Var': {'ref': 'EInt', 'norm': 'VMax'},
