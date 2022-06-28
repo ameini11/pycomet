@@ -19,7 +19,7 @@ def read_levelsdata(DataFile, xVarsVec, Suffix=''):
 
 # Reading Diatomic Potential Data 
 def read_diatdata(DataFile, Molecule, TTranVec):
-    print('[SurQCT]:    Reading Molecular Levels Data from: ' + DataFile)
+    print('[SurQCT]:    Reading Diatomic Potential Data from: ' + DataFile)
 
     # Extracting all the rot-vib levels
     xMat           = pd.read_csv(DataFile, delim_whitespace=True, skiprows=15, header=None)

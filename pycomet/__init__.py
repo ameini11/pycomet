@@ -33,7 +33,7 @@ from pycomet import config
 from pycomet import data
 from pycomet import networks
 from pycomet import physics
-# from pycomet import model
+from pycomet import model
 from pycomet import postprocessing
 
 __all__ = [
@@ -42,6 +42,6 @@ __all__ = [
     "data",
     "networks",
     "physics",
-    # "model",
+    "model",
     "postprocessing"
 ]
