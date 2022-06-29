@@ -2,6 +2,8 @@
 WORKSPACE = '/home/zanardi/WORKSPACE/'
 CoarseAIR = WORKSPACE + '/NeqPlasma/CoarseAIR/coarseair/'
 SurQCT    = WORKSPACE + '/ML/PyCOMET/pycomet/examples/SurQCT/'
+MERuns    = WORKSPACE + '/AirDatabase/Run0D/'
+HDF5Dtb   = WORKSPACE + '/AirDatabase/HDF5/'
 
 # Molecules
 Molecules = CoarseAIR + '/dtb/Molecules/'

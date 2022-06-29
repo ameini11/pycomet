@@ -21,43 +21,52 @@ class Molecule():
         self.Mass       = 0.0
 
     def read_diatdata(self):
-        # Extracting all the rot-vib levels
-        xMat           = pd.read_csv(self.PathToDiatFile, delim_whitespace=True, skiprows=15, header=None)
-        xMat.columns   = ['vqn','jqn','EInt','egam','rMin','rMax','VMin','VMax','Tau','ri','ro']    
+        Data = pd.read_csv(self.PathToDiatFile, delimiter=r"\s+", skiprows=15, header=None)
 
-        # Shifting Energies so that Zero is the Min of Diatomic Potential at J=0
-        xMat['EInt']   = ( xMat['EInt'].to_numpy() - np.amin(xMat['VMax'].to_numpy()) ) * const.Ha_to_eV
-        xMat['VMax']   = ( xMat['VMax'].to_numpy() - np.amin(xMat['VMax'].to_numpy()) ) * const.Ha_to_eV
-        xMat['VMin']   = ( xMat['VMin'].to_numpy() - np.amin(xMat['VMax'].to_numpy()) ) * const.Ha_to_eV
+        self.vqn     = np.array(Data.values[:,0],  dtype=np.int16  )
+        self.jqn     = np.array(Data.values[:,1],  dtype=np.int16  )
+        self.EInt    = np.array(Data.values[:,2],  dtype=np.float64) * const.Ha_to_eV
+        self.Egam    = np.array(Data.values[:,3],  dtype=np.float64)
+        self.rMin    = np.array(Data.values[:,4],  dtype=np.float64)
+        self.rMax    = np.array(Data.values[:,5],  dtype=np.float64)
+        self.VMin    = np.array(Data.values[:,6],  dtype=np.float64) * const.Ha_to_eV
+        self.VMax    = np.array(Data.values[:,7],  dtype=np.float64) * const.Ha_to_eV
+        self.Tau     = np.array(Data.values[:,8],  dtype=np.float64)
+        self.rIn     = np.array(Data.values[:,9],  dtype=np.float64)
+        self.rOut    = np.array(Data.values[:,10], dtype=np.float64)
 
-        xMat['EVib'], xMat['ERot'] = self.compute_vibrotenergy(xMat['EInt'].to_numpy(), xMat['vqn'].to_numpy(int), xMat['jqn'].to_numpy(int))
-        xMat['g']      = self.compute_degeneracy(xMat['jqn'].to_numpy(int))
+        self.NLevels = len(self.EInt)
 
-        self.DiatData = xMat
-        self.NLevels  = len(self.DiatData)
+        self.EVib, self.ERot = self.compute_vibrotenergy()
+        self.g       = self.compute_degeneracy()
 
-    def compute_degeneracy(self, jqn):
-        g = 2*jqn + 1
-        for i in range(len(jqn)):
-            if (jqn[i] % 2 != 0):
+        self.EInt    = self.EInt - np.amin(self.EInt)
+        self.EVib    = self.EVib - np.amin(self.EVib)
+        self.ERot    = self.ERot - np.amin(self.ERot)
+
+    def compute_degeneracy(self):
+        g = 2*self.jqn + 1
+        for i in range(len(self.jqn)):
+            if (self.jqn[i] % 2 != 0):
                 g[i] = self.DegeneracyFactor[0]*g[i]
             else:
                 g[i] = self.DegeneracyFactor[1]*g[i]
         return g
 
-    def compute_vibrotenergy(self, EInt, vqn, jqn):
-        NLevels = len(EInt)
-        EVib    = np.zeros((NLevels,1))
-        ERot    = np.zeros((NLevels,1))
-        ETemp   = np.zeros((np.amax(vqn)+1,1))
-        for iLevel in range(NLevels):
-            if (jqn[iLevel] == 0):
-                EVib[iLevel]       = EInt[iLevel]
-                ETemp[vqn[iLevel]] = EInt[iLevel]
+    def compute_vibrotenergy(self):
+        EVib    = np.zeros((self.NLevels,1))
+        ERot    = np.zeros((self.NLevels,1))
+        ETemp   = np.zeros((np.amax(self.vqn)+1,1))
+        for iLevel in range(self.NLevels):
+            if (self.jqn[iLevel] == 0):
+                EVib[iLevel]            = self.EInt[iLevel]
+                ETemp[self.vqn[iLevel]] = self.EInt[iLevel]
             else:
-                EVib[iLevel] = ETemp[vqn[iLevel]]
-                ERot[iLevel] = EInt[iLevel] - EVib[iLevel]
+                EVib[iLevel]            = ETemp[self.vqn[iLevel]]
+                ERot[iLevel]            = self.EInt[iLevel] - EVib[iLevel]
         return EVib, ERot
+
+
 
 class RateTypes():
 
@@ -88,24 +97,23 @@ class System():
         for iMol, Mol in enumerate(self.Molecule):
 
             FileName     = Path + f'/pop_{Mol.Name}.dat'
-            Pop          = pd.read_csv(FileName,sep="   ",skiprows=2,header=None,index_col=False,comment='&', engine='python')
-            Pop.columns  = ['E','Pop']
-
-            Ni_ov_g      = np.reshape(Pop.Pop.to_numpy(), (TimeInstants+1, Mol.NLevels))
-            Ni[Mol.Name] = Ni_ov_g * Mol.DiatData.g.to_numpy().reshape(1,-1)
+            Ni_ov_g      = np.loadtxt(FileName, comments='&', delimiter="   ", skiprows=2, usecols=(1))
+            Ni_ov_g      = Ni_ov_g.reshape((TimeInstants, Mol.NLevels))
+            assert (Ni_ov_g >= 0.).all()
+            Ni[Mol.Name] = Ni_ov_g * Mol.g.reshape(1,-1)
         
         return Ni
 
     def compute_energies(self, Ni):
 
-        EInt, EVib, ERot    = [{}]*3
+        E = {'EInt': {}, 'EVib': {}, 'ERot': {}}
         for iMol, Mol in enumerate(self.Molecule):
-            NiTot           = np.sum(Ni[Mol.Name], axis=1)
-            EInt[Mol.Name]  = np.sum(Ni[Mol.Name] * Mol.DiatData.EInt.to_numpy().reshape(1,-1), axis=1) / NiTot
-            EVib[Mol.Name]  = np.sum(Ni[Mol.Name] * Mol.DiatData.EVib.to_numpy().reshape(1,-1), axis=1) / NiTot
-            ERot[Mol.Name]  = np.sum(Ni[Mol.Name] * Mol.DiatData.ERot.to_numpy().reshape(1,-1), axis=1) / NiTot
+            NiTot = np.sum(Ni[Mol.Name], axis=1)
+            for k in E.keys():
+                Ek = getattr(Mol, k).reshape(1,-1)
+                E[k][Mol.Name] = np.sum(Ni[Mol.Name] * Ek, axis=1) / NiTot
         
-        return EInt, EVib, ERot
+        return E
 
 
 def O3_UMN():
@@ -132,7 +140,7 @@ def O3_UMN():
     Syst.SurQCTMEPath   = Paths.WORKSPACE + f'/AirDatabase/Run0D/run/{SystemName}/SurQCT'
 
     # QCT Rates
-    Syst.PathToHDF5Fld  = Paths.WORKSPACE + '/AirDatabase/HDF5/Orig/O3_UMN.hdf5'
+    Syst.PathToHDF5Fld  = Paths.HDF5Dtb + '/Orig/O3_UMN.hdf5'
     
     return Syst
 
