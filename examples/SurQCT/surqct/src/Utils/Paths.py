@@ -24,11 +24,3 @@ DiatFile  = {
         'UIUC':        Molecules + '/CN/Modified_Morse/CN_Levels_UIUC_Sorted.inp'
     }
 }
-
-# Rates
-RatesHDF5File = {
-    'O3': WORKSPACE + '/AirDatabase/HDF5/Orig/O3_UMN.hdf5',
-    'N3': WORKSPACE + '/AirDatabase/HDF5/SemiClassicalApprox/N3_NASA.hdf5',
-    'NON': WORKSPACE + '/AirDatabase/HDF5/Orig/NON_UMN.hdf5',
-    'CO2': WORKSPACE + '/AirDatabase/HDF5/Orig/CO2_NASA.hdf5'
-}

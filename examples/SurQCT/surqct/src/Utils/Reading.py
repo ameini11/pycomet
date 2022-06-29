@@ -18,7 +18,7 @@ def read_levelsdata(DataFile, xVarsVec, Suffix=''):
     return xMat
 
 # Reading Diatomic Potential Data 
-def read_diatdata(DataFile, Molecule, TTranVec):
+def read_diatdata(DataFile, Molecule, TTranVec=None):
     print('[SurQCT]:    Reading Diatomic Potential Data from: ' + DataFile)
 
     # Extracting all the rot-vib levels
@@ -36,9 +36,10 @@ def read_diatdata(DataFile, Molecule, TTranVec):
 
     xMat['g']      = fun.compute_degeneracy(xMat['jqn'].to_numpy(int), Molecule) 
 
-    for TTran in TTranVec:
-        Str       = 'q_'+str(int(TTran))
-        xMat[Str] = xMat['g'].to_numpy() * np.exp( - xMat['EInt'].to_numpy() / (const.kB*TTran) )
+    if TTranVec is not None:
+        for TTran in TTranVec:
+            Str       = 'q_'+str(int(TTran))
+            xMat[Str] = xMat['g'].to_numpy() * np.exp( - xMat['EInt'].to_numpy() / (const.kB*TTran) )
 
     return xMat
 
@@ -62,3 +63,15 @@ def read_sampledinitiallevels(PathToSampledLevels, TTran=None):
     iIdxVec             = np.squeeze(iIdxVec.to_numpy())
   
     return iIdxVec
+
+# Reading Populations
+def read_populations(Path, System, DiatData, Time):
+
+    FileName = Path + f'/pop_{System.Molecule[0].Name}.dat'
+    Pop = pd.read_csv(FileName,sep="   ",skiprows=2,header=None,index_col=False,comment='&')
+    Pop.columns=['E','Pop']
+
+    Pop.Pop_g = np.reshape(Pop.PopTemp.to_numpy(),(np.size(time)+1,System.Molecule[0].NLevels))
+    Pop.Pop = DiatData[0]['g'].to_numpy() * Pop.Pop_g
+    
+    return Pop
