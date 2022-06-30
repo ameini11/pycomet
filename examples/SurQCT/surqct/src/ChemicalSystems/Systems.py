@@ -36,6 +36,7 @@ class Molecule():
         self.rOut    = np.array(Data.values[:,10], dtype=np.float64)
 
         self.NLevels = len(self.EInt)
+        self.DissE   = np.amin(self.VMax)
 
         self.EVib, self.ERot = self.compute_vibrotenergy()
         self.g       = self.compute_degeneracy()
@@ -45,9 +46,10 @@ class Molecule():
         self.ERot    = self.ERot - np.amin(self.ERot)
 
     def compute_degeneracy(self):
-        g = 2*self.jqn + 1
-        for i in range(len(self.jqn)):
-            if (self.jqn[i] % 2 != 0):
+        jqn = self.jqn.astype(float)
+        g   = 2*jqn + 1
+        for i in range(len(jqn)):
+            if (jqn[i] % 2 != 0):
                 g[i] = self.DegeneracyFactor[0]*g[i]
             else:
                 g[i] = self.DegeneracyFactor[1]*g[i]
