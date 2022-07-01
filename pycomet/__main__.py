@@ -51,6 +51,10 @@ def main():
     if hasattr(args, 'seed'):
         utils.set_seeds(args.seed)
 
+    # Setting seed
+    if hasattr(args, 'dir'):
+        args.dir = os.path.abspath(args.dir)
+
     # Running process
     with threadpoolctl.threadpool_limits(
         limits=cfg.tf_setup['NUM_THREADS'], user_api="blas"

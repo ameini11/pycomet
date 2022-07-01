@@ -1,75 +1,72 @@
-
-
-# Note: there are many handy hints in comments in this example -- remove them when you've finalized your recipe
-# If your package is python based, we recommend using Grayskull to generate it instead:
-# https://github.com/conda-incubator/grayskull
-
-# Jinja variables help maintain the recipe as you'll update the version only here.
-# Using the name variable with the URL in line 14 is convenient
-# when copying and pasting from another recipe, but not really needed.
-{% set author = "Ivan Zanardi" %}
-{% set email = "0.0.1" %}
-{% set name = "pycomet" %}
-{% set version = "0.0.1" %}
-{% set name = "pycomet" %}
-{% set version = "0.0.1" %}
-
-__author__  = "Ivan Zanardi"
-__email__   = "zanardi3@illinois.edu"
-__url__     = "https://github.com/ivanZanardi/pycomet"
-__license__ = "Apache-2.0"
-__version__ = "0.0.1"
-
-
-
-
 package:
-  name: {{ name|lower }}
-  version: {{ version }}
+  name: "pycomet"
+  version: "0.0.1"
 
 source:
-  # url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
-  # If getting the source from GitHub, remove the line above,
-  # uncomment the line below, and modify as needed. Use releases if available:
-  url: https://github.com/ivanZanardi/pycomet
-  # and otherwise fall back to archive:
-  # url: https://github.com/simplejson/simplejson/archive/v{{ version }}.tar.gz
-  # sha256: 2b3a0c466fb4a1014ea131c2b8ea7c519f9278eba73d6fcb361b7bdb4fd494e9
-  # sha256 is the preferred checksum -- you can get it for a file with:
-  #  `openssl sha256 <file name>`.
-  # You may need the openssl package, available on conda-forge:
-  #  `conda install openssl -c conda-forge``
+  git_url: https://github.com/ivanZanardi/pycomet
 
 build:
-  # Uncomment the following line if the package is pure Python and the recipe is exactly the same for all platforms.
-  # It is okay if the dependencies are not built for all platforms/versions, although selectors are still not allowed.
-  # See https://conda-forge.org/docs/maintainer/knowledge_base.html#noarch-python for more details.
   # noarch: python
-  # If the installation is complex, or different between Unix and Windows, use separate bld.bat and build.sh files instead of this key.
-  # By default, the package will be built for the Python versions supported by conda-forge and for all major OSs.
-  # Add the line "skip: True  # [py<35]" (for example) to limit to Python 3.5 and newer, or "skip: True  # [not win]" to limit to Windows.
-  # More info about selectors can be found in the conda-build docs: 
-  # https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html#preprocessing-selectors
-  script: {{ PYTHON }} -m pip install . -vv
+  # script: {{ PYTHON }} setup.py bdist_wheel && pip install dist/*.whl
+  script: python setup.py build && python setup.py install
+  # script: python -m pip install . --no-deps --ignore-installed -vv
   number: 0
+  entry_points:
+    - pycomet = pycomet.__main__:main
 
 requirements:
-  build:
-	# If your project compiles code (such as a C extension) then add the required compilers as separate entries here.
-	# Compilers are named 'c', 'cxx' and 'fortran'.
-	- {{ compiler('c') }}
   host:
-	- python
-	- pip
+    - python
+    - h5py
+    - argparse
+    - joblib
+    - matplotlib
+    - netron
+    - numpy
+    - pandas
+    - pyDOE
+    - scikit_learn
+    - scipy
+    - seaborn
+    - setuptools
+    - tensorflow>=2.4.1
+    - tensorflow-gpu>=2.4.1
+    - tensorflow-addons>=0.12.1
+    - threadpoolctl
+    - tqdm
   run:
-	- python
+    - python
+    - h5py
+    - argparse
+    - joblib
+    - matplotlib
+    - netron
+    - numpy
+    - pandas
+    - pyDOE
+    - scikit_learn
+    - scipy
+    - seaborn
+    - setuptools
+    - tensorflow>=2.4.1
+    - tensorflow-gpu>=2.4.1
+    - tensorflow-addons>=0.12.1
+    - threadpoolctl
+    - tqdm
+
+test:
+  imports:
+    - pycomet
+  commands:
+    - pycomet --help
 
 about:
-  home: https://github.com/simplejson/simplejson
-  summary: 'Simple, fast, extensible JSON encoder/decoder for Python'
+  home: https://github.com/ivanZanardi/pycomet
+  license: Apache Software License 2.0
+  license_family: APACHE
+  license_file: LICENSE.txt
+  summary: 'Physics-informed machine learning for scientific computations and operator discovery.'
 
 extra:
   recipe-maintainers:
-	# GitHub IDs for maintainers of the recipe.
-	# Always check with the people listed below if they are OK becoming maintainers of the recipe. (There will be spam!)
-	- IvanZanardi
+  - ivanZanardi

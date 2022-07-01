@@ -1,4 +1,3 @@
-fortranformat
 h5py
 joblib
 matplotlib
@@ -6,12 +5,12 @@ netron
 numpy
 pandas
 pyDOE
-pysftp
-scikit_learn
+scikit-learn
 scipy
 seaborn
 setuptools
 tensorflow>=2.4.1
-tensorflow_addons>=0.12.1
+tensorflow-gpu>=2.4.1
+tensorflow-addons>=0.12.1
 threadpoolctl
 tqdm
