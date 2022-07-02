@@ -55,7 +55,7 @@ HomoExchNb          = 0
 
 ExoEndoFlg          = True    # Only Exothermic Rates
 PartFnRatioFlg      = False   # Only qj > qi
-ReconstructExoth    = False   # Reconstruct Exothermic Rates
+ReconstructExoth    = True   # Reconstruct Exothermic Rates
 
 SampleWeights       = [(1.e-13, 3.),(1.e-12, 6.),(1.e-11, 9.),(1.e-10, 12.),(1.e-9, 15.)]
 

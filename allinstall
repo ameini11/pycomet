@@ -80,7 +80,8 @@ if [ $action == "install" ]; then
 
     # Add "requirements" file if not present
     if [[ ! -f "./requirements.txt" ]]; then
-        pipreqs --force ./
+        pipreqs --force ./pycomet
+        mv ./pycomet/requirements.txt ./
     fi
     # Install package
     python3 setup.py bdist_wheel

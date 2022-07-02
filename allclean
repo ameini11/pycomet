@@ -8,4 +8,3 @@ for t in ${types[@]}; do
         find . -type $t -name $n -prune -exec rm -rf {} \;
     done
 done
-
