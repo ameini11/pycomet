@@ -14,17 +14,18 @@ import pycomet
 
 
 # PyCOMET ---------------------------------------------------------------------
-headers = {
+HEADERS = {
     'main':    '[PyCOMET]: ',
     'warning': '[PyCOMET]:   WARNING! ',
     'err':     'from PyCOMET\n>>> '
 }
 
+NUM_THREADS = 4
+
 # TensorFlow ------------------------------------------------------------------
 tf_setup = {
     'EPSILON':              1.e-15,
-    'DTYPE':                'float64',
-    'NUM_THREADS':          4
+    'DTYPE':                'float64'
 }
 
 tf_env = {

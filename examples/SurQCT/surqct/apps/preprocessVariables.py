@@ -1,27 +1,32 @@
+# *************************************************************************** #
+#                                   SurQCT                                    #
+# --------------------------------------------------------------------------- #
+#                   Surrogate modeling for QCT calculations                   #
+#                                                                             #
+# *************************************************************************** #
+
+# -------------------------------- EXEC FILE -------------------------------- #
+
+
+NAME = 'preprocessVariables'
+
 import os
 import sys
 import argparse
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
-tf.get_logger().setLevel('ERROR')
+from surqct import config as cfg
+from surqct.src.utilities import utils
+from surqct.apps import functions as fun
 
 
-def dir_path(path):
-    if os.path.exists(path+'/InputData.py'):
-        return os.path.abspath(path)
-    else:
-        raise argparse.ArgumentTypeError(
-            "'InputData.py' file not found in '{}'".format(
-                os.path.abspath(path)+'/'
-            )
-        )
-
-def get_opts():
-    parser = argparse.ArgumentParser(
-        prog='PreprocessVariables',
+# Parse arguments
+###############################################################################
+def get_parser(subparsers):
+    parser = subparsers.add_parser(
+        name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Preprocess input variables for SurQCT model.",
+        epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',
         type=int,
@@ -29,7 +34,7 @@ def get_opts():
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=dir_path,
+        type=fun.dir_path,
         default="./",
         help='path to the working directory (with `InputData.py` file)'
     )
@@ -39,15 +44,13 @@ def get_opts():
         choices=[0,1],
         help='verbose mode'
     )
-    return parser.parse_args()
+    parser.set_defaults(process=main)
+    return parser
 
-
-def main():
-
-    print('\n[SurQCT]: START')
-    print('\n[SurQCT]:  Preprocessing diatomic potential input features')
-    
-    cwd = os.getcwd()
+# Main
+###############################################################################
+@utils.app_decorator()
+def main(args):
 
     # Inizialization
     ###########################################################################
@@ -63,19 +66,13 @@ def main():
     # SurQCT module
     sys.path.append(InputData.SurQCTFld)
     import surqct
-
-    # Configure TensorFlow
-    tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
-    tf.config.threading.set_intra_op_parallelism_threads(opts.threads)
     
     # InputManip module
     from surqct.src.Preprocessing import InputManip
 
     # Manipulating input data
     ###########################################################################
+    utils.print_main('Preprocessing diatomic potential input features ...')
     diat_data = InputManip.get_diat_data(InputData)
+    utils.print_main('Saving reprocessed input features ...')
     InputManip.save_diat_data(InputData, diat_data)
-    
-    print('\n[SurQCT]: END\n')
-
-    os.chdir(cwd)

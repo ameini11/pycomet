@@ -1,28 +1,33 @@
+# *************************************************************************** #
+#                                   SurQCT                                    #
+# --------------------------------------------------------------------------- #
+#                   Surrogate modeling for QCT calculations                   #
+#                                                                             #
+# *************************************************************************** #
+
+# -------------------------------- EXEC FILE -------------------------------- #
+
+
+NAME = 'generateData'
+
 import os
 import sys
 import argparse
 import pandas as pd
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import tensorflow as tf
-tf.get_logger().setLevel('ERROR')
+from surqct import config as cfg
+from surqct.src.utilities import utils
+from surqct.apps import functions as fun
 
 
-def dir_path(path):
-    if os.path.exists(path+'/InputData.py'):
-        return os.path.abspath(path)
-    else:
-        raise argparse.ArgumentTypeError(
-            "'InputData.py' file not found in '{}'".format(
-                os.path.abspath(path)+'/'
-            )
-        )
-
-def get_opts():
-    parser = argparse.ArgumentParser(
-        prog='GenerateData',
+# Parse arguments
+###############################################################################
+def get_parser(subparsers):
+    parser = subparsers.add_parser(
+        name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Generate data for SurQCT model.",
+        epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',
         type=int,
@@ -30,7 +35,7 @@ def get_opts():
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=dir_path,
+        type=fun.dir_path,
         default="./",
         help='path to the working directory (with `InputData.py` file)'
     )
@@ -52,33 +57,28 @@ def get_opts():
         choices=[0,1],
         help='generate testing data'
     )
-    return parser.parse_args()
+    parser.set_defaults(process=main)
+    return parser
 
-
-def main():
-
-    print('\n[SurQCT]: START')
-    
-    cwd = os.getcwd()
+# Main
+###############################################################################
+@utils.app_decorator()
+def main(args):
 
     # Inizialization
     ###########################################################################
     # Define arguments --------------------------------------------------------
-    opts = get_opts()
-    os.chdir(opts.dir)
+    args = get_opts()
+    os.chdir(args.dir)
     
     # Modules -----------------------------------------------------------------
     # InputData module
-    sys.path.append(opts.dir)
+    sys.path.append(args.dir)
     import InputData
     
     # SurQCT module
     sys.path.append(InputData.SurQCTFld)
     import surqct
-
-    # Configure TensorFlow
-    tf.config.threading.set_inter_op_parallelism_threads(opts.threads)
-    tf.config.threading.set_intra_op_parallelism_threads(opts.threads)
     
     # RatesType module
     RatesType = __import__(
@@ -92,39 +92,37 @@ def main():
     # Generating data
     ###########################################################################
     # Training/Validation -----------------------------------------------------
-    if opts.training:
-        for path in (opts.dir+'/data/train/', opts.dir+'/data/valid/'):
+    if args.training:
+        for path in (args.dir+'/data/train/', args.dir+'/data/valid/'):
             if not os.path.exists(path):
                 os.makedirs(path)
         # Generating
         TrainData, ValidData, AllData = RatesType.generate_trainingdata(InputData)
         # Saving
         TrainData = pd.concat(TrainData, axis=1)
-        TrainData.to_csv(opts.dir+'/data/train/pts.csv', index=False, float_format='%.10e')
+        TrainData.to_csv(args.dir+'/data/train/pts.csv', index=False, float_format='%.10e')
+
         print('\n[SurQCT]:    Number of training pts:   %10d' % len(TrainData))
         ValidData = pd.concat(ValidData, axis=1)
-        ValidData.to_csv(opts.dir+'/data/valid/pts.csv', index=False, float_format='%.10e')
+        ValidData.to_csv(args.dir+'/data/valid/pts.csv', index=False, float_format='%.10e')
         print('[SurQCT]:    Number of validation pts: %10d' % len(ValidData))
     
     # Testing -----------------------------------------------------------------
-    if opts.testing:
-        for path in (opts.dir+'/data/test/',):
+    if args.testing:
+        utils.print_main('Generating testing data ...')
+        for path in (args.dir+'/data/test/',):
             if not os.path.exists(path):
                 os.makedirs(path)
         # Generating
         TestData = RatesType.generate_testingdata(InputData, Labeled=True)
         # Saving
         TestData = pd.concat(TestData, axis=1)
-        TestData.to_csv(opts.dir+'/data/test/labeled.csv', index=False, float_format='%.10e')
+        TestData.to_csv(args.dir+'/data/test/labeled.csv', index=False, float_format='%.10e')
         print('\n[SurQCT]:    Number of labeled testing pts:   %10d' % len(TestData))
         
         # Generating
         TestData = RatesType.generate_testingdata(InputData, Labeled=False)
         # Saving
         TestData = pd.concat(TestData, axis=1)
-        TestData.to_csv(opts.dir+'/data/test/unlabeled.csv', index=False, float_format='%.10e')
+        TestData.to_csv(args.dir+'/data/test/unlabeled.csv', index=False, float_format='%.10e')
         print('[SurQCT]:    Number of unlabeled testing pts: %10d' % len(TestData))
-
-    print('\n[SurQCT]: END\n')
-    
-    os.chdir(cwd)

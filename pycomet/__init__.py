@@ -1,3 +1,14 @@
+# *************************************************************************** #
+#                                   PyCOMET                                   #
+# --------------------------------------------------------------------------- #
+#                    Physics-informed machine learning for                    #
+#                scientific computations and operator discovery               #
+#                                                                             #
+# *************************************************************************** #
+
+# --------------------------- INITIALIZATION FILE --------------------------- #
+
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -5,7 +16,6 @@ from __future__ import print_function
 # TensorFlow 
 ###############################################################################
 import os
-import pycomet
 from pycomet.config import tf_setup
 from pycomet.config import tf_env
 

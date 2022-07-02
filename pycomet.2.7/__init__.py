@@ -1,3 +1,14 @@
+# *************************************************************************** #
+#                                   PyCOMET                                   #
+# --------------------------------------------------------------------------- #
+#                    Physics-informed machine learning for                    #
+#                scientific computations and operator discovery               #
+#                                                                             #
+# *************************************************************************** #
+
+# --------------------------- INITIALIZATION FILE --------------------------- #
+
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -5,10 +16,11 @@ from __future__ import print_function
 # TensorFlow 
 ###############################################################################
 import os
-import pycomet
 from pycomet.config import tf_setup
+from pycomet.config import tf_env
+
 # Setting verbosity level
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = tf_setup['TF_CPP_MIN_LOG_LEVEL']
+os.environ.update(tf_env)
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 # Setting python/keras backends

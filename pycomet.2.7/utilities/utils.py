@@ -10,39 +10,38 @@ import datetime
 import numpy as np
 import tensorflow as tf
 
-from pathlib import PurePath
 # from matplotlib import animation
 from functools import wraps
-from pycomet.config import headers
-from tensorflow.python.keras import backend as K
+from pathlib import PurePath
 from pycomet import config as cfg
+from tensorflow.python.keras import backend
 
 
 # Printing functions
 ###############################################################################
 def print_main(text, start='\n', verbose=True, *args, **kwargs):
     if verbose:
-        print(start + headers['main'] + text, *args, **kwargs)
+        print(start + cfg.HEADERS['main'] + text, *args, **kwargs)
 
 def print_submain(text, start='', verbose=True, *args, **kwargs):
     if verbose:
-        print(start + headers['main'] + '  ' + text, *args, **kwargs)
+        print(start + cfg.HEADERS['main'] + '  ' + text, *args, **kwargs)
 
 def input_main(text, start='', *args, **kwargs):
-    return input(start + headers['main'] + text, *args, **kwargs)
+    return input(start + cfg.HEADERS['main'] + text, *args, **kwargs)
 
 def input_submain(text, start='', *args, **kwargs):
-    return input(start + headers['main'] + '  ' + text, *args, **kwargs)
+    return input(start + cfg.HEADERS['main'] + '  ' + text, *args, **kwargs)
 
 def warning(text, start='', *args, **kwargs):
-    print(start + headers['warning'] + text, *args, **kwargs)
+    print(start + cfg.HEADERS['warning'] + text, *args, **kwargs)
 
 def raise_value_err(text):
-    message = ''.join([headers['err'], text])
+    message = ''.join([cfg.HEADERS['err'], text])
     raise ValueError(message)
 
 def raise_module_not_found_error(text):
-    message = ''.join([headers['err'], text])
+    message = ''.join([cfg.HEADERS['err'], text])
     raise ModuleNotFoundError(message)
 
 # Decorators
@@ -194,18 +193,18 @@ def zip_dict_of_lists(d):
 
 def convert_struct_to_tf(x):
     return tf.nest.map_structure(
-        lambda y: tf.convert_to_tensor(y, dtype=K.floatx()), x
+        lambda y: tf.convert_to_tensor(y, dtype=backend.floatx()), x
     )
 
 def get_key_from_value(d, v):
     for key, value in d.items():
-         if v == value:
-             return key
+        if v == value:
+            return key
     raise_value_err(f"A key for value `{v}` doesn't exist in the dictionary.")
 
 def reshape_to_2DArray(x):
     if x is not None:
-        x = tf.convert_to_tensor(x, dtype=K.floatx())
+        x = tf.convert_to_tensor(x, dtype=backend.floatx())
         if len(x.shape) == 0:
             return tf.reshape(x, [1,1])
         elif len(x.shape) == 1:
@@ -270,7 +269,7 @@ def environment():
         tf.config.threading.get_inter_op_parallelism_threads(),
         tf.config.threading.get_intra_op_parallelism_threads()
     ])
-    print(headers['main'] + "Environment setup\n" + "-"*98)
+    print(cfg.HEADERS['main'] + "Environment setup\n" + "-"*98)
     print(" TensorFlow version:     {}".format(tf.__version__))
     print(" Eager execution:        {}".format(tf.executing_eagerly()))
     print(" GPUs available:         {}".format(

@@ -44,8 +44,8 @@ def main():
 
     # Setting number of threads
     if hasattr(args, 'threads'):
-        cfg.tf_setup['NUM_THREADS'] = args.threads
-    utils.set_num_threads(cfg.tf_setup['NUM_THREADS'])
+        cfg.NUM_THREADS = args.threads
+    utils.set_num_threads(cfg.NUM_THREADS)
 
     # Setting seed
     if hasattr(args, 'seed'):
@@ -56,9 +56,7 @@ def main():
         args.dir = os.path.abspath(args.dir)
 
     # Running process
-    threadpoolctl_args = dict(
-        limits=cfg.tf_setup['NUM_THREADS'], user_api="blas"
-    )
+    threadpoolctl_args = dict(limits=cfg.NUM_THREADS, user_api="blas")
     with threadpoolctl.threadpool_limits(**threadpoolctl_args):
         args.process(name=args.command, args=args)
 

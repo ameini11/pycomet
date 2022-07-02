@@ -1,6 +1,6 @@
 import numpy as np
 
-import surqct.src.Utils.Const as const
+from surqct.src.utilities import const
 
 
 def compute_vibenergy(EInt, vqn, jqn):
