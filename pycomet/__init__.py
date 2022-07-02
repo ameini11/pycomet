@@ -7,8 +7,10 @@ from __future__ import print_function
 import os
 import pycomet
 from pycomet.config import tf_setup
+from pycomet.config import tf_env
+
 # Setting verbosity level
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = tf_setup['TF_CPP_MIN_LOG_LEVEL']
+os.environ.update(tf_env)
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 # Setting python/keras backends
