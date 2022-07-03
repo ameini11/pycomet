@@ -20,7 +20,7 @@ NUM_THREADS = 4
 # Paths -----------------------------------------------------------------------
 WORKSPACE = '/home/zanardi/WORKSPACE/'
 CoarseAIR = WORKSPACE + '/NeqPlasma/CoarseAIR/coarseair/'
-MERuns    = WORKSPACE + '/AirDatabase/Run0D/'
+MERuns    = WORKSPACE + '/AirDatabase/Run0D/run/'
 HDF5Dtb   = WORKSPACE + '/AirDatabase/HDF5/'
 
 # Standard output -------------------------------------------------------------
