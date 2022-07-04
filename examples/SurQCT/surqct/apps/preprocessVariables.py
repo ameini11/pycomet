@@ -15,8 +15,11 @@ import sys
 import argparse
 
 from surqct import config as cfg
-from surqct.src.utilities import utils
 from surqct.apps import functions as fun
+
+from surqct.src.utilities import utils
+from surqct.src.preprocessing import input_manipulation
+from surqct.src.chemical_systems import chemical_systems as chem_sys
 
 
 # Parse arguments
@@ -40,7 +43,7 @@ def get_parser(subparsers):
     )
     parser.add_argument('-v', '--verbose',
         type=int,
-        default=0,
+        default=1,
         choices=[0,1],
         help='verbose mode'
     )
@@ -51,28 +54,36 @@ def get_parser(subparsers):
 ###############################################################################
 @utils.app_decorator()
 def main(args):
-
-    # Inizialization
-    ###########################################################################
-    # Define arguments --------------------------------------------------------
-    opts = get_opts()
-    os.chdir(opts.dir)
+    os.chdir(args.dir)
     
-    # Modules -----------------------------------------------------------------
-    # InputData module
-    sys.path.append(opts.dir)
+    # InputData module --------------------------------------------------------
+    sys.path.append(args.dir)
     import InputData
-    
-    # SurQCT module
-    sys.path.append(InputData.SurQCTFld)
-    import surqct
-    
-    # InputManip module
-    from surqct.src.Preprocessing import InputManip
 
-    # Manipulating input data
-    ###########################################################################
-    utils.print_main('Preprocessing diatomic potential input features ...')
-    diat_data = InputManip.get_diat_data(InputData)
-    utils.print_main('Saving reprocessed input features ...')
-    InputManip.save_diat_data(InputData, diat_data)
+    # Initializing chemical system --------------------------------------------
+    utils.print_main(
+        f"Initializing '{InputData.System}' chemical system ...",
+        start='',
+        verbose=args.verbose
+    )
+    System = chem_sys.get_system(InputData.System)
+    for Mol in System.Molecules:
+        Mol.read_diatdata()
+
+    # Manipulating input diatomic data ----------------------------------------
+    utils.print_main(
+        'Preprocessing diatomic potential input features ...',
+        verbose=args.verbose
+    )
+    ModifiedDiatData = input_manipulation.get_modified_diatdata(
+        InputData, System
+    )
+
+    # Saving preprocessed input diatomic data ---------------------------------
+    utils.print_main(
+        'Saving preprocessed diatomic potential input features ...',
+        verbose=args.verbose
+    )
+    input_manipulation.save_modified_diatdata(
+        InputData, System, ModifiedDiatData
+    )

@@ -18,10 +18,10 @@ HEADERS = {
 NUM_THREADS = 4
 
 # Paths -----------------------------------------------------------------------
-WORKSPACE = '/home/zanardi/WORKSPACE/'
-CoarseAIR = WORKSPACE + '/NeqPlasma/CoarseAIR/coarseair/'
-MERuns    = WORKSPACE + '/AirDatabase/Run0D/run/'
-HDF5Dtb   = WORKSPACE + '/AirDatabase/HDF5/'
+SurQCT    = '/home/zanardi/WORKSPACE/ML/PyCOMET/pycomet/examples/SurQCT/' # This package
+CoarseAIR = '/home/zanardi/WORKSPACE/NeqPlasma/CoarseAIR/coarseair/'
+MERuns    = '/home/zanardi/WORKSPACE/AirDatabase/Run0D/run/'
+HDF5Dtb   = '/home/zanardi/WORKSPACE/AirDatabase/HDF5/'
 
 # Standard output -------------------------------------------------------------
 DISPLAY_LEN = 80
