@@ -11,7 +11,7 @@ load_plato
 ###############################################################################
 # Paths
 export System='O3_UMN'
-export FldrName='/KInel/case.01/'
+export FldrName='/Inel/case.01/'  # ''
 export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
 export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$System/SurQCT/
 # Heat Bath Conditions

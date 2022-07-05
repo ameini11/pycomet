@@ -746,7 +746,7 @@ def writing_steps(
 ):
     if (iFlg == -1):
 
-        utils.print_submain(f'Writing Kinetics File in File {PathToKineticFldr}', delimiter='    ')
+        utils.print_submain(f'Writing Kinetics File {PathToKineticFldr}', delimiter='    ')
         if InputData.RatesType == 'Inel':
             InputData.ProcessIndex = 6
             KineticFile = PathToKineticFldr + '/Inel.dat'
@@ -770,7 +770,7 @@ def writing_steps(
             FileHandler.write(Line)
 
     elif (iFlg == 1):
-        utils.print_submain(f'Closing Kinetics File in File {PathToKineticFldr}', delimiter='    ')
+        utils.print_submain(f'Closing Kinetics File {PathToKineticFldr}', delimiter='    ')
         FileHandler.close()
 
     return FileHandler

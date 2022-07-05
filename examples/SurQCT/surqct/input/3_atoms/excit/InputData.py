@@ -8,7 +8,6 @@ RatesType           = 'Inel'    # ['Diss', 'Inel', 'Exch_1', 'Exch_2']
 
 # Paths
 ###############################################################################
-PathToRunFld        = f'/home/zanardi/WORKSPACE/ML/PyCOMET/run/SurQCT/{SystemName}/{RatesType}/case.01/data_gen'
 PathToHDF5File      = cfg.HDF5Dtb + 'Active/O3_UMN.hdf5' # `None` or path to high fidelity data
 PathToLevelsFld     = cfg.MERuns + 'database/levels/modified/'
 PathToLevelsFile    = {'O2': PathToLevelsFld + 'O3_UMN/O2/VMin_VMax.csv'}
