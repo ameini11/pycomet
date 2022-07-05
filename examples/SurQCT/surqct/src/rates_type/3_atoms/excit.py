@@ -692,7 +692,8 @@ def write_predictiondata(
     System,
     Model,
     KineticFldr,
-    TTran
+    TTran,
+    Columns=None
 ):
     TTranStr = str(int(TTran))
     utils.print_submain(f'Generating Rate Matrix at Translational Temperature: T = {TTranStr} K')
@@ -724,6 +725,11 @@ def write_predictiondata(
 
         # Prediction Data
         BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
+        print(BranchInput)
+        if Columns is not None:
+            BranchInput         = np.take(BranchInput, Columns['x'][0], axis=1)
+            TrunkInput          = np.take(TrunkInput,  Columns['x'][1], axis=1)
+
         KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
         if InputData.RatesLogScale:
             KExcitPred          = np.exp(KExcitPred)
