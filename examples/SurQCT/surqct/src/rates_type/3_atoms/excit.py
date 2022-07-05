@@ -701,7 +701,9 @@ def write_predictiondata(
     reading.read_levelsinfo(InputData, System, [TTran])
 
     # In/Out Components
-    CompInOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut
+    CompInOut   = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut
+    MolIn       = CompInOut['In']['Molecules'][0]
+    MolOut      = CompInOut['Out']['Molecules'][0]
 
     # Reading Levels Info of Initial and Final Molecules
     PathToKineticFldr = KineticFldr + '/T' + TTranStr + 'K'
