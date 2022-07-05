@@ -725,10 +725,12 @@ def write_predictiondata(
 
         # Prediction Data
         BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
-        print(BranchInput)
         if Columns is not None:
-            BranchInput         = np.take(BranchInput, Columns['x'][0], axis=1)
-            TrunkInput          = np.take(TrunkInput,  Columns['x'][1], axis=1)
+            Input               = np.hstack([BranchInput, TrunkInput])
+            BranchInput         = np.take(Input, Columns[0], axis=1)
+            TrunkInput          = np.take(Input, Columns[1], axis=1)
+
+        print(BranchInput)
 
         KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
         if InputData.RatesLogScale:
