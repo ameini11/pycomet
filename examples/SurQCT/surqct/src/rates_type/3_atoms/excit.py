@@ -730,8 +730,6 @@ def write_predictiondata(
             BranchInput         = np.take(Input, Columns[0], axis=1)
             TrunkInput          = np.take(Input, Columns[1], axis=1)
 
-        print(BranchInput)
-
         KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
         if InputData.RatesLogScale:
             KExcitPred          = np.exp(KExcitPred)
@@ -774,8 +772,8 @@ def writing_steps(
     elif (iFlg == 0):
 
         for i in range(len(jLevelVec)):
-            Reactants = CompInOut['In']['Molecules'][0]  + '(' + str(iLevel+1)       + ')+' + CompInOut['In']['Atoms'][0]
-            Products  = CompInOut['Out']['Molecules'][0] + '(' + str(jLevelVec[i]+1) + ')+' + CompInOut['Out']['Atoms'][0]
+            Reactants = CompInOut['In']['Molecules'][0].Name  + '(' + str(iLevel+1)       + ')+' + CompInOut['In']['Atoms'][0].Name
+            Products  = CompInOut['Out']['Molecules'][0].Name + '(' + str(jLevelVec[i]+1) + ')+' + CompInOut['Out']['Atoms'][0].Name
             ProcName  = Reactants + '=' + Products
             Line      = ProcName + ':%.4e,%.4e,%.4e,%d\n' % (KVec[i], 0., 0., InputData.ProcessIndex)
             FileHandler.write(Line)
