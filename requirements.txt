@@ -9,12 +9,7 @@ scikit-learn
 scipy
 seaborn
 setuptools
-<<<<<<< HEAD
-tensorflow-gpu>=2.7
-tensorflow-addons>=0.15
-=======
 tensorflow_gpu==2.7.1 # 2.4.1
 tensorflow_addons==0.17.1 # 0.12.1
->>>>>>> a5c5a3112cd2e5bf923fd4b1bea280028841daaa
 threadpoolctl
 tqdm
