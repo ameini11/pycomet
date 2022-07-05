@@ -468,7 +468,7 @@ def generate_predictiondata(
                 DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
 
             # Prediction Data
-            BranchInput, TrunkInput = get_inputvars(InputData, LevelsData, kIdxVec, jIdxVec, TTranVec[iT])
+            BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTranVec[iT])
             KExcitPred      = Model.predict([BranchInput, TrunkInput]).reshape(-1)
             if InputData.RatesLogScale:
                 KExcitPred  = np.exp(KExcitPred)
@@ -506,7 +506,7 @@ def generate_predictiondata(
                     DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
 
                 # Prediction Data
-                BranchInput, TrunkInput = get_inputvars(InputData, LevelsData, jIdxVec, kIdxVec, TTranVec[iT])
+                BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, jIdxVec, kIdxVec, TTranVec[iT])
                 KExcitPred      = Model.predict([BranchInput, TrunkInput]).squeeze()
                 if InputData.RatesLogScale:
                     KExcitPred          = np.exp(KExcitPred)
@@ -556,7 +556,8 @@ def generate_predictiondata(
 
 def get_inputvars(
     InputData,
-    LevelsData,
+    MolIn,
+    MolOut
     iIdxVec,
     jIdxVec,
     TTran
@@ -720,7 +721,7 @@ def write_predictiondata(
         kIdxVec                 = [iIdx]*jNLevels
 
         # Prediction Data
-        BranchInput, TrunkInput = get_inputvars(InputData, LevelsData, kIdxVec, jIdxVec, TTran)
+        BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
         KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
         if InputData.RatesLogScale:
             KExcitPred          = np.exp(KExcitPred)
