@@ -557,7 +557,7 @@ def generate_predictiondata(
 def get_inputvars(
     InputData,
     MolIn,
-    MolOut
+    MolOut,
     iIdxVec,
     jIdxVec,
     TTran
