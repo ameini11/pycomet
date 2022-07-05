@@ -2,6 +2,7 @@ import sys
 import time
 import datetime
 
+from tqdm import tqdm
 from functools import wraps
 from surqct import config as cfg
 
@@ -24,6 +25,10 @@ def input_submain(text, start='', delimiter='  ', *args, **kwargs):
 
 def warning(text, start='', *args, **kwargs):
     print(start + cfg.HEADERS['warning'] + text, *args, **kwargs)
+
+def raise_value_err(text):
+    message = ''.join([cfg.HEADERS['err'], text])
+    raise ValueError(message)
 
 # Decorators
 ###############################################################################

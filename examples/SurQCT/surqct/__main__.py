@@ -46,10 +46,6 @@ def main():
         cfg.NUM_THREADS = args.threads
 
     # Setting seed
-    if hasattr(args, 'seed'):
-        utils.set_seeds(args.seed)
-
-    # Setting seed
     if hasattr(args, 'dir'):
         args.dir = os.path.abspath(args.dir)
 

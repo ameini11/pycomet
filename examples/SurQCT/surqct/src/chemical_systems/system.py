@@ -1,3 +1,5 @@
+import os
+import h5py
 import numpy as np
 import pandas as pd
 
@@ -58,7 +60,7 @@ class Molecule():
     def compute_partition_fn(self, TTranVec):
         PFData = pd.DataFrame()
         for TTran in TTranVec:
-            PFData['q_'+str(int(TTran))] = self.DiatData['g'] * np.exp( - self.DiatData['EInt0'] / (const.UKB*TTran) )
+            PFData[str(int(TTran))] = self.DiatData['g'] * np.exp( - self.DiatData['EInt0'] * const.EV_to_J / (const.UKB*TTran) )
         return PFData
 
     def compute_degeneracy(self):
@@ -141,9 +143,10 @@ class ThermochemicalProc():
                 }
             }
 
-        self.Names           = ('Diss', 'Inel', 'Exch_1', 'Exch_2')
+        self.ProcNames       = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
 
-        self.Proc            = {k: None for k in self.Names}
+    def init_processes(self):
+        self.Proc            = {k: None for k in self.ProcNames}
         for i, k in enumerate(self.Proc.keys()):
             if self.ProcBool[i]:
                 self.Proc[k] = Process(Name=k, Dtb=self.PathToHDF5File, CompInOut=self.CompInOut[k])
@@ -155,7 +158,6 @@ class Process():
         self.Name       = Name
         self.Dtb        = Dtb
         self.CompInOut  = CompInOut
-        self.Rates      = None
 
     def read_rates(self, TTran, TInt, Dtb=None):
 
@@ -167,10 +169,12 @@ class Process():
         else:
             utils.raise_value_err(f"File '{Dtb}' not found.")
 
-        TStr        = f'/T_{int(TTran)}_{int(TInt)}/Rates/'
-        self.Rates  = f[TStr][self.Name][()]
+        TStr    = f'/T_{int(TTran)}_{int(TInt)}/Rates/'
+        Rates   = f[TStr][self.Name][()]
 
         f.close()
+
+        return Rates
 
 
 # 0D Master Equation Simulation
@@ -184,7 +188,7 @@ class MasterEquation():
 
         self.System     = System
         self.BoxHeader  = ['Time'] + list(MolFracNames) + ['Temp','Density','Pressure','NumberDen','Energy']
-        self.MEPath     = cfg.MERuns + f'/{System.NameLong}/'
+        self.MEPath     = cfg.MERuns + f'/run/{System.NameLong}/'
 
     def read_box(self, PathToCase):
         BoxData         = pd.read_csv(self.MEPath + PathToCase + '/box.dat', delimiter='  ', skiprows=1, engine='python')
@@ -201,9 +205,9 @@ class MasterEquation():
         return Ni
 
     def compute_energies(self, Ni):
-        E = {'EVib': {}, 'ERot': {}}
+        E = {'EVib0': {}, 'ERot0': {}}
         for iMol, Mol in enumerate(self.System.Molecules):
-            if Mol.Name not in E['EVib']:
+            if Mol.Name not in E['EVib0']:
                 NiTot = np.sum(Ni[Mol.Name], axis=1)
                 for k in E.keys():
                     Ei = Mol.DiatData[k].to_numpy().reshape(1,-1)

@@ -41,12 +41,6 @@ def get_parser(subparsers):
         default="./",
         help='path to the working directory (with `InputData.py` file)'
     )
-    parser.add_argument('-v', '--verbose',
-        type=int,
-        default=1,
-        choices=[0,1],
-        help='verbose mode'
-    )
     parser.set_defaults(process=main)
     return parser
 
@@ -54,6 +48,7 @@ def get_parser(subparsers):
 ###############################################################################
 @utils.app_decorator()
 def main(args):
+    
     os.chdir(args.dir)
     
     # InputData module --------------------------------------------------------
@@ -62,18 +57,16 @@ def main(args):
 
     # Initializing chemical system --------------------------------------------
     utils.print_main(
-        f"Initializing '{InputData.System}' chemical system ...",
-        start='',
-        verbose=args.verbose
+        f"Initializing '{InputData.SystemName}' chemical system ...",
+        start=''
     )
-    System = chem_sys.get_system(InputData.System)
+    System = chem_sys.get_system(InputData.SystemName)
     for Mol in System.Molecules:
         Mol.read_diatdata()
 
     # Manipulating input diatomic data ----------------------------------------
     utils.print_main(
-        'Preprocessing diatomic potential input features ...',
-        verbose=args.verbose
+        'Preprocessing diatomic potential input features ...'
     )
     ModifiedDiatData = input_manipulation.get_modified_diatdata(
         InputData, System
@@ -81,8 +74,7 @@ def main(args):
 
     # Saving preprocessed input diatomic data ---------------------------------
     utils.print_main(
-        'Saving preprocessed diatomic potential input features ...',
-        verbose=args.verbose
+        'Saving preprocessed diatomic potential input features ...'
     )
     input_manipulation.save_modified_diatdata(
         InputData, System, ModifiedDiatData

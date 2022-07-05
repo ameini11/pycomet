@@ -8,6 +8,10 @@
 # --------------------------- CONFIGURATION FILE ---------------------------- #
 
 
+import os
+import surqct
+
+
 # SurQCT ----------------------------------------------------------------------
 HEADERS = {
     'main':    '[SurQCT]: ',
@@ -17,10 +21,21 @@ HEADERS = {
 
 NUM_THREADS = 4
 
+# TensorFlow ------------------------------------------------------------------
+tf_setup = {
+    'EPSILON':              1.e-15,
+    'DTYPE':                'float64'
+}
+
+tf_env = {
+    'TF_CPP_MIN_LOG_LEVEL': '3',
+    'TF_XLA_FLAGS':         f'--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit ' \
+       f'{os.path.dirname(surqct.__file__)}/__main__.py'
+}
+
 # Paths -----------------------------------------------------------------------
-SurQCT    = '/home/zanardi/WORKSPACE/ML/PyCOMET/pycomet/examples/SurQCT/' # This package
 CoarseAIR = '/home/zanardi/WORKSPACE/NeqPlasma/CoarseAIR/coarseair/'
-MERuns    = '/home/zanardi/WORKSPACE/AirDatabase/Run0D/run/'
+MERuns    = '/home/zanardi/WORKSPACE/AirDatabase/Run0D/'
 HDF5Dtb   = '/home/zanardi/WORKSPACE/AirDatabase/HDF5/'
 
 # Standard output -------------------------------------------------------------

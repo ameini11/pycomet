@@ -1,51 +1,37 @@
-import numpy                                  as np
-import pandas                                 as pd
+import numpy as np
+import pandas as pd
 
-import surqct.src.Utils.Const as const
-import surqct.src.Utils.Functions as fun
+from surqct.src.utilities import utils
 
 
-# Reading Levels Data 
-def read_levelsdata(DataFile, xVarsVec, Suffix=''):
-    print('[SurQCT]:    Reading Molecular Levels Data from: ' + DataFile)
+# Reading Levels info
+def read_levelsinfo(
+    InputData,
+    System,
+    TTranVec
+):
+    utils.print_submain(f'Reading Variables {InputData.xDiatVars}')
+    for Mol in System.Molecules:
+        Mol.LevelsData  = read_levelsdata(InputData.PathToLevelsFile[Mol.Name], InputData.xDiatVars)
+        Mol.PFData      = Mol.compute_partition_fn(TTranVec)
 
-    # Extracting all the rot-vib levels
+def read_levelsdata(
+    DataFile,
+    xVarsVec
+):
     xMat         = pd.read_csv(DataFile, header=0, skiprows=0)
     xMat         = xMat.astype('float64')
     xMat         = xMat[xVarsVec]
-    xMat.columns = [(VarName + Suffix) for VarName in xMat.columns]
-
-    return xMat
-
-# Reading Diatomic Potential Data 
-def read_diatdata(DataFile, Molecule, TTranVec=None):
-    print('[SurQCT]:    Reading Diatomic Potential Data from: ' + DataFile)
-
-    # Extracting all the rot-vib levels
-    xMat           = pd.read_csv(DataFile, delim_whitespace=True, skiprows=15, header=None)
-    xMat.columns   = ['vqn','jqn','EInt','egam','rMin','rMax','VMin','VMax','Tau','ri','ro']    
-
-    # Shifting Energies so that Zero is the Min of Diatomic Potential at J=0
-    xMat['EInt']   = ( xMat['EInt'].to_numpy() - np.amin(xMat['VMax'].to_numpy()) ) * const.Ha_to_eV
-    xMat['VMax']   = ( xMat['VMax'].to_numpy() - np.amin(xMat['VMax'].to_numpy()) ) * const.Ha_to_eV
-    xMat['VMin']   = ( xMat['VMin'].to_numpy() - np.amin(xMat['VMax'].to_numpy()) ) * const.Ha_to_eV
-
-    EVib, ERot     = fun.compute_vibenergy(xMat['EInt'].to_numpy(), xMat['vqn'].to_numpy(int), xMat['jqn'].to_numpy(int))
-    xMat['EVib']   = EVib
-    xMat['ERot']   = ERot
-
-    xMat['g']      = fun.compute_degeneracy(xMat['jqn'].to_numpy(int), Molecule) 
-
-    if TTranVec is not None:
-        for TTran in TTranVec:
-            Str       = 'q_'+str(int(TTran))
-            xMat[Str] = xMat['g'].to_numpy() * np.exp( - xMat['EInt'].to_numpy() / (const.kB*TTran) )
 
     return xMat
 
 # Reading Levels-to-Group Mapping
-def sample_initiallevels(PathToGrouping, NSamplesPerGroup=1, iSeed=0):
-    print('[SurQCT]:      Reading Grouping from File: ' + PathToGrouping + ' and Sampling ' + str(NSamplesPerGroup) + ' Levels per Group with Seed ' + str(iSeed))
+def sample_initiallevels(
+    PathToGrouping,
+    NSamplesPerGroup=1,
+    iSeed=0
+):
+    utils.print_submain(f'Reading Grouping from File {PathToGrouping} and Sampling {NSamplesPerGroup} Levels per Group with Seed {iSeed}', delimiter='    ')
 
     xMat    = pd.read_csv(PathToGrouping, header=0, skiprows=0)
     iIdxVec = xMat.groupby('Group', group_keys=False).apply(lambda df: df.sample(NSamplesPerGroup, random_state=iSeed))['#Idx'].values
@@ -53,25 +39,15 @@ def sample_initiallevels(PathToGrouping, NSamplesPerGroup=1, iSeed=0):
     return iIdxVec
 
 # Reading Sampled Levels
-def read_sampledinitiallevels(PathToSampledLevels, TTran=None):
-
+def read_sampledinitiallevels(
+    PathToSampledLevels,
+    TTran=None
+):
     if TTran is not None:
         PathToSampledLevels = PathToSampledLevels + str(int(TTran)) + 'K.csv'
-    print('[SurQCT]:      Reading Sampled Initial Levels List from File: ' + PathToSampledLevels)
+    utils.print_submain(f'Reading Sampled Initial Levels List from File {PathToSampledLevels}', delimiter='    ')
 
     iIdxVec             = pd.read_csv(PathToSampledLevels, header=0)
     iIdxVec             = np.squeeze(iIdxVec.to_numpy())
   
     return iIdxVec
-
-# Reading Populations
-def read_populations(Path, System, DiatData, Time):
-
-    FileName = Path + f'/pop_{System.Molecule[0].Name}.dat'
-    Pop = pd.read_csv(FileName,sep="   ",skiprows=2,header=None,index_col=False,comment='&')
-    Pop.columns=['E','Pop']
-
-    Pop.Pop_g = np.reshape(Pop.PopTemp.to_numpy(),(np.size(time)+1,System.Molecule[0].NLevels))
-    Pop.Pop = DiatData[0]['g'].to_numpy() * Pop.Pop_g
-    
-    return Pop
