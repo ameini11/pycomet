@@ -21,7 +21,6 @@ from surqct.apps import functions as fun
 
 from surqct.src.utilities import utils
 from surqct.src.rates_type.rates_type import get_rates_type_mod
-from surqct.src.chemical_systems import chemical_systems as chem_sys
 
 
 # Parse arguments
@@ -74,15 +73,7 @@ def main(args):
         f"Initializing '{InputData.SystemName}' chemical system ...",
         start=''
     )
-    System = chem_sys.get_system(InputData.SystemName)
-    # Initializing thermochemical processes
-    System.ThermochemicalProc.ProcBool = System.ThermochemicalProc.ProcNames == InputData.RatesType
-    System.ThermochemicalProc.PathToHDF5File = InputData.PathToHDF5File
-    System.ThermochemicalProc.init_processes()
-    # Initializing molecules
-    for Mol in System.Molecules:
-        Mol.read_diatdata()
-
+    System = fun.init_chemical_system(InputData)
     # Initializing rates type module
     rates_type_mod = get_rates_type_mod(System)
 
