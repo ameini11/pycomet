@@ -67,7 +67,7 @@ def generate_trainingdata(
             np.random.seed(InputData.iLevelsSeedsVec[0])
             iIdxVec = np.random.choice(MolIn.NLevels, InputData.NiLevelsSampled, replace=False)
         elif (InputData.iLevelsIntFlg == 3):
-            iIdxVec = reading.sample_initiallevels(InputData.PathToGrouping[MolIn.Name], InputData.NSamplesPerGroup, InputData.iLevelsSeedsVec[iT])
+            iIdxVec = reading.read_sampledinitiallevels_grouping(InputData.PathToGrouping[MolIn.Name], InputData.NSamplesPerGroup, InputData.iLevelsSeedsVec[iT])
         elif (InputData.iLevelsIntFlg == 4):
             iIdxVec = reading.read_sampledinitiallevels(InputData.PathToSampledLevels[MolIn.Name], TTranVec[iT])
             
@@ -707,7 +707,7 @@ def write_predictiondata(
     MolOut      = CompInOut['Out']['Molecules'][0]
 
     # Reading Levels Info of Initial and Final Molecules
-    PathToKineticFldr = KineticFldr + '/T' + TTranStr + 'K'
+    PathToKineticFldr = os.path.abspath(KineticFldr + '/T' + TTranStr + 'K')
     try:
         os.makedirs(PathToKineticFldr)
     except OSError as e:
@@ -757,13 +757,13 @@ def writing_steps(
 
         utils.print_submain(f'Writing Kinetics File {PathToKineticFldr}', delimiter='    ')
         if InputData.RatesType == 'Inel':
-            InputData.ProcessIndex = 6
+            InputData.ProcessIndex = 5
             KineticFile = PathToKineticFldr + '/Inel.dat'
         elif InputData.RatesType == 'Exch_1':
-            InputData.ProcessIndex = 5
+            InputData.ProcessIndex = 6
             KineticFile = PathToKineticFldr + '/Exch_Type1.dat'
         elif InputData.RatesType == 'Exch_2':
-            InputData.ProcessIndex = 5
+            InputData.ProcessIndex = 6
             KineticFile = PathToKineticFldr + '/Exch_Type2.dat'
         else:
             raise ValueError

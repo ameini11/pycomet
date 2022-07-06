@@ -11,24 +11,24 @@ load_plato
 ###############################################################################
 # Paths
 export System='O3_UMN'
-export FldrName='/Inel/case.01/'  # ''
+export FldrName='/Inel/configs/config.06/run.01/'
 export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
 export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$System/SurQCT/
 # Heat Bath Conditions
 export P0=1.38064852d+03
 export T0=300.d0
-export TTranVec=(5000) #(1500 5000 10000 20000)
+export TTranVec=(1500) #(1500 5000 10000 20000)
 # Processes
 export DissFlg=0
 export InelFlg=1
-export ExchFlg1=0
-export ExchFlg2=0
+export Exch1Flg=0
+export Exch2Flg=0
 # Sources
-export SourceGlobal='SurQCT'
-export SourceDiss='SurQCT'
-export SourceInel='SurQCT'
-export SourceExch1='SurQCT'
-export SourceExch2='SurQCT'
+export SourceGlobal=$System'/SurQCT'
+export SourceDiss=$System'/QCT'
+export SourceInel=$System'/SurQCT/'$FldrName
+export SourceExch1=$System'/QCT'
+export SourceExch2=$System'/QCT'
 
 # Initializing Database
 ###############################################################################
@@ -37,7 +37,7 @@ Initialize_0D_Database () {
     Header=">>  [Initialize_0D_Database]: "
 
     # Defining Kinetics File
-    export KineticsFileInDtb=$SourceGlobal"/"$System"/KineticsFile.dat"
+    export KineticsFileInDtb=$SourceGlobal"/KineticsFile.dat"
     export KineticsFile=`realpath $PathToDtbFldr"/kinetics/"$KineticsFileInDtb`
     touch $KineticsFile
 
@@ -53,7 +53,7 @@ Initialize_0D_Database () {
         DissFile="Diss_Corrected.dat"
     fi
     if [ $DissFlg -ne 0 ]; then
-        DissFile=`realpath $PathToDtbFldr"/kinetics/"$SourceDiss"/"$System"/"$FldrName"/T"$TTran"K/"$DissFile`
+        DissFile=`realpath $PathToDtbFldr"/kinetics/"$SourceDiss"/T"$TTran"K/"$DissFile`
         echo $Header"Adding Dissociation Kinetics from File "$DissFile" to File "$KineticsFile
         cat $DissFile >> $KineticsFile
     fi
@@ -61,21 +61,21 @@ Initialize_0D_Database () {
     # Adding Inelastic Processes
     # ------------------------------------------------------------------------- 
     if [ $InelFlg -eq 1 ]; then
-        InelFile=`realpath $PathToDtbFldr"/kinetics/"$SourceInel"/"$System"/"$FldrName"/T"$TTran"K/Inel.dat"`
+        InelFile=`realpath $PathToDtbFldr"/kinetics/"$SourceInel"/T"$TTran"K/Inel.dat"`
         echo $Header"Adding Inelastic Kinetics from File "$InelFile" to File "$KineticsFile
         cat $InelFile >> $KineticsFile
     fi
 
     # Adding Exchange Processes
     # ------------------------------------------------------------------------- 
-    if [ $ExchFlg1 -eq 1 ]; then
-        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch1"/"$System"/"$FldrName"/T"$TTran"K/Exch_Type1.dat"`
+    if [ $Exch1Flg -eq 1 ]; then
+        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch1"/T"$TTran"K/Exch_Type1.dat"`
         echo $Header"Adding Exchange Kinetics from File "$ExchFile" to File "$KineticsFile
         cat $ExchFile >> $KineticsFile
     fi
 
-    if [ $ExchFlg2 -eq 1 ]; then
-        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch2"/"$System"/"$FldrName"/T"$TTran"K/Exch_Type2.dat"`
+    if [ $Exch2Flg -eq 1 ]; then
+        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch2"/T"$TTran"K/Exch_Type2.dat"`
         echo $Header"Adding Exchange Kinetics from File "$ExchFile" to File "$KineticsFile
         cat $ExchFile >> $KineticsFile
     fi
@@ -95,7 +95,7 @@ Initialize_0D_Case () {
 
     # Output Folder
     # ------------------------------------------------------------------------- 
-    export OutputFldr=${PathToRunFldr}'/'${FldrName}'/T'${TTran}'K/'${DissFlg}'_'${InelFlg}'_'${ExchFlg1}'_'${ExchFlg2}
+    export OutputFldr=${PathToRunFldr}'/'${FldrName}'/T'${TTran}'K/'${DissFlg}'_'${InelFlg}'_'${Exch1Flg}'_'${Exch2Flg}
     if [ ! -d ${OutputFldr} ]
     then
         mkdir -p ${OutputFldr}
@@ -132,15 +132,13 @@ echo '  System                        = '${System}
 echo '  Vector of Translational Temp. = '${TTranVec}
 echo '  Writing Dissociation?         = '${DissFlg}
 echo '  Writing Inelastic?            = '${InelFlg}
-echo '  Writing First Exchanges?      = '${ExchFlg1}
-echo '  Writing Last Exchanges?       = '${ExchFlg2}
+echo '  Writing Exchanges of Type 1?  = '${Exch1Flg}
+echo '  Writing Exchanges of Type 2?  = '${Exch2Flg}
 echo '------------------------------------------------------'
 echo ' '
 
 HeaderMain="[Run0D]: "
 for TTran in "${TTranVec[@]}"; do
-
-    start=`date +%s.%N`
 
     cwd=$(pwd)
 
@@ -157,17 +155,10 @@ for TTran in "${TTranVec[@]}"; do
 
     echo $HeaderMain"Compute 0D Simulation Case"
     cd ${OutputFldr}
-    # box ${OPENBLAS_NUM_THREADS} ${InputFile}
-    box input
+    box input ${OPENBLAS_NUM_THREADS}
     cd ${cwd}
     echo " "
 
     rm -rf $KineticsFile
-
-    end=`date +%s.%N`
-    runtime=$( echo "$end - $start" | bc -l )
-
-    echo $HeaderMain"RUNTIME: "`date -d $runtime -u +%H:%M:%S`
-    echo " "
 
 done

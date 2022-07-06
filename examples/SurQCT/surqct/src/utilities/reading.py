@@ -26,7 +26,7 @@ def read_levelsdata(
     return xMat
 
 # Reading Levels-to-Group Mapping
-def sample_initiallevels(
+def read_sampledinitiallevels_grouping(
     PathToGrouping,
     NSamplesPerGroup=1,
     iSeed=0
