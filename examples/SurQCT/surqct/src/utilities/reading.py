@@ -19,9 +19,9 @@ def read_levelsdata(
     DataFile,
     xVarsVec
 ):
-    xMat         = pd.read_csv(DataFile, header=0, skiprows=0)
-    xMat         = xMat.astype('float64')
-    xMat         = xMat[xVarsVec]
+    xMat = pd.read_csv(DataFile, header=0, skiprows=0)
+    xMat = xMat.astype('float64')
+    xMat = xMat[xVarsVec]
 
     return xMat
 

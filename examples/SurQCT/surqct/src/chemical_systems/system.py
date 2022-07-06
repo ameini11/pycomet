@@ -51,11 +51,10 @@ class Molecule():
         for k in ('EInt','VMin','VMax'):
             self.DiatData[k]    = self.DiatData[k] * const.HA_to_EV
         self.DiatData['ECB']    = self.DiatData['VMax'] - self.DiatData['EInt']
-        self.DiatData['EInt0']  = self.DiatData['EInt'] - np.amin(self.DiatData['EInt'])
-
         self.DiatData['EVib'], self.DiatData['ERot'] = self.compute_vibrotenergy()
-        self.DiatData['EVib0']  = self.DiatData['EVib'] - np.amin(self.DiatData['EVib'])
-        self.DiatData['ERot0']  = self.DiatData['ERot'] - np.amin(self.DiatData['ERot'])
+
+        for k in ('EInt','EVib','ERot'):
+            self.DiatData[k+'0']  = self.DiatData[k] - np.amin(self.DiatData[k])
 
     def compute_partition_fn(self, TTranVec):
         PFData = pd.DataFrame()
