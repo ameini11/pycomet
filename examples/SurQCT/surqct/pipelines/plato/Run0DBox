@@ -13,22 +13,22 @@ load_plato
 export System='O3_UMN'
 export FldrName='/Inel/configs/config.06/run.01/'
 export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
-export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$System/SurQCT/
+export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/SurQCT/$System/
 # Heat Bath Conditions
 export P0=1.38064852d+03
 export T0=300.d0
 export TTranVec=(1500) #(1500 5000 10000 20000)
 # Processes
-export DissFlg=0
+export DissFlg=2
 export InelFlg=1
-export Exch1Flg=0
+export Exch1Flg=1
 export Exch2Flg=0
 # Sources
-export SourceGlobal=$System'/SurQCT'
-export SourceDiss=$System'/QCT'
-export SourceInel=$System'/SurQCT/'$FldrName
-export SourceExch1=$System'/QCT'
-export SourceExch2=$System'/QCT'
+export SourceGlobal='SurQCT/'$System
+export SourceDiss='QCT/'$System
+export SourceInel='SurQCT/'$System'/'$FldrName
+export SourceExch1='QCT/'$System
+export SourceExch2='QCT/'$System
 
 # Initializing Database
 ###############################################################################
@@ -156,6 +156,7 @@ for TTran in "${TTranVec[@]}"; do
     echo $HeaderMain"Compute 0D Simulation Case"
     cd ${OutputFldr}
     box input ${OPENBLAS_NUM_THREADS}
+    # box input
     cd ${cwd}
     echo " "
 
