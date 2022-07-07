@@ -22,15 +22,21 @@ HEADERS = {
 NUM_THREADS = 4
 
 # TensorFlow ------------------------------------------------------------------
-tf_setup = {
-    'EPSILON':              1.e-15,
-    'DTYPE':                'float64'
+tf_cfg = {
+    'setup': {
+        'EPSILON': 1.e-15,
+        'DTYPE': 'float64'
+    },
+    'env': {
+        'TF_CPP_MIN_LOG_LEVEL': '3',
+        'TF_XLA_FLAGS': f'--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit ' \
+           f'{os.path.dirname(surqct.__file__)}/__main__.py'
+    }
 }
 
-tf_env = {
-    'TF_CPP_MIN_LOG_LEVEL': '3',
-    'TF_XLA_FLAGS':         f'--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit ' \
-       f'{os.path.dirname(surqct.__file__)}/__main__.py'
+# Matplotlib ------------------------------------------------------------------
+mpl_cfg = {
+    'style': None
 }
 
 # Paths -----------------------------------------------------------------------

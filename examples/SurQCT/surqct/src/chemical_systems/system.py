@@ -193,7 +193,7 @@ class MasterEquation():
 
         self.System     = System
         self.BoxHeader  = ['Time'] + list(MolFracNames) + ['Temp','Density','Pressure','NumberDen','Energy']
-        self.MEPath     = cfg.MERuns + f'/run/{System.NameLong}/'
+        self.MEPath     = cfg.MERuns + f'/run/'
 
     def read_box(self, PathToCase):
         BoxData         = pd.read_csv(self.MEPath + PathToCase + '/box.dat', delimiter='  ', skiprows=1, engine='python')
@@ -205,8 +205,8 @@ class MasterEquation():
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in Ni:
                 FileName     = self.MEPath + PathToCase + f'/pop_{Mol.Name}.dat'
-                Ni_ov_g      = np.loadtxt(FileName, comments='&', delimiter="   ", skiprows=2, usecols=(1))
-                Ni[Mol.Name] = Ni_ov_g.reshape((TimeInstants, Mol.NLevels)) * Mol.g.reshape(1,-1)
+                Ni_ov_g      = np.abs(np.loadtxt(FileName, comments='&', skiprows=2, usecols=(1)))
+                Ni[Mol.Name] = Ni_ov_g.reshape((TimeInstants, Mol.NLevels)) * Mol.DiatData['g'].to_numpy().reshape(1,-1)
         return Ni
 
     def compute_energies(self, Ni):
@@ -222,15 +222,16 @@ class MasterEquation():
         return E
 
     def compute_mass_depletion(self, BoxData, DepPerc=0.5):
-        Time    = BoxData['Time']
+        # Delay = (t_SurQCT - t_QCT)/t_QCT
         DepTime = {}
+        Time    = BoxData['Time'].to_numpy()
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in DepTime:
                 # Molar fraction
-                MoleFrac = BoxData[Mol.Name]
+                MoleFrac = BoxData[Mol.Name].to_numpy()
                 # Percentage molar fraction
                 MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[0] - MoleFrac[-1]))
-                TimeIdx  = np.argmin(np.abs(MoleFracPerc - DepPerc))
+                TimeIdx  = np.argmin(np.abs(MolePerc - DepPerc))
                 # Deltas
                 DeltaT   = Time[TimeIdx] - Time[TimeIdx-1]
                 DeltaM   = np.abs(MoleFrac[TimeIdx] - MoleFrac[TimeIdx-1])
@@ -239,20 +240,18 @@ class MasterEquation():
                 TempM    = TempM - np.abs(MoleFrac[0] - MoleFrac[TimeIdx-1])
                 DepTime[Mol.Name] = Time[TimeIdx-1] + TempM * DeltaT / DeltaM
         return DepTime
-        # Delay = (t_SurQCT - t_QCT)/t_QCT
 
     def compute_energy_depletion(self, BoxData, DepPerc=0.5):
         raise NotImplementedError
 
     def compute_taus(self, BoxData, Energies):
-        Press   = {}
-        Taus    = {}
+        TausP   = {}
         EKeys   = ('EInt', 'EVib', 'ERot')
-        Time    = BoxData['Time']
+        Time    = BoxData['Time'].to_numpy()
         for iMol, Mol in enumerate(self.System.Molecules):
-            if Mol.Name not in Taus:
-                Taus[Mol.Name]  = {}
-                Press[Mol.Name] = BoxData[Mol.Name][-1] * BoxData['Pressure'] / const.ATM_to_PA
+            if Mol.Name not in TausP:
+                TausP[Mol.Name] = {}
+                Press           = BoxData['O'].to_numpy()[-1] * BoxData['Pressure'].to_numpy()[-1] / const.ATM_to_PA
                 for k in EKeys:
                     Ek      = Energies[Mol.Name][k]
                     # Energy limit
@@ -262,12 +261,12 @@ class MasterEquation():
                     # Tau0    = (Time[Idx] + Time[Idx-1]) / 2.
                     Tau0    = Time[Idx]
                     EkFit   = CubicSpline(x=Time[1:-1], y=(Ek[1:-1] - EkLim))
-                    Taus[Mol.Name][k] = fsolve(EkFit, [Tau0])
-        return Taus, Press
+                    TausP[Mol.Name][k] = fsolve(EkFit, [Tau0]) * Press
+        return TausP
 
     def compute_QSS_instant(self, BoxData, DissGlobal):
 
-        Time    = BoxData['Time']
+        Time    = BoxData['Time'].to_numpy()
         yy      = DissGlobal + 1e-100
 
         NSteps  = len(Time) - 1
@@ -281,7 +280,7 @@ class MasterEquation():
         itFinal    = it
         TimeFinal  = Time[itFinal]
         if itFinal < 1:
-           ExitFlg = True
+            ExitFlg = True
         
         ###
         while (np.abs(np.log10(yy[it]) - np.log10(yy[itFinal])) < 1.e-1) and (it > 0):
@@ -293,10 +292,10 @@ class MasterEquation():
         while (np.abs(np.log10(yy[it]) - np.log10(yy[it+1])) > 5.e-4) and (it >= 0):
             it = it - 1
         if (it < 0):
-           ExitFlg = True;
-           itQSS   = NSteps
-        else 
-           itQSS   = it
+            ExitFlg = True
+            itQSS   = NSteps
+        else:
+            itQSS   = it
         TimeQSS    = Time[itQSS]
 
         ###
@@ -313,10 +312,10 @@ class MasterEquation():
             while (np.abs(np.log10(yy[it]) - np.log10(yy[itQSS])) < 1.e-1) and (it > 0):
                 it = it - 1
             if (it <= 0):
-               ExitFlg = True;
-               itStart = NSteps
-            else 
-               itStart = it
+                ExitFlg = True
+                itStart = NSteps
+            else:
+                itStart = it
             TimeStart  = Time[itStart]
 
         ###
@@ -339,7 +338,7 @@ class MasterEquation():
             QSS['Start']['Time']    = fsolve(yyyFit, [Time[itStart]])
             QSS['Start']['Idx']     = np.argmin(np.abs(Time - QSS['Start']['Time']))
 
-            if (QSS['Start']['Idx'] < 0) or (QSS['Start']['Idx'] > NSteps)
+            if (QSS['Start']['Idx'] < 0) or (QSS['Start']['Idx'] > NSteps):
                 ExitFlg = True
 
             # QSS ending point
@@ -370,8 +369,8 @@ class MasterEquation():
 
             QSS['End']['Time']      = Time[-1]
             QSS['End']['Idx']       = NSteps
-
-    return QSS
+            
+        return QSS
 
 
     def compute_rates_global(self, Ni):

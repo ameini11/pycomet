@@ -1,13 +1,22 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+
+
 from matplotlib.ticker import (MultipleLocator, FormatStrFormatter, AutoMinorLocator,LogLocator)
 
-import Initialize_Paths as Paths
+# import Initialize_Paths as Paths
+
+import matplotlib as mpl
+from matplotlib import pyplot as plt
+from matplotlib.animation import FuncAnimation
+from IPython.display import HTML
+# %matplotlib qt
+COLORS = mpl.rcParams['axes.prop_cycle'].by_key()['color']
+
 
 
 # Mole fraction Plot
-def Plot_MoleFraction(System,QCT,SurQCT,TempVec,MoleFractionXLim):
+def Plot_MoleFraction(System,Data,TempVec,MoleFractionXLim):
 
     fig,ax = plt.subplots(1,1,figsize=(10,10))
     MoleculeName = System.Molecule[0].Name
@@ -27,78 +36,78 @@ def Plot_MoleFraction(System,QCT,SurQCT,TempVec,MoleFractionXLim):
     
     return fig
 
-# Energy evolution plot
-def Plot_Energies(System,QCT,SurQCT,TempVec,EnergyXLim):
+# # Energy evolution plot
+# def Plot_Energies(System,QCT,SurQCT,TempVec,EnergyXLim):
     
-    iTemp = 0
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
-    plt.plot(QCT[iTemp].time, QCT[iTemp].eRot,'--k', label='\\textbf{ERot}',linewidth=3)
-    plt.plot(QCT[iTemp].time, QCT[iTemp].eVib, '-k', label='\\textbf{EVib}',linewidth=3)
+#     iTemp = 0
+#     fig,ax = plt.subplots(1,1,figsize=(10,10))
+#     plt.plot(QCT[iTemp].time, QCT[iTemp].eRot,'--k', label='\\textbf{ERot}',linewidth=3)
+#     plt.plot(QCT[iTemp].time, QCT[iTemp].eVib, '-k', label='\\textbf{EVib}',linewidth=3)
     
-    for iTemp in range(len(TempVec)):
+#     for iTemp in range(len(TempVec)):
         
-        Temp = TempVec[iTemp]
+#         Temp = TempVec[iTemp]
         
-        plt.plot(QCT[iTemp].time, QCT[iTemp].eRot,'--k', linewidth=3)
-        plt.plot(QCT[iTemp].time, QCT[iTemp].eVib, '-k', linewidth=3)
+#         plt.plot(QCT[iTemp].time, QCT[iTemp].eRot,'--k', linewidth=3)
+#         plt.plot(QCT[iTemp].time, QCT[iTemp].eVib, '-k', linewidth=3)
         
-        plt.plot(SurQCT[iTemp].time, SurQCT[iTemp].eRot, color='red', linestyle='dashed', linewidth=5)
-        plt.plot(SurQCT[iTemp].time, SurQCT[iTemp].eVib, color='red',linestyle='-', linewidth=5)
+#         plt.plot(SurQCT[iTemp].time, SurQCT[iTemp].eRot, color='red', linestyle='dashed', linewidth=5)
+#         plt.plot(SurQCT[iTemp].time, SurQCT[iTemp].eVib, color='red',linestyle='-', linewidth=5)
 
-        plt.legend(frameon=False)                                                 
-        plt.xscale('log')                                                 
-        plt.xlabel('\\textbf{t [s]}')
-        plt.ylabel('\\textbf{E [eV]}')
-        plt.xlim([EnergyXLim[iTemp]])
-        ax.set_aspect(1.0/ax.get_data_ratio(), adjustable='box')
-        fig.tight_layout(pad=0.75)
-        plt.savefig((Figure_ME_path+System.Name+'_'+ReactionFlgSurQCT+'_T'+str(Temp)+'K_Energy.pdf'), format='pdf', dpi=600)
+#         plt.legend(frameon=False)                                                 
+#         plt.xscale('log')                                                 
+#         plt.xlabel('\\textbf{t [s]}')
+#         plt.ylabel('\\textbf{E [eV]}')
+#         plt.xlim([EnergyXLim[iTemp]])
+#         ax.set_aspect(1.0/ax.get_data_ratio(), adjustable='box')
+#         fig.tight_layout(pad=0.75)
+#         plt.savefig((Figure_ME_path+System.Name+'_'+ReactionFlgSurQCT+'_T'+str(Temp)+'K_Energy.pdf'), format='pdf', dpi=600)
         
-    return fig
+#     return fig
 
-# Population plot times
-def find_nearest(array, value):
-    i = 0
-    iStep=[]
-    for ivalue in value:
-        array = np.asarray(array)
-        idx = (np.abs(array - ivalue)).argmin()
-        iStep.append(idx)
-        i = i+1
-    return iStep
+# # Population plot times
+# def find_nearest(array, value):
+#     i = 0
+#     iStep=[]
+#     for ivalue in value:
+#         array = np.asarray(array)
+#         idx = (np.abs(array - ivalue)).argmin()
+#         iStep.append(idx)
+#         i = i+1
+#     return iStep
 
-# Population plots
-def Plot_Populations(iTemp,plot_times,QSSFlg):
+# # Population plots
+# def Plot_Populations(iTemp,plot_times,QSSFlg):
     
-    iStepVec = find_nearest(QCT[iTemp].time, plot_times)                                              
-    iStepVecSurQCT = find_nearest(SurQCT[iTemp].time, plot_times)  
+#     iStepVec = find_nearest(QCT[iTemp].time, plot_times)                                              
+#     iStepVecSurQCT = find_nearest(SurQCT[iTemp].time, plot_times)  
 
-    for iStep in range(len(iStepVec)):
+#     for iStep in range(len(iStepVec)):
         
-        fig,ax = plt.subplots(1,1,figsize=(18,9))
-        cmap=mpl.colors.ListedColormap(["k","mediumvioletred","slategray","yellowgreen","sandybrown","sienna","b","c","g","cyan","navy","crimson","limegreen","gold","r","y"])
+#         fig,ax = plt.subplots(1,1,figsize=(18,9))
+#         cmap=mpl.colors.ListedColormap(["k","mediumvioletred","slategray","yellowgreen","sandybrown","sienna","b","c","g","cyan","navy","crimson","limegreen","gold","r","y"])
         
-        cp = ax.scatter(DiatData[0]['EInt'], PopQCT[iTemp].Pop_g[iStepVec[iStep],:], c='k',label='QCT')       
-        cp = ax.scatter(DiatData[0]['EInt'], PopSurQCT[iTemp].Pop_g[iStepVecSurQCT[iStep],:], c='r',label='SurQCT')
+#         cp = ax.scatter(DiatData[0]['EInt'], PopQCT[iTemp].Pop_g[iStepVec[iStep],:], c='k',label='QCT')       
+#         cp = ax.scatter(DiatData[0]['EInt'], PopSurQCT[iTemp].Pop_g[iStepVecSurQCT[iStep],:], c='r',label='SurQCT')
         
-        plt.legend(fontsize=50,frameon=False)            
-        plt.yscale('log')
-        plt.xlabel('$\epsilon$ [eV]')
-        plt.ylabel('$N_i/g_i$ [m$^{-3}$]')
-        fig.tight_layout(pad=0.5)
-        ax.tick_params(axis='x', labelsize=50)
-        ax.tick_params(axis='y', labelsize=50)
+#         plt.legend(fontsize=50,frameon=False)            
+#         plt.yscale('log')
+#         plt.xlabel('$\epsilon$ [eV]')
+#         plt.ylabel('$N_i/g_i$ [m$^{-3}$]')
+#         fig.tight_layout(pad=0.5)
+#         ax.tick_params(axis='x', labelsize=50)
+#         ax.tick_params(axis='y', labelsize=50)
 
-        if(QSSFlg):
-            title='QSS'
-            plt.title(title)
-            plt.savefig((Figure_ME_path+System.Name+'_T'+str(Temp)+'K_'+ReactionFlgSurQCT+'_pop_'+System.Molecule[0].Name+'_QSS.eps'), format='eps', dpi=150)
-        else:
-            title='t = '+str(QCT[iTemp].time[iStep])+' s' 
-            plt.title(title)
-            plt.savefig((Figure_ME_path+System.Name+'_T'+str(Temp)+'K_'+ReactionFlgSurQCT+'_pop_'+System.Molecule[0].Name+'_'+str(iStepVec[iStep])+'.eps'), format='eps', dpi=150)
+#         if(QSSFlg):
+#             title='QSS'
+#             plt.title(title)
+#             plt.savefig((Figure_ME_path+System.Name+'_T'+str(Temp)+'K_'+ReactionFlgSurQCT+'_pop_'+System.Molecule[0].Name+'_QSS.eps'), format='eps', dpi=150)
+#         else:
+#             title='t = '+str(QCT[iTemp].time[iStep])+' s' 
+#             plt.title(title)
+#             plt.savefig((Figure_ME_path+System.Name+'_T'+str(Temp)+'K_'+ReactionFlgSurQCT+'_pop_'+System.Molecule[0].Name+'_'+str(iStepVec[iStep])+'.eps'), format='eps', dpi=150)
 
-        return fig
+#         return fig
         
 def Plot_Populations_vcolor(iTemp,plot_times,QSSFlg):
 
@@ -192,34 +201,34 @@ def Plot_KGlobal():
         plt.savefig((Fig_path+System[0]+'_T'+str(Temp)+'K_'+ReactionFlg+'_KDissGlobal.eps'), format='eps', dpi=600)
 
 
-def Plot_taus(System,Data_ME_path,ReactionFlgQCT,ReactionFlgSurQCT):
+# def Plot_taus(System,Data_ME_path,ReactionFlgQCT,ReactionFlgSurQCT):
 
-    QCT_tausFile = Data_ME_path+'/QCT_Taus_'+System.Molecule[0].Name+'_'+ReactionFlgQCT+'.csv'
-    QCT_taus = pd.read_csv(QCT_tausFile,header=None,skiprows=1)
-    QCT_taus.columns = ['Temp','P','tauInt','tauRot','tauVib'] 
+#     QCT_tausFile = Data_ME_path+'/QCT_Taus_'+System.Molecule[0].Name+'_'+ReactionFlgQCT+'.csv'
+#     QCT_taus = pd.read_csv(QCT_tausFile,header=None,skiprows=1)
+#     QCT_taus.columns = ['Temp','P','tauInt','tauRot','tauVib'] 
                                                                              
-    SurQCT_tausFile = Data_ME_path+'/DNN_Taus_'+System.Molecule[0].Name+'_'+ReactionFlgSurQCT+'.csv'
-    SurQCT_taus = pd.read_csv(SurQCT_tausFile,header=None,skiprows=1)
-    SurQCT_taus.columns = ['Temp','P','tauInt','tauRot','tauVib'] 
+#     SurQCT_tausFile = Data_ME_path+'/DNN_Taus_'+System.Molecule[0].Name+'_'+ReactionFlgSurQCT+'.csv'
+#     SurQCT_taus = pd.read_csv(SurQCT_tausFile,header=None,skiprows=1)
+#     SurQCT_taus.columns = ['Temp','P','tauInt','tauRot','tauVib'] 
     
-    fig,ax = plt.subplots(1,1,figsize=(10,10))
-    plt.plot(QCT_taus.Temp, QCT_taus.tauRot, 'ks', markersize=15, label='$\\tau_{Rot}$')
-    plt.plot(SurQCT_taus.Temp, SurQCT_taus.tauRot, 'rs', markersize=15)   
-    plt.plot(QCT_taus.Temp, QCT_taus.tauVib, 'k^', markersize=15, label='$\\tau_{Vib}$')
-    plt.plot(SurQCT_taus.Temp, SurQCT_taus.tauVib, 'r^' , markersize=15)
+#     fig,ax = plt.subplots(1,1,figsize=(10,10))
+#     plt.plot(QCT_taus.Temp, QCT_taus.tauRot, 'ks', markersize=15, label='$\\tau_{Rot}$')
+#     plt.plot(SurQCT_taus.Temp, SurQCT_taus.tauRot, 'rs', markersize=15)   
+#     plt.plot(QCT_taus.Temp, QCT_taus.tauVib, 'k^', markersize=15, label='$\\tau_{Vib}$')
+#     plt.plot(SurQCT_taus.Temp, SurQCT_taus.tauVib, 'r^' , markersize=15)
     
-    plt.legend(frameon=False)    
-    plt.yscale('log')            
-    plt.xlabel('\\textbf{T [K]}')
-    plt.ylabel('$\\tau$ \\textbf{[atm*s]}')
+#     plt.legend(frameon=False)    
+#     plt.yscale('log')            
+#     plt.xlabel('\\textbf{T [K]}')
+#     plt.ylabel('$\\tau$ \\textbf{[atm*s]}')
     
-    plt.ylim([1e-9,1e-7])    
-    ax.set_aspect(1.0/ax.get_data_ratio(), adjustable='box')
-    fig.tight_layout(pad=2.0) 
-    plt.xticks([5000,10000,15000,20000])
-    plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
+#     plt.ylim([1e-9,1e-7])    
+#     ax.set_aspect(1.0/ax.get_data_ratio(), adjustable='box')
+#     fig.tight_layout(pad=2.0) 
+#     plt.xticks([5000,10000,15000,20000])
+#     plt.ticklabel_format(axis="x", style="sci", scilimits=(0,0))
     
-    return fig
+#     return fig
 
 def Plot_KDth_qss(System,Data_ME_path,ReactionFlgQCT,ReactionFlgSurQCT):
 
@@ -245,6 +254,138 @@ def Plot_KDth_qss(System,Data_ME_path,ReactionFlgQCT,ReactionFlgSurQCT):
     plt.xlim(System.KDXLim)                                                                                              
     plt.ylim(System.KDYLim)
     ax.set_aspect(1.0/ax.get_data_ratio(), adjustable='box')
-    fig.tight_layout(pad=2.0) 
+    fig.tight_layout(pad=2.0)
     
     return fig 
+    
+    
+def plot_energies(
+    Path,
+    System,
+    Data,
+    TTranVec,
+    xlim=[1.e-9, 1.e-4]
+):
+    iTemp = 0
+    fig = plt.figure()
+    plt.plot([], [],'--k', label='$E_{Rot}$')
+    plt.plot([], [], '-k', label='$E_{Vib}$')
+    for i, k in enumerate(Data.keys()):
+        plt.plot([], [], label=k, c=COLORS[i])
+
+    for iTemp in range(len(TTranVec)):
+
+        Temp = int(TTranVec[iTemp])
+        EMed = []
+        for iMol, Mol in enumerate(System.Molecules):
+            for i, (k, d) in enumerate(Data.items()):
+                t    = d[Temp]['box'].Time
+                ERot = d[Temp]['E'][Mol.Name]['ERot']
+                EVib = d[Temp]['E'][Mol.Name]['EVib']
+                EMed.append((ERot[-1] + EVib[-1]) / 2)
+                plt.plot(t, d[Temp]['E'][Mol.Name]['ERot'], '--', c=COLORS[i])
+                plt.plot(t, d[Temp]['E'][Mol.Name]['EVib'],  '-', c=COLORS[i])
+            
+            # Temperature annotation
+            plt.annotate(
+                'T = %d K' % Temp,
+                xy=(1, max(EMed)),
+                xytext=(8, 0),
+                xycoords=('axes fraction', 'data'),
+                textcoords='offset points'
+            )
+
+        plt.legend()
+        plt.xscale('log')
+        plt.xlabel('$t$ [s]')
+        plt.ylabel('$E$ [eV]')
+        plt.xlim(xlim)
+
+    plt.savefig(Path + f'/EVib_ERot.pdf', bbox_inches="tight")
+    
+def plot_taus(
+    Path,
+    System,
+    Data,
+    TTranVec
+):
+    fig = plt.figure()
+    plt.plot([], [], 'ks', label='$\\tau_{Rot}$')
+    plt.plot([], [], 'k^', label='$\\tau_{Vib}$')
+    for i, k in enumerate(Data.keys()):
+        plt.plot([], [], label=k, c=COLORS[i])
+
+    for iTemp in range(len(TTranVec)):
+
+        Temp = int(TTranVec[iTemp])
+        x    = Temp**(-1/3) * 1.e2
+        for iMol, Mol in enumerate(System.Molecules):
+            for i, (k, d) in enumerate(Data.items()):
+                plt.plot(x, d[Temp]['TausP'][Mol.Name]['ERot'], ls='', marker='s', c=COLORS[i])
+                plt.plot(x, d[Temp]['TausP'][Mol.Name]['EVib'], ls='', marker='^', c=COLORS[i])
+            
+        plt.legend()
+        plt.yscale('log')
+        plt.xlabel('$T^{-1/3}$ [K$^{-1/3}$] $\\times 10^2$')
+        plt.ylabel('$p\cdot\\tau$ [atm$\cdot$s]')
+        
+    plt.savefig(Path + f'/Taus.pdf', bbox_inches="tight")
+    
+        
+# Mole fraction Plot
+def plot_molefraction(
+    Path,
+    System,
+    Data,
+    TTranVec,
+    xlim=[1.e-9, 1.e-1],
+    ylim=[0.,1.]
+):
+    fig = plt.figure()
+    
+    for iTemp in range(len(TTranVec)):
+
+        Temp = int(TTranVec[iTemp])
+        for iMol, Mol in enumerate(System.Molecules):
+            for i, (k, d) in enumerate(Data.items()):
+                t = d[Temp]['box'].Time
+                X = d[Temp]['box'][Mol.Name]
+                plt.plot(t, X, c=COLORS[i], label=k)#'T = %d K' % Temp)
+
+        plt.legend()
+        plt.xscale('log')
+        plt.xlabel('$t$ [s]')
+        plt.ylabel('$X$')
+        plt.xlim(xlim)
+        
+    plt.savefig(Path + f'/MoleFrac.pdf', bbox_inches="tight")
+    
+    
+
+# Depletion Delays
+def plot_depletiondelays(
+    Path,
+    System,
+    Data,
+    TTranVec
+):
+    fig = plt.figure()
+    
+    for iTemp in range(len(TTranVec)):
+
+        Temp = int(TTranVec[iTemp])
+        for iMol, Mol in enumerate(System.Molecules):
+            DeplQCT = Data['QCT'][Temp]['XDepl'][Mol.Name]
+            for i, (k, d) in enumerate(Data.items()):
+                if k == 'QCT':
+                    continue
+                Depl  = Data[k][Temp]['XDepl'][Mol.Name]
+                Delay = (DeplQCT - Depl)/DeplQCT*100
+                plt.plot(Temp, Delay, ls='', marker='^', c=COLORS[i], label=k)
+
+        plt.legend()
+        plt.ticklabel_format(axis='x', style='sci', scilimits=(3,3))
+        plt.xlabel('$T$ [K]')
+        plt.ylabel('% Delay')
+        
+    plt.savefig(Path + f'/Delays.pdf', bbox_inches="tight")

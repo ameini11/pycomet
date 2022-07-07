@@ -71,3 +71,11 @@ def app_decorator(name=None):
             return result
         return wrapper
     return dec
+
+# Handling libraries
+###############################################################################
+def import_matplotlib():
+    import matplotlib as mpl
+    if cfg.mpl_cfg['style'] is not None:
+        mpl.style.use(cfg.mpl_cfg['style'])
+    return mpl

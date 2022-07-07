@@ -15,20 +15,19 @@ from __future__ import print_function
 # TensorFlow 
 ###############################################################################
 import os
-from surqct.config import tf_setup
-from surqct.config import tf_env
+from surqct.config import tf_cfg
 
 # Setting verbosity level
-os.environ.update(tf_env)
+os.environ.update(tf_cfg['env'])
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 # Setting python/keras backends
 from tensorflow.keras import backend as keras_backend
-keras_backend.set_floatx(tf_setup['DTYPE'])
-keras_backend.set_epsilon(tf_setup['EPSILON'])
+keras_backend.set_floatx(tf_cfg['setup']['DTYPE'])
+keras_backend.set_epsilon(tf_cfg['setup']['EPSILON'])
 from tensorflow.python.keras import backend as python_backend
-python_backend.set_floatx(tf_setup['DTYPE'])
-python_backend.set_epsilon(tf_setup['EPSILON'])
+python_backend.set_floatx(tf_cfg['setup']['DTYPE'])
+python_backend.set_epsilon(tf_cfg['setup']['EPSILON'])
 
 # SurQCT
 ###############################################################################
