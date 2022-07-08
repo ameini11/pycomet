@@ -4,31 +4,28 @@ set -e
 
 # Loading Plato
 ###############################################################################
-source ~/.profile
+source ~/.bash_aliases
 load_plato
 
 # Inputs
 ###############################################################################
-# Paths
 export System='O3_UMN'
-export FldrName='/Inel/configs/config.06/run.01/'
+export KinMainSource='QCT'
+export InputSuffix='.relax'
+# Paths
+export FldrName=''
 export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
-export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/SurQCT/$System/
+export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$KinMainSource/$System/
+export PathToSurQCT=$WORKSPACE_PATH/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
 # Heat Bath Conditions
-export P0=1.38064852d+03
-export T0=300.d0
-export TTranVec=(1500) #(1500 5000 10000 20000)
+export TTranVec=(1500) # (1500 5000 10000 20000)
 # Processes
 export DissFlg=2
 export InelFlg=1
 export Exch1Flg=1
 export Exch2Flg=0
-# Sources
-export SourceGlobal='SurQCT/'$System
-export SourceDiss='QCT/'$System
-export SourceInel='SurQCT/'$System'/'$FldrName
-export SourceExch1='QCT/'$System
-export SourceExch2='QCT/'$System
+# Kinetic Sources
+export KinSource=$PathToDtbFldr"/kinetics/"$KinMainSource"/"$System"/"$FldrName
 
 # Initializing Database
 ###############################################################################
@@ -37,7 +34,7 @@ Initialize_0D_Database () {
     Header=">>  [Initialize_0D_Database]: "
 
     # Defining Kinetics File
-    export KineticsFileInDtb=$SourceGlobal"/KineticsFile.dat"
+    export KineticsFileInDtb=$KinMainSource"/"$System"/KineticsFile"$RANDOM".dat"
     export KineticsFile=`realpath $PathToDtbFldr"/kinetics/"$KineticsFileInDtb`
     touch $KineticsFile
 
@@ -53,7 +50,7 @@ Initialize_0D_Database () {
         DissFile="Diss_Corrected.dat"
     fi
     if [ $DissFlg -ne 0 ]; then
-        DissFile=`realpath $PathToDtbFldr"/kinetics/"$SourceDiss"/T"$TTran"K/"$DissFile`
+        DissFile=`realpath $KinSource"/T"$TTran"K/"$DissFile`
         echo $Header"Adding Dissociation Kinetics from File "$DissFile" to File "$KineticsFile
         cat $DissFile >> $KineticsFile
     fi
@@ -61,7 +58,7 @@ Initialize_0D_Database () {
     # Adding Inelastic Processes
     # ------------------------------------------------------------------------- 
     if [ $InelFlg -eq 1 ]; then
-        InelFile=`realpath $PathToDtbFldr"/kinetics/"$SourceInel"/T"$TTran"K/Inel.dat"`
+        InelFile=`realpath $KinSource"/T"$TTran"K/Inel.dat"`
         echo $Header"Adding Inelastic Kinetics from File "$InelFile" to File "$KineticsFile
         cat $InelFile >> $KineticsFile
     fi
@@ -69,13 +66,13 @@ Initialize_0D_Database () {
     # Adding Exchange Processes
     # ------------------------------------------------------------------------- 
     if [ $Exch1Flg -eq 1 ]; then
-        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch1"/T"$TTran"K/Exch_Type1.dat"`
+        ExchFile=`realpath $KinSource"/T"$TTran"K/Exch_Type1.dat"`
         echo $Header"Adding Exchange Kinetics from File "$ExchFile" to File "$KineticsFile
         cat $ExchFile >> $KineticsFile
     fi
 
     if [ $Exch2Flg -eq 1 ]; then
-        ExchFile=`realpath $PathToDtbFldr"/kinetics/"$SourceExch2"/T"$TTran"K/Exch_Type2.dat"`
+        ExchFile=`realpath $KinSource"/T"$TTran"K/Exch_Type2.dat"`
         echo $Header"Adding Exchange Kinetics from File "$ExchFile" to File "$KineticsFile
         cat $ExchFile >> $KineticsFile
     fi
@@ -105,12 +102,10 @@ Initialize_0D_Case () {
     # Input File
     # -------------------------------------------------------------------------
     export InputFile=${OutputFldr}/input
-    echo $Header"Initialize Input File: "${OutputFldr}/input
-    \cp -rf ${PathToDtbFldr}/inputs/$System/input ${OutputFldr}
+    echo $Header"Initialize Input File: "${InputFile}
+    \cp -rf ${PathToSurQCT}/pipelines/Plato/Input/$System/input${InputSuffix} ${InputFile}
 
     sed -i '/^REACTION.*/c\REACTION = '${KineticsFileInDtb} $InputFile
-    sed -i '/^P0.*/c\P0 = '${P0} $InputFile
-    sed -i '/^T0.*/c\T0 = '${T0} $InputFile
     sed -i '/^T_BATH.*/c\T_BATH = '${TTran}'.d0' $InputFile
 }
 
@@ -156,7 +151,6 @@ for TTran in "${TTranVec[@]}"; do
     echo $HeaderMain"Compute 0D Simulation Case"
     cd ${OutputFldr}
     box input ${OPENBLAS_NUM_THREADS}
-    # box input
     cd ${cwd}
     echo " "
 
