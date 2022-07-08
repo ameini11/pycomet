@@ -94,6 +94,8 @@ def mole_fraction(
     ylim=[0.,1.]
 ):
     fig = plt.figure()
+    for i, k in enumerate(Data.keys()):
+        plt.plot([], [], label=k, c=COLORS[i])
     
     for iTemp in range(len(TTranVec)):
 
@@ -102,7 +104,7 @@ def mole_fraction(
             for i, (k, d) in enumerate(Data.items()):
                 t = d[Temp]['box'].Time
                 X = d[Temp]['box'][Mol.Name]
-                plt.plot(t, X, c=COLORS[i], label=k)#'T = %d K' % Temp)
+                plt.plot(t, X, c=COLORS[i])
 
         plt.legend()
         plt.xscale('log')
@@ -120,6 +122,10 @@ def mole_depletion_delays(
     TTranVec
 ):
     fig = plt.figure()
+    for i, k in enumerate(Data.keys()):
+        if k == 'QCT':
+            continue
+        plt.plot([], [], label=k, c=COLORS[i])
     
     for iTemp in range(len(TTranVec)):
 
@@ -131,7 +137,7 @@ def mole_depletion_delays(
                     continue
                 Depl  = Data[k][Temp]['XDepl'][Mol.Name]
                 Delay = (DeplQCT - Depl)/DeplQCT*100
-                plt.plot(Temp, Delay, ls='', marker='^', c=COLORS[i], label=k)
+                plt.plot(Temp, Delay, ls='', marker='^', c=COLORS[i])
 
         plt.legend()
         plt.ticklabel_format(axis='x', style='sci', scilimits=(3,3))

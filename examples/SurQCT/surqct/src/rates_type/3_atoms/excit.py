@@ -4,13 +4,15 @@ import copy
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 
 from tqdm import tqdm
 from surqct.src.utilities import utils
 from surqct.src.utilities import reading
+
+# Visualization libraries
+matplotlib = utils.import_matplotlib()
+from matplotlib import pyplot as plt
+from matplotlib import ticker
 
 
 # Generating data
@@ -391,7 +393,8 @@ def generate_predictiondata(
     InputData,
     System,
     Model,
-    Labeled=True
+    Labeled=True,
+    Columns=None
 ):
     utils.print_main('Generating Prediction data points ...')
 
@@ -469,6 +472,11 @@ def generate_predictiondata(
 
             # Prediction Data
             BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTranVec[iT])
+            if Columns is not None:
+                Input               = np.hstack([BranchInput, TrunkInput])
+                BranchInput         = np.take(Input, Columns[0], axis=1)
+                TrunkInput          = np.take(Input, Columns[1], axis=1)
+                    
             KExcitPred      = Model.predict([BranchInput, TrunkInput]).reshape(-1)
             if InputData.RatesLogScale:
                 KExcitPred  = np.exp(KExcitPred)
@@ -507,6 +515,11 @@ def generate_predictiondata(
 
                 # Prediction Data
                 BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, jIdxVec, kIdxVec, TTranVec[iT])
+                if Columns is not None:
+                    Input               = np.hstack([BranchInput, TrunkInput])
+                    BranchInput         = np.take(Input, Columns[0], axis=1)
+                    TrunkInput          = np.take(Input, Columns[1], axis=1)
+                    
                 KExcitPred      = Model.predict([BranchInput, TrunkInput]).squeeze()
                 if InputData.RatesLogScale:
                     KExcitPred          = np.exp(KExcitPred)
@@ -610,10 +623,13 @@ def log_tick_formatter(
 def plot_prediction2D(
     Path,
     iIdx,
-    DiatData,
+    System,
     TrueData,
     PredData
 ):
+    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In']['Molecules'][0]
+    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out']['Molecules'][0]
+    
     # i-th level data
     v = MolIn.DiatData['vqn'].to_numpy()[iIdx].astype(int)
     J = MolIn.DiatData['jqn'].to_numpy()[iIdx].astype(int)
@@ -642,10 +658,13 @@ def plot_prediction2D(
 def plot_prediction3D(
     Path,
     iIdx,
-    DiatData,
+    System,
     TrueData,
     PredData
 ):
+    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In']['Molecules'][0]
+    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out']['Molecules'][0]
+    
     # i-th level data
     v = MolIn.DiatData['vqn'].to_numpy()[iIdx].astype(int)
     J = MolIn.DiatData['jqn'].to_numpy()[iIdx].astype(int)
@@ -672,8 +691,8 @@ def plot_prediction3D(
     ax.view_init(elev=25., azim=-45)
     ax.dist = 9.5
 
-    ax.zaxis.set_major_formatter(mticker.FuncFormatter(log_tick_formatter))
-    ax.zaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax.zaxis.set_major_formatter(ticker.FuncFormatter(log_tick_formatter))
+    ax.zaxis.set_major_locator(ticker.MaxNLocator(integer=True))
 
     ax.scatter(JTrue, vTrue, np.log10(KTrue), c='k', s=3, label='QCT')
     ax.scatter(JPred, vPred, np.log10(KPred), c='r', s=3, label='SurQCT')

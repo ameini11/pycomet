@@ -44,6 +44,7 @@ def O3_UMN(ProcBool=[1,1,1,0], PathToHDF5File=None):
     # Thermochemical Processes
     if PathToHDF5File is None:
         PathToHDF5Fld       = cfg.HDF5Dtb + '/Orig/O3_UMN.hdf5'
+    print(Syst)
     Syst.ThermochemicalProc = ThermochemicalProc(Syst, ProcBool, PathToHDF5File)
 
     # Master Equation
