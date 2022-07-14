@@ -30,7 +30,7 @@ PyCoarseAIRFldr = WORKSPACE_PATH + '/NeqPlasma/PyCoarseAIR/'                    
 
 DtbHDF5Fldr     = WORKSPACE_PATH + '/AirDatabase/HDF5/Orig/'                                                    # <--- Please, CHANGE this path to the folder containing the HDF5 File
 DtbWriteFldr    = WORKSPACE_PATH + '/AirDatabase/Run0D/database/'
-OutputWriteFldr = '' #WORKSPACE_PATH + '/AirDatabase/Run0D/run/'
+OutputWriteFldr = ''
 ##--------------------------------------------------------------------------------------------------------------
 
 
