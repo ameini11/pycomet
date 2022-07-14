@@ -4,7 +4,7 @@
 
 ## Usage
 
-To use it, run the executable file in `surqct/` with `-h` argument for help
+To use it, run the executable file in `./surqct/` with `-h` argument for help
 ```
 $ ./surqct -h
 ```
