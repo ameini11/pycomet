@@ -30,7 +30,7 @@
 
 5. **MCoarseAir**
 
-    In `MCoarseAir/Exec` modify appropriately the main file correspoing the chemical system you are studing and run it as follows
+    In `MCoarseAir/Exec` modify appropriately the main file corresponding to the chemical system you are studying and run it as follows
     ```
     $ ./matlab <main-file>
     ```
