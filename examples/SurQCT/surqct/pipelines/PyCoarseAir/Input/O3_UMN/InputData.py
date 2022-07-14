@@ -28,7 +28,7 @@ class inputdata(object):
         self.PyCoarseAIRFldr           = PyCoarseAIRFldr
         
         ### CASE SPECIFIC
-        self.TranVec                   = np.array([1500.0])#, 2500.0, 5000.0, 6000.0, 8000.0, 10000.0, 12000.0, 14000.0, 15000.0, 20000.0])
+        self.TranVec                   = np.array([1500.0, 2500.0, 5000.0, 6000.0, 8000.0, 10000.0, 12000.0, 14000.0, 15000.0, 20000.0])
         self.T0                        = 300.0
         self.iPES                      = 0
 
@@ -69,7 +69,7 @@ class kinetics(object):
         self.Write_Flg                  = True
         self.WriteFldr                  = DtbWriteFldr
         self.WriteDiss_Flg              = True 
-        self.CorrFactor                 = 16.0/3.0
+        self.CorrFactor                 = 16.0/3.0         # 1.0
         self.DissTypes                  = np.array([0])
         self.WriteInel_Flg              = True
         self.WriteExch_Flg              = True
@@ -138,16 +138,14 @@ class kinetics(object):
         #self.NGroupsOut                 = np.array([45], dtype=np.int64)
         #self.GroupsOutSuffix            = '_VSM' #_Phys_45Bins
 
-
-
-
+        
         ## Packing + Unpacking Dissocation Rates:
         self.PackUnpackDiss_Flg         = False
         self.PackUnpackType             = ['']#['CGM']
         self.PackUnpackPathsToMapping   = ['']#['/home/zanardi/WORKSPACE/AirDatabase/Run0D/database/grouping/GroupingIdxs_45Bins_WExch.csv']
         self.PackUnpackSuffix           = ['']#'_45Amal' #_Phys_45Bins
 
-
+        
         ## Correcting Kinetics Based on Window-Averaging
         self.WindAvrg_Flg               = False
         self.WindAvrgJs                 = 3
@@ -181,7 +179,7 @@ class ME(object):
     def __init__(self, WORKSPACE_PATH):
 
         self.Read_Flg                   = False
-        self.ReadFldr                   = WORKSPACE_PATH + '/Run0D/run'
+        self.ReadFldr                   = ''
         self.WriteFolder                = ''
         self.ProcCode                   = '2_1_1_1'
         self.TimeVec                    = np.array([1.e-10, 1.e-8, 1.e-6, 1.e-4])
