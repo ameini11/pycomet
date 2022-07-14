@@ -14,7 +14,7 @@
 
 3. **PyCoarseAir**
 
-    In `PyCoarseAir/Exec` modify `PyCoarseAIR.py` accordingly and run it as follows
+    In `PyCoarseAir/Exec`, modify `PyCoarseAIR.py` accordingly and run it as follows
     ```
     $ python3 PyCoarseAIR.py <path-to-folder>
     ```
@@ -22,15 +22,15 @@
 
 4. **Plato**
 
-    In `Plato/Exec` modify `Main` accordingly and run it as follows
+    In `Plato/Exec`, modify `Main` accordingly and run it as follows
     ```
     $ ./Main
     ```
-    to simulate the Master Equation.
+    to compute the Master Equation.
 
 5. **MCoarseAir**
 
-    In `MCoarseAir/Exec` modify appropriately the main file corresponding to the chemical system you are studying and run it as follows
+    In `MCoarseAir/Exec`, modify appropriately the main file corresponding to the chemical system you are studying and run it as follows
     ```
     $ ./matlab <main-file>
     ```
