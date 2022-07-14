@@ -16,7 +16,7 @@ import tensorflow as tf
 import inputs.general as inp_gen
 
 from tensorflow.python.keras import layers as tf_layers
-from pycomet.utilities.model import layers as pcm_layers
+from pycomet.utilities.model import layers as pro_layers
 
 
 # Architecture properties
@@ -100,9 +100,9 @@ def branch_fn(x):
 
 input_fn = {
     "branch": tf_layers.Lambda(branch_fn, name='branch_fn'),
-    #"trunk": pcm_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
+    #"trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
     #"trunk": tf_layers.Lambda(lambda x: tf.math.reciprocal((x+1.e-15)*1.e7))
-    "trunk": pcm_layers.Log(
+    "trunk": pro_layers.Log(
         base='e', slope=1.e7, offset=1.e-14, name='trunk_fn', trainable=False
     )
 }
@@ -112,7 +112,7 @@ input_fn = {
 # opnn_out_trans = tf_layers.Lambda(tf.math.sigmoid, name='output_fn')
 opnn_out_trans = {
     name: [
-        pcm_layers.TrainableAct(
+        pro_layers.TrainableAct(
             activation='sigmoid',
             pos_output=True,
             name=f'output_fn_{name}_opnn_2'

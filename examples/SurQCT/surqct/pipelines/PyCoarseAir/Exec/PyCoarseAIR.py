@@ -24,15 +24,13 @@ import numpy as np
 ##==============================================================================================================
 print("\n[PyCoarseAIR]: Defining Paths")
 
-WORKSPACE_PATH  = '/home/venturi/WORKSPACE/'                                                                    # It is NOT REQUIRED to change this path
-#WORKSPACE_PATH  = os.environ['WORKSPACE_PATH']   
-CoarseAIRFldr   = WORKSPACE_PATH + '/CoarseAIR/coarseair/'										         	    # It is NOT REQUIRED to change this path
-#CoarseAIRFldr   = os.environ['COARSEAIR_SOURCE_DIR']
-PyCoarseAIRFldr = WORKSPACE_PATH + '/PyCoarseAIR/'		                							            # <--- Please, CHANGE this path to the folder of the PyCoarseAIR Code
+WORKSPACE_PATH  = '/home/zanardi/WORKSPACE/'                                                                    # It is NOT REQUIRED to change this path
+CoarseAIRFldr   = WORKSPACE_PATH + '/NeqPlasma/CoarseAIR/coarseair/'                                            # It is NOT REQUIRED to change this path
+PyCoarseAIRFldr = WORKSPACE_PATH + '/NeqPlasma/PyCoarseAIR/'                                                    # <--- Please, CHANGE this path to the folder of the PyCoarseAIR Code
 
-DtbHDF5Fldr     = WORKSPACE_PATH + '/Air_Database/HDF5_Database/'                                   # <--- Please, CHANGE this path to the folder containing the HDF5 File
-DtbWriteFldr    = WORKSPACE_PATH + '/Air_Database/Run_0D/database_1e-15/'
-OutputWriteFldr = WORKSPACE_PATH + '/Air_Database/Results/'                                                     # <--- Please, CHANGE this path to the folder where you want PYCoareseAIR writing its Output Files and Plots
+DtbHDF5Fldr     = WORKSPACE_PATH + '/AirDatabase/HDF5/Orig/'                                                    # <--- Please, CHANGE this path to the folder containing the HDF5 File
+DtbWriteFldr    = WORKSPACE_PATH + '/AirDatabase/Run0D/database/'
+OutputWriteFldr = '' #WORKSPACE_PATH + '/AirDatabase/Run0D/run/'
 ##--------------------------------------------------------------------------------------------------------------
 
 
@@ -47,6 +45,7 @@ sys.path.insert(0, PyCoarseAIRFldr  + '/src/Reading/')
 sys.path.insert(0, PyCoarseAIRFldr  + '/src/Writing/')
 sys.path.insert(0, PyCoarseAIRFldr  + '/src/Computing/')
 sys.path.insert(0, PyCoarseAIRFldr  + '/src/Initializing/')
+sys.path.insert(0, PyCoarseAIRFldr  + '/src/Parameters/')
 
 if (len(sys.argv) > 1):
     InputFile = sys.argv[1]

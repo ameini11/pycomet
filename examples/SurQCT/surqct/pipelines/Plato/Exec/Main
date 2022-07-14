@@ -2,7 +2,7 @@
 
 set -e
 
-# Loading Plato
+# Loading Environment
 ###############################################################################
 source ~/.bash_aliases
 load_plato

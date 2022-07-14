@@ -2,7 +2,7 @@
 # 
 # Coarse-Grained QCT for Atmospheric Mixtures (CoarseAIR) 
 # 
-# Copyright (C) 2018 Simone Venturi and Bruno Lopez (University of Illinois at Urbana-Champaign). 
+# Copyright (C) 2018 Simone zanardi and Bruno Lopez (University of Illinois at Urbana-Champaign). 
 #
 # Based on "VVTC" (Vectorized Variable stepsize Trajectory Code) by David Schwenke (NASA Ames Research Center). 
 # 
@@ -28,11 +28,11 @@ class inputdata(object):
         self.PyCoarseAIRFldr           = PyCoarseAIRFldr
         
         ### CASE SPECIFIC
-        self.TranVec                   = np.array([1500.0]) #np.array([1500.0, 2500.0, 5000.0, 6000.0, 8000.0, 10000.0, 12000.0, 14000.0, 15000.0, 20000.0]) #np.array([1500.0, 2500.0, 5000.0, 6000.0, 7500.0, 10000.0, 12000.0, 14000.0, 15000.0, 20000.0])
+        self.TranVec                   = np.array([1500.0])#, 2500.0, 5000.0, 6000.0, 8000.0, 10000.0, 12000.0, 14000.0, 15000.0, 20000.0])
         self.T0                        = 300.0
         self.iPES                      = 0
 
-        self.DelRateMat_Flg            = True
+        self.DelRateMat_Flg            = False
 
         self.PlotShow_Flg              = False
 
@@ -40,7 +40,7 @@ class inputdata(object):
         ### CHEMICAL SYSTEM SPECIFIC
         self.SystNameLong              = 'O3_UMN'
         self.OldVersion_IntFlg         = 0
-        self.DtbReadFldr               = '/home/venturi/WORKSPACE/CoarseAIR/ActiveCoarseAIR_O3_UMN/Test/'
+        self.DtbReadFldr               = ''  ## CoarseAIR Output Folder / Run Folder / System Folder
         self.OutputWriteFldr           = OutputWriteFldr 
         self.SuffixName                = ''
  
@@ -61,9 +61,10 @@ class kinetics(object):
 
         ### Reading Kinetics Data
         self.Read_Flg                   = True
-        #self.ReadFldr                   = WORKSPACE_PATH + '/Mars_Database/Run_0D/database/'                      # To be used Only when Required to read a Database in PLATO's Format
+        #self.ReadFldr                   = WORKSPACE_PATH + '/Mars_Database/Run0D/database/'                      # To be used Only when Required to read a Database in PLATO's Format
 
-
+        self.Source                     = 'QCT'                                                                   # 'QCT' or 'SurQCT'
+        
         ## Writing Kinetics Data
         self.Write_Flg                  = True
         self.WriteFldr                  = DtbWriteFldr
@@ -105,28 +106,28 @@ class kinetics(object):
         # self.MolResolutionOut           = ['CGM']
         # self.GroupsOut_Flg              = True
         # self.GroupsOutWrite_Flg         = True
-        # self.GroupsOutPathsToMapping    = ['/home/venturi/WORKSPACE/Air_Database/Run_0D/database/grouping/O3_UMN/O2/LevelsMap_CBM3.csv']
+        # self.GroupsOutPathsToMapping    = ['/home/zanardi/WORKSPACE/AirDatabase/Run0D/database/grouping/O3_UMN/O2/LevelsMap_CBM3.csv']
         # self.NGroupsOut                 = np.array([3], dtype=np.int64)
         # self.GroupsOutSuffix            = '_CBM3' #_Phys_45Bins
         # ## CGM DP Inel
         # self.MolResolutionOut           = ['CGM']
         # self.GroupsOut_Flg              = True
         # self.GroupsOutWrite_Flg         = True
-        # self.GroupsOutPathsToMapping    = ['/home/venturi/WORKSPACE/Air_Database/Run_0D/database/grouping/O3_UMN/O2/LevelsMap_DPM45.csv'] #['/home/venturi/WORKSPACE/CoarseAIR/coarseair/dtb/Molecules/O2/UMN/Bins_45/LevelsMap_InelDP45.csv']
+        # self.GroupsOutPathsToMapping    = ['/home/zanardi/WORKSPACE/AirDatabase/Run0D/database/grouping/O3_UMN/O2/LevelsMap_DPM45.csv'] #['/home/zanardi/WORKSPACE/CoarseAIR/coarseair/dtb/Molecules/O2/UMN/Bins_45/LevelsMap_InelDP45.csv']
         # self.NGroupsOut                 = np.array([45], dtype=np.int64)
         # self.GroupsOutSuffix            = '_DPM45' #_Phys_45Bins
         # ### CGM Amal
         # self.MolResolutionOut           = ['CGM']
         # self.GroupsOut_Flg              = True
         # self.GroupsOutWrite_Flg         = True
-        # self.GroupsOutPathsToMapping    = ['/home/venturi/WORKSPACE/CoarseAIR/coarseair/dtb/Molecules/O2/UMN/Bins_45/LevelsMap_InelAmal45.csv']
+        # self.GroupsOutPathsToMapping    = ['/home/zanardi/WORKSPACE/CoarseAIR/coarseair/dtb/Molecules/O2/UMN/Bins_45/LevelsMap_InelAmal45.csv']
         # self.NGroupsOut                 = np.array([45], dtype=np.int64)
         # self.GroupsOutSuffix            = '_ADA45' #_Phys_45Bins
         # ### CGM RVE
         # self.MolResolutionOut           = ['CGM']
         # self.GroupsOut_Flg              = True
         # self.GroupsOutWrite_Flg         = True
-        # self.GroupsOutPathsToMapping    = ['/home/venturi/WORKSPACE/CoarseAIR/coarseair/dtb/Molecules/O2/UMN/Bins_45/LevelsMap_RVE45.csv']
+        # self.GroupsOutPathsToMapping    = ['/home/zanardi/WORKSPACE/CoarseAIR/coarseair/dtb/Molecules/O2/UMN/Bins_45/LevelsMap_RVE45.csv']
         # self.NGroupsOut                 = np.array([45], dtype=np.int64)
         # self.GroupsOutSuffix            = '_RVE45' #_Phys_45Bins
         ### VSM
@@ -143,7 +144,7 @@ class kinetics(object):
         ## Packing + Unpacking Dissocation Rates:
         self.PackUnpackDiss_Flg         = False
         self.PackUnpackType             = ['']#['CGM']
-        self.PackUnpackPathsToMapping   = ['']#['/home/venturi/WORKSPACE/Air_Database/Run_0D/database/grouping/GroupingIdxs_45Bins_WExch.csv']
+        self.PackUnpackPathsToMapping   = ['']#['/home/zanardi/WORKSPACE/AirDatabase/Run0D/database/grouping/GroupingIdxs_45Bins_WExch.csv']
         self.PackUnpackSuffix           = ['']#'_45Amal' #_Phys_45Bins
 
 
@@ -156,7 +157,7 @@ class kinetics(object):
         self.MaxEntOrPlato              = 1
         self.MinRate                    = 1.e-15
         self.MinNbTs                    = 4
-        self.MaxErrArr                  = 1.e-7        
+        self.MaxErrArr                  = 1.e-7
 
 
         ## Analyzig the Preferential Jumps between Levels
@@ -180,7 +181,7 @@ class ME(object):
     def __init__(self, WORKSPACE_PATH):
 
         self.Read_Flg                   = False
-        self.ReadFldr                   = WORKSPACE_PATH + '/Mars_Database/Run_0D/'
+        self.ReadFldr                   = WORKSPACE_PATH + '/Run0D/run'
         self.WriteFolder                = ''
-        self.ProcCode                   = '0_1_1_1'
+        self.ProcCode                   = '2_1_1_1'
         self.TimeVec                    = np.array([1.e-10, 1.e-8, 1.e-6, 1.e-4])

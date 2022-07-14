@@ -1,0 +1,133 @@
+# *************************************************************************** #
+#                                    PyCOMET                                    #
+# --------------------------------------------------------------------------- #
+#                     Machine-Learning-Based Approximators                    #
+#                  for Ordinary Differential Equations (ODEs)                 #
+#                                                                             #
+# *************************************************************************** #
+
+# -------------------------------- INPUT FILE ------------------------------- #
+# Description:
+# >> Defining the Neural Network architecture
+# --------------------------------------------------------------------------- #
+
+
+import tensorflow as tf
+import inputs.general as inp_gen
+
+from tensorflow.python.keras import layers as tf_layers
+from pycomet.utilities.model import layers as pcm_layers
+
+
+# Architecture properties
+# =============================================================================
+architecture = 'NeqCtrlNN'
+
+# TimeScaleNNs characterization -----------------------------------------------
+names = ['NEQ1', 'NEQ2', 'NEQ3']
+
+opnn_dim = {
+    names[0]: {
+        "inp": inp_gen.dim['inp'],
+        "out": 1
+    },
+    names[1]: {
+        "inp": inp_gen.dim['inp'],
+        "out": 3
+    },
+    names[2]: {
+        "inp": inp_gen.dim['inp'],
+        "out": [3]*3
+    }
+}
+
+p = [8, 16, 16] # Number of modes
+
+layer_size = {
+    name: {
+        "branch": [2+27] + [2*p[i]]*2 + [p[i]],
+        "trunk":  [1] + [2*p[i]]*2 + [p[i]]
+    } for i, name in enumerate(names)
+}
+
+activation = {
+    name: {
+        "branch": 'tanh',   # elu/gelu
+        "trunk":  'sigmoid'
+    } for name in names
+}
+
+kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
+
+block = 'FFBlock' # 'FFBlock' 'ResPIBlock'
+block_linear_out = False
+
+opnn_end_scale = 'dense'
+
+stacked_blocks = {
+    "branch": True,
+    "trunk": False
+}
+
+# Shifter
+shifter = {
+    name: {
+        "layer_size": [inp_gen.dim['inp'][0], 16, 16, 16, 2],
+        "activation": 'sigmoid',
+        "stacked": False
+    } for i, name in enumerate(names)
+}
+
+# Augmentation
+augmented = True
+
+# Regularizers ----------------------------------------------------------------
+batch_norm = {
+    "branch": None,
+    "trunk":  None
+}
+
+regularization = {
+    'name':         'l1+l2',                                      # 'fine_tuning'
+    'l1':           1.e-3,
+    'l2':           1.e-3,
+    'weights_path': './saving/'+inp_gen.model_name+'_weights.h5'  # For `FineTuningRegularizer`
+}
+
+dropout_rate = 0
+
+# I/O Transformations
+# =============================================================================
+# Global model ----------------------------------------------------------------
+# *** Inputs
+def branch_fn(x):
+    T = inp_gen.input_space['Ttr']
+    if T[1] != T[0]:
+        T_norm = (x[:,0:1] - T[0]) / (T[1] - T[0])
+    else:
+        T_norm = x[:,0:1]/T[0]
+    return tf.concat([T_norm, x[:,1:]], 1)
+
+input_fn = {
+    "branch": tf_layers.Lambda(branch_fn, name='branch_fn'),
+    #"trunk": pcm_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
+    #"trunk": tf_layers.Lambda(lambda x: tf.math.reciprocal((x+1.e-15)*1.e7))
+    "trunk": pcm_layers.Log(
+        base='e', slope=1.e7, offset=1.e-14, name='trunk_fn', trainable=False
+    )
+}
+
+# OpNNs -----------------------------------------------------------------------
+# opnn_out_trans = tf_layers.Lambda(tf.math.exp, name='output_fn')
+
+# opnn_out_trans = tf_layers.Lambda(tf.math.sigmoid, name='output_fn')
+
+opnn_out_trans = {
+    name: [
+        pcm_layers.TrainableAct(
+            activation='sigmoid',
+            pos_output=True,
+            name=f'output_fn_{name}_opnn_{i+1}'
+        ) for i in range(len(tf.nest.flatten(opnn_dim[name]["out"])))
+    ] for name in names
+}
