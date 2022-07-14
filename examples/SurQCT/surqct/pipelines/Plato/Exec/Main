@@ -6,12 +6,13 @@ set -e
 ###############################################################################
 source ~/.bash_aliases
 load_plato
+OPENBLAS_NUM_THREADS=4
 
 # Inputs
 ###############################################################################
 export System='O3_UMN'
-export KinMainSource='QCT'
-export InputSuffix='.relax'
+export KinMainSource='QCT'    # QCT SurQCT
+export InputSuffix='.relax'   # '.relax' '.excit'
 # Paths
 export FldrName=''
 export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
@@ -99,12 +100,17 @@ Initialize_0D_Case () {
     fi
     echo $Header"App 'box' will be executed in "`realpath ${OutputFldr}`
 
+    # Thermo folder
+    # -------------------------------------------------------------------------
+    \cp -rf ${PathToDtbFldr}/thermo/${System}/* ${PathToDtbFldr}/thermo/
+
     # Input File
     # -------------------------------------------------------------------------
     export InputFile=${OutputFldr}/input
     echo $Header"Initialize Input File: "${InputFile}
     \cp -rf ${PathToSurQCT}/pipelines/Plato/Input/$System/input${InputSuffix} ${InputFile}
 
+    sed -i '/^PATH.*/c\PATH     = '${PathToDtbFldr} $InputFile
     sed -i '/^REACTION.*/c\REACTION = '${KineticsFileInDtb} $InputFile
     sed -i '/^T_BATH.*/c\T_BATH = '${TTran}'.d0' $InputFile
 }
@@ -127,8 +133,8 @@ echo '  System                        = '${System}
 echo '  Vector of Translational Temp. = '${TTranVec}
 echo '  Writing Dissociation?         = '${DissFlg}
 echo '  Writing Inelastic?            = '${InelFlg}
-echo '  Writing Exchanges of Type 1?  = '${Exch1Flg}
-echo '  Writing Exchanges of Type 2?  = '${Exch2Flg}
+echo '  Writing Exchange of Type 1?   = '${Exch1Flg}
+echo '  Writing Exchange of Type 2?   = '${Exch2Flg}
 echo '------------------------------------------------------'
 echo ' '
 
