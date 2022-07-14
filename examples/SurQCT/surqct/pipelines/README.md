@@ -26,11 +26,11 @@
     ```
     $ ./Main
     ```
-    to run the Master Equation.
+    to simulate the Master Equation.
 
 5. **MCoarseAir**
 
-    In `MCoarseAir/Exec` modify appropriately the main file correspoinfg the chemical system you are studing and run it as follows
+    In `MCoarseAir/Exec` modify appropriately the main file correspoing the chemical system you are studing and run it as follows
     ```
     $ ./matlab <main-file>
     ```
