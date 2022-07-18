@@ -19,11 +19,11 @@ T_BATH = 1500.d0
 #Time-grid parameters
 TS = 0.d0
 TE = 1.d-1
-DT_MAX = 1.d0
+DT_MAX = 1.d-2
 DT_MIN = 1.d-14 
 SF = 1.015d0
 
 #---------------------------
 #ODE solver settings
-ATOL = 1.d-15
+ATOL = 1.d-12
 RTOL = 1.d-9
