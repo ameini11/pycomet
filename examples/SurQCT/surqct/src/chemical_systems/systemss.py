@@ -2,6 +2,7 @@ import os
 import h5py
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 from surqct.src.utilities import utils
 from surqct.src.utilities import const
@@ -13,38 +14,57 @@ from scipy.optimize import fsolve
 
 # Chemical Components
 ###############################################################################
-class Atom():
+class ChemicalComponent():
 
     def __init__(self):
 
-        self.Name       = ''
+        self.Name       = None
         self.Mass       = 0.
         self.NLevels    = 1
 
-        self.Qe         = 1.
+        self.g          = 1.
         self.EInt       = 0.
 
         self.Ef         = 0.
 
+    def compute_partition_fn(self, TTranVec, Modes=['Trans']):
+        self.PFData = {}
+        for Mode in tf.nest.flatten(Modes):
+            if Mode == 'Int':
+                self.PFData[Mode]                   = pd.DataFrame()
+                self.PFData[Mode][str(int(TTran))]  = self.g*np.exp(-self.EInt*const.EV_to_J/(const.UKB*TTran))
+            elif Mode == 'Trans':
+                self.PFData[Mode]                   = pd.DataFrame()
+                self.PFData[Mode][str(int(TTran))]  = np.power(2.*np.pi*self.Mass*const.UKB/(const.UH**2)*TTran, 3./2.)
+            elif Mode == 'Chem':
+                self.PFData[Mode]                   = pd.DataFrame()
+                self.PFData[Mode][str(int(TTran))]  = np.exp(-self.Ef/(const.UKB*TTran))
+            else:
+                utils.raise_value_err(f"Mode '{Mode}' not valid for partition function calculation.")
 
-class Molecule():
+
+class Atom(ChemicalComponent):
 
     def __init__(self):
+        super(Atom, self).__init__()
+        
 
-        self.Name               = ''
-        self.Mass               = 0.
-        self.NLevels            = 1
+class Molecule(ChemicalComponent):
+
+    def __init__(self):
+        super(Atom, self).__init__()
+
         self.PathToDiatFile     = None
 
         self.DegeneracyFactor   = [1., 1.]
         self.Qe                 = 1.
 
-        self.Ef                 = 0.
-
     def read_diatdata(self):
 
         self.DiatData           = pd.read_csv(self.PathToDiatFile, delimiter=r"\s+", skiprows=15, header=None)
-        self.DiatData.columns   = ['vqn','jqn','EInt','EGam','rMin','rMax','VMin','VMax','Tau','ri','ro']
+        self.DiatData.columns   = ['vqn','jqn','EEh','Egam','rMin','rMax','VMin','VMax','Tau','rIn','rOut']
+        self.DiatData['EeV']    = self.DiatData['EEh'] * const.HA_to_EV
+        self.DiatData['EInt']   = self.DiatData['EEh']
         self.DiatData.sort_values(by=['EInt'])
 
         self.NLevels            = len(self.DiatData)
@@ -59,11 +79,9 @@ class Molecule():
         for k in ('EInt','EVib','ERot'):
             self.DiatData[k+'0']  = self.DiatData[k] - np.amin(self.DiatData[k])
 
-    def compute_partition_fn(self, TTranVec):
-        self.PFData = pd.DataFrame()
-        for TTran in TTranVec:
-            self.PFData[str(int(TTran))] = self.DiatData['g'] * np.exp( - self.DiatData['EInt0'] * const.EV_to_J / (const.UKB*TTran) )
-        return self.PFData
+        # For Master Equation simulations
+        self.g      = self.DiatData['g'].to_numpy()
+        self.EInt   = self.DiatData['EInt0'].to_numpy()
 
     def compute_degeneracy(self):
         jqn = self.DiatData['jqn'].to_numpy().astype(float)
@@ -89,97 +107,166 @@ class Molecule():
             ERot[iLevel] = EInt[iLevel] - EVib[iLevel]
         return EVib, ERot
 
+    def save_levels(self, Path):
+
+        if os.path.exists(Path):
+            f = h5py.File(Path, 'a')
+        else:
+            f = h5py.File(Path, 'w')
+
+        if self.Name not in f.keys():
+            grp = f.create_group(self.Name)
+        else:
+            del f[self.Name]
+        for k in ['g','vqn','jqn','EEh','EeV','Egam','rMin','rMax','VMin','VMax','Tau','rIn','rOut']:
+            grp.create_dataset(f'Level{k}', data=self.DiatData[k].to_numpy(), compression="gzip", compression_opts=9)
+        grp.create_dataset('NLevels', data=np.array(self.NLevels), compression="gzip", compression_opts=9)
+        grp.create_dataset('DissE',   data=np.array(self.DissE),   compression="gzip", compression_opts=9)
+
+        f.close()
+
 
 # Thermochemical Processes
 ###############################################################################
-class ThermochemicalProc():
+class ThermochemicalProcesses():
 
     def __init__(self, System, ProcBool, PathToHDF5File=None, CompInOut=None):
 
         self.System          = System
-        self.ProcBool        = ProcBool
         self.PathToHDF5File  = PathToHDF5File
-        self.CompInOut       = CompInOut
 
+        self.ProcBool        = ProcBool
+        self.ProcNames       = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
+
+        self.CompInOut       = CompInOut
         if self.CompInOut is None:
             self.CompInOut   = {
                 'Diss': {
-                    'In':  {
-                        'Molecules':    [self.System.Molecules[0]],
-                        'Atoms':        [self.System.Atoms[0]]
-                    },
-                    'Out':  {
-                        'Molecules':    None,
-                        'Atoms':        self.System.Atoms
-                    }
+                    'In':  (self.System.Molecules[0], self.System.Atoms[0]),
+                    'Out': tuple(self.System.Atoms)
                 },
                 'Inel': {
-                    'In':  {
-                        'Molecules':    [self.System.Molecules[0]],
-                        'Atoms':        [self.System.Atoms[0]]
-                    },
-                    'Out':  {
-                        'Molecules':    [self.System.Molecules[0]],
-                        'Atoms':        [self.System.Atoms[0]]
-                    }
+                    'In':  (self.System.Molecules[0], self.System.Atoms[0]),
+                    'Out': (self.System.Molecules[0], self.System.Atoms[0])
                 },
                 'Exch_1': {
-                    'In':  {
-                        'Molecules':    [self.System.Molecules[0]],
-                        'Atoms':        [self.System.Atoms[0]]
-                    },
-                    'Out':  {
-                        'Molecules':    [self.System.Molecules[0]],
-                        'Atoms':        [self.System.Atoms[0]]
-                    }
+                    'In':  (self.System.Molecules[0], self.System.Atoms[0]),
+                    'Out': (self.System.Molecules[0], self.System.Atoms[0])
                 },
                 'Exch_2': {
-                    'In':  {
-                        'Molecules':    [self.System.Molecules[0]],
-                        'Atoms':        [self.System.Atoms[0]]
-                    },
-                    'Out':  {
-                        'Molecules':    [self.System.Molecules[0]],
-                        'Atoms':        [self.System.Atoms[0]]
-                    }
+                    'In':  (self.System.Molecules[0], self.System.Atoms[0]),
+                    'Out': (self.System.Molecules[0], self.System.Atoms[0])
                 }
             }
-
-        self.ProcNames       = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
 
     def init_processes(self):
         self.Proc            = {k: None for k in self.ProcNames}
         for i, k in enumerate(self.Proc.keys()):
             if self.ProcBool[i]:
-                self.Proc[k] = Process(Name=k, Dtb=self.PathToHDF5File, CompInOut=self.CompInOut[k])
+                self.Proc[k] = Process(Name=k, System=System, Dtb=self.PathToHDF5File, CompInOut=self.CompInOut[k])
 
 class Process():
 
-    def __init__(self, Name, Dtb, CompInOut):
+    def __init__(self, Name, System, Dtb, CompInOut):
 
         self.Name       = Name
         self.Dtb        = Dtb
+        self.System     = System
         self.CompInOut  = CompInOut
 
     def read_rates(self, TTran, TInt, Dtb=None):
 
-        if Dtb is None:
-            Dtb = self.Dtb
+        if (Syst.NAtoms == 3):
 
-        if os.path.exists(Dtb):
-            f = h5py.File(Dtb, 'r')
+            if Dtb is None:
+                Dtb = self.Dtb
+
+            if os.path.exists(Dtb):
+                f = h5py.File(Dtb, 'r')
+            else:
+                utils.raise_value_err(f"File '{Dtb}' not found.")
+
+            TStr    = f'/T_{int(TTran)}_{int(TInt)}/Rates/'
+            Rates   = f[TStr][self.Name][()]
+
+            if self.Name == 'Diss':
+                Rates = Rates[:,0:1]
+
+            f.close()
+            return Rates
+
         else:
-            utils.raise_value_err(f"File '{Dtb}' not found.")
+            raise NotImplementedError
 
-        TStr    = f'/T_{int(TTran)}_{int(TInt)}/Rates/'
-        Rates   = f[TStr][self.Name][()]
 
-        if self.Name == 'Diss':
-            Rates = Rates[:,0:1]
+    def save_rates(self, Path):
 
-        f.close()
+        if (self.System.NAtoms == 3):
 
-        self.Rates = Rates
+            f = h5py.File(Path, 'a')
+
+            TStr = 'T_' + str(int(self.TTra)) + '_' + str(int(self.TInt)) + '/Rates/'       
+            if TStr in f.keys():
+                grp               = f[TStr]
+
+                Data      = grp["Diss"]
+                Data[...] = self.Proc[0].Rates
+                Data      = grp["Inel"]
+                Data[...] = self.Proc[1].Rates
+
+                for iProc in range(2, Syst.NProcTypes):
+                    ExchStr   = "Exch_" + str(iProc-1)
+                    Data      = grp[ExchStr]
+                    Data[...] = self.ProcExch[iProc-2].Rates
+
+            else:
+                grp           = f.create_group(TStr)
+
+                Proc0         = grp.create_dataset("Diss", data=self.Proc[0].Rates, compression="gzip", compression_opts=9)
+                Proc1         = grp.create_dataset("Inel", data=self.Proc[1].Rates, compression="gzip", compression_opts=9)
+
+                for iProc in range(2, Syst.NProcTypes):
+                    ExchStr   = "Exch_" + str(iProc-1)
+                    ProcExchi = grp.create_dataset(ExchStr, data=self.ProcExch[iProc-2].Rates, compression="gzip", compression_opts=9)
+
+            f.close()
+
+        else:
+            
+            PathToFile = Syst.PathToHDF5File
+            f          = h5py.File(PathToFile, 'a')
+
+            TStr = 'T_' + str(int(self.TTra)) + '_' + str(int(self.TInt)) + '/Rates/'       
+            if TStr in f.keys():
+                grp               = f[TStr]
+
+                Data      = grp["Diss"]
+                Data[...] = self.DissRates
+                Data      = grp["DissInel"]
+                Data[...] = self.Proc[0].Rates
+                Data      = grp["Inel"]
+                Data[...] = self.Proc[1].Rates
+
+                for iProc in range(2, Syst.NProcTypes):
+                    ExchStr   = "Exch_" + str(iProc-1)
+                    Data      = grp[ExchStr]
+                    Data[...] = self.ProcExch[iProc-2].Rates
+
+            else:
+                grp           = f.create_group(TStr)
+
+                Proc00        = grp.create_dataset("Diss",     data=self.DissRates,     compression="gzip", compression_opts=9)
+                Proc0         = grp.create_dataset("DissInel", data=self.Proc[0].Rates, compression="gzip", compression_opts=9)
+                Proc1         = grp.create_dataset("Inel",     data=self.Proc[1].Rates, compression="gzip", compression_opts=9)
+
+                for iProc in range(2, Syst.NProcTypes):
+                    ExchStr   = "Exch_" + str(iProc-1)
+                    ProcExchi = grp.create_dataset(ExchStr,    data=self.ProcExch[iProc-2].Rates, compression="gzip", compression_opts=9)
+
+            f.close()
+
+        else:
+            raise NotImplementedError
 
 
 # 0D Master Equation Simulation

@@ -36,8 +36,8 @@ def generate_trainingdata(
     reading.read_levelsinfo(InputData, System, TTranVec)
         
     # In/Out Molecules
-    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In']['Molecules'][0]
-    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out']['Molecules'][0]
+    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In'][0]
+    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out'][0]
 
     # Initializing Quantities
     iIdxData         = pd.DataFrame(columns = ['Idx_i'])
@@ -72,10 +72,8 @@ def generate_trainingdata(
             iIdxVec = reading.read_sampledinitiallevels_grouping(InputData.PathToGrouping[MolIn.Name], InputData.NSamplesPerGroup, InputData.iLevelsSeedsVec[iT])
         elif (InputData.iLevelsIntFlg == 4):
             iIdxVec = reading.read_sampledinitiallevels(InputData.PathToSampledLevels[MolIn.Name], TTranVec[iT])
-            
-        # utils.print_submain('Looping over the following Vector of Initial Levels:', delimiter='    ')
-        # utils.print_submain(f'{iIdxVec}', delimiter='    ')
-        iIdxVec     = np.array(iIdxVec) - 1
+        if np.amin(iIdxVec) != 0:
+            iIdxVec = np.array(iIdxVec) - 1
 
         for iIdx in tqdm(iIdxVec):
 
@@ -247,8 +245,8 @@ def generate_testingdata(
     reading.read_levelsinfo(InputData, System, TTranVec)
         
     # In/Out Molecules
-    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In']['Molecules'][0]
-    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out']['Molecules'][0]
+    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
 
     # Initializing Quantities
     iIdxData         = pd.DataFrame(columns = ['Idx_i'])
@@ -262,9 +260,7 @@ def generate_testingdata(
 
     # Initial Levels
     iIdxVec = InputData.iLevelsVecTest
-    # utils.print_submain('Looping over the following Vector of Initial Levels:', delimiter='    ')
-    # utils.print_submain(f'{iIdxVec}', delimiter='    ')
-    iIdxVec     = np.array(iIdxVec) - 1
+    iIdxVec = np.array(iIdxVec) - 1
 
     for iT in range(NTTran):
 
@@ -406,8 +402,8 @@ def generate_predictiondata(
     reading.read_levelsinfo(InputData, System, TTranVec)
         
     # In/Out Molecules
-    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In']['Molecules'][0]
-    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out']['Molecules'][0]
+    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
 
     # Initializing Quantities
     iIdxData         = pd.DataFrame(columns = ['Idx_i'])
@@ -627,8 +623,8 @@ def plot_prediction2D(
     TrueData,
     PredData
 ):
-    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In']['Molecules'][0]
-    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out']['Molecules'][0]
+    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
     
     # i-th level data
     v = MolIn.DiatData['vqn'].to_numpy()[iIdx].astype(int)
@@ -662,8 +658,8 @@ def plot_prediction3D(
     TrueData,
     PredData
 ):
-    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In']['Molecules'][0]
-    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out']['Molecules'][0]
+    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
     
     # i-th level data
     v = MolIn.DiatData['vqn'].to_numpy()[iIdx].astype(int)
