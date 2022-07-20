@@ -6,7 +6,7 @@ function Initialize_Input()
 
     %%==============================================================================================================
     % 
-    % Coarse-Grained method for Quasi-Classical Trajectories (CG-QCT) 
+    % Coarse-Grained method for Quasi-Classical Trafjectories (CG-QCT) 
     % 
     % Copyright (C) 2018 Simone Venturi and Bruno Lopez (University of Illinois at Urbana-Champaign). 
     %
@@ -69,7 +69,7 @@ function Initialize_Input()
     end
     Input.Kin.Proc.OverallFlg = strcat(num2str(Input.Kin.Proc.DissFlg),'_',num2str(Input.Kin.Proc.InelFlg),'_',num2str(Input.Kin.Proc.ExchFlg1),'_',num2str(Input.Kin.Proc.ExchFlg2), TempStr);
 
-    Syst.iPES = ''
+    Syst.iPES = '';
     if (Input.iPES > 0)
         Syst.iPES = strcat('_PES', num2str(Input.iPES));
     end

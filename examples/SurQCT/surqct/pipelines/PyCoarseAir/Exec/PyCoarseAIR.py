@@ -24,11 +24,12 @@ import numpy as np
 ##==============================================================================================================
 print("\n[PyCoarseAIR]: Defining Paths")
 
-WORKSPACE_PATH  = '/home/zanardi/WORKSPACE/'                                                                    # It is NOT REQUIRED to change this path
-CoarseAIRFldr   = WORKSPACE_PATH + '/NeqPlasma/CoarseAIR/coarseair/'                                            # It is NOT REQUIRED to change this path
-PyCoarseAIRFldr = WORKSPACE_PATH + '/NeqPlasma/PyCoarseAIR/'                                                    # <--- Please, CHANGE this path to the folder of the PyCoarseAIR Code
+WORKSPACE_PATH  = '/home/zanardi/Workspace/'                                                        # It is NOT REQUIRED to change this path
+CODES_PATH      = '/home/zanardi/Codes/'                                                            # It is NOT REQUIRED to change this path
+CoarseAIRFldr   = CODES_PATH + '/CoarseAIR/coarseair/'                                              # It is NOT REQUIRED to change this path
+PyCoarseAIRFldr = CODES_PATH + '/PyCoarseAIR/pycoarseair/'                                          # <--- Please, CHANGE this path to the folder of the PyCoarseAIR Code
 
-DtbHDF5Fldr     = WORKSPACE_PATH + '/AirDatabase/HDF5/Orig/'                                                    # <--- Please, CHANGE this path to the folder containing the HDF5 File
+DtbHDF5Fldr     = WORKSPACE_PATH + '/AirDatabase/HDF5/Orig/'                                        # <--- Please, CHANGE this path to the folder containing the HDF5 File
 DtbWriteFldr    = WORKSPACE_PATH + '/AirDatabase/Run0D/database/'
 OutputWriteFldr = ''
 ##--------------------------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ set -e
 # Inputs
 ###############################################################################
 # Misc
-export NUM_THREADS=4
+export NUM_THREADS=8
 export System='O3_UMN'
 export KinMainSource='QCT'    # QCT SurQCT
 # Paths
@@ -15,10 +15,8 @@ export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
 export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$KinMainSource/$System/
 export PathToSurQCT=$WORKSPACE_PATH/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
 # Heat Bath Conditions
-export TTranVec=(1500)
-export InputSuffixVec=('.relax')
-# export TTranVec=(1500 2500 5000 6000 8000 10000 12000 14000 15000 20000)
-# export InputSuffixVec=('.relax' '.relax' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit')
+export TTranVec=(1500 2500 5000 6000 8000 10000 12000 14000 15000 20000)
+export InputSuffixVec=('.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit')
 # Processes
 export DissFlg=2
 export InelFlg=1
@@ -121,7 +119,7 @@ Initialize_0D_Case () {
 StartTime=`date +%s`
 echo ' '
 echo '------------------------------------------------------'
-echo '  Environment:'
+echo '  Loading Plato Environment'
 echo '------------------------------------------------------'
 module load plato
 echo ' '
@@ -139,7 +137,7 @@ echo '------------------------------------------------------'
 echo '  Inputs:'
 echo '------------------------------------------------------'
 echo '  System                        = '${System}
-echo '  Vector of Translational Temp. = '${TTranVec}
+echo '  Vector of Translational Temp. = '"${TTranVec[*]}"
 echo '  Writing Dissociation?         = '${DissFlg}
 echo '  Writing Inelastic?            = '${InelFlg}
 echo '  Writing Exchange of Type 1?   = '${Exch1Flg}

@@ -1,0 +1,4 @@
+
+
+matlab -nodesktop -r "run('MCoarseAir/Exec/O3_UMN.m');exit;"
+

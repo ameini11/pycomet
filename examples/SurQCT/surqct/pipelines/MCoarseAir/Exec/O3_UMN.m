@@ -31,11 +31,13 @@ global Input Syst Temp Param Kin Rates OtherSyst OtherRates
 %%%% SPECIFYING INPUT 
 
 %% System Inputs
-Input.WORKSPACE_PATH            = '/home/zanardi/WORKSPACE/';
+Input.HOME_PATH                 = '/home/zanardi/';
+Input.CODES_PATH                = strcat(Input.HOME_PATH, '/Codes/');
+Input.WORKSPACE_PATH            = strcat(Input.HOME_PATH, '/Workspace/');
 
 % CoarseAir
-Input.Paths.CoarseAirSrc        = strcat(Input.WORKSPACE_PATH, '/NeqPlasma/CoarseAIR/coarseair/');
-Input.Paths.CoarseAirRun        = strcat(Input.WORKSPACE_PATH, '/NeqPlasma/CoarseAIR/run/');
+Input.Paths.CoarseAirSrc        = strcat(Input.CODES_PATH, '/CoarseAIR/coarseair/');
+Input.Paths.CoarseAirRun        = strcat(Input.CODES_PATH, '/CoarseAIR/run/');
 Input.Paths.ToQCTFldr           = strcat(Input.Paths.CoarseAirRun, '/O3_UMN/Test/');
 
 % SurQCT
@@ -45,7 +47,7 @@ Input.Paths.SurQCTSrc           = strcat(Input.WORKSPACE_PATH, '/ML/PyCOMET/pyco
 Input.Paths.ToKinMainFldr       = strcat(Input.WORKSPACE_PATH, '/AirDatabase/Run0D/');
 
 Input.Paths.ToHDF5Fldr          = strcat(Input.WORKSPACE_PATH, '/AirDatabase/HDF5/Orig/');   % Orig / SurQCT
-Input.TranVec                   = [1500, 5000, 10000, 20000];
+Input.TranVec                   = [1500]; %, 2500, 5000, 6000, 8000, 10000, 12000, 14000, 15000, 20000];
 Input.SystNameLong              = 'O3_UMN';
 Input.iPES                      = 0;
 Input.KinSource                 = 'QCT';        % QCT / SurQCT
@@ -71,10 +73,10 @@ Input.Kin.NBinsSuffix           = 0;
 Input.Kin.DissCorrFactor        = 16.0/3.0;
 Input.Kin.Proc.DissInelFlg      = 0;
 Input.Kin.Proc.InelFlg          = 1;
-Input.Kin.Proc.ExchFlg1         = 0;
+Input.Kin.Proc.ExchFlg1         = 1;
 Input.Kin.Proc.ExchFlg2         = 0;
 
-Input.Kin.ReadRatesProc         = [0, 0, 2, 0]; % [Diss, Inel, Exch1, Exch2]
+Input.Kin.ReadRatesProc         = [0, 2, 2, 0]; % [Diss, Inel, Exch1, Exch2] | [0: None, 1: Fwd, 2: Fwd+Bwd, 3: Grouped Fwd]
 Input.Kin.RateSource            = 'HDF5'; % CoarseAIR / CG-QCT / HDF5 / PLATO
 Input.Kin.ReadOtherSyst         = [];
 Input.Kin.OtherSystInHDF5       = [];
@@ -177,7 +179,7 @@ Input.Tasks.Plot_EnergyDepletions.Targ                 = [2];
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%% Add MCoarseAir to MATLAB Search Path
 addpath(genpath(strcat(Input.Paths.CoarseAirSrc, '/extra/MCoarseAIR/')));
-addpath(genpath(strcat(Input.Paths.SurQCTSrc, '/src/postprocessing/MCoarseAir/')));
+addpath(genpath(strcat(Input.Paths.SurQCTSrc, '/pipelines/MCoarseAir/')));
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
