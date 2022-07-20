@@ -11,7 +11,7 @@ def manipulate_diatdata(DiatData, RefValue, NormValue):
         DiatData[k] = (DiatData[k] - RefValue)
 
     # Taking differences
-    keys = ('ro','ri','rMax','rMin')
+    keys = ('rOut','rIn','rMax','rMin')
     for k1 in keys:
         for k2 in keys:
             if k1 != k2:
@@ -22,7 +22,7 @@ def manipulate_diatdata(DiatData, RefValue, NormValue):
         DiatData[k] = DiatData[k] / NormValue
     
     rMin, rMax = np.amin(DiatData['rMin']), np.amax(DiatData['rMax'])
-    for k in ('ri','ro','rMin','rMax'):
+    for k in ('rIn','rOut','rMin','rMax'):
         DiatData[k+'/rMin_min'] = DiatData[k] / rMin
         DiatData[k+'/rMax_max'] = DiatData[k] / rMax
     DiatData['Tau/Tau_max'] = DiatData['Tau'] / np.amax(DiatData['Tau'])

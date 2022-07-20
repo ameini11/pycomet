@@ -5,7 +5,8 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-from surqct.src.Utils import Reading
+from surqct.src.utilities import utils
+from surqct.src.utilities import reading
 
 
 # Generating data

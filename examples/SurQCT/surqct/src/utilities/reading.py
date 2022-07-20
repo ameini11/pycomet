@@ -14,7 +14,7 @@ def read_levelsinfo(
     utils.print_submain(f'Reading Variables {InputData.xDiatVars}')
     for Mol in System.Molecules:
         Mol.LevelsData  = read_levelsdata(InputData.PathToLevelsFile[Mol.Name], InputData.xDiatVars)
-        Mol.PFData      = Mol.compute_partition_fn(TTranVec, Modes)
+        Mol.compute_partition_fn(TTranVec, Modes)
 
 def read_levelsdata(
     DataFile,

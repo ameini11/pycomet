@@ -10,14 +10,16 @@ from surqct.src.utilities import utils
 ###############################################################################
 class Processes():
 
-    def __init__(self, System, ProcBool, PathToHDF5File, CompInOut=None):
+    def __init__(self, System, PathToHDF5File=None, ProcBool=None, ProcNames=None, CompInOut=None):
 
         self.System         = System
         self.PathToHDF5File = PathToHDF5File
 
         self.ProcBool       = ProcBool
-        self.ProcNames      = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
+        self.ValidProcNames = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
         self.Rates          = {}
+        if self.ProcBool is None:
+            self.ProcBool = self.ValidProcNames == np.array(tf.nest.flatten(ProcNames))
 
         self.CompInOut      = CompInOut
         if self.CompInOut is None:
@@ -47,8 +49,8 @@ class Processes():
             else:
                 utils.raise_value_err(f"File '{self.PathToHDF5File}' not found.")
 
-            for i, k in enumerate(self.ProcNames.keys()):
-                if self.ProcBool[i] > 0:
+            for i, k in enumerate(self.ValidProcNames):
+                if self.ProcBool[i]:
                     self.Rates[k] = {}
                     for TTran in tf.nest.flatten(TTranVec):
                         Ti = str(int(TTran))

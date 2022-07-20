@@ -20,6 +20,7 @@ from surqct import config as cfg
 from surqct.apps import functions as fun
 
 from surqct.src.utilities import utils
+from surqct.src.chemical_systems import systems as syst
 from surqct.src.rates_type.rates_type import get_rates_type_mod
 
 
@@ -73,7 +74,11 @@ def main(args):
         f"Initializing '{InputData.SystemName}' chemical system ...",
         start=''
     )
-    System = fun.init_chemical_system(InputData)
+    System = syst.get_system(
+        NameLong=InputData.SystemName,
+        ProcNames=InputData.RatesType,
+        PathToHDF5File=InputData.PathToHDF5File
+    )
     # Initializing rates type module
     rates_type_mod = get_rates_type_mod(System)
 
@@ -104,7 +109,8 @@ def main(args):
 
         # Generating
         TestData = rates_type_mod.generate_testingdata(InputData, System)
-        # Saving
+
+        utils.print_main('Saving labeled testing data points ...')
         TestData = pd.concat(TestData, axis=1)
         TestData.to_csv(args.dir+'/data/test/labeled.csv', index=False, float_format='%.10e')
         utils.print_submain('Number of labeled testing pts:   %10d' % len(TestData))

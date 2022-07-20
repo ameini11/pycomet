@@ -41,7 +41,7 @@ mpl_cfg = {
 
 # Paths -----------------------------------------------------------------------
 CoarseAIR = '/home/zanardi/WORKSPACE/NeqPlasma/CoarseAIR/coarseair/'
-MERuns    = '/home/zanardi/WORKSPACE/AirDatabase/Run0D/run/'
+MERuns    = '/home/zanardi/WORKSPACE/AirDatabase/Run0D/'
 HDF5Dtb   = '/home/zanardi/WORKSPACE/AirDatabase/HDF5/'
 
 # Standard output -------------------------------------------------------------

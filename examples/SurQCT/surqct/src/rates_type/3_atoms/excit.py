@@ -54,7 +54,7 @@ def generate_trainingdata(
         InputData.iLevelsSeedsVec = tf.nest.flatten(InputData.iLevelsSeedsVec)
 
     # Reading Rates at Temperatures TTranVec
-    utils.print_submain('Reading Rates ...')
+    utils.print_submain(f"Reading '{InputData.RatesType}' Rates ...")
     System.Processes.read_rates(TTranVec)
     Rates = System.Processes.Rates[InputData.RatesType]
 
@@ -266,14 +266,18 @@ def generate_testingdata(
     iIdxVec = InputData.iLevelsVecTest
     iIdxVec = np.array(iIdxVec) - 1
 
+    # Reading Rates at Temperatures TTranVec
+    utils.print_submain(f"Reading '{InputData.RatesType}' Rates ...")
+    System.Processes.read_rates(TTranVec)
+    Rates = System.Processes.Rates[InputData.RatesType]
+
     for iT in range(NTTran):
 
         TTranStr = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K')
 
-        # Reading Rates at Temperature TTranVec[iT]
-        Rates  = System.ThermochemicalProc.Proc[InputData.RatesType].read_rates(TTranVec[iT], TTranVec[iT])
-        KMatoI = copy.deepcopy(Rates)
+        # Rates Matrix at Temperature TTranVec[iT]
+        KMatoI = copy.deepcopy(Rates[TTranStr])
 
         for iIdx in tqdm(iIdxVec):
 
@@ -704,99 +708,272 @@ def plot_prediction3D(
 
 # Writing
 ###############################################################################
-def write_predictiondata(
+def save_predictiondata(
     InputData,
     System,
     Model,
-    KineticFldr,
-    TTran,
+    TTranVec,
+    PathToHDF5,
     Columns=None
 ):
-    TTranStr = str(int(TTran))
-    utils.print_submain(f'Generating Rate Matrix at Translational Temperature: T = {TTranStr} K')
+    utils.print_submain(f'Generating {InputData.RatesType} Rate Matrix')
+    NTTran = len(TTranVec)
 
     # Reading Levels Info of Initial and Final Molecules
-    reading.read_levelsinfo(InputData, System, [TTran])
+    reading.read_levelsinfo(InputData, System, TTranVec)
 
     # In/Out Components
-    CompInOut   = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut
-    MolIn       = CompInOut['In']['Molecules'][0]
-    MolOut      = CompInOut['Out']['Molecules'][0]
+    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
 
-    # Reading Levels Info of Initial and Final Molecules
-    PathToKineticFldr = os.path.abspath(KineticFldr + '/T' + TTranStr + 'K')
-    try:
-        os.makedirs(PathToKineticFldr)
-    except OSError as e:
-        pass
-    
-    # Opening Files for Writing Rates
-    FileHandler = writing_steps(InputData, PathToKineticFldr=PathToKineticFldr)
+    # Initialize HDF5
+    if os.path.exists(PathToHDF5):
+        f = h5py.File(PathToHDF5, 'a')
+    else:
+        f = h5py.File(PathToHDF5, 'w')
 
-    # Loop on Initial States
-    for iIdx in tqdm(range(1, CompInOut['In']['Molecules'][0].NLevels)):
+    # Loop over temperatures
+    for TTran in TTranVec:
 
-        jIdxVec                 = np.arange(iIdx)
-        jNLevels                = len(jIdxVec)
-        kIdxVec                 = [iIdx]*jNLevels
-
-        # Prediction Data
-        BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
-        if Columns is not None:
-            Input               = np.hstack([BranchInput, TrunkInput])
-            BranchInput         = np.take(Input, Columns[0], axis=1)
-            TrunkInput          = np.take(Input, Columns[1], axis=1)
-
-        KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
-        if InputData.RatesLogScale:
-            KExcitPred          = np.exp(KExcitPred)
-        KExcitPred              = KExcitPred / InputData.MultFact
-
-        # Mask from min value
-        jIdxVec                 = np.where(KExcitPred >= InputData.MinRateValue)[0]
-
-        FileHandler             = writing_steps(InputData, iFlg=0, FileHandler=FileHandler, iLevel=iIdx, jLevelVec=jIdxVec, KVec=KExcitPred, CompInOut=CompInOut)
-
-    # Closing Files for Rates
-    FileHandler                 = writing_steps(InputData, PathToKineticFldr=PathToKineticFldr, iFlg=1, FileHandler=FileHandler)
-
-def writing_steps(
-    InputData,
-    PathToKineticFldr=None,
-    iFlg=-1,
-    FileHandler=None,
-    iLevel=None, 
-    jLevelVec=None,
-    KVec=None,
-    CompInOut=None
-):
-    if (iFlg == -1):
-
-        utils.print_submain(f'Writing Kinetics File {PathToKineticFldr}', delimiter='    ')
-        if InputData.RatesType == 'Inel':
-            InputData.ProcessIndex = 5
-            KineticFile = PathToKineticFldr + '/Inel.dat'
-        elif InputData.RatesType == 'Exch_1':
-            InputData.ProcessIndex = 6
-            KineticFile = PathToKineticFldr + '/Exch_Type1.dat'
-        elif InputData.RatesType == 'Exch_2':
-            InputData.ProcessIndex = 6
-            KineticFile = PathToKineticFldr + '/Exch_Type2.dat'
+        # Initialize group in HDF5
+        GrpName = f'T_{TTran}_{TTran}/Rates/'
+        if GrpName not in f.keys():
+            Grp = f.create_group(GrpName)
         else:
-            raise ValueError
-        FileHandler = open(KineticFile, 'w')
+            Grp = f[GrpName]
 
-    elif (iFlg == 0):
+        # Initialize rate matrix
+        RateMatrix = np.zeros((MolIn.NLevels, MolOut.NLevels))
 
-        for i in range(len(jLevelVec)):
-            Reactants = CompInOut['In']['Molecules'][0].Name  + '(' + str(iLevel+1)       + ')+' + CompInOut['In']['Atoms'][0].Name
-            Products  = CompInOut['Out']['Molecules'][0].Name + '(' + str(jLevelVec[i]+1) + ')+' + CompInOut['Out']['Atoms'][0].Name
-            ProcName  = Reactants + '=' + Products
-            Line      = ProcName + ':%.4e,%.4e,%.4e,%d\n' % (KVec[i], 0., 0., InputData.ProcessIndex)
-            FileHandler.write(Line)
+        # Loop on Initial States
+        for iIdx in tqdm(range(1, MolIn.NLevels)):
 
-    elif (iFlg == 1):
-        utils.print_submain(f'Closing Kinetics File {PathToKineticFldr}', delimiter='    ')
-        FileHandler.close()
+            jIdxVec                 = np.arange(iIdx)
+            jNLevels                = len(jIdxVec)
+            kIdxVec                 = [iIdx]*jNLevels
 
-    return FileHandler
+            # Prediction Data
+            BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
+            if Columns is not None:
+                Input               = np.hstack([BranchInput, TrunkInput])
+                BranchInput         = np.take(Input, Columns[0], axis=1)
+                TrunkInput          = np.take(Input, Columns[1], axis=1)
+
+            KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
+            if InputData.RatesLogScale:
+                KExcitPred          = np.exp(KExcitPred)
+            KExcitPred              = KExcitPred / InputData.MultFact
+
+            # Feeding rate matrix
+            RateMatrix[iIdx, jIdxVec] = KExcitPred.squeeze()
+
+        # Saving rate matrix in HDF5
+        if InputData.RatesType in Grp.keys():
+            del f[GrpName+'/'+InputData.RatesType]
+        Grp.create_dataset(InputData.RatesType, data=RateMatrix, compression="gzip", compression_opts=9)
+
+    f.close()
+
+# # Writing
+# ###############################################################################
+# def write_predictiondata(
+#     InputData,
+#     System,
+#     Model,
+#     KineticFldr,
+#     TTran,
+#     Columns=None
+# ):
+#     if os.path.exists(Path):
+#         f = h5py.File(Path, 'a')
+#     else:
+#         f = h5py.File(Path, 'w')
+
+#     if self.Name not in f.keys():
+#         grp = f.create_group(self.Name)
+#     else:
+#         del f[self.Name]
+#     for k in DiatData.columns:
+#         grp.create_dataset(f'Level{k}', data=DiatData[k].to_numpy(), compression="gzip", compression_opts=9)
+#     grp.create_dataset('NLevels', data=np.array(self.NLevels), compression="gzip", compression_opts=9)
+#     grp.create_dataset('DissE',   data=np.array(self.DissE),   compression="gzip", compression_opts=9)
+#     grp.create_dataset('g',       data=np.array(self.g),       compression="gzip", compression_opts=9)
+
+#     f.close()
+
+
+#     HDF5Exist_Flg = path.exists(PathToFile)
+#     f = h5py.File(PathToFile, 'a')
+
+# # ***************************************************************************************************************************
+# def Save_RatesAtT_HDF5( self, Syst ):
+
+#     if (Syst.NAtoms == 3):
+
+#         PathToFile    = Syst.PathToHDF5File
+#         HDF5Exist_Flg = path.exists(PathToFile)
+#         #if (HDF5Exist_Flg):
+#         f = h5py.File(PathToFile, 'a')
+#         #else:
+#         #    f = {'key': 'value'}
+
+#         TStr = 'T_' + str(int(self.TTra)) + '_' + str(int(self.TInt)) + '/Rates/'       
+#         if TStr in f.keys():
+#             grp               = f[TStr]
+
+#             Data      = grp["Diss"]
+#             Data[...] = self.Proc[0].Rates
+#             Data      = grp["Inel"]
+#             Data[...] = self.Proc[1].Rates
+
+#             for iProc in range(2, Syst.NProcTypes):
+#                 ExchStr   = "Exch_" + str(iProc-1)
+#                 Data      = grp[ExchStr]
+#                 Data[...] = self.ProcExch[iProc-2].Rates
+
+#         else:
+#             grp           = f.create_group(TStr)
+
+#             Proc0         = grp.create_dataset("Diss", data=self.Proc[0].Rates, compression="gzip", compression_opts=9)
+#             Proc1         = grp.create_dataset("Inel", data=self.Proc[1].Rates, compression="gzip", compression_opts=9)
+
+#             for iProc in range(2, Syst.NProcTypes):
+#                 ExchStr   = "Exch_" + str(iProc-1)
+#                 ProcExchi = grp.create_dataset(ExchStr, data=self.ProcExch[iProc-2].Rates, compression="gzip", compression_opts=9)
+
+#         f.close()
+
+#     else:
+        
+#         PathToFile = Syst.PathToHDF5File
+#         f          = h5py.File(PathToFile, 'a')
+
+#         TStr = 'T_' + str(int(self.TTra)) + '_' + str(int(self.TInt)) + '/Rates/'       
+#         if TStr in f.keys():
+#             grp               = f[TStr]
+
+#             Data      = grp["Diss"]
+#             Data[...] = self.DissRates
+#             Data      = grp["DissInel"]
+#             Data[...] = self.Proc[0].Rates
+#             Data      = grp["Inel"]
+#             Data[...] = self.Proc[1].Rates
+
+#             for iProc in range(2, Syst.NProcTypes):
+#                 ExchStr   = "Exch_" + str(iProc-1)
+#                 Data      = grp[ExchStr]
+#                 Data[...] = self.ProcExch[iProc-2].Rates
+
+#         else:
+#             grp           = f.create_group(TStr)
+
+#             Proc00        = grp.create_dataset("Diss",     data=self.DissRates,     compression="gzip", compression_opts=9)
+#             Proc0         = grp.create_dataset("DissInel", data=self.Proc[0].Rates, compression="gzip", compression_opts=9)
+#             Proc1         = grp.create_dataset("Inel",     data=self.Proc[1].Rates, compression="gzip", compression_opts=9)
+
+#             for iProc in range(2, Syst.NProcTypes):
+#                 ExchStr   = "Exch_" + str(iProc-1)
+#                 ProcExchi = grp.create_dataset(ExchStr,    data=self.ProcExch[iProc-2].Rates, compression="gzip", compression_opts=9)
+
+#         f.close()
+
+
+
+# # Writing
+# ###############################################################################
+# def write_predictiondata(
+#     InputData,
+#     System,
+#     Model,
+#     KineticFldr,
+#     TTran,
+#     Columns=None
+# ):
+#     TTranStr = str(int(TTran))
+#     utils.print_submain(f'Generating Rate Matrix at Translational Temperature: T = {TTranStr} K')
+
+#     # Reading Levels Info of Initial and Final Molecules
+#     reading.read_levelsinfo(InputData, System, [TTran])
+
+#     # In/Out Components
+#     CompInOut   = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut
+#     MolIn       = CompInOut['In']['Molecules'][0]
+#     MolOut      = CompInOut['Out']['Molecules'][0]
+
+#     # Reading Levels Info of Initial and Final Molecules
+#     PathToKineticFldr = os.path.abspath(KineticFldr + '/T' + TTranStr + 'K')
+#     try:
+#         os.makedirs(PathToKineticFldr)
+#     except OSError as e:
+#         pass
+    
+#     # Opening Files for Writing Rates
+#     FileHandler = writing_steps(InputData, PathToKineticFldr=PathToKineticFldr)
+
+#     # Loop on Initial States
+#     for iIdx in tqdm(range(1, CompInOut['In']['Molecules'][0].NLevels)):
+
+#         jIdxVec                 = np.arange(iIdx)
+#         jNLevels                = len(jIdxVec)
+#         kIdxVec                 = [iIdx]*jNLevels
+
+#         # Prediction Data
+#         BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
+#         if Columns is not None:
+#             Input               = np.hstack([BranchInput, TrunkInput])
+#             BranchInput         = np.take(Input, Columns[0], axis=1)
+#             TrunkInput          = np.take(Input, Columns[1], axis=1)
+
+#         KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
+#         if InputData.RatesLogScale:
+#             KExcitPred          = np.exp(KExcitPred)
+#         KExcitPred              = KExcitPred / InputData.MultFact
+
+#         # Mask from min value
+#         jIdxVec                 = np.where(KExcitPred >= InputData.MinRateValue)[0]
+
+#         FileHandler             = writing_steps(InputData, iFlg=0, FileHandler=FileHandler, iLevel=iIdx, jLevelVec=jIdxVec, KVec=KExcitPred, CompInOut=CompInOut)
+
+#     # Closing Files for Rates
+#     FileHandler                 = writing_steps(InputData, PathToKineticFldr=PathToKineticFldr, iFlg=1, FileHandler=FileHandler)
+
+# def writing_steps(
+#     InputData,
+#     PathToKineticFldr=None,
+#     iFlg=-1,
+#     FileHandler=None,
+#     iLevel=None, 
+#     jLevelVec=None,
+#     KVec=None,
+#     CompInOut=None
+# ):
+#     if (iFlg == -1):
+
+#         utils.print_submain(f'Writing Kinetics File {PathToKineticFldr}', delimiter='    ')
+#         if InputData.RatesType == 'Inel':
+#             InputData.ProcessIndex = 5
+#             KineticFile = PathToKineticFldr + '/Inel.dat'
+#         elif InputData.RatesType == 'Exch_1':
+#             InputData.ProcessIndex = 6
+#             KineticFile = PathToKineticFldr + '/Exch_Type1.dat'
+#         elif InputData.RatesType == 'Exch_2':
+#             InputData.ProcessIndex = 6
+#             KineticFile = PathToKineticFldr + '/Exch_Type2.dat'
+#         else:
+#             raise ValueError
+#         FileHandler = open(KineticFile, 'w')
+
+#     elif (iFlg == 0):
+
+#         for i in range(len(jLevelVec)):
+#             Reactants = CompInOut['In']['Molecules'][0].Name  + '(' + str(iLevel+1)       + ')+' + CompInOut['In']['Atoms'][0].Name
+#             Products  = CompInOut['Out']['Molecules'][0].Name + '(' + str(jLevelVec[i]+1) + ')+' + CompInOut['Out']['Atoms'][0].Name
+#             ProcName  = Reactants + '=' + Products
+#             Line      = ProcName + ':%.4e,%.4e,%.4e,%d\n' % (KVec[i], 0., 0., InputData.ProcessIndex)
+#             FileHandler.write(Line)
+
+#     elif (iFlg == 1):
+#         utils.print_submain(f'Closing Kinetics File {PathToKineticFldr}', delimiter='    ')
+#         FileHandler.close()
+
+#     return FileHandler

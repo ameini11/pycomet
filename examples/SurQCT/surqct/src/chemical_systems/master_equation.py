@@ -29,7 +29,7 @@ class MasterEquation():
         self.ProcNames  = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
 
     def postprocess_data(self, PathToCase, Save=False):
-        self.MEPath = cfg.MERuns + '/' + PathToCase + '/' + self.System.NameLong
+        self.MEPath = cfg.MERuns + '/run/' + PathToCase + '/' + self.System.NameLong
         self.Data   = {}
         for ProcCode in os.scandir(self.MEPath):
             ProcBool            = [int(i) for i in ProcCode.split('_')]

@@ -78,7 +78,7 @@ class kinetics(object):
         self.WriteQB_IntFlg             = 2
         self.WriteFormat                = 'PLATO'
 
-        self.WriteMicroRevCorrection    = True
+        self.WriteMicroRevCorrection    = False
         #self.SytOfComplemExch           = 'O3_UMN'
         #self.ProcOfComplemExch          = np.array([2], dtype=np.int64)
 

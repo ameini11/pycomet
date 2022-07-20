@@ -19,7 +19,7 @@ from surqct.apps import functions as fun
 
 from surqct.src.utilities import utils
 from surqct.src.preprocessing import input_manipulation
-from surqct.src.chemical_systems import chemical_systems as chem_sys
+from surqct.src.chemical_systems import systems as syst
 
 
 # Parse arguments
@@ -60,7 +60,7 @@ def main(args):
         f"Initializing '{InputData.SystemName}' chemical system ...",
         start=''
     )
-    System = chem_sys.get_system(InputData.SystemName)
+    System = syst.get_system(InputData.SystemName)
     for Mol in System.Molecules:
         Mol.read_diatdata()
 

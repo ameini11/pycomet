@@ -1,5 +1,5 @@
 def get_rates_type_mod(System):
-    if System.ThermochemicalProc.ProcBool[0]:
+    if System.Processes.ProcBool[0]:
         RatesType = 'diss'
     else:
         RatesType = 'excit'

@@ -27,7 +27,7 @@ class Component():
     def compute_partition_fn(self, TTranVec, Modes=['Int']):
         Modes       = tf.nest.flatten(Modes)
         ValidModes  = ('Int', 'Trans', 'Chem')
-        self.PFData = {k: pd.DataFrame() if Mode in ValidModes for Mode in Modes}
+        self.PFData = {Mode: pd.DataFrame() for Mode in Modes if Mode in ValidModes}
         for Mode in Modes:
             for TTran in TTranVec:
                 if Mode == 'Int':
@@ -47,7 +47,7 @@ class Atom(Component):
 class Molecule(Component):
 
     def __init__(self):
-        super(Atom, self).__init__()
+        super(Molecule, self).__init__()
 
         self.NAtoms             = 2
 

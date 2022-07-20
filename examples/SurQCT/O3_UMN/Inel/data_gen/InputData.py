@@ -17,7 +17,7 @@ PathToLevelsFile    = {'O2': PathToLevelsFld + 'O3_UMN/O2/VMin_VMax.csv'}
 # Input variables
 # -----------------------------------------------------------------------------
 # i-th and j-th states
-xDiatVars           = ['log_EVib','log_ERot','log_VMax','log_ro']
+xDiatVars           = ['log_EVib','log_ERot','log_VMax','log_rOut']
 xTTranVar           = {'i': True, 'j': True}
 DeltaProperties     = True
 NSamplesNoise       = 0    # Adding noise to data
@@ -60,8 +60,10 @@ ValidPerc           = 20.
 
 # Testing Quantities
 ###############################################################################
+# Labeled data
 TTranVecTest        = [1500.0]
 iLevelsVecTest      = [4580, 4581, 6058, 6097, 6105, 6108, 6111]
+# Unlabeled data
 TTranVecExtra       = [300.0, 50000.0]
 
 # Preprocess diatomic potential input features
