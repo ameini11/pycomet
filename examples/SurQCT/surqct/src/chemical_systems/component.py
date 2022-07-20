@@ -106,7 +106,7 @@ class Molecule(Component):
 
         DiatData            = pd.read_csv(self.PathToDiatFile, delimiter=r"\s+", skiprows=15, header=None)
         DiatData.columns    = ['vqn','jqn','EEh','EGam','rMin','rMax','VMin','VMax','Tau','rIn','rOut']
-        DiatData['EeV']     = self.DiatData['EEh'] * const.HA_to_EV
+        DiatData['EeV']     = DiatData['EEh'] * const.HA_to_EV
         DiatData.sort_values(by=['EeV'])
 
         if os.path.exists(Path):
@@ -114,14 +114,13 @@ class Molecule(Component):
         else:
             f = h5py.File(Path, 'w')
 
-        if self.Name not in f.keys():
-            grp = f.create_group(self.Name)
-        else:
+        if self.Name in f.keys():
             del f[self.Name]
+        grp = f.create_group(self.Name)
         for k in DiatData.columns:
             grp.create_dataset(f'Level{k}', data=DiatData[k].to_numpy(), compression="gzip", compression_opts=9)
-        grp.create_dataset('NLevels', data=np.array(self.NLevels), compression="gzip", compression_opts=9)
-        grp.create_dataset('DissE',   data=np.array(self.DissE),   compression="gzip", compression_opts=9)
-        grp.create_dataset('g',       data=np.array(self.g),       compression="gzip", compression_opts=9)
+        grp.create_dataset('g',       data=np.array(self.g), compression="gzip", compression_opts=9)
+        grp.create_dataset('NLevels', data=np.array(self.NLevels))
+        grp.create_dataset('DissE',   data=np.array(self.DissE))
 
         f.close()

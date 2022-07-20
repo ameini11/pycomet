@@ -709,13 +709,19 @@ def save_predictiondata(
     PathToHDF5File = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/' + System.NameLong + '.hdf5')
     if not os.path.exists(os.path.dirname(PathToHDF5File)):
         os.makedirs(os.path.dirname(PathToHDF5File))
+    utils.print_main(
+        f"Saving predicted '{InputData.RatesType}' rates in '{PathToHDF5File}' file ..."
+    )
+
+    # Saving Diatomic Data
+    for Mol in System.Molecules:
+        Mol.save_levels(PathToHDF5File)
+
+    # Open the HDF5
     if os.path.exists(PathToHDF5File):
         f = h5py.File(PathToHDF5File, 'a')
     else:
         f = h5py.File(PathToHDF5File, 'w')
-    utils.print_main(
-        f"Saving predicted '{InputData.RatesType}' rates in '{PathToHDF5File}' file ..."
-    )
 
     # Loading Input and Output for Training and Validation
     TTranVec         = InputData.SaveTTranVec
