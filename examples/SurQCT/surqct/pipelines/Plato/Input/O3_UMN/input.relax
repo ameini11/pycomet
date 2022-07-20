@@ -7,7 +7,7 @@ TRANSFER = empty
 
 #---------------------------
 #Initial conditions (pressure temperature and mole fractions)
-P0  = 1.d+05 # pressure at T0 not T_BATH
+P0  = 1.d+06 # pressure at T0 not T_BATH
 T0  = 20000.d0
 XC0 = 0.99d0 0.01d0
 COMP0 = O O2
