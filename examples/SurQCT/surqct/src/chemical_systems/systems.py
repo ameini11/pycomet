@@ -1,6 +1,6 @@
 from surqct.src.chemical_systems.component import Atom, Molecule
 from surqct.src.chemical_systems.processes import Processes
-from surqct.src.chemical_systems.me import MasterEquation
+from surqct.src.chemical_systems.master_equation import MasterEquation
 from surqct.src.chemical_systems import systems
 from surqct.src.utilities import utils
 from surqct import config as cfg
@@ -163,7 +163,7 @@ def NON_UMN(ProcBool=[1,1,1,1], PathToHDF5File=None):
     Syst.Processes      = Processes(Syst, ProcBool, PathToHDF5File)
 
     # Master Equation
-    MolFracNames        = ['N', 'O', 'N2', 'NO']
-    Syst.MasterEquation = MasterEquation(Syst, MolFracNames)
+    CompNames           = ['N', 'O', 'N2', 'NO']
+    Syst.MasterEquation = MasterEquation(Syst, CompNames)
 
     return Syst

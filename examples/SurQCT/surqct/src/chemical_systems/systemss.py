@@ -2,7 +2,6 @@ import os
 import h5py
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
 from surqct.src.utilities import utils
 from surqct.src.utilities import const
@@ -14,50 +13,41 @@ from scipy.optimize import fsolve
 
 # Chemical Components
 ###############################################################################
-class ChemicalComponent():
+class Atom():
 
     def __init__(self):
 
-        self.Name       = None
+        self.Name       = ''
         self.Mass       = 0.
         self.NLevels    = 1
 
-        self.g          = 1.
+        self.Qe         = 1.
         self.EInt       = 0.
 
         self.Ef         = 0.
 
-    def compute_partition_fn(self, TTranVec, Modes=['Trans']):
-        self.PFData = {}
-        for Mode in tf.nest.flatten(Modes):
-            if Mode == 'Int':
-                self.PFData[Mode]                   = pd.DataFrame()
-                self.PFData[Mode][str(int(TTran))]  = self.g*np.exp(-self.EInt*const.EV_to_J/(const.UKB*TTran))
-            elif Mode == 'Trans':
-                self.PFData[Mode]                   = pd.DataFrame()
-                self.PFData[Mode][str(int(TTran))]  = np.power(2.*np.pi*self.Mass*const.UKB/(const.UH**2)*TTran, 3./2.)
-            elif Mode == 'Chem':
-                self.PFData[Mode]                   = pd.DataFrame()
-                self.PFData[Mode][str(int(TTran))]  = np.exp(-self.Ef/(const.UKB*TTran))
-            else:
-                utils.raise_value_err(f"Mode '{Mode}' not valid for partition function calculation.")
+    def compute_partition_fn(self, TTranVec, Modes='Trans'):
+        if Mode == 'Int':
+            self.PFData[str(int(TTran))] = self.DiatData['g'] * np.exp( - self.DiatData['EInt0'] * const.EV_to_J / (const.UKB*TTran) )
+        self.PFData = pd.DataFrame()
+        for TTran in TTranVec:
+            self.PFData[str(int(TTran))] = self.DiatData['g'] * np.exp( - self.DiatData['EInt0'] * const.EV_to_J / (const.UKB*TTran) )
+        return self.PFData
 
 
-class Atom(ChemicalComponent):
+class Molecule():
 
     def __init__(self):
-        super(Atom, self).__init__()
-        
 
-class Molecule(ChemicalComponent):
-
-    def __init__(self):
-        super(Atom, self).__init__()
-
+        self.Name               = ''
+        self.Mass               = 0.
+        self.NLevels            = 1
         self.PathToDiatFile     = None
 
         self.DegeneracyFactor   = [1., 1.]
         self.Qe                 = 1.
+
+        self.Ef                 = 0.
 
     def read_diatdata(self):
 
@@ -79,9 +69,11 @@ class Molecule(ChemicalComponent):
         for k in ('EInt','EVib','ERot'):
             self.DiatData[k+'0']  = self.DiatData[k] - np.amin(self.DiatData[k])
 
-        # For Master Equation simulations
-        self.g      = self.DiatData['g'].to_numpy()
-        self.EInt   = self.DiatData['EInt0'].to_numpy()
+    def compute_partition_fn(self, TTranVec):
+        self.PFData = pd.DataFrame()
+        for TTran in TTranVec:
+            self.PFData[str(int(TTran))] = self.DiatData['g'] * np.exp( - self.DiatData['EInt0'] * const.EV_to_J / (const.UKB*TTran) )
+        return self.PFData
 
     def compute_degeneracy(self):
         jqn = self.DiatData['jqn'].to_numpy().astype(float)
@@ -128,17 +120,15 @@ class Molecule(ChemicalComponent):
 
 # Thermochemical Processes
 ###############################################################################
-class ThermochemicalProcesses():
+class ThermochemicalProc():
 
     def __init__(self, System, ProcBool, PathToHDF5File=None, CompInOut=None):
 
         self.System          = System
-        self.PathToHDF5File  = PathToHDF5File
-
         self.ProcBool        = ProcBool
-        self.ProcNames       = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
-
+        self.PathToHDF5File  = PathToHDF5File
         self.CompInOut       = CompInOut
+
         if self.CompInOut is None:
             self.CompInOut   = {
                 'Diss': {
@@ -158,6 +148,8 @@ class ThermochemicalProcesses():
                     'Out': (self.System.Molecules[0], self.System.Atoms[0])
                 }
             }
+
+        self.ProcNames       = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
 
     def init_processes(self):
         self.Proc            = {k: None for k in self.ProcNames}

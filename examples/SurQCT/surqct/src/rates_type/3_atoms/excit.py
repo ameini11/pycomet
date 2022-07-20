@@ -36,8 +36,8 @@ def generate_trainingdata(
     reading.read_levelsinfo(InputData, System, TTranVec)
         
     # In/Out Molecules
-    MolIn  = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['In'][0]
-    MolOut = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut['Out'][0]
+    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
 
     # Initializing Quantities
     iIdxData         = pd.DataFrame(columns = ['Idx_i'])
@@ -53,14 +53,18 @@ def generate_trainingdata(
     if hasattr(InputData, 'iLevelsSeedsVec'):
         InputData.iLevelsSeedsVec = tf.nest.flatten(InputData.iLevelsSeedsVec)
 
+    # Reading Rates at Temperatures TTranVec
+    utils.print_submain('Reading Rates ...')
+    System.Processes.read_rates(TTranVec)
+    Rates = System.Processes.Rates[InputData.RatesType]
+
     for iT in range(NTTran):
 
         TTranStr = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K')
 
-        # Reading Rates at Temperature TTranVec[iT]
-        Rates  = System.ThermochemicalProc.Proc[InputData.RatesType].read_rates(TTranVec[iT], TTranVec[iT])
-        KMatoI = copy.deepcopy(Rates) * InputData.MultFact
+        # Rates Matrix at Temperature TTranVec[iT]
+        KMatoI = copy.deepcopy(Rates[TTranStr]) * InputData.MultFact
 
         # Defining Initial Levels List
         if (InputData.iLevelsIntFlg == 1):
@@ -82,8 +86,8 @@ def generate_trainingdata(
                 jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.DiatData['EInt'].to_numpy()[jIdx] <= MolIn.DiatData['EInt'].to_numpy()[iIdx])]
                 jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.DiatData['EInt'].to_numpy()[jIdx] >  MolIn.DiatData['EInt'].to_numpy()[iIdx])]
             elif (InputData.PartFnRatioFlg):
-                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.PFData[TTranStr].to_numpy()[jIdx] <= MolIn.PFData[TTranStr].to_numpy()[iIdx])]
-                jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.PFData[TTranStr].to_numpy()[jIdx] >  MolIn.PFData[TTranStr].to_numpy()[iIdx])]
+                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] <= MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
+                jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] >  MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
             else:
                 jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x)]
                 jIdxVecNo         = []
@@ -129,7 +133,7 @@ def generate_trainingdata(
                 TTran                 = np.ones((jNLevels)) * TTranVec[iT]
                 TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
 
-                KEquilibrium          = MolOut.PFData[TTranStr].to_numpy()[jIdxVecNo] / MolIn.PFData[TTranStr].to_numpy()[iIdx]
+                KEquilibrium          = MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVecNo] / MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx]
                 KExcitReconstr        = KMatoI[iIdx, jIdxVecNo] / KEquilibrium
                 KExcitData            = KExcitData.append(pd.DataFrame({'KExcit': KExcitReconstr}))
 
@@ -279,8 +283,8 @@ def generate_testingdata(
                 jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.DiatData['EInt'].to_numpy()[jIdx] <= MolIn.DiatData['EInt'].to_numpy()[iIdx])]
                 jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.DiatData['EInt'].to_numpy()[jIdx] >  MolIn.DiatData['EInt'].to_numpy()[iIdx])]
             elif (InputData.PartFnRatioFlg):
-                jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData[TTranStr].to_numpy()[jIdx] <= MolIn.PFData[TTranStr].to_numpy()[iIdx])]
-                jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData[TTranStr].to_numpy()[jIdx] >  MolIn.PFData[TTranStr].to_numpy()[iIdx])]
+                jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] <= MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
+                jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] >  MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
             else:
                 jIdxVec           = jIdxVecTemp
                 jIdxVecNo         = jIdxVecNoTemp
@@ -327,7 +331,7 @@ def generate_testingdata(
                 TTran                 = np.ones((jNLevels)) * TTranVec[iT]
                 TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
 
-                KEquilibrium          = MolIn.PFData[TTranStr].to_numpy()[iIdx] / MolOut.PFData[TTranStr].to_numpy()[jIdxVecNo]
+                KEquilibrium          = MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx] / MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVecNo]
                 KExcitReconstr        = KMatoI[jIdxVecNo, iIdx] / KEquilibrium
                 KExcitData            = KExcitData.append(pd.DataFrame({'KExcit': KExcitReconstr}))
 
@@ -400,7 +404,7 @@ def generate_predictiondata(
 
     # Reading Levels Info of Initial and Final Molecules
     reading.read_levelsinfo(InputData, System, TTranVec)
-        
+
     # In/Out Molecules
     MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
     MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
@@ -417,9 +421,7 @@ def generate_predictiondata(
 
     # Initial Levels
     iIdxVec = InputData.iLevelsVecTest
-    # utils.print_submain('Looping over the following Vector of Initial Levels:', delimiter='    ')
-    # utils.print_submain(f'{iIdxVec}', delimiter='    ')
-    iIdxVec     = np.array(iIdxVec) - 1
+    iIdxVec = np.array(iIdxVec) - 1
 
     for iT in range(NTTran):
 
@@ -434,8 +436,8 @@ def generate_predictiondata(
                 jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.DiatData['EInt'].to_numpy()[jIdx] <= MolIn.DiatData['EInt'].to_numpy()[iIdx])]
                 jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.DiatData['EInt'].to_numpy()[jIdx] >  MolIn.DiatData['EInt'].to_numpy()[iIdx])]
             elif (InputData.PartFnRatioFlg):
-                jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData[TTranStr].to_numpy()[jIdx] <= MolIn.PFData[TTranStr].to_numpy()[iIdx])]
-                jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData[TTranStr].to_numpy()[jIdx] >  MolIn.PFData[TTranStr].to_numpy()[iIdx])]
+                jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] <= MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
+                jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] >  MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
             else:
                 jIdxVec           = jIdxVecTemp
                 jIdxVecNo         = jIdxVecNoTemp
@@ -521,7 +523,7 @@ def generate_predictiondata(
                     KExcitPred          = np.exp(KExcitPred)
                 KExcitPred              = KExcitPred / InputData.MultFact
                 # Equilibrium constant
-                KEquilibrium            = MolIn.PFData[TTranStr].to_numpy()[iIdx] / MolOut.PFData[TTranStr].to_numpy()[jIdxVecNo]
+                KEquilibrium            = MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx] / MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVecNo]
                 KExcitReconstr          = KExcitPred / KEquilibrium
                 # Collect data
                 KExcitData              = KExcitData.append(pd.DataFrame({'KExcit': KExcitReconstr}))

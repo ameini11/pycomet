@@ -24,7 +24,7 @@ class Component():
 
         self.Ef         = 0.
 
-    def compute_partition_fn(self, TTranVec, Modes=['Trans']):
+    def compute_partition_fn(self, TTranVec, Modes=['Int']):
         Modes       = tf.nest.flatten(Modes)
         ValidModes  = ('Int', 'Trans', 'Chem')
         self.PFData = {k: pd.DataFrame() if Mode in ValidModes for Mode in Modes}

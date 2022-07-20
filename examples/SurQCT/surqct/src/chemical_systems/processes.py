@@ -41,23 +41,20 @@ class Processes():
             }
 
     def read_rates(self, TTranVec):
-
         if self.System.NAtoms == 3:
-
             if os.path.exists(self.PathToHDF5File):
                 f = h5py.File(self.PathToHDF5File, 'r')
             else:
                 utils.raise_value_err(f"File '{self.PathToHDF5File}' not found.")
 
-            for TTran in tf.nest.flatten(TTranVec):
-                Ti              = str(int(TTran))
-                self.Rates[Ti]  = {}
-                for i, k in enumerate(self.ProcNames.keys()):
-                    if self.ProcBool[i] > 0:
-                        self.Rates[Ti][k] = f[f'/T_{Ti}_{Ti}/Rates/{k}'][()]
+            for i, k in enumerate(self.ProcNames.keys()):
+                if self.ProcBool[i] > 0:
+                    self.Rates[k] = {}
+                    for TTran in tf.nest.flatten(TTranVec):
+                        Ti = str(int(TTran))
+                        self.Rates[k][Ti] = f[f'/T_{Ti}_{Ti}/Rates/{k}'][()]
                         if k == 'Diss':
-                            self.Rates[Ti][k] = self.Rates[Ti][k][:,0:1]
+                            self.Rates[k][Ti] = self.Rates[k][Ti][:,0:1]
             f.close()
-
         else:
             raise NotImplementedError
