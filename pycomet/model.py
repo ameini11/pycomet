@@ -50,8 +50,6 @@ class Model(object):
             if not os.path.exists(d):
                 os.makedirs(d)
 
-        self.net.dir = self.dir
-
         # Define saving format
         self.save_format = save_format
         self.save_path = self.dir['save'] + name
