@@ -16,7 +16,7 @@ export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$KinMainSource/$Syste
 export PathToSurQCT=$WORKSPACE_PATH/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
 # Heat Bath Conditions
 export TTranVec=(1500 2500 5000 6000 8000 10000 12000 14000 15000 20000)
-export InputSuffixVec=('.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit')
+export InputSuffixVec=('.relax' '.relax' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit')
 # Processes
 export DissFlg=2
 export InelFlg=1
