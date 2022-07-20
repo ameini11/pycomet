@@ -52,3 +52,12 @@ def read_sampledinitiallevels(
     iIdxVec             = np.squeeze(iIdxVec.to_numpy())
   
     return iIdxVec
+
+# Reading Input Columns
+def read_inputcolumns(Array, Columns):
+    if isinstance(Array, pd.DataFrame):
+        Array = Array.to_numpy()
+    if any(isinstance(c, (list,tuple)) for c in Columns):
+        return [np.take(Array, c, axis=1) for c in Columns]
+    else:
+        return np.take(Array, Columns, axis=1)

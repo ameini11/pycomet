@@ -1,7 +1,9 @@
-from surqct.apps import generateData
-from surqct.apps import preprocessVariables
+from surqct.apps import genTrainData
+from surqct.apps import preprocInpVar
+from surqct.apps import savePredData
 
 __all__ = [
-    "generateData",
-    "preprocessVariables"
+    "genTrainData",
+    "preprocInpVar",
+    "savePredData"
 ]

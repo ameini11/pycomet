@@ -45,7 +45,7 @@ MERuns    = '/home/zanardi/WORKSPACE/AirDatabase/Run0D/'
 HDF5Dtb   = '/home/zanardi/WORKSPACE/AirDatabase/HDF5/'
 
 # Standard output -------------------------------------------------------------
-DISPLAY_LEN = 80
+DISPLAY_LEN = 98
 
 def compose(text='', start='', between=' '):
     end = ''.join(reversed(start))

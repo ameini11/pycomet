@@ -3,7 +3,9 @@
 import re
 import os
 import sys
-sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PyCOMET/pycomet/examples/SurQCT/'))
+pycomet_path = os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PyCOMET/pycomet/')
+sys.path.append(pycomet_path)
+sys.path.append(pycomet_path + '/examples/SurQCT/')
 from surqct.__main__ import main
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])

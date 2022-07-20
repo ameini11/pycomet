@@ -8,7 +8,7 @@
 # -------------------------------- EXEC FILE -------------------------------- #
 
 
-NAME = 'preprocessVariables'
+NAME = 'preprocInpVar'
 
 import os
 import sys
@@ -39,7 +39,7 @@ def get_parser(subparsers):
     parser.add_argument('-d', '--dir',
         type=fun.dir_path,
         default="./",
-        help='path to the working directory (with `InputData.py` file)'
+        help='path to the working directory containing `datagen/InputData.py`'
     )
     parser.set_defaults(process=main)
     return parser
@@ -52,7 +52,7 @@ def main(args):
     os.chdir(args.dir)
     
     # InputData module --------------------------------------------------------
-    sys.path.append(args.dir)
+    sys.path.append(args.dir+'/datagen/')
     import InputData
 
     # Initializing chemical system --------------------------------------------

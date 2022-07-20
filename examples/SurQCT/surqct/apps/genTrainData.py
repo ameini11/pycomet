@@ -8,7 +8,7 @@
 # -------------------------------- EXEC FILE -------------------------------- #
 
 
-NAME = 'generateData'
+NAME = 'genTrainData'
 
 import os
 import sys
@@ -30,7 +30,7 @@ def get_parser(subparsers):
     parser = subparsers.add_parser(
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Generate data for SurQCT model.",
+        description="Generate data for training the SurQCT model.",
         epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',
@@ -41,7 +41,7 @@ def get_parser(subparsers):
     parser.add_argument('-d', '--dir',
         type=fun.dir_path,
         default="./",
-        help='path to the working directory (with `InputData.py` file)'
+        help='path to the working directory containing `datagen/InputData.py`'
     )
     parser.add_argument('-tr', '--training',
         type=int,
@@ -66,7 +66,7 @@ def main(args):
     os.chdir(args.dir)
     
     # InputData module --------------------------------------------------------
-    sys.path.append(args.dir)
+    sys.path.append(args.dir+'/datagen/')
     import InputData
 
     # Initializing chemical system --------------------------------------------

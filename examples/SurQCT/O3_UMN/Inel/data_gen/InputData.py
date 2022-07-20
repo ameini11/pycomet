@@ -12,7 +12,7 @@ PathToHDF5File      = cfg.HDF5Dtb + 'Active/O3_UMN.hdf5' # `None` or path to hig
 PathToLevelsFld     = cfg.MERuns + 'database/levels/modified/'
 PathToLevelsFile    = {'O2': PathToLevelsFld + 'O3_UMN/O2/VMin_VMax.csv'}
 
-# Training Quanties
+# Training Quantities
 ###############################################################################
 # Input variables
 # -----------------------------------------------------------------------------
@@ -65,6 +65,11 @@ TTranVecTest        = [1500.0]
 iLevelsVecTest      = [4580, 4581, 6058, 6097, 6105, 6108, 6111]
 # Unlabeled data
 TTranVecExtra       = [300.0, 50000.0]
+
+# Saving Quantities
+###############################################################################
+SaveTTranVec        = [1500.0]
+SavePathSuffix      = 'configs/config.06/run.01'
 
 # Preprocess diatomic potential input features
 ###############################################################################

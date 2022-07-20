@@ -6,6 +6,7 @@ import pandas as pd
 import tensorflow as tf
 
 from tqdm import tqdm
+from surqct import config as cfg
 from surqct.src.utilities import utils
 from surqct.src.utilities import reading
 
@@ -473,16 +474,11 @@ def generate_predictiondata(
                 DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
 
             # Prediction Data
-            BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTranVec[iT])
-            if Columns is not None:
-                Input               = np.hstack([BranchInput, TrunkInput])
-                BranchInput         = np.take(Input, Columns[0], axis=1)
-                TrunkInput          = np.take(Input, Columns[1], axis=1)
-                    
-            KExcitPred      = Model.predict([BranchInput, TrunkInput]).reshape(-1)
+            Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
+            KExcitPred      = Model.predict(Input).reshape(-1)
             if InputData.RatesLogScale:
                 KExcitPred  = np.exp(KExcitPred)
-            KExcitPred      = (KExcitPred / InputData.MultFact)
+            KExcitPred      = KExcitPred / InputData.MultFact
             KExcitData      = KExcitData.append(pd.DataFrame({'KExcit': KExcitPred}))
 
             # Reconstruct Backward Rates
@@ -516,16 +512,11 @@ def generate_predictiondata(
                     DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
 
                 # Prediction Data
-                BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, jIdxVec, kIdxVec, TTranVec[iT])
-                if Columns is not None:
-                    Input               = np.hstack([BranchInput, TrunkInput])
-                    BranchInput         = np.take(Input, Columns[0], axis=1)
-                    TrunkInput          = np.take(Input, Columns[1], axis=1)
-                    
-                KExcitPred      = Model.predict([BranchInput, TrunkInput]).squeeze()
+                Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
+                KExcitPred      = Model.predict(Input).reshape(-1)
                 if InputData.RatesLogScale:
-                    KExcitPred          = np.exp(KExcitPred)
-                KExcitPred              = KExcitPred / InputData.MultFact
+                    KExcitPred  = np.exp(KExcitPred)
+                KExcitPred      = KExcitPred / InputData.MultFact
                 # Equilibrium constant
                 KEquilibrium            = MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx] / MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVecNo]
                 KExcitReconstr          = KExcitPred / KEquilibrium
@@ -569,13 +560,14 @@ def generate_predictiondata(
 
     return (xPred, yPred)
 
-def get_inputvars(
+def get_input(
     InputData,
     MolIn,
     MolOut,
     iIdxVec,
     jIdxVec,
-    TTran
+    TTran,
+    Columns
 ):
     # Translational Temperature
     TTranData               = pd.DataFrame({'TTran': np.ones(len(iIdxVec)) * TTran})
@@ -598,20 +590,19 @@ def get_inputvars(
     if InputData.xTTranVar['i']:
         iLevelsData         = pd.concat([iLevelsData, TTranData], axis=1)
     iLevelsData.columns     = [(VarName + '_i') for VarName in iLevelsData.columns]
-    BranchInput             = iLevelsData.to_numpy()
     # Delta or j-th level data
     if InputData.DeltaProperties:
         if InputData.xTTranVar['j']:
             DeltaLevelsData = pd.concat([DeltaLevelsData, TTranData], axis=1)
         DeltaLevelsData.columns = [(VarName + '_Delta') for VarName in DeltaLevelsData.columns]
-        TrunkInput          = DeltaLevelsData.to_numpy()
+        DataSet             = pd.concat([iLevelsData, DeltaLevelsData], axis=1)
     else:
         if InputData.xTTranVar['j']:
             jLevelsData     = pd.concat([jLevelsData, TTranData], axis=1)
         jLevelsData.columns = [(VarName + '_j') for VarName in jLevelsData.columns]
-        TrunkInput          = jLevelsData.to_numpy()
+        DataSet             = pd.concat([iLevelsData, jLevelsData], axis=1)
 
-    return BranchInput, TrunkInput
+    return reading.read_inputcolumns(DataSet, Columns)
 
 
 # Plotting
@@ -712,12 +703,23 @@ def save_predictiondata(
     InputData,
     System,
     Model,
-    TTranVec,
-    PathToHDF5,
-    Columns=None
+    Columns
 ):
-    utils.print_submain(f'Generating {InputData.RatesType} Rate Matrix')
-    NTTran = len(TTranVec)
+    # Initialize HDF5
+    PathToHDF5File = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/' + System.NameLong + '.hdf5')
+    if not os.path.exists(os.path.dirname(PathToHDF5File)):
+        os.makedirs(os.path.dirname(PathToHDF5File))
+    if os.path.exists(PathToHDF5File):
+        f = h5py.File(PathToHDF5File, 'a')
+    else:
+        f = h5py.File(PathToHDF5File, 'w')
+    utils.print_main(
+        f"Saving predicted '{InputData.RatesType}' rates in '{PathToHDF5File}' file ..."
+    )
+
+    # Loading Input and Output for Training and Validation
+    TTranVec         = InputData.SaveTTranVec
+    NTTran           = len(InputData.SaveTTranVec)
 
     # Reading Levels Info of Initial and Final Molecules
     reading.read_levelsinfo(InputData, System, TTranVec)
@@ -726,14 +728,11 @@ def save_predictiondata(
     MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
     MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
 
-    # Initialize HDF5
-    if os.path.exists(PathToHDF5):
-        f = h5py.File(PathToHDF5, 'a')
-    else:
-        f = h5py.File(PathToHDF5, 'w')
-
     # Loop over temperatures
     for TTran in TTranVec:
+
+        TTran = int(TTran)
+        utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K', delimiter='    ')
 
         # Initialize group in HDF5
         GrpName = f'T_{TTran}_{TTran}/Rates/'
@@ -748,24 +747,19 @@ def save_predictiondata(
         # Loop on Initial States
         for iIdx in tqdm(range(1, MolIn.NLevels)):
 
-            jIdxVec                 = np.arange(iIdx)
-            jNLevels                = len(jIdxVec)
-            kIdxVec                 = [iIdx]*jNLevels
+            jIdxVec         = np.arange(iIdx)
+            jNLevels        = len(jIdxVec)
+            kIdxVec         = [iIdx]*jNLevels
 
             # Prediction Data
-            BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
-            if Columns is not None:
-                Input               = np.hstack([BranchInput, TrunkInput])
-                BranchInput         = np.take(Input, Columns[0], axis=1)
-                TrunkInput          = np.take(Input, Columns[1], axis=1)
-
-            KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
+            Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
+            KExcitPred      = Model.predict(Input).reshape(-1)
             if InputData.RatesLogScale:
-                KExcitPred          = np.exp(KExcitPred)
-            KExcitPred              = KExcitPred / InputData.MultFact
+                KExcitPred  = np.exp(KExcitPred)
+            KExcitPred      = KExcitPred / InputData.MultFact
 
             # Feeding rate matrix
-            RateMatrix[iIdx, jIdxVec] = KExcitPred.squeeze()
+            RateMatrix[iIdx, jIdxVec] = KExcitPred
 
         # Saving rate matrix in HDF5
         if InputData.RatesType in Grp.keys():
@@ -773,6 +767,7 @@ def save_predictiondata(
         Grp.create_dataset(InputData.RatesType, data=RateMatrix, compression="gzip", compression_opts=9)
 
     f.close()
+
 
 # # Writing
 # ###############################################################################
@@ -918,7 +913,7 @@ def save_predictiondata(
 #         kIdxVec                 = [iIdx]*jNLevels
 
 #         # Prediction Data
-#         BranchInput, TrunkInput = get_inputvars(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
+#         BranchInput, TrunkInput = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
 #         if Columns is not None:
 #             Input               = np.hstack([BranchInput, TrunkInput])
 #             BranchInput         = np.take(Input, Columns[0], axis=1)
