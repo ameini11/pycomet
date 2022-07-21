@@ -697,11 +697,6 @@ def plot_prediction3D(
 
     return fig
 
-  import shutil
-
-    for item in fileList:
-        shutil.copy(item[0], "/Users/username/Desktop/testPhotos")
-
 
 # Writing
 ###############################################################################
@@ -712,19 +707,19 @@ def save_predictiondata(
     Columns
 ):
     # Initialize HDF5 file
-    PathToHDF5Fld    = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/')
+    PathToHDF5Fld    = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/') + '/'
     if not os.path.exists(PathToHDF5Fld):
         os.makedirs(PathToHDF5Fld)
-
-    # Check if exist a final version
-    FinalHDF5Version = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
-    if os.path.exists(FinalHDF5Version):
-        shutil.copy(FinalHDF5Version, PathToHDF5Fld)
-
     PathToHDF5File   = PathToHDF5Fld + System.NameLong + '.hdf5'
     utils.print_main(
         f"Saving predicted '{InputData.RatesType}' rates in '{PathToHDF5File}' file ..."
     )
+
+    # Check if exist a final version
+    if not os.path.exists(PathToHDF5File):
+        FinalHDF5Version = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
+        if os.path.exists(FinalHDF5Version):
+            shutil.copy(FinalHDF5Version, PathToHDF5Fld)
 
     # Saving Diatomic Data
     for Mol in System.Molecules:
@@ -737,8 +732,8 @@ def save_predictiondata(
         f = h5py.File(PathToHDF5File, 'w')
 
     # Loading Input and Output for Training and Validation
-    TTranVec         = InputData.SaveTTranVec
-    NTTran           = len(InputData.SaveTTranVec)
+    TTranVec = InputData.SaveTTranVec
+    NTTran   = len(InputData.SaveTTranVec)
 
     # Reading Levels Info of Initial and Final Molecules
     reading.read_levelsinfo(InputData, System, TTranVec)
