@@ -1,7 +1,9 @@
 import os
 import h5py
 import copy
+import time
 import shutil
+import datetime
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -10,6 +12,7 @@ from tqdm import tqdm
 from surqct import config as cfg
 from surqct.src.utilities import utils
 from surqct.src.utilities import reading
+from silx.io.dictdump import dicttoh5, h5todict
 
 # Visualization libraries
 matplotlib = utils.import_matplotlib()
@@ -704,7 +707,8 @@ def save_predictiondata(
     InputData,
     System,
     Model,
-    Columns
+    Columns,
+    BatchSize=1024
 ):
     # Initialize HDF5 file
     PathToHDF5Fld    = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/') + '/'
@@ -725,12 +729,6 @@ def save_predictiondata(
     for Mol in System.Molecules:
         Mol.save_levels(PathToHDF5File)
 
-    # Open the HDF5
-    if os.path.exists(PathToHDF5File):
-        f = h5py.File(PathToHDF5File, 'a')
-    else:
-        f = h5py.File(PathToHDF5File, 'w')
-
     # Loading Input and Output for Training and Validation
     TTranVec = InputData.SaveTTranVec
     NTTran   = len(InputData.SaveTTranVec)
@@ -743,44 +741,110 @@ def save_predictiondata(
     MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
 
     # Loop over temperatures
+    Groups = {}
     for TTran in TTranVec:
 
-        TTran = int(TTran)
-        utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K', delimiter='    ')
+        ts      = time.time()
 
-        # Initialize group in HDF5
-        GrpName = f'T_{TTran}_{TTran}/Rates/'
-        if GrpName not in f.keys():
-            Grp = f.create_group(GrpName)
-        else:
-            Grp = f[GrpName]
-
-        # Initialize rate matrix
-        RateMatrix = np.zeros((MolIn.NLevels, MolOut.NLevels))
+        TTran   = int(TTran)
+        utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K')
 
         # Loop on Initial States
-        for iIdx in tqdm(range(1, MolIn.NLevels)):
+        utils.print_submain('Composing inputs', delimiter=' '*4)
+        ijIdx = None
+        for iIdx in range(1, MolIn.NLevels):
 
-            jIdxVec         = np.arange(iIdx)
-            jNLevels        = len(jIdxVec)
-            kIdxVec         = [iIdx]*jNLevels
+            jIdxVec     = np.arange(iIdx).reshape(-1,1)
+            jNLevels    = len(jIdxVec)
+            iIdxVec     = np.array(list([iIdx]*jNLevels)).reshape(-1,1)
 
-            # Prediction Data
-            Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
-            KExcitPred      = Model.predict(Input).reshape(-1)
-            if InputData.RatesLogScale:
-                KExcitPred  = np.exp(KExcitPred)
-            KExcitPred      = KExcitPred / InputData.MultFact
+            ijIdxi      = [iIdxVec, jIdxVec]
+            if ijIdx is None:
+                ijIdx   = ijIdxi
+            else:
+                ijIdx   = tf.nest.map_structure(lambda x, y: np.vstack((x,y)), ijIdx, ijIdxi)
 
-            # Feeding rate matrix
-            RateMatrix[iIdx, jIdxVec] = KExcitPred
+        iIdxVec, jIdxVec = ijIdx[0].squeeze(), ijIdx[1].squeeze()
+        Input           = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
 
-        # Saving rate matrix in HDF5
-        if InputData.RatesType in Grp.keys():
-            del f[GrpName+'/'+InputData.RatesType]
-        Grp.create_dataset(InputData.RatesType, data=RateMatrix, compression="gzip", compression_opts=9)
+        # Performing inference
+        utils.print_submain(f'Performing inference for {len(Input[0])} data points', delimiter=' '*4)
+        KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+        if InputData.RatesLogScale:
+            KExcitPred  = np.exp(KExcitPred)
+        KExcitPred      = KExcitPred / InputData.MultFact
+
+        # Feeding rate matrix
+        utils.print_submain('Feeding rate matrix', delimiter=' '*4)
+        NPts        = 0
+        RateMatrix  = np.zeros((MolIn.NLevels, MolOut.NLevels))
+        for iIdx in range(1, MolIn.NLevels):
+
+            jIdxVec     = np.arange(iIdx)
+            jNLevels    = len(jIdxVec)
+
+            RateMatrix[iIdx, jIdxVec] = KExcitPred[NPts:NPts+jNLevels]
+
+            NPts        = NPts + jNLevels
+
+        # Collecting rate matrix
+        Groups[f'T_{TTran}_{TTran}'] = {'Rates': {InputData.RatesType: RateMatrix}}
+
+        te      = time.time()
+        delta   = datetime.timedelta(seconds=(te - ts))
+        utils.print_submain('>> Time taken for Single Temperature: %s' % delta, delimiter=' '*4)
+
+    # Saving rate matrix in HDF5
+    utils.print_submain('Dumping the rate matrices to HDF5 file')
+    if os.path.exists(PathToHDF5File):
+        f = h5py.File(PathToHDF5File, 'a')
+    else:
+        f = h5py.File(PathToHDF5File, 'w')
+
+    dicttoh5(treedict=Groups, h5file=f, overwrite_data=True, create_dataset_args={'compression': "gzip", 'compression_opts': 9})
 
     f.close()
+
+
+    # # Loop over temperatures
+    # for TTran in TTranVec:
+
+    #     TTran = int(TTran)
+    #     utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K', delimiter='    ')
+
+    #     # Initialize group in HDF5
+    #     GrpName = f'T_{TTran}_{TTran}/Rates/'
+    #     if GrpName not in f.keys():
+    #         Grp = f.create_group(GrpName)
+    #     else:
+    #         Grp = f[GrpName]
+
+    #     # Initialize rate matrix
+    #     RateMatrix = np.zeros((MolIn.NLevels, MolOut.NLevels))
+
+    #     # Loop on Initial States
+    #     for iIdx in tqdm(range(1, MolIn.NLevels)):
+
+    #         jIdxVec         = np.arange(iIdx)
+    #         jNLevels        = len(jIdxVec)
+    #         kIdxVec         = [iIdx]*jNLevels
+
+    #         # Prediction Data
+    #         Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
+    #         KExcitPred      = Model.predict(Input).reshape(-1)
+    #         if InputData.RatesLogScale:
+    #             KExcitPred  = np.exp(KExcitPred)
+    #         KExcitPred      = KExcitPred / InputData.MultFact
+
+    #         # Feeding rate matrix
+    #         RateMatrix[iIdx, jIdxVec] = KExcitPred
+
+    #     # Saving rate matrix in HDF5
+    #     if InputData.RatesType in Grp.keys():
+    #         del f[GrpName+'/'+InputData.RatesType]
+    #     Grp.create_dataset(InputData.RatesType, data=RateMatrix, compression="gzip", compression_opts=9)
+
+    # f.close()
 
 
 # # Writing
