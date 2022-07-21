@@ -105,7 +105,7 @@ class Molecule(Component):
     def save_levels(self, Path):
 
         DiatData            = pd.read_csv(self.PathToDiatFile, delimiter=r"\s+", skiprows=15, header=None)
-        DiatData.columns    = ['vqn','jqn','EEh','EGam','rMin','rMax','VMin','VMax','Tau','rIn','rOut']
+        DiatData.columns    = ['vqn','jqn','EEh','Egam','rMin','rMax','VMin','VMax','Tau','rIn','rOut']
         DiatData['EeV']     = DiatData['EEh'] * const.HA_to_EV
         DiatData.sort_values(by=['EeV'])
 
@@ -118,9 +118,10 @@ class Molecule(Component):
             del f[self.Name]
         grp = f.create_group(self.Name)
         for k in DiatData.columns:
-            grp.create_dataset(f'Level{k}', data=DiatData[k].to_numpy(), compression="gzip", compression_opts=9)
-        grp.create_dataset('g',       data=np.array(self.g), compression="gzip", compression_opts=9)
-        grp.create_dataset('NLevels', data=np.array(self.NLevels))
-        grp.create_dataset('DissE',   data=np.array(self.DissE))
+            grp.create_dataset(f'Level{k}',  data=DiatData[k].to_numpy(), compression="gzip", compression_opts=9)
+        grp.create_dataset('LevelToGroupIn', data=np.arange(1, self.NLevels+1), compression="gzip", compression_opts=9)
+        grp.create_dataset('Levelg',    data=np.array(self.g), compression="gzip", compression_opts=9)
+        grp.create_dataset('NLevels',   data=np.array([self.NLevels]))
+        grp.create_dataset('DissE',     data=np.array([self.DissE]))
 
         f.close()
