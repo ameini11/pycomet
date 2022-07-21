@@ -24,12 +24,20 @@ import numpy as np
 ##==============================================================================================================
 print("\n[PyCoarseAIR]: Defining Paths")
 
+# >>>>
+CaseSuffix      = '/configs/config.06/run.03/'
+KinSource       = '/SurQCT/'
+DtbSuffix       = KinSource
+# KinSource       = '/QCT/'
+# DtbSuffix       = '/Orig/'
+# <<<<
+
 WORKSPACE_PATH  = '/home/zanardi/Workspace/'                                                        # It is NOT REQUIRED to change this path
 CODES_PATH      = '/home/zanardi/Codes/'                                                            # It is NOT REQUIRED to change this path
 CoarseAIRFldr   = CODES_PATH + '/CoarseAIR/coarseair/'                                              # It is NOT REQUIRED to change this path
 PyCoarseAIRFldr = CODES_PATH + '/PyCoarseAIR/pycoarseair/'                                          # <--- Please, CHANGE this path to the folder of the PyCoarseAIR Code
 
-DtbHDF5Fldr     = WORKSPACE_PATH + '/AirDatabase/HDF5/Orig/'                                        # <--- Please, CHANGE this path to the folder containing the HDF5 File
+DtbHDF5Fldr     = WORKSPACE_PATH + '/AirDatabase/HDF5/' + DtbSuffix                                 # <--- Please, CHANGE this path to the folder containing the HDF5 File
 DtbWriteFldr    = WORKSPACE_PATH + '/AirDatabase/Run0D/database/'
 OutputWriteFldr = ''
 ##--------------------------------------------------------------------------------------------------------------
@@ -72,7 +80,7 @@ from InputData         import inputdata
 ##==============================================================================================================
 print("\n[PyCoarseAIR]: Initializing Input and System Data")
 
-InputData    = inputdata(WORKSPACE_PATH, CoarseAIRFldr, PyCoarseAIRFldr, DtbHDF5Fldr, DtbWriteFldr, OutputWriteFldr)
+InputData    = inputdata(WORKSPACE_PATH, CoarseAIRFldr, PyCoarseAIRFldr, DtbHDF5Fldr, DtbWriteFldr, OutputWriteFldr, KinSource, CaseSuffix)
 
 [Syst, Temp] = Initialize_Data(InputData)
 

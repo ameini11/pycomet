@@ -22,13 +22,13 @@ import numpy as np
 
 class inputdata(object):
 
-    def __init__( self, WORKSPACE_PATH, CoarseAIRFldr, PyCoarseAIRFldr, DtbHDF5Fldr, DtbWriteFldr, OutputWriteFldr ):
+    def __init__( self, WORKSPACE_PATH, CoarseAIRFldr, PyCoarseAIRFldr, DtbHDF5Fldr, DtbWriteFldr, OutputWriteFldr, KinSource, CaseSuffix ):
         self.WORKSPACE_PATH            = WORKSPACE_PATH
         self.CoarseAIRFldr             = CoarseAIRFldr
         self.PyCoarseAIRFldr           = PyCoarseAIRFldr
         
         ### CASE SPECIFIC
-        self.TranVec                   = np.array([1500.0, 2500.0, 5000.0, 6000.0, 8000.0, 10000.0, 12000.0, 14000.0, 15000.0, 20000.0])
+        self.TranVec                   = np.array([12000.0, 15000.0, 20000.0]) #np.array([1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0])
         self.T0                        = 300.0
         self.iPES                      = 0
 
@@ -36,11 +36,13 @@ class inputdata(object):
 
         self.PlotShow_Flg              = False
 
+        self.CaseSuffix                = CaseSuffix
+
 
         ### CHEMICAL SYSTEM SPECIFIC
         self.SystNameLong              = 'O3_UMN'
         self.OldVersion_IntFlg         = 0
-        self.DtbReadFldr               = ''  ## CoarseAIR Output Folder / Run Folder / System Folder
+        self.DtbReadFldr               = ''  # CoarseAIR Output Folder / Run Folder / System Folder
         self.OutputWriteFldr           = OutputWriteFldr 
         self.SuffixName                = ''
  
@@ -49,7 +51,7 @@ class inputdata(object):
         self.NTran                     = np.size(   self.TranVec )
         self.iTVec                     = np.arange( self.NTran   ) + 1
 
-        self.Kin                       = kinetics( self.WORKSPACE_PATH, DtbWriteFldr )
+        self.Kin                       = kinetics( self.WORKSPACE_PATH, DtbWriteFldr, KinSource)
         self.HDF5                      = hdf5(     self.WORKSPACE_PATH, DtbHDF5Fldr )
         self.ME                        = ME(       self.WORKSPACE_PATH )
 
@@ -57,18 +59,18 @@ class inputdata(object):
 
 class kinetics(object):
 
-    def __init__( self, WORKSPACE_PATH, DtbWriteFldr ):
+    def __init__( self, WORKSPACE_PATH, DtbWriteFldr, Source ):
 
         ### Reading Kinetics Data
         self.Read_Flg                   = True
         #self.ReadFldr                   = WORKSPACE_PATH + '/Mars_Database/Run0D/database/'                      # To be used Only when Required to read a Database in PLATO's Format
 
-        self.Source                     = 'QCT'                                                                   # 'QCT' or 'SurQCT'
+        self.Source                     = Source                                                               # 'QCT' or 'SurQCT'
         
         ## Writing Kinetics Data
         self.Write_Flg                  = True
         self.WriteFldr                  = DtbWriteFldr
-        self.WriteDiss_Flg              = True 
+        self.WriteDiss_Flg              = False 
         self.CorrFactor                 = 16.0/3.0         # 1.0
         self.DissTypes                  = np.array([0])
         self.WriteInel_Flg              = True
@@ -170,7 +172,7 @@ class hdf5(object):
 
         self.DtbFldr                    = DtbHDF5Fldr
         self.ForceReadDat_Flg           = False
-        self.Save_Flg                   = True
+        self.Save_Flg                   = False
 
 
 

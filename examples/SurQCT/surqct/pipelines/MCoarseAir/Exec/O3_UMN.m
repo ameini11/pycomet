@@ -28,7 +28,22 @@ global Input Syst Temp Param Kin Rates OtherSyst OtherRates
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% SPECIFYING INPUT 
+%%%% SPECIFYING INPUT
+
+%% Case-specific inputs
+KinSource       = 'QCT';
+RunSuffix       = '';
+ToHDF5Suffix    = '/Orig/';
+
+DissFlg         = 2;
+InelFlg         = 1;
+ExchFlg1        = 1;
+ExchFlg2        = 0;
+
+TranVec         = [1500, 2500, 5000, 8000, 10000, 12000, 15000, 20000];
+
+ReadRatesProc   = [1, 1, 1, 0]; % [Diss, Inel, Exch1, Exch2] | [0: None, 1: Fwd, 2: Fwd+Bwd, 3: Grouped Fwd]
+
 
 %% System Inputs
 Input.HOME_PATH                 = '/home/zanardi/';
@@ -46,13 +61,15 @@ Input.Paths.SurQCTSrc           = strcat(Input.WORKSPACE_PATH, '/ML/PyCOMET/pyco
 % PLATO Runs
 Input.Paths.ToKinMainFldr       = strcat(Input.WORKSPACE_PATH, '/AirDatabase/Run0D/');
 
-Input.Paths.ToHDF5Fldr          = strcat(Input.WORKSPACE_PATH, '/AirDatabase/HDF5/Orig/');   % Orig / SurQCT
-Input.TranVec                   = [1500]; %, 2500, 5000, 6000, 8000, 10000, 12000, 14000, 15000, 20000];
+Input.Paths.ToHDF5Suffix	    = ToHDF5Suffix;
+Input.Paths.ToHDF5Fldr          = strcat(Input.WORKSPACE_PATH, '/AirDatabase/HDF5/', Input.Paths.ToHDF5Suffix);
+
+Input.TranVec                   = TranVec;
 Input.SystNameLong              = 'O3_UMN';
 Input.iPES                      = 0;
-Input.KinSource                 = 'QCT';        % QCT / SurQCT
-Input.Suffix                    = '';           % System suffix
-Input.RunSuffix                 = '';           % Run case suffix
+Input.KinSource                 = KinSource;
+Input.Suffix                    = '';
+Input.RunSuffix                 = RunSuffix;
 
 Input.Kin.MolResolutionIn       = [{'StS'}];
 Input.Kin.EqNStatesIn           = [   6115];
@@ -68,15 +85,15 @@ Input.Kin.ParamsGroupsOut       = [    1.0];
 Input.Kin.NGroupsOut            = [     45];
 Input.Kin.PathToWriteMappingOut = [{strcat(Input.Paths.ToKinMainFldr, '/database/grouping/')}];
 
-Input.Kin.Proc.DissFlg          = 0;
+Input.Kin.Proc.DissFlg          = DissFlg;
 Input.Kin.NBinsSuffix           = 0;
 Input.Kin.DissCorrFactor        = 16.0/3.0;
 Input.Kin.Proc.DissInelFlg      = 0;
-Input.Kin.Proc.InelFlg          = 1;
-Input.Kin.Proc.ExchFlg1         = 1;
-Input.Kin.Proc.ExchFlg2         = 0;
+Input.Kin.Proc.InelFlg          = InelFlg;
+Input.Kin.Proc.ExchFlg1         = ExchFlg1;
+Input.Kin.Proc.ExchFlg2         = ExchFlg2;
 
-Input.Kin.ReadRatesProc         = [0, 2, 2, 0]; % [Diss, Inel, Exch1, Exch2] | [0: None, 1: Fwd, 2: Fwd+Bwd, 3: Grouped Fwd]
+Input.Kin.ReadRatesProc         = ReadRatesProc;
 Input.Kin.RateSource            = 'HDF5'; % CoarseAIR / CG-QCT / HDF5 / PLATO
 Input.Kin.ReadOtherSyst         = [];
 Input.Kin.OtherSystInHDF5       = [];

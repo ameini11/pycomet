@@ -8,15 +8,15 @@ set -e
 # Misc
 export NUM_THREADS=8
 export System='O3_UMN'
-export KinMainSource='QCT'    # QCT SurQCT
+export KinMainSource='SurQCT'    # QCT SurQCT
 # Paths
-export FldrName=''
+export FldrName='/configs/config.06/run.03/'
 export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
-export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/$KinMainSource/$System/
+export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/${KinMainSource}/${System}/${FldrName}
 export PathToSurQCT=$WORKSPACE_PATH/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
 # Heat Bath Conditions
-export TTranVec=(1500 2500) # 5000 6000 8000 10000 12000 14000 15000 20000)
-export InputSuffixVec=('.relax' '.relax') # '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit')
+export TTranVec=(1500 2500 5000 8000 10000 12000 15000 20000)
+export InputSuffixVec=('.relax' '.relax' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit')
 # Processes
 export DissFlg=2
 export InelFlg=1
@@ -26,7 +26,7 @@ export Exch2Flg=0
 export KinSource=$PathToDtbFldr"/kinetics/"$KinMainSource"/"$System"/"$FldrName
 
 # Initializing Database
-###############################################################################
+###############################################################################tree
 Initialize_0D_Database () {
 
     Header=">>  [Initialize_0D_Database]: "
@@ -83,16 +83,9 @@ Initialize_0D_Case () {
 
     Header=">>  [Initialize_0D_Case]: "
 
-    # Run Folder
-    # ------------------------------------------------------------------------- 
-    if [ ! -d ${PathToRunFldr} ]
-    then
-        mkdir -p ${PathToRunFldr}
-    fi
-
     # Output Folder
     # ------------------------------------------------------------------------- 
-    export OutputFldr=${PathToRunFldr}'/'${FldrName}'/'${DissFlg}'_'${InelFlg}'_'${Exch1Flg}'_'${Exch2Flg}'/T'${TTran}'K/'
+    export OutputFldr=${PathToRunFldr}'/'${DissFlg}'_'${InelFlg}'_'${Exch1Flg}'_'${Exch2Flg}'/T'${TTran}'K/'
     if [ ! -d ${OutputFldr} ]
     then
         mkdir -p ${OutputFldr}
