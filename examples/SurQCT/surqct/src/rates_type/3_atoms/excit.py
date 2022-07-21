@@ -1,6 +1,7 @@
 import os
 import h5py
 import copy
+import shutil
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -696,6 +697,11 @@ def plot_prediction3D(
 
     return fig
 
+  import shutil
+
+    for item in fileList:
+        shutil.copy(item[0], "/Users/username/Desktop/testPhotos")
+
 
 # Writing
 ###############################################################################
@@ -705,10 +711,17 @@ def save_predictiondata(
     Model,
     Columns
 ):
-    # Initialize HDF5
-    PathToHDF5File = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/' + System.NameLong + '.hdf5')
-    if not os.path.exists(os.path.dirname(PathToHDF5File)):
-        os.makedirs(os.path.dirname(PathToHDF5File))
+    # Initialize HDF5 file
+    PathToHDF5Fld    = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/')
+    if not os.path.exists(PathToHDF5Fld):
+        os.makedirs(PathToHDF5Fld)
+
+    # Check if exist a final version
+    FinalHDF5Version = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
+    if os.path.exists(FinalHDF5Version):
+        shutil.copy(FinalHDF5Version, PathToHDF5Fld)
+
+    PathToHDF5File   = PathToHDF5Fld + System.NameLong + '.hdf5'
     utils.print_main(
         f"Saving predicted '{InputData.RatesType}' rates in '{PathToHDF5File}' file ..."
     )
