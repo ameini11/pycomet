@@ -46,14 +46,7 @@ def get_parser(subparsers):
 
 # Main
 ###############################################################################
-@utils.app_decorator()
-def main(args):
-    
-    os.chdir(args.dir)
-    
-    # InputData module --------------------------------------------------------
-    sys.path.append(args.dir)
-    import InputData
+def _main(args=None, InputData=None):
 
     # Initializing chemical system --------------------------------------------
     utils.print_main(
@@ -79,3 +72,15 @@ def main(args):
     input_manipulation.save_modified_diatdata(
         InputData, System, ModifiedDiatData
     )
+
+
+@utils.app_decorator()
+def main(args):
+    
+    os.chdir(args.dir)
+    
+    # InputData module
+    sys.path.append(args.dir)
+    import InputData
+
+    _main(args, InputData)

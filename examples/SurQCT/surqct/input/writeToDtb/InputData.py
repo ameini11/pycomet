@@ -19,5 +19,5 @@ SuffixName      = '/em16/configs/config.03/run.03'  # em16 <-> 1.e-16
 
 # Reading Quantities
 ###############################################################################
-PathToHDF5File          = cfg.HDF5Dtb + '/' + KinSource + '/' + SuffixName
+SuffixHDF5              = '/configs/config.03/run.03'   # In HDF5 database
 PathToRatesMaskingHDF5  = None

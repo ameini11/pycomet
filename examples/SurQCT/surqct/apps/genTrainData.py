@@ -60,14 +60,7 @@ def get_parser(subparsers):
 
 # Main
 ###############################################################################
-@utils.app_decorator()
-def main(args):
-    
-    os.chdir(args.dir)
-    
-    # InputData module --------------------------------------------------------
-    sys.path.append(args.dir)
-    import InputData
+def _main(args=None, InputData=None):
 
     # Initializing chemical system --------------------------------------------
     utils.print_main(
@@ -114,3 +107,15 @@ def main(args):
         TestData = pd.concat(TestData, axis=1)
         TestData.to_csv(args.dir+'/data/test/labeled.csv', index=False, float_format='%.10e')
         utils.print_submain('Number of labeled testing pts:   %10d' % len(TestData))
+
+
+@utils.app_decorator()
+def main(args):
+    
+    os.chdir(args.dir)
+    
+    # InputData module
+    sys.path.append(args.dir)
+    import InputData
+
+    _main(args, InputData)

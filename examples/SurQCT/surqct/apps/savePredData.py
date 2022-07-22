@@ -13,13 +13,10 @@ NAME = 'savePredData'
 import os
 import sys
 import argparse
-import numpy as np
 import pandas as pd
 
-from pathlib import Path
 from surqct import config as cfg
-from surqct.apps import functions as surqct_fun
-from pycomet.apps import functions as pycomet_fun
+from surqct.apps import functions as fun
 
 from surqct.src.utilities import utils
 from surqct.src.rates_type import rates_type
@@ -41,7 +38,7 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=pycomet_fun.dir_path,
+        type=fun.dir_path,
         default="./",
         help='path to the working directory containing `InputData.py`'
     )
@@ -50,21 +47,14 @@ def get_parser(subparsers):
 
 # Main
 ###############################################################################
-@utils.app_decorator()
-def main(args):
-    
-    os.chdir(args.dir)
-    
-    # InputData module --------------------------------------------------------
-    sys.path.append(args.dir)
-    import InputData
+def _main(args=None, InputData=None):
 
     for RatesType in tf.nest.flatten(InputData.RatesType):
         utils.print_main(
             f"Generating rates matrix for '{InputData.RatesType}' process",
             start=''
         )
-        wd = PathToRunFld[RatesType]
+        wd = InputData.PathToModelFld[RatesType]
 
         # PyCOMET model
         #######################################################################
@@ -125,3 +115,15 @@ def main(args):
         )
 
         del sys.path[-1], model, net
+
+
+@utils.app_decorator()
+def main(args):
+    
+    os.chdir(args.dir)
+    
+    # InputData module
+    sys.path.append(args.dir)
+    import InputData
+
+    _main(args, InputData)

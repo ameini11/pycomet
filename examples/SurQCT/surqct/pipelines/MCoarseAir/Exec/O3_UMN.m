@@ -32,8 +32,8 @@ global Input Syst Temp Param Kin Rates OtherSyst OtherRates
 
 %% Case-specific inputs
 KinSource       = 'QCT';
-RunSuffix       = '/em16/';
-ToHDF5Suffix    = '/Orig/';
+SuffixName      = '/em16/';
+SuffixHDF5      = '/Orig/';
 
 DissFlg         = 0;
 InelFlg         = 1;
@@ -43,7 +43,6 @@ ExchFlg2        = 0;
 TranVec         = [1500, 2500, 5000, 8000, 10000, 12000, 15000, 20000];
 
 ReadRatesProc   = [1, 1, 1, 0]; % [Diss, Inel, Exch1, Exch2] | [0: None, 1: Fwd, 2: Fwd+Bwd, 3: Grouped Fwd]
-
 
 %% System Inputs
 Input.HOME_PATH                 = '/home/zanardi/';
@@ -61,15 +60,14 @@ Input.Paths.SurQCTSrc           = strcat(Input.WORKSPACE_PATH, '/ML/PyCOMET/pyco
 % PLATO Runs
 Input.Paths.ToKinMainFldr       = strcat(Input.WORKSPACE_PATH, '/AirDatabase/Run0D/');
 
-Input.Paths.ToHDF5Suffix	    = ToHDF5Suffix;
-Input.Paths.ToHDF5Fldr          = strcat(Input.WORKSPACE_PATH, '/AirDatabase/HDF5/', Input.Paths.ToHDF5Suffix);
+Input.Paths.ToHDF5Fldr          = strcat(Input.WORKSPACE_PATH, '/AirDatabase/HDF5/', KinSource, '/', SuffixHDF5);
 
 Input.TranVec                   = TranVec;
 Input.SystNameLong              = 'O3_UMN';
 Input.iPES                      = 0;
 Input.KinSource                 = KinSource;
 Input.Suffix                    = '';
-Input.RunSuffix                 = RunSuffix;
+Input.RunSuffix                 = SuffixName;
 
 Input.Kin.MolResolutionIn       = [{'StS'}];
 Input.Kin.EqNStatesIn           = [   6115];

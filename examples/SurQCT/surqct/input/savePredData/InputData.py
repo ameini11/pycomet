@@ -12,7 +12,7 @@ RatesType           = ['Inel']
 
 # Paths
 ###############################################################################
-PathToRunFld        = {
+PathToModelFld      = {
     'Inel': ''
 }
 PathToLevelsFile    = {'O2': cfg.MERuns + 'database/levels/modified/O3_UMN/O2/VMin_VMax.csv'}
@@ -34,4 +34,4 @@ RatesLogScale       = True
 # Saving/Writing Quantities
 ###############################################################################
 TTranVec            = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
-UseFinalVersion     = False
+UseFinalVersion     = True

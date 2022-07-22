@@ -50,16 +50,8 @@ def get_parser(subparsers):
 
 # Main
 ###############################################################################
-@utils.app_decorator()
-def main(args):
-    
-    os.chdir(args.dir)
-    
-    # InputData module --------------------------------------------------------
-    sys.path.append(args.dir)
-    import InputData
+def _main(args=None, InputData=None):
 
-    # Initializing chemical system --------------------------------------------
     utils.print_main(
         f"Initializing '{InputData.SystemName}' chemical system ..."
     )
@@ -67,7 +59,7 @@ def main(args):
         NameLong=InputData.SystemName,
         ProcNames=InputData.RatesType,
         KinSource=InputData.KinSource,
-        PathToHDF5File=InputData.PathToHDF5File
+        PathToHDF5File=cfg.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
     )
     # Reading rates
     utils.print_main("Reading rates ...")
@@ -90,3 +82,15 @@ def main(args):
         SuffixName=InputData.SuffixName,
         MinValueRate=InputData.MinValueRate
     )
+
+
+@utils.app_decorator()
+def main(args):
+    
+    os.chdir(args.dir)
+    
+    # InputData module
+    sys.path.append(args.dir)
+    import InputData
+
+    _main(args, InputData)
