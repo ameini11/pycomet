@@ -28,7 +28,7 @@ class inputdata(object):
         self.PyCoarseAIRFldr           = PyCoarseAIRFldr
         
         ### CASE SPECIFIC
-        self.TranVec                   = np.array([12000.0, 15000.0, 20000.0]) #np.array([1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0])
+        self.TranVec                   = np.array([1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0])
         self.T0                        = 300.0
         self.iPES                      = 0
 
@@ -155,7 +155,7 @@ class kinetics(object):
 
         ## Writing Arrhenius Files
         self.MaxEntOrPlato              = 1
-        self.MinRate                    = 1.e-15
+        self.MinRate                    = 1.e-16
         self.MinNbTs                    = 4
         self.MaxErrArr                  = 1.e-7
 

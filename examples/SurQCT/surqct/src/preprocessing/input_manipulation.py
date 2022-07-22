@@ -35,8 +35,8 @@ def manipulate_diatdata(DiatData, RefValue, NormValue):
                 data_temp = DiatData[k] + amin * 1.e-2
             else:
                 data_temp = DiatData[k]
-            # DiatData['log_'+k] = np.log(data_temp)
-            DiatData['log_'+k] = np.log10(data_temp)
+            DiatData['log_'+k] = np.log(data_temp)
+            # DiatData['log_'+k] = np.log10(data_temp)
 
     return DiatData
 

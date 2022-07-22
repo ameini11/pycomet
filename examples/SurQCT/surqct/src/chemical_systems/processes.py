@@ -10,8 +10,14 @@ from surqct.src.utilities import utils
 ###############################################################################
 class Processes():
 
-    def __init__(self, System, PathToHDF5File=None, ProcBool=None, ProcNames=None, CompInOut=None):
-
+    def __init__(
+        self,
+        System,
+        PathToHDF5File=None,
+        ProcBool=None,
+        ProcNames=None,
+        CompInOut=None
+    ):
         self.System         = System
         self.PathToHDF5File = PathToHDF5File
 
@@ -42,7 +48,10 @@ class Processes():
                 }
             }
 
-    def read_rates(self, TTranVec):
+    def read_rates(
+        self,
+        TTranVec
+    ):
         if self.System.NAtoms == 3:
             if os.path.exists(self.PathToHDF5File):
                 f = h5py.File(self.PathToHDF5File, 'r')

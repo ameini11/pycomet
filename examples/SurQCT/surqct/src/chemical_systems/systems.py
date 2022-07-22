@@ -6,20 +6,33 @@ from surqct.src.utilities import utils
 from surqct import config as cfg
 
 
-def get_system(NameLong, ProcBool=None, ProcNames=None, PathToHDF5File=None):
+def get_system(
+    NameLong,
+    ProcBool=None,
+    ProcNames=None,
+    KinSource='QCT',
+    PathToHDF5File=None
+):
     if hasattr(systems, NameLong):
-        Syst = getattr(systems, NameLong)(ProcBool, ProcNames, PathToHDF5File)
+        Syst = getattr(systems, NameLong)(
+            ProcBool=ProcBool,
+            ProcNames=ProcNames,
+            KinSource=KinSource,
+            PathToHDF5File=PathToHDF5File
+        )
         # Initializing molecules
         for Mol in Syst.Molecules:
             Mol.read_diatdata()
         return Syst
     else:
-        utils.raise_value_err(f"Chemical system '{NameLong}' not available.")
+        utils.raise_value_err(
+            f"Chemical system '{NameLong}' not available."
+        )
 
 
 class System():
 
-    def __init__(self, NameLong, Name, NAtoms, NMolecules):
+    def __init__(self, NameLong, Name, NAtoms, NMolecules, KinSource):
 
         # Identifier
         self.NameLong   = NameLong
@@ -32,13 +45,15 @@ class System():
         # Molecules
         self.NMolecules = NMolecules
         self.Molecules  = [Molecule() for iMol in range(NMolecules)]
+        
+        self.KinSource  = KinSource
 
 
 # List of available systems
 ###############################################################################
 # O2 + O System (From UMN, Prof. D. Truhlar)
 # -----------------------------------------------------------------------------
-def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
+def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=None):
 
     NameLong        = 'O3_UMN'
     Name            = 'O3'
@@ -46,7 +61,7 @@ def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
     NAtoms          = 3
     NMolecules      = 1
     NComp           = 2
-    Syst            = System(NameLong, Name, NAtoms, NMolecules)
+    Syst            = System(NameLong, Name, NAtoms, NMolecules, KinSource)
 
     # Atoms
     for Atom in Syst.Atoms:
@@ -64,8 +79,13 @@ def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
     
     # Thermochemical Processes
     if PathToHDF5File is None:
-        PathToHDF5Fld   = cfg.HDF5Dtb + '/Orig/O3_UMN.hdf5'
-    Syst.Processes      = Processes(System=Syst, ProcBool=ProcBool, ProcNames=ProcNames, PathToHDF5File=PathToHDF5File)
+        PathToHDF5Fld   = cfg.HDF5Dtb + f'/Orig/{NameLong}.hdf5'
+    Syst.Processes      = Processes(
+        System=Syst,
+        ProcBool=ProcBool,
+        ProcNames=ProcNames,
+        PathToHDF5File=PathToHDF5File
+    )
 
     # Master Equation
     Syst.MasterEquation = MasterEquation(Syst)
@@ -75,7 +95,7 @@ def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
 
 # N2 + N System (Recomputed. PES from NASA Ames, Dr. R. L. Jaffe & Dr. D. Schwenke)
 # -----------------------------------------------------------------------------
-def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
+def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=None):
 
     NameLong        = 'N3_NASA'
     Name            = 'N3'
@@ -83,7 +103,7 @@ def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
     NAtoms          = 3
     NMolecules      = 1
     NComp           = 2
-    Syst            = System(NameLong, Name, NAtoms, NMolecules)
+    Syst            = System(NameLong, Name, NAtoms, NMolecules, KinSource)
 
     # Atoms
     for Atom in Syst.Atoms:
@@ -100,8 +120,13 @@ def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
 
     # Thermochemical Processes
     if PathToHDF5File is None:
-        PathToHDF5Fld   = cfg.HDF5Dtb + '/SemiClassicalApprox/N3_NASA.hdf5'
-    Syst.Processes      = Processes(System=Syst, ProcBool=ProcBool, ProcNames=ProcNames, PathToHDF5File=PathToHDF5File)
+        PathToHDF5Fld   = cfg.HDF5Dtb + f'/SemiClassicalApprox/{NameLong}.hdf5'
+    Syst.Processes      = Processes(
+        System=Syst,
+        ProcBool=ProcBool,
+        ProcNames=ProcNames,
+        PathToHDF5File=PathToHDF5File
+    )
 
     # Master Equation
     Syst.MasterEquation = MasterEquation(Syst)
@@ -111,7 +136,7 @@ def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, PathToHDF5File=None):
 
 # NO + N System (From UMN)
 # -----------------------------------------------------------------------------
-def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, PathToHDF5File=None):
+def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5File=None):
 
     NameLong        = 'NON_UMN'
     Name            = 'NON'
@@ -119,7 +144,7 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, PathToHDF5File=None):
     NAtoms          = 3
     NMolecules      = 2
     NComp           = 4
-    Syst            = System(NameLong, Name, NAtoms, NMolecules)
+    Syst            = System(NameLong, Name, NAtoms, NMolecules, KinSource)
 
     # Atoms
     for Atom in [Syst.Atoms[0], Syst.Atoms[2]]:
@@ -145,7 +170,7 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, PathToHDF5File=None):
 
     # Thermochemical Processes
     if PathToHDF5File is None:
-        PathToHDF5Fld = cfg.HDF5Dtb + '/Orig/NON_UMN.hdf5'
+        PathToHDF5Fld = cfg.HDF5Dtb + f'/Orig/{NameLong}.hdf5'
     CompInOut = {
         'Diss': {
             'In':  (Syst.Molecules[0], Syst.Atoms[0]),
@@ -164,7 +189,13 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, PathToHDF5File=None):
             'Out': (self.System.Molecules[0], self.System.Atoms[0])
         }
     }
-    Syst.Processes      = Processes(System=Syst, ProcBool=ProcBool, ProcNames=ProcNames, PathToHDF5File=PathToHDF5File, CompInOut=CompInOut)
+    Syst.Processes      = Processes(
+        System=Syst,
+        ProcBool=ProcBool,
+        ProcNames=ProcNames,
+        PathToHDF5File=PathToHDF5File,
+        CompInOut=CompInOut
+    )
 
     # Master Equation
     CompNames           = ['N', 'O', 'N2', 'NO']

@@ -28,61 +28,82 @@ class MasterEquation():
 
         self.ProcNames  = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
 
-    def postprocess_data(self, PathToCase, Save=False):
-        self.MEPath = cfg.MERuns + '/run/' + PathToCase + '/' + self.System.NameLong
+    def postprocess_data(self, CaseSuffix=''):
+        self.MEPath = f'{cfg.MERuns}/run/{self.System.KinSource}/{self.System.NameLong}/{CaseSuffix}/'
         self.Data   = {}
         for ProcCode in os.scandir(self.MEPath):
-            ProcBool            = [int(i) for i in ProcCode.split('_')]
-            self.Data[ProcCode] = {}
-            for TTran in os.scandir(self.MEPath + '/' + ProcCode):
-                # Initialize master equation run
-                T    = TTran[1:-1]
-                Path = self.MEPath + '/' + ProcCode + '/' + TTran + '/'
-                self.Data[ProcCode][T] = {}
-                # Read box data resulting from Plato simulation
-                self.Data[ProcCode][T].update(
-                    self.readbox(Path=Path)
-                )
-                # Read populations data resulting from Plato simulation
-                self.Data[ProcCode][T].update(
-                    self.read_pop(Path=Path, Time=self.Data[ProcCode][TTran]['t'])
-                )
-                # Compute energies
-                self.Data[ProcCode][T].update(
-                    self.compute_energies(Ni=self.Data[ProcCode][TTran]['Ni'])
-                )
-                # Compute mass depletion
-                self.Data[ProcCode][T].update(
-                    self.compute_mass_depletion(Data=self.Data[ProcCode][TTran])
-                )
+            ProcCode            = ProcCode.name
+            if any(ProcCode.startswith(k) for k in ('0','1','2')):
+                ProcBool            = [int(i) for i in ProcCode.split('_')]
+                self.Data[ProcCode] = {}
+                utils.print_submain(f"Postprocessing Case with Code '{ProcCode}'")
+                for TTran in os.scandir(self.MEPath + '/' + ProcCode):
+                    TTran = TTran.name
+                    if TTran.startswith('T') and TTran.endswith('K'):
+                        T     = TTran[1:-1]
+                        utils.print_submain(f'Temperature T = {T} K', delimiter=' '*4)
+                        # Initialize master equation run
+                        Path  = self.MEPath + '/' + ProcCode + '/' + TTran + '/'
+                        self.Data[ProcCode][T] = {}
+                        # Read box data resulting from Plato simulation
+                        self.Data[ProcCode][T].update(
+                            self.read_box(Path=Path)
+                        )
+                        # Read populations data resulting from Plato simulation
+                        self.Data[ProcCode][T].update(
+                            self.read_pop(Path=Path, Time=self.Data[ProcCode][T]['t'])
+                        )
+                        # Compute energies
+                        self.Data[ProcCode][T].update(
+                            self.compute_energies(Ni=self.Data[ProcCode][T]['Ni'])
+                        )
+                        # Compute mass depletion
+                        if ProcBool[0] > 0:
+                            self.Data[ProcCode][T].update(
+                                self.compute_mass_depletion(Data=self.Data[ProcCode][T])
+                            )
                 # From MCoarseAir ---------------------------------------------
                 # Read energy depletion
-                self.Data[ProcCode][T].update(
+                self.Data[ProcCode].update(
                     self.read_energy_depletion(ProcCode=ProcCode)
                 )
                 # Read taus
-                self.Data[ProcCode][T].update(
+                self.Data[ProcCode].update(
                     self.read_taus(ProcCode=ProcCode)
                 )
                 # Read QSS timing
-                self.Data[ProcCode][T].update(
-                    self.read_QSS(ProcCode=ProcCode)
-                )
+                if ProcBool[0] > 0:
+                    self.Data[ProcCode].update(
+                        self.read_QSS(ProcCode=ProcCode)
+                    )
                 # Read global rates
-                self.Data[ProcCode][T].update(
-                    self.read_globalrates(ProcCode=ProcCode)
+                self.Data[ProcCode].update(
+                    self.read_globalrates(ProcCode=ProcCode, ProcBool=ProcBool)
                 )
                 # Read thermal rates
-                self.Data[ProcCode][T].update(
-                    self.read_thermalrates(ProcCode=ProcCode)
+                self.Data[ProcCode].update(
+                    self.read_thermalrates(ProcCode=ProcCode, ProcBool=ProcBool)
                 )
-        if Save:
-            dicttoh5(treedict=self.Data, h5file=self.MEPath, overwrite_data=True, create_dataset_args={'compression': "gzip"})
+
+    def save_data(self):
+        file = self.MEPath+'/MEData.hdf5'
+        if os.path.exists(file):
+            os.remove(file)
+        dicttoh5(
+            treedict=self.Data,
+            h5file=file,
+            overwrite_data=True,
+            create_dataset_args={'compression': "gzip"}
+        )
+        
+    def read_data(self, CaseSuffix=''):
+        self.MEPath = f'{cfg.MERuns}/run/{self.System.KinSource}/{self.System.NameLong}/{CaseSuffix}/'
+        self.Data   = h5todict(self.MEPath+'/MEData.hdf5')
 
     # Reading
     # -------------------------------------------------------------------------
     def read_box(self, Path):
-        BoxData         = pd.read_csv(Path + '/box.dat', delimiter='  ', skiprows=1, engine='python')
+        BoxData         = pd.read_csv(Path + '/output_box/box.dat', delimiter='  ', skiprows=1, engine='python')
         BoxData.columns = self.BoxHeader
         BoxData         = BoxData.to_dict('list')
         BoxData         = {k: np.array(v) for k, v in BoxData.items()}
@@ -92,74 +113,69 @@ class MasterEquation():
         Ni = {}
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in Ni:
-                FileName     = Path + f'/pop_{Mol.Name}.dat'
-                pop_ov_g     = np.abs(np.loadtxt(FileName, comments='&', skiprows=2, usecols=(1)))
+                FileName     = Path + f'/output_box/pop_{Mol.Name}.dat'
+                Ni_ov_g      = np.abs(np.loadtxt(FileName, comments='&', skiprows=2, usecols=(1)))
                 Ni[Mol.Name] = Ni_ov_g.reshape((len(Time), Mol.NLevels)) * Mol.g.reshape(1,-1)
         return {'Ni': Ni}
 
     def read_energy_depletion(self, ProcCode):
         EDCoeff = {}
         Columns = ['T', 'IntEq', 'RotEq', 'VibEq', 'IntQSS', 'RotQSS', 'VibQSS']
-        dType   = np.dtype({'names': Columns, 'formats': [(np.float64) for i in range(len(Columns))]})
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in EDCoeff:
                 FileName          = f'{self.MEPath}/{ProcCode}/Data/EDCoeffs_{Mol.Name}_{ProcCode}.csv'
-                EDCoeff[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, engine='python')
-                # EDCoeff[Mol.Name].columns = Columns
-                EDCoeff[Mol.Name] = np.recarray(EDCoeff[Mol.Name].to_numpy(), dtype=dType)
+                EDCoeff[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, header=None, engine='python')
+                EDCoeff[Mol.Name].columns = Columns
+                EDCoeff[Mol.Name] = EDCoeff[Mol.Name].to_records(index=False)
         return {'EnergyDepCoeff': EDCoeff}
 
     def read_taus(self, ProcCode):
         Taus    = {}
         Columns = ['T', 'p', 'pTauInt', 'pTauRot', 'pTauVib']
-        dType   = np.dtype({'names': Columns, 'formats': [(np.float64) for i in range(len(Columns))]})
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in Taus:
                 FileName       = f'{self.MEPath}/{ProcCode}/Data/Taus_{Mol.Name}_{ProcCode}.csv'
-                Taus[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, engine='python')
-                # Taus[Mol.Name].columns = Columns
-                Taus[Mol.Name] = np.recarray(Taus[Mol.Name].to_numpy(), dtype=dType)
+                Taus[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=1, header=None, engine='python')
+                Taus[Mol.Name].columns = Columns
+                Taus[Mol.Name] = Taus[Mol.Name].to_records(index=False)
         return {'Taus': Taus}
 
     def read_QSS(self, ProcCode):
         Columns     = ['T', 'Start', 'Mid', 'End']
-        dType       = np.dtype({'names': Columns, 'formats': [(np.float64) for i in range(len(Columns))]})
         FileName    = f'{self.MEPath}/{ProcCode}/Data/QSS_{ProcCode}.csv'
-        QSS         = pd.read_csv(FileName, delimiter=',', skiprows=2, engine='python')
-        # QSS.columns = Columns
-        QSS         = np.recarray(QSS.to_numpy(), dtype=dType)
+        QSS         = pd.read_csv(FileName, delimiter=',', skiprows=2, header=None, engine='python')
+        QSS.columns = Columns
+        QSS         = QSS.to_records(index=False)
         return {'QSS': QSS}
 
-    def read_globalrates(self, ProcCode):
+    def read_globalrates(self, ProcCode, ProcBool):
         KGlobal = {}
         Columns = ['T']
         for j in ('Eq', 'QSS'):
             Columns = Columns + [f'Diss_{j}']
             for i, k in enumerate(self.ProcNames):
-                if i > 1:
+                if i > 1 and ProcBool[i]:
                     Columns = Columns + [f'{k}_{j}']
-        dType   = np.dtype({'names': Columns, 'formats': [(np.float64) for i in range(len(Columns))]})
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in KGlobal:
                 FileName          = f'{self.MEPath}/{ProcCode}/Data/KGlobal_{Mol.Name}_{ProcCode}.csv'
-                KGlobal[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, engine='python')
-                # KGlobal[Mol.Name].columns = Columns
-                KGlobal[Mol.Name] = np.recarray(KGlobal[Mol.Name].to_numpy(), dtype=dType)
+                KGlobal[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, header=None, engine='python')
+                KGlobal[Mol.Name].columns = Columns
+                KGlobal[Mol.Name] = KGlobal[Mol.Name].to_records(index=False)
         return {'KGlobal': KGlobal}
 
-    def read_thermalrates(self, ProcCode):
+    def read_thermalrates(self, ProcCode, ProcBool):
         KTh     = {}
         Columns = ['T', 'Diss']
         for i, k in enumerate(self.ProcNames):
-            if i > 1:
+            if i > 1 and ProcBool[i]:
                 Columns = Columns + [k]
-        dType   = np.dtype({'names': Columns, 'formats': [(np.float64) for i in range(len(Columns))]})
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in KTh:
                 FileName      = f'{self.MEPath}/{ProcCode}/Data/KTh_{Mol.Name}_{ProcCode}.csv'
-                KTh[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, engine='python')
-                # KTh[Mol.Name].columns = Columns
-                KTh[Mol.Name] = np.recarray(KGlobal[Mol.Name].to_numpy(), dtype=dType)
+                KTh[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, header=None, engine='python')
+                KTh[Mol.Name].columns = Columns
+                KTh[Mol.Name] = KTh[Mol.Name].to_records(index=False)
         return {'KTh': KTh}
 
     # Computing
@@ -183,7 +199,7 @@ class MasterEquation():
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in DepTime:
                 # Molar fraction
-                MoleFrac = Data[Mol.Name]
+                MoleFrac = Data[f'X_{Mol.Name}']
                 # Percentage molar fraction
                 MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[0] - MoleFrac[-1]))
                 TimeIdx  = np.argmin(np.abs(MolePerc - DepPerc))

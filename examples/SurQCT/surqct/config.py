@@ -40,9 +40,9 @@ mpl_cfg = {
 }
 
 # Paths -----------------------------------------------------------------------
-CoarseAIR = '/home/zanardi/WORKSPACE/NeqPlasma/CoarseAIR/coarseair/'
-MERuns    = '/home/zanardi/WORKSPACE/AirDatabase/Run0D/'
-HDF5Dtb   = '/home/zanardi/WORKSPACE/AirDatabase/HDF5/'
+CoarseAIR = '/home/zanardi/Codes/CoarseAIR/coarseair/'
+MERuns    = '/home/zanardi/Workspace/AirDatabase/Run0D/'
+HDF5Dtb   = '/home/zanardi/Workspace/AirDatabase/HDF5/'
 
 # Standard output -------------------------------------------------------------
 DISPLAY_LEN = 98

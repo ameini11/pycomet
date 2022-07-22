@@ -31,11 +31,11 @@ global Input Syst Temp Param Kin Rates OtherSyst OtherRates
 %%%% SPECIFYING INPUT
 
 %% Case-specific inputs
-KinSource       = 'QCT';
-RunSuffix       = '';
-ToHDF5Suffix    = '/Orig/';
+KinSource       = 'SurQCT';
+RunSuffix       = '/em15/configs/config.06/run.03/';
+ToHDF5Suffix    = '/SurQCT/configs/config.06/run.03/';
 
-DissFlg         = 2;
+DissFlg         = 0;
 InelFlg         = 1;
 ExchFlg1        = 1;
 ExchFlg2        = 0;
