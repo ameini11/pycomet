@@ -13,17 +13,12 @@ NAME = 'writeToDtb'
 import os
 import sys
 import argparse
-import numpy as np
-import pandas as pd
 
-from pathlib import Path
 from surqct import config as cfg
-from surqct.apps import functions as surqct_fun
-from pycomet.apps import functions as pycomet_fun
+from surqct.apps import functions as fun
 
 from surqct.src.utilities import utils
 from surqct.src.chemical_systems import systems as syst
-from surqct.src.rates_type.rates_type import get_rates_type_mod
 
 
 # Parse arguments
@@ -41,7 +36,7 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=pycomet_fun.dir_path,
+        type=fun.dir_path,
         default="./",
         help='path to the working directory containing `InputData.py`'
     )

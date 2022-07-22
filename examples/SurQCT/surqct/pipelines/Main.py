@@ -7,15 +7,13 @@ SurQCT  = PyCOMET + '/examples/SurQCT/'
 sys.path.append(PyCOMET)
 sys.path.append(SurQCT)
 
-
-
-from pycomet.utilities import utils as pycomet_utils
-pycomet_utils.set_num_threads(cfg.NUM_THREADS)
+from pycomet.utilities.utils import set_num_threads
 
 
 # Inputs
 ###############################################################################
 TASKS           = [1,1,1,1,1]
+NUM_THREADS     = 8
 
 # Global
 SystemName      = 'O3_UMN'
@@ -46,6 +44,8 @@ SuffixHDF5      = '/configs/config.03/run.03'
 # Main
 ###############################################################################
 def main():
+
+    set_num_threads(NUM_THREADS)
 
     # TASK 1
     # -------------------------------------------------------------------------
@@ -113,6 +113,7 @@ def main():
             replace(
                 file=plato_exec,
                 patterns=(
+                    "export NUM_THREADS=",
                     "export System=",
                     "export KinMainSource=",
                     "export SuffixName=",
@@ -124,6 +125,7 @@ def main():
                     "export Exch2Flg="
                 ),
                 replaces=(
+                    f"export NUM_THREADS='{NUM_THREADS}'",
                     f"export System='{SystemName}'",
                     f"export KinMainSource='{KinSource}'",
                     f"export SuffixName=({SuffixName})",
@@ -188,13 +190,8 @@ def main():
         from surqct.apps.postprocMEData import _main
         # Modifying input module
         InputData.SystemName             = SystemName
-        InputData.RatesType              = RatesType
         InputData.KinSource              = KinSource
-        InputData.TTranVec               = TTranVec
-        InputData.MinRateValue           = MinRateValue
         InputData.SuffixName             = SuffixName
-        InputData.SuffixHDF5             = SuffixHDF5
-        InputData.PathToRatesMaskingHDF5 = PathToRatesMaskingHDF5
         # Executing main
         _main(InputData=InputData)
         # Deleting modules

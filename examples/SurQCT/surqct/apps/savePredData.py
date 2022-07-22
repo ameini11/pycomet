@@ -13,7 +13,6 @@ NAME = 'savePredData'
 import os
 import sys
 import argparse
-import pandas as pd
 
 from surqct import config as cfg
 from surqct.apps import functions as fun
@@ -29,7 +28,7 @@ def get_parser(subparsers):
     parser = subparsers.add_parser(
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Save predicted rates matrix to HDF5 file from trained SurQCT model.",
+        description="Save predicted rates matrices from trained SurQCT model to HDF5 file.",
         epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',

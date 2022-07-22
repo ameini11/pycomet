@@ -30,7 +30,7 @@ def get_parser(subparsers):
     parser = subparsers.add_parser(
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Generate data for training the SurQCT model.",
+        description="Generate training/validation/testing data to construct the SurQCT model.",
         epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',
