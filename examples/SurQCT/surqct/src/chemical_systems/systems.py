@@ -20,7 +20,7 @@ def get_system(
             KinSource=KinSource,
             PathToHDF5File=PathToHDF5File
         )
-        # Initializing molecules
+        # Initializing diatomic potential data
         for Mol in Syst.Molecules:
             Mol.read_diatdata()
         return Syst
@@ -45,7 +45,11 @@ class System():
         # Molecules
         self.NMolecules = NMolecules
         self.Molecules  = [Molecule() for iMol in range(NMolecules)]
+
+        # Components
+        self.Components = self.Atoms + self.Molecules
         
+        # Kinetic source (QCT or SurQCT)
         self.KinSource  = KinSource
 
 
@@ -64,18 +68,11 @@ def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=N
     Syst            = System(NameLong, Name, NAtoms, NMolecules, KinSource)
 
     # Atoms
-    for Atom in Syst.Atoms:
-        Atom.Name   = 'O'
-        Atom.Mass   = 15.9994e-3    # [kg/mol]
-        Atom.Qe     = 9.
-        Atom.Ef     = 246795.       # [J/mol]
+    for iA in range(NAtoms):
+        Syst.Atoms[iA]  = get_properties(Name='O', Component=Syst.Atoms[iA])
 
     # Molecules
-    Syst.Molecules[0].Name             = 'O2'
-    Syst.Molecules[0].Mass             = 15.9994e-3 * 2    # [kg/mol]
-    Syst.Molecules[0].PathToDiatFile   = cfg.CoarseAIR + '/dtb/Molecules/O2/UMN/FromUMN_Sorted.inp'
-    Syst.Molecules[0].DegeneracyFactor = [0.5, 0.5]
-    Syst.Molecules[0].Qe               = 3.
+    Syst.Molecules[0]   = get_properties(Name='O2', Component=Syst.Molecules[0])
     
     # Thermochemical Processes
     if PathToHDF5File is None:
@@ -86,6 +83,7 @@ def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=N
         ProcNames=ProcNames,
         PathToHDF5File=PathToHDF5File
     )
+    Syst.Processes.DissCorrFactor = 16./3.
 
     # Master Equation
     Syst.MasterEquation = MasterEquation(Syst)
@@ -106,22 +104,16 @@ def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=
     Syst            = System(NameLong, Name, NAtoms, NMolecules, KinSource)
 
     # Atoms
-    for Atom in Syst.Atoms:
-        Atom.Name   = 'N'
-        Atom.Mass   = 14.0067e-3
-        Atom.Qe     = 12.
-        Atom.Ef     = 470818.
+    for iA in range(NAtoms):
+        Syst.Atoms[iA]  = get_properties(Name='N', Component=Syst.Atoms[iA])
 
     # Molecules
-    Syst.Molecules[0].Name             = 'N2'
-    Syst.Molecules[0].Mass             = 14.0067e-3 * 2
-    Syst.Molecules[0].PathToDiatFile   = cfg.CoarseAIR + '/dtb/Molecules/N2/LeRoy/MyLeroy_FromRobyn.inp'
-    Syst.Molecules[0].DegeneracyFactor = [0.5, 0.5]
+    Syst.Molecules[0]   = get_properties(Name='N2', Component=Syst.Molecules[0])
 
     # Thermochemical Processes
     if PathToHDF5File is None:
-        PathToHDF5Fld   = cfg.HDF5Dtb + f'/SemiClassicalApprox/{NameLong}.hdf5'
-    Syst.Processes      = Processes(
+        PathToHDF5Fld = cfg.HDF5Dtb + f'/SemiClassicalApprox/{NameLong}.hdf5'
+    Syst.Processes = Processes(
         System=Syst,
         ProcBool=ProcBool,
         ProcNames=ProcNames,
@@ -147,24 +139,13 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5File=
     Syst            = System(NameLong, Name, NAtoms, NMolecules, KinSource)
 
     # Atoms
-    for Atom in [Syst.Atoms[0], Syst.Atoms[2]]:
-        Atom.Name   = 'N'
-        Atom.Mass   = 14.0067e-3
-        Atom.Qe     = 12.
-        Atom.Ef     = 470818.
-    Syst.Atoms[1].Name  = 'O'
-    Syst.Atoms[1].Mass  = 15.9994e-3
-    Syst.Atoms[1].Qe    = 9.
-    Syst.Atoms[1].Ef    = 246795.
+    for iA in (0, 2):
+        Syst.Atoms[iA]  = get_properties(Name='N', Component=Syst.Atoms[iA])
+    Syst.Atoms[1]       = get_properties(Name='O', Component=Syst.Atoms[1])
 
     # Molecules
-    Syst.Molecules[0].Name             = 'NO'
-    Syst.Molecules[0].Mass             = 14.0067e-3 + 15.9994e-3
-    Syst.Molecules[0].PathToDiatFile   = cfg.CoarseAIR + '/dtb/Molecules/NO/UMN/Recomputed.inp'
-    Syst.Molecules[0].Qe               = 4.
-
-    Syst.Molecules[1].Name             = 'N2'
-    Syst.Molecules[1].Mass             = 14.0067e-3 * 2
+    Syst.Molecules[0]   = get_properties(Name='NO', Component=Syst.Molecules[0])
+    Syst.Molecules[1]   = get_properties(Name='N2', Component=Syst.Molecules[1])
     Syst.Molecules[1].PathToDiatFile   = cfg.CoarseAIR + '/dtb/Molecules/N2/UMN_ForN2O2/Recomputed.inp'
     Syst.Molecules[1].DegeneracyFactor = [3.0, 6.0]
 
@@ -189,7 +170,7 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5File=
             'Out': (self.System.Molecules[0], self.System.Atoms[0])
         }
     }
-    Syst.Processes      = Processes(
+    Syst.Processes = Processes(
         System=Syst,
         ProcBool=ProcBool,
         ProcNames=ProcNames,

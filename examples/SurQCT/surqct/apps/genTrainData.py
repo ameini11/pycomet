@@ -41,7 +41,7 @@ def get_parser(subparsers):
     parser.add_argument('-d', '--dir',
         type=fun.dir_path,
         default="./",
-        help='path to the working directory containing `datagen/InputData.py`'
+        help='path to the working directory containing `InputData.py`'
     )
     parser.add_argument('-tr', '--training',
         type=int,
@@ -66,7 +66,7 @@ def main(args):
     os.chdir(args.dir)
     
     # InputData module --------------------------------------------------------
-    sys.path.append(args.dir+'/datagen/')
+    sys.path.append(args.dir)
     import InputData
 
     # Initializing chemical system --------------------------------------------

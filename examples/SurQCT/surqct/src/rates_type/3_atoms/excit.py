@@ -708,19 +708,20 @@ def save_predictiondata(
     System,
     Model,
     Columns,
-    BatchSize=1024
+    BatchSize=1024,
+    RatesType=None
 ):
     # Initialize HDF5 file
-    PathToHDF5Fld    = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SavePathSuffix + '/') + '/'
+    PathToHDF5Fld    = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SuffixName) + '/'
     if not os.path.exists(PathToHDF5Fld):
         os.makedirs(PathToHDF5Fld)
     PathToHDF5File   = PathToHDF5Fld + System.NameLong + '.hdf5'
     utils.print_main(
-        f"Saving predicted '{InputData.RatesType}' rates in '{PathToHDF5File}' file ..."
+        f"Saving predicted '{RatesType}' rates in '{PathToHDF5File}' file ..."
     )
 
     # Check if exist a final version
-    if not os.path.exists(PathToHDF5File):
+    if InputData.UseFinalVersion and not os.path.exists(PathToHDF5File):
         FinalHDF5Version = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
         if os.path.exists(FinalHDF5Version):
             shutil.copy(FinalHDF5Version, PathToHDF5Fld)
@@ -730,15 +731,15 @@ def save_predictiondata(
         Mol.save_levels(PathToHDF5File)
 
     # Loading Input and Output for Training and Validation
-    TTranVec = InputData.SaveTTranVec
-    NTTran   = len(InputData.SaveTTranVec)
+    TTranVec = InputData.TTranVec
+    NTTran   = len(InputData.TTranVec)
 
     # Reading Levels Info of Initial and Final Molecules
     reading.read_levelsinfo(InputData, System, TTranVec)
 
     # In/Out Components
-    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
-    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
+    MolIn  = System.Processes.CompInOut[RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[RatesType]['Out'][0]
 
     # Loop over temperatures
     Groups = {}
@@ -788,7 +789,7 @@ def save_predictiondata(
             NPts        = NPts + jNLevels
 
         # Collecting rate matrix
-        Groups[f'T_{TTran}_{TTran}'] = {'Rates': {InputData.RatesType: RateMatrix}}
+        Groups[f'T_{TTran}_{TTran}'] = {'Rates': {RatesType: RateMatrix}}
 
         te      = time.time()
         delta   = datetime.timedelta(seconds=(te - ts))
