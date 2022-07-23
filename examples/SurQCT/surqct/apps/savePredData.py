@@ -13,14 +13,14 @@ NAME = 'savePredData'
 import os
 import sys
 import argparse
-import importlib
 import tensorflow as tf
 
 from surqct import config as cfg
-from pycomet.apps import functions as pycomet_fun
-from surqct.apps import functions as surqct_fun
+from pycomet.apps import functions as pcm_fun
+from surqct.apps import functions as sq_fun
 
-from surqct.src.utilities import utils
+from pycomet.utilities import utils as pcm_utils
+from surqct.src.utilities import utils as sq_utils
 from surqct.src.rates_type import rates_type
 from surqct.src.chemical_systems import systems as syst
 
@@ -40,7 +40,7 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=surqct_fun.dir_path,
+        type=sq_fun.dir_path,
         default="./",
         help='path to the working directory containing `InputData.py`'
     )
@@ -50,11 +50,9 @@ def get_parser(subparsers):
 # Main
 ###############################################################################
 def _main(args=None, InputData=None):
-
-    net = {}
-    inputs_I = {}
+    
     for RatesType in tf.nest.flatten(InputData.RatesType):
-        utils.print_main(
+        sq_utils.print_main(
             f"Generating rates matrix for '{RatesType}' process", start=''
         )
         wd = InputData.PathToModelFld[RatesType]
@@ -62,52 +60,43 @@ def _main(args=None, InputData=None):
         # PyCOMET model
         #######################################################################
         os.chdir(wd)
-        utils.print_main("Initializing PyCOMET ...")
+        sq_utils.print_main("Initializing PyCOMET ...")
 
         # Add modules ---------------------------------------------------------
         sys.path.insert(0, wd)
         # Input module
         import inputs
-        importlib.reload(inputs)
-        inputs_I[RatesType] = inputs
-        print(inputs.__file__)
+        pcm_utils.reload_mod(modules=[inputs])
         from inputs.general import flags
-
-        libs = []
-        for k, v in sys.modules.items():
-            if 'inputs' in k:
-                libs.append(k)
-        for k in libs:
-            importlib.reload(sys.modules[k])
         
         # Check flags ---------------------------------------------------------
         for k in ('train', 'save'):
             flags[k] = 0
         flags['load'] = 1
         if flags['load'] not in (1, 2):
-            utils.raise_value_err(
+            sq_utils.raise_value_err(
                 "The network has to be restored from a saved or a checkpointed "
                 "one. Modified the 'load' entry in the `flags` input variable."
             )
 
         # Network -------------------------------------------------------------
-        net[RatesType] = pycomet_fun._net(
-            input_mod=inputs_I[RatesType]
+        net = pcm_fun._net(
+            input_mod=inputs
         )
 
         # Model ---------------------------------------------------------------
-        model = pycomet_fun._model(
+        model = pcm_fun._model(
             flags=flags,
-            input_mod=inputs_I[RatesType],
-            net=net[RatesType]
+            input_mod=inputs,
+            net=net
         )
         
         # SurQCT model
         #######################################################################
-        utils.print_main(f"Initializing SurQCT ...")
+        sq_utils.print_main(f"Initializing SurQCT ...")
 
         # Initializing chemical system ----------------------------------------
-        utils.print_main(
+        sq_utils.print_main(
             f"Initializing '{InputData.SystemName}' chemical system ..."
         )
         system = syst.get_system(
@@ -126,11 +115,11 @@ def _main(args=None, InputData=None):
             Columns=inputs.data.columns['x'],
             RatesType=RatesType
         )
+        
+        del inputs, net, model, sys.path[0]
 
-        del inputs, model
 
-
-@utils.app_decorator()
+@sq_utils.app_decorator()
 def main(args):
     
     os.chdir(args.dir)

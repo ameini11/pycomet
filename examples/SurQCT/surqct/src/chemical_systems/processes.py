@@ -3,6 +3,8 @@ import h5py
 import numpy as np
 import tensorflow as tf
 
+from tqdm import tqdm
+from surqct import config as cfg
 from surqct.src.utilities import utils
 
 
@@ -13,20 +15,23 @@ class Processes():
     def __init__(
         self,
         System,
-        PathToHDF5File=None,
+        PathToHDF5Fld=None,
         ProcBool=None,
         ProcNames=None,
         CompInOut=None
     ):
         self.System         = System
-        self.PathToHDF5File = PathToHDF5File
+        self.PathToHDF5File = PathToHDF5Fld + f'/{System.NameLong}.hdf5'
 
         self.ProcBool       = ProcBool
         self.ValidProcNames = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
         self.ProcIndices    = np.array([2, 5, 6, 6])
         self.Rates          = {}
         if self.ProcBool is None:
-            self.ProcBool = self.ValidProcNames == np.array(tf.nest.flatten(ProcNames))
+            self.ProcBool = np.zeros(1, dtype=np.int)
+            ProcNames     = tf.nest.flatten(ProcNames)
+            for iProcNames in ProcNames:
+                self.ProcBool = self.ProcBool + (self.ValidProcNames == np.array(iProcNames))
         self.DissCorrFactor = 1.
         self.RatesMasking   = None
 
@@ -50,7 +55,7 @@ class Processes():
                     'Out': (self.System.Molecules[0], self.System.Atoms[0])
                 }
             }
-
+    
     def read_rates(
         self,
         TTranVec
@@ -64,15 +69,15 @@ class Processes():
             for i, k in enumerate(self.ValidProcNames):
                 if self.ProcBool[i]:
                     self.Rates[k] = {}
-                    for TTran in tf.nest.flatten(TTranVec):
-                        Ti = str(int(TTran))
-                        self.Rates[k][Ti] = f[f'/T_{Ti}_{Ti}/Rates/{k}'][()]
+                    for iT in tf.nest.flatten(TTranVec):
+                        iT = str(int(iT))
+                        self.Rates[k][iT] = f[f'/T_{iT}_{iT}/Rates/{k}'][()]
                         if k == 'Diss':
-                            self.Rates[k][Ti] = self.Rates[k][Ti][:,0:1]
+                            self.Rates[k][iT] = self.Rates[k][iT][:,0:1]
             f.close()
         else:
             raise NotImplementedError
-
+            
     def read_ratesmasking(
         self,
         TTranVec,
@@ -87,11 +92,11 @@ class Processes():
             for i, k in enumerate(self.ValidProcNames):
                 if self.ProcBool[i]:
                     self.RatesMasking[k] = {}
-                    for TTran in tf.nest.flatten(TTranVec):
-                        Ti = str(int(TTran))
-                        self.RatesMasking[k][Ti] = f[f'/T_{Ti}_{Ti}/RatesMasking/{k}'][()]
+                    for iT in tf.nest.flatten(TTranVec):
+                        iT = str(int(iT))
+                        self.RatesMasking[k][iT] = f[f'/T_{iT}_{iT}/RatesMasking/{k}'][()]
                         if k == 'Diss':
-                            self.RatesMasking[k][Ti] = self.RatesMasking[k][Ti][:,0:1]
+                            self.RatesMasking[k][iT] = self.RatesMasking[k][iT][:,0:1]
             f.close()
         else:
             raise NotImplementedError
@@ -100,13 +105,15 @@ class Processes():
         self,
         TTranVec,
         SuffixName='',
-        MinValueRate=1.e-20
+        MinRateValue=1.e-20
     ):
-        for TTran in tf.nest.flatten(TTranVec):
+        for iT in tf.nest.flatten(TTranVec):
 
-            TTran = int(TTran)
-            utils.print_submain(f'Translational Temperature: T = {TTran} K')
-            TempFldr = cfg.MERuns + '/database/kinetics/' + self.System.KinSource + '/' + self.System.NameLong + '/' + SuffixName + f'/T{TTran}K/'
+            iT = str(int(iT))
+            utils.print_submain(f'Translational Temperature: T = {iT} K')
+            TempFldr = cfg.MERuns + '/database/kinetics/' + self.System.KinSource + '/' + self.System.NameLong + '/' + SuffixName + f'/T{iT}K/'
+            if not os.path.exists(TempFldr):
+                os.makedirs(TempFldr)
 
             if self.System.NAtoms == 3:
 
@@ -123,13 +130,13 @@ class Processes():
                     KinFile = open(DissKinetics, 'w')
 
                     NLevels = self.CompInOut[ProcName]['In'][0].NLevels
-                    for iLevel in range(NLevels):
+                    for iLevel in tqdm(range(NLevels)):
                         if self.RatesMasking is not None:
-                            Mask = self.RatesMasking[ProcName][Ti][iLevel]
+                            Mask = self.RatesMasking[ProcName][iT][iLevel]
                         else:
                             Mask = True
-                        Rate = self.Rates[ProcName][Ti][iLevel] * self.DissCorrFactor
-                        if (Rate > MinValueRate) and (bool(Mask)):
+                        Rate = self.Rates[ProcName][iT][iLevel] * self.DissCorrFactor
+                        if (Rate > MinRateValue) and (bool(Mask)):
                             KinFile.write(self.line_diss(Rate, ProcName, ProcIndex, iLevel))
 
                     KinFile.close()
@@ -140,17 +147,21 @@ class Processes():
 
                         ProcName  = self.ValidProcNames[i]
                         ProcIndex = self.ProcIndices[i]
-                        KinFile   = open(TempFldr + f'/{ProcName}.dat', 'w')
+                        if i == 1:
+                            KinFile = open(TempFldr + f'/{ProcName}.dat', 'w')
+                        else:
+                            KinFile = open(TempFldr + f'/{ProcName}_Type{i-1}.dat', 'w')
 
                         NLevels = self.CompInOut[ProcName]['In'][0].NLevels
-                        for iLevel in range(NLevels):
-                            if self.RatesMasking is not None:
-                                Mask = self.RatesMasking[ProcName][Ti][iLevel]
-                            else:
-                                Mask = True
-                            Rate = self.Rates[ProcName][Ti][iLevel]
-                            if (Rate > MinValueRate) and (bool(Mask)):
-                                KinFile.write(self.line_diss(Rate, ProcName, ProcIndex, iLevel))
+                        for iLevel in tqdm(range(1, NLevels)):
+                            for jLevel in range(iLevel):
+                                if self.RatesMasking is not None:
+                                    Mask = self.RatesMasking[ProcName][iT][iLevel, jLevel]
+                                else:
+                                    Mask = True
+                                Rate = self.Rates[ProcName][iT][iLevel, jLevel]
+                                if (Rate > MinRateValue) and (bool(Mask)):
+                                    KinFile.write(self.line_excit(Rate, ProcName, ProcIndex, iLevel, jLevel))
 
                         KinFile.close()
             else:
@@ -165,10 +176,10 @@ class Processes():
             raise NotImplementedError
         return Line
 
-    def line_excit(self, Rate, ProcName, ProcIndex, iLevel, *args, **kwargs):
+    def line_excit(self, Rate, ProcName, ProcIndex, iLevel, jLevel, *args, **kwargs):
         if self.System.NAtoms == 3:
             LHS  = self.CompInOut[ProcName]['In'][0].Name  + f'({iLevel+1})+' + self.CompInOut[ProcName]['In'][1].Name
-            RHS  = self.CompInOut[ProcName]['Out'][0].Name + f'({iLevel+1})+' + self.CompInOut[ProcName]['Out'][1].Name
+            RHS  = self.CompInOut[ProcName]['Out'][0].Name + f'({jLevel+1})+' + self.CompInOut[ProcName]['Out'][1].Name
             Line = LHS + '=' + RHS + ':%.4e,%.4e,%.4e,%d\n' % (Rate, 0., 0., ProcIndex)
         else:
             raise NotImplementedError

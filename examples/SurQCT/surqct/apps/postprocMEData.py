@@ -60,7 +60,7 @@ def _main(args=None, InputData=None):
 
     utils.print_main(
         "Saving postprocessed Master Equation data in "
-        f"{System.MasterEquation.MEPath}..."
+        f"{System.MasterEquation.MEPath} ..."
     )
     System.MasterEquation.save_data()
 

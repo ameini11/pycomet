@@ -68,7 +68,7 @@ def NO(Molecule):
     Molecule.ElementQnts        = '1 1'
 
     Molecule.MolarMass          = 14.0067e-3 + 15.9994e-3
-    Molecule.FormationE         = 90773.e0
+    Molecule.FormationE         = 90773.
     Molecule.LinFactor          = 1
     Molecule.SymmFactor         = 1.0
     Molecule.ThetaRot           = 2.45

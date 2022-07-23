@@ -12,14 +12,14 @@ def get_system(
     ProcBool=None,
     ProcNames=None,
     KinSource='QCT',
-    PathToHDF5File=None
+    PathToHDF5Fld=None
 ):
     if hasattr(systems, NameLong):
         Syst = getattr(systems, NameLong)(
             ProcBool=ProcBool,
             ProcNames=ProcNames,
             KinSource=KinSource,
-            PathToHDF5File=PathToHDF5File
+            PathToHDF5Fld=PathToHDF5Fld
         )
         # Initializing diatomic potential data
         for Mol in Syst.Molecules:
@@ -58,7 +58,7 @@ class System():
 ###############################################################################
 # O2 + O System (From UMN, Prof. D. Truhlar)
 # -----------------------------------------------------------------------------
-def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=None):
+def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5Fld=None):
 
     NameLong        = 'O3_UMN'
     Name            = 'O3'
@@ -76,13 +76,13 @@ def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=N
     Syst.Molecules[0]   = get_properties(Name='O2', Component=Syst.Molecules[0])
     
     # Thermochemical Processes
-    if PathToHDF5File is None:
-        PathToHDF5Fld   = cfg.HDF5Dtb + f'/Orig/{NameLong}.hdf5'
+    if PathToHDF5Fld is None:
+        PathToHDF5Fld   = cfg.HDF5Dtb + f'/Orig/'
     Syst.Processes      = Processes(
         System=Syst,
         ProcBool=ProcBool,
         ProcNames=ProcNames,
-        PathToHDF5File=PathToHDF5File
+        PathToHDF5Fld=PathToHDF5Fld
     )
     Syst.Processes.DissCorrFactor = 16./3.
 
@@ -94,7 +94,7 @@ def O3_UMN(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=N
 
 # N2 + N System (Recomputed. PES from NASA Ames, Dr. R. L. Jaffe & Dr. D. Schwenke)
 # -----------------------------------------------------------------------------
-def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=None):
+def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5Fld=None):
 
     NameLong        = 'N3_NASA'
     Name            = 'N3'
@@ -112,13 +112,13 @@ def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=
     Syst.Molecules[0]   = get_properties(Name='N2', Component=Syst.Molecules[0])
 
     # Thermochemical Processes
-    if PathToHDF5File is None:
-        PathToHDF5Fld = cfg.HDF5Dtb + f'/SemiClassicalApprox/{NameLong}.hdf5'
+    if PathToHDF5Fld is None:
+        PathToHDF5Fld = cfg.HDF5Dtb + f'/SemiClassicalApprox/'
     Syst.Processes = Processes(
         System=Syst,
         ProcBool=ProcBool,
         ProcNames=ProcNames,
-        PathToHDF5File=PathToHDF5File
+        PathToHDF5Fld=PathToHDF5Fld
     )
 
     # Master Equation
@@ -129,7 +129,7 @@ def N3_NASA(ProcBool=[1,1,1,0], ProcNames=None, KinSource='QCT', PathToHDF5File=
 
 # NO + N System (From UMN)
 # -----------------------------------------------------------------------------
-def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5File=None):
+def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5Fld=None):
 
     NameLong        = 'NON_UMN'
     Name            = 'NON'
@@ -151,8 +151,8 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5File=
     Syst.Molecules[1].DegeneracyFactor = [3.0, 6.0]
 
     # Thermochemical Processes
-    if PathToHDF5File is None:
-        PathToHDF5Fld = cfg.HDF5Dtb + f'/Orig/{NameLong}.hdf5'
+    if PathToHDF5Fld is None:
+        PathToHDF5Fld = cfg.HDF5Dtb + f'/Orig/'
     CompInOut = {
         'Diss': {
             'In':  (Syst.Molecules[0], Syst.Atoms[0]),
@@ -175,7 +175,7 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5File=
         System=Syst,
         ProcBool=ProcBool,
         ProcNames=ProcNames,
-        PathToHDF5File=PathToHDF5File,
+        PathToHDF5Fld=PathToHDF5Fld,
         CompInOut=CompInOut
     )
 

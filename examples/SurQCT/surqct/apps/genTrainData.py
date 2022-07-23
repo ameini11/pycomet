@@ -70,7 +70,7 @@ def _main(args=None, InputData=None):
     System = syst.get_system(
         NameLong=InputData.SystemName,
         ProcNames=InputData.RatesType,
-        PathToHDF5File=InputData.PathToHDF5File
+        PathToHDF5Fld=InputData.PathToHDF5Fld
     )
     # Initializing rates type module
     rates_type_mod = get_rates_type_mod(System)

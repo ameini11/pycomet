@@ -238,7 +238,8 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
     ###########################################################################
     def __init__(
         self,
-        file=None,
+        mu_sigma_file=None,
+        data_files=None,
         columns=None,
         header=0,
         preproc_fn=None,
@@ -251,7 +252,8 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
         super(Normalization, self).__init__(
             axis=axis, mean=mean, variance=variance, **kwargs
         )
-        self.file = file
+        self.mu_sigma_file = mu_sigma_file
+        self.data_files = data_files
         self.columns = columns
         self.header = header
         self.preproc_fn = preproc_fn
@@ -260,9 +262,11 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
     def build(self, input_shape):
         if self.mean_val is None and self.variance_val is None:
             self.saved_file = self.save_dir + self.name + '_mu_sigma.txt'
-            if os.path.exists(self.saved_file):
-                self.read_mu_sigma()
-            elif self.file is not None:
+            if self.mu_sigma_file is not None and os.path.exists(self.mu_sigma_file):
+                self.read_mu_sigma(file=self.mu_sigma_file)
+            elif os.path.exists(self.saved_file):
+                self.read_mu_sigma(file=self.saved_file)
+            elif self.data_files is not None:
                 self.compute_mu_sigma()
         super(Normalization, self).build(input_shape)
 
@@ -304,13 +308,13 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
         utils.print_submain(
             f"Computing mean and variance of layer '{self.name}'"
         )
-        data = self.read_datafile(self.file)
+        data = self.read_datafile(self.data_files)
         self.mean_val, self.variance_val = tf.nn.moments(data, axes=0)
         array = np.vstack((self.mean_val, self.variance_val))
         np.savetxt(self.saved_file, array, fmt='%1.10e')
 
-    def read_mu_sigma(self):
-        array = np.loadtxt(self.saved_file)
+    def read_mu_sigma(self, file):
+        array = np.loadtxt(file)
         self.mean_val = array[0]
         self.variance_val = array[1]
 

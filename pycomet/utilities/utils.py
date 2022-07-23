@@ -6,7 +6,9 @@ import time
 import signal
 import random
 import inspect
+import pkgutil
 import datetime
+import importlib
 import numpy as np
 import tensorflow as tf
 
@@ -326,7 +328,34 @@ def set_num_threads(n):
     tf.config.threading.set_inter_op_parallelism_threads(n)
     tf.config.threading.set_intra_op_parallelism_threads(n)
 
-
+def reload_mod(modules=[]):
+    for mod in tf.nest.flatten(modules):
+        name = mod.__name__
+        if name in sys.modules.keys():
+            # Reload module
+            importlib.reload(sys.modules[name])
+            # Reload submodules
+            for importer, submod, ispkg in pkgutil.iter_modules(mod.__path__):
+                if not submod.startswith('__'):
+                    importlib.reload(sys.modules[name+'.'+submod])
+            
+    
+#     mod_names = tf.nest.flatten(mod_names)
+#     mod_list = []
+#     for k in sys.modules.keys():
+#         if any([name in k for name in mod_names]):
+#             mod_list.append(k)
+#     if len(mod_list) > 0:
+#         mod_dict = {
+#             name: [k for k in mod_list if name in k] for name in mod_names
+#         }
+        
+#     mod_dict = {}
+#     for k in mod_list:
+#         for name in mod_names:
+#             mod_dict[name] = []
+#             if name in k:
+#                 importlib.reload(sys.modules[k])
 
 # def apply(func, args=None, kwds=None):
 #     """Clear Tensorflow GPU memory after model execution.

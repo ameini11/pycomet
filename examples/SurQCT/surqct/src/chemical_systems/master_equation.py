@@ -36,7 +36,7 @@ class MasterEquation():
             if any(ProcCode.startswith(k) for k in ('0','1','2')):
                 ProcBool            = [int(i) for i in ProcCode.split('_')]
                 self.Data[ProcCode] = {}
-                utils.print_submain(f"Postprocessing Case with Code '{ProcCode}'")
+                utils.print_submain(f"Processes Code '{ProcCode}'")
                 for TTran in os.scandir(self.MEPath + '/' + ProcCode):
                     TTran = TTran.name
                     if TTran.startswith('T') and TTran.endswith('K'):

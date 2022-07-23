@@ -753,7 +753,7 @@ def save_predictiondata(
         # Loop on Initial States
         utils.print_submain('Composing inputs', delimiter=' '*4)
         ijIdx = None
-        for iIdx in range(1, 100):#MolIn.NLevels):
+        for iIdx in range(1, MolIn.NLevels):
 
             jIdxVec     = np.arange(iIdx).reshape(-1,1)
             jNLevels    = len(jIdxVec)
@@ -779,7 +779,7 @@ def save_predictiondata(
         utils.print_submain('Feeding rate matrix', delimiter=' '*4)
         NPts        = 0
         RateMatrix  = np.zeros((MolIn.NLevels, MolOut.NLevels))
-        for iIdx in range(1, 100):#MolIn.NLevels):
+        for iIdx in range(1, MolIn.NLevels):
 
             jIdxVec     = np.arange(iIdx)
             jNLevels    = len(jIdxVec)

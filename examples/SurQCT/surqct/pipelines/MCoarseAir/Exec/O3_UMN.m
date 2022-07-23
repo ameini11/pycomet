@@ -31,16 +31,16 @@ global Input Syst Temp Param Kin Rates OtherSyst OtherRates
 %%%% SPECIFYING INPUT
 
 %% Case-specific inputs
-KinSource       = 'QCT';
-SuffixName      = '/em16/';
-SuffixHDF5      = '/Orig/';
+KinSource       = 'SurQCT';
+SuffixName      = '//em16/configs/config.03/run.03/';
+SuffixHDF5      = '//configs/config.03/run.03/';
 
 DissFlg         = 0;
 InelFlg         = 1;
 ExchFlg1        = 1;
 ExchFlg2        = 0;
 
-TranVec         = [1500, 2500, 5000, 8000, 10000, 12000, 15000, 20000];
+TranVec         = [1500];
 
 ReadRatesProc   = [1, 1, 1, 0]; % [Diss, Inel, Exch1, Exch2] | [0: None, 1: Fwd, 2: Fwd+Bwd, 3: Grouped Fwd]
 

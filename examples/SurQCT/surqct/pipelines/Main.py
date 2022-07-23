@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import numpy as np
 import tensorflow as tf
 
 PyCOMET = '/home/zanardi/Workspace/ML/PyCOMET/'
@@ -13,14 +14,20 @@ from pycomet.utilities.utils import set_num_threads
 
 # Inputs
 ###############################################################################
-TASKS           = [1,0,0,0,0]
-NUM_THREADS     = 8
+NUM_THREADS = 8
+TASKS       = [
+    0, # Save predicted rates matrices to HDF5
+    0, # Write thermo and kinetics to Plato database
+    0, # Run 0D master equation simulations
+    0, # Postprocess 0D master equation simulations
+    1  # Postprocess MCoarseAir data and 0D master equation simulations
+]
 
 # Global
 SystemName      = 'O3_UMN'
 KinSource       = 'SurQCT'
 ProcBoolList    = [(2,1,1,0), (0,1,1,0)]
-TTranVec        = [1500.] #[1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
+TTranVec        = [1500]#[1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
 
 # Rates masking
 # >> TASKS: 1-2
@@ -65,8 +72,7 @@ def main():
         InputData.PathToModelFld = PathToModelFld
         InputData.SuffixHDF5     = SuffixHDF5
         InputData.TTranVec       = TTranVec
-        # for iRatesType in tf.nest.flatten(RatesType):
-        InputData.RatesType  = RatesType
+        InputData.RatesType      = RatesType
         # Executing main
         _main(InputData=InputData)
         # Deleting modules
@@ -103,7 +109,7 @@ def main():
     # Task: Run 0D master equation simulations
     # -------------------------------------------------------------------------
     if TASKS[2]:
-        plato_exec = SurQCTFld + '/surqct/pipelines/Plato/Exec/Run0D'
+        plato_exec = SurQCT + '/surqct/pipelines/Plato/Exec/Run0D'
         for ProcBool in ProcBoolList:
             if ProcBool[0] > 0:
                 InputSuffixVec = []
@@ -131,20 +137,20 @@ def main():
                     "export Exch2Flg="
                 ),
                 replaces=(
-                    f"export NUM_THREADS='{NUM_THREADS}'",
-                    f"export System='{SystemName}'",
-                    f"export KinMainSource='{KinSource}'",
-                    f"export SuffixName=({SuffixName})",
-                    f"export InputSuffixVec=({InputSuffixVec})",
-                    f"export TTranVec=({' '.join([str(int(T)) for T in TTranVec])})",
-                    f"export DissFlg={ProcBool[0]}",
-                    f"export InelFlg={ProcBool[1]}",
-                    f"export Exch1Flg={ProcBool[2]}",
-                    f"export Exch2Flg={ProcBool[3]}"
+                    f"export NUM_THREADS={NUM_THREADS}\n",
+                    f"export System='{SystemName}'\n",
+                    f"export KinMainSource='{KinSource}'\n",
+                    f"export SuffixName='{SuffixName}'\n",
+                    f"export TTranVec=({' '.join([str(int(T)) for T in TTranVec])})\n",
+                    f"export InputSuffixVec=({InputSuffixVec})\n",
+                    f"export DissFlg={ProcBool[0]}\n",
+                    f"export InelFlg={ProcBool[1]}\n",
+                    f"export Exch1Flg={ProcBool[2]}\n",
+                    f"export Exch2Flg={ProcBool[3]}\n"
                 )
             )
             # Running
-            subprocess.run(f'bash {plato_exec}', shell=True)
+            subprocess.run(f'bash -l {plato_exec}', shell=True)
 
     # TASK 4
     # -------------------------------------------------------------------------
@@ -152,7 +158,7 @@ def main():
     # Info: Postprocess 0D master equation simulations
     # -------------------------------------------------------------------------
     if TASKS[3]:
-        mcoarseair_exec = SurQCTFld + f'/surqct/pipelines/MCoarseAir/Exec/{SystemName}.m'
+        mcoarseair_exec = SurQCT + f'/surqct/pipelines/MCoarseAir/Exec/{SystemName}.m'
         # Modifying exec file
         for ProcBool in ProcBoolList:
             replace(
@@ -168,21 +174,21 @@ def main():
                     "TranVec         ="
                 ),
                 replaces=(
-                    f"KinSource       = '{KinSource}';",
-                    f"SuffixName      = '{SuffixName}';",
-                    f"SuffixHDF5      = '{SuffixHDF5}';",
-                    f"DissFlg         = {ProcBool[0]};",
-                    f"InelFlg         = {ProcBool[1]};",
-                    f"ExchFlg1        = {ProcBool[2]};",
-                    f"ExchFlg2        = {ProcBool[3]};",
-                    f"TranVec         = {list(TTranVec)};"
+                    f"KinSource       = '{KinSource}';\n",
+                    f"SuffixName      = '/{SuffixName}/';\n",
+                    f"SuffixHDF5      = '/{SuffixHDF5}/';\n",
+                    f"DissFlg         = {ProcBool[0]};\n",
+                    f"InelFlg         = {ProcBool[1]};\n",
+                    f"ExchFlg1        = {ProcBool[2]};\n",
+                    f"ExchFlg2        = {ProcBool[3]};\n",
+                    f"TranVec         = {np.array(TTranVec)};\n"
                 )
             )
 
         # Running
-        matlab_command = f"run('{mcoarseair_exec}');exit;"
+        matlab_command  = f'run("{mcoarseair_exec}");exit;'
         subprocess.run(
-            'matlab -nodesktop -nodisplay -nosplash -r matlab_command', shell=True
+            f"matlab -nodesktop -nodisplay -nosplash -r '{matlab_command}'", shell=True
         )
 
     # TASK 5
@@ -217,7 +223,7 @@ def replace(file, patterns, replaces):
                     break
         else:
             line_new = line
-        file_new.write(line)
+        file_new.write(line_new)
     file_new.close()
     file_old.close()
     os.rename(file+'_new', file)

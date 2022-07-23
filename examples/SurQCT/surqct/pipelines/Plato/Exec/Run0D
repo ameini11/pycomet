@@ -8,15 +8,15 @@ set -e
 # Misc
 export NUM_THREADS=8
 export System='O3_UMN'
-export KinMainSource='QCT'    # QCT SurQCT
+export KinMainSource='SurQCT'
 # Paths
-export SuffixName='/em16/'
+export SuffixName='/em16/configs/config.03/run.03'
 export PathToDtbFldr=$WORKSPACE_PATH/AirDatabase/Run0D/database/
 export PathToRunFldr=$WORKSPACE_PATH/AirDatabase/Run0D/run/${KinMainSource}/${System}/${SuffixName}
 export PathToSurQCT=$WORKSPACE_PATH/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
 # Heat Bath Conditions
 export TTranVec=(1500 2500 5000 8000 10000 12000 15000 20000)
-export InputSuffixVec=('.relax' '.relax' '.excit' '.excit' '.excit' '.excit' '.excit' '.excit')
+export InputSuffixVec=(.relax .relax .excit .excit .excit .excit .excit .excit)
 # Processes
 export DissFlg=2
 export InelFlg=1
@@ -165,6 +165,7 @@ for (( i=0; i<${#TTranVec[@]}; i++ )); do
     echo " "
 
     rm -rf $KineticsFile
+    rm -rf ${OutputFldr}/gmon.out
 
     # Remove populations negative values due to machine precision
     find ${OutputFldr}/output_box/ -type f -name pop* -exec sed -i 's/ -/  /g' {} +

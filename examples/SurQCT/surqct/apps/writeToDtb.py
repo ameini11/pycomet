@@ -50,32 +50,33 @@ def _main(args=None, InputData=None):
     utils.print_main(
         f"Initializing '{InputData.SystemName}' chemical system ..."
     )
-    System = syst.get_system(
+    system = syst.get_system(
         NameLong=InputData.SystemName,
         ProcNames=InputData.RatesType,
         KinSource=InputData.KinSource,
-        PathToHDF5File=cfg.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
+        PathToHDF5Fld=cfg.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
     )
     # Reading rates
     utils.print_main("Reading rates ...")
-    syst.read_rates(TTranVec=InputData.TTranVec)
+    system.Processes.read_rates(TTranVec=InputData.TTranVec)
     # Reading rates masking
     if InputData.PathToRatesMaskingHDF5 is not None:
         utils.print_main("Reading rates masking ...")
-        syst.read_ratesmasking(
+        system.Processes.read_ratesmasking(
             TTranVec=InputData.TTranVec,
             PathToHDF5File=InputData.PathToRatesMaskingHDF5
         )
     # Reading rates
     utils.print_main("Writing thermo files to database ...")
-    for Comp in syst.Components:
-        Comp.create_thermofile()
+    ThermoDtb = cfg.MERuns + '/database/thermo/' + system.NameLong
+    for Comp in system.Components:
+        Comp.create_thermofile(ThermoDtb)
     # Reading rates
     utils.print_main("Writing kinetic files to database ...")
-    syst.write_rates(
+    system.Processes.write_rates(
         TTranVec=InputData.TTranVec,
         SuffixName=InputData.SuffixName,
-        MinValueRate=InputData.MinValueRate
+        MinRateValue=InputData.MinRateValue
     )
 
 
