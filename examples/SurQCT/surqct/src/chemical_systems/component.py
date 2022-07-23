@@ -147,7 +147,9 @@ class Molecule(Component):
         for k in ('EInt','EVib','ERot'):
             self.DiatData[k+'0']  = self.DiatData[k] - np.amin(self.DiatData[k])
 
-    def get_g_E(self):
+        self.get_g_EInt()
+
+    def get_g_EInt(self):
         self.g      = self.DiatData['g'].to_numpy()
         self.EInt   = self.DiatData['EInt0'].to_numpy()
 

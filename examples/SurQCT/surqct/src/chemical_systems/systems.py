@@ -1,6 +1,7 @@
 from surqct.src.chemical_systems.component import Atom, Molecule
 from surqct.src.chemical_systems.processes import Processes
 from surqct.src.chemical_systems.master_equation import MasterEquation
+from surqct.src.chemical_systems.comp_properties import get_properties
 from surqct.src.chemical_systems import systems
 from surqct.src.utilities import utils
 from surqct import config as cfg

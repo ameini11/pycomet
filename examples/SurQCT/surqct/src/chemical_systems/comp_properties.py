@@ -2,7 +2,7 @@ from surqct import config as cfg
 from surqct.src.chemical_systems import comp_properties as comp_prop
 
 
-def get_component(
+def get_properties(
     Name,
     Component
 ):

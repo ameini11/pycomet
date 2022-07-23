@@ -25,12 +25,12 @@ import numpy as np
 print("\n[PyCoarseAIR]: Defining Paths")
 
 # >>>>
-#CaseSuffix      = '/configs/config.03/run.03/'
-#KinSource       = '/SurQCT/'
-#DtbSuffix       = KinSource
-CaseSuffix      = ''
-KinSource       = '/QCT/'
-DtbSuffix       = '/Orig/'
+CaseSuffix      = '/configs/config.03/run.03.ln/'
+KinSource       = '/SurQCT/'
+DtbSuffix       = KinSource
+#CaseSuffix      = ''
+#KinSource       = '/QCT/'
+#DtbSuffix       = '/Orig/'
 # <<<<
 
 WORKSPACE_PATH  = '/home/zanardi/Workspace/'                                                        # It is NOT REQUIRED to change this path

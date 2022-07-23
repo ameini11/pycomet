@@ -1,10 +1,11 @@
 import os
 import sys
 import subprocess
+import tensorflow as tf
 
-PyCOMET = '/home/zanardi/Workspace/ML/PyCOMET/pycomet/'
-SurQCT  = PyCOMET + '/examples/SurQCT/'
-sys.path.append(PyCOMET)
+PyCOMET = '/home/zanardi/Workspace/ML/PyCOMET/'
+SurQCT  = PyCOMET + '/pycomet/examples/SurQCT/'
+sys.path.append(PyCOMET+'/pycomet/')
 sys.path.append(SurQCT)
 
 from pycomet.utilities.utils import set_num_threads
@@ -12,24 +13,27 @@ from pycomet.utilities.utils import set_num_threads
 
 # Inputs
 ###############################################################################
-TASKS           = [1,1,1,1,1]
+TASKS           = [1,0,0,0,0]
 NUM_THREADS     = 8
 
 # Global
 SystemName      = 'O3_UMN'
-KinSource       = 'QCT'
+KinSource       = 'SurQCT'
 ProcBoolList    = [(2,1,1,0), (0,1,1,0)]
-TTranVec        = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
+TTranVec        = [1500.] #[1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
 
 # Rates masking
 # >> TASKS: 1-2
-RatesType               = ['Inel']
+RatesType               = ['Inel', 'Exch_1']
 MinRateValue            = 1.e-16
 PathToRatesMaskingHDF5  = None
 
 # SurQCT model-based inputs
+# >> TASKS: 1
 PathToModelFld  = {
-    'Inel': ''
+    'Diss':   '',
+    'Inel':   PyCOMET+'/run/SurQCT/O3_UMN/Inel/configs/config.03/run.03.ln/',
+    'Exch_1': PyCOMET+'/run/SurQCT/O3_UMN/Exch_1/configs/config.03/run.03.ln/'
 }
 
 # 0d simulation-based inputs
@@ -58,9 +62,11 @@ def main():
         from surqct.apps.savePredData import _main
         # Modifying input module
         InputData.SystemName     = SystemName
-        InputData.RatesType      = RatesType
         InputData.PathToModelFld = PathToModelFld
+        InputData.SuffixHDF5     = SuffixHDF5
         InputData.TTranVec       = TTranVec
+        # for iRatesType in tf.nest.flatten(RatesType):
+        InputData.RatesType  = RatesType
         # Executing main
         _main(InputData=InputData)
         # Deleting modules

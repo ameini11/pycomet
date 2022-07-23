@@ -13,9 +13,12 @@ NAME = 'savePredData'
 import os
 import sys
 import argparse
+import importlib
+import tensorflow as tf
 
 from surqct import config as cfg
-from surqct.apps import functions as fun
+from pycomet.apps import functions as pycomet_fun
+from surqct.apps import functions as surqct_fun
 
 from surqct.src.utilities import utils
 from surqct.src.rates_type import rates_type
@@ -37,7 +40,7 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=fun.dir_path,
+        type=surqct_fun.dir_path,
         default="./",
         help='path to the working directory containing `InputData.py`'
     )
@@ -48,10 +51,11 @@ def get_parser(subparsers):
 ###############################################################################
 def _main(args=None, InputData=None):
 
+    net = {}
+    inputs_I = {}
     for RatesType in tf.nest.flatten(InputData.RatesType):
         utils.print_main(
-            f"Generating rates matrix for '{InputData.RatesType}' process",
-            start=''
+            f"Generating rates matrix for '{RatesType}' process", start=''
         )
         wd = InputData.PathToModelFld[RatesType]
 
@@ -61,12 +65,21 @@ def _main(args=None, InputData=None):
         utils.print_main("Initializing PyCOMET ...")
 
         # Add modules ---------------------------------------------------------
-        sys.path.append(wd)
+        sys.path.insert(0, wd)
         # Input module
         import inputs
+        importlib.reload(inputs)
+        inputs_I[RatesType] = inputs
         print(inputs.__file__)
         from inputs.general import flags
 
+        libs = []
+        for k, v in sys.modules.items():
+            if 'inputs' in k:
+                libs.append(k)
+        for k in libs:
+            importlib.reload(sys.modules[k])
+        
         # Check flags ---------------------------------------------------------
         for k in ('train', 'save'):
             flags[k] = 0
@@ -78,15 +91,15 @@ def _main(args=None, InputData=None):
             )
 
         # Network -------------------------------------------------------------
-        net = pycomet_fun._net(
-            input_mod=inputs
+        net[RatesType] = pycomet_fun._net(
+            input_mod=inputs_I[RatesType]
         )
 
         # Model ---------------------------------------------------------------
         model = pycomet_fun._model(
             flags=flags,
-            input_mod=inputs,
-            net=net
+            input_mod=inputs_I[RatesType],
+            net=net[RatesType]
         )
         
         # SurQCT model
@@ -110,10 +123,11 @@ def _main(args=None, InputData=None):
             InputData=InputData,
             System=system,
             Model=model.net,
-            Columns=inputs.data.columns['x']
+            Columns=inputs.data.columns['x'],
+            RatesType=RatesType
         )
 
-        del sys.path[-1], model, net
+        del inputs, model
 
 
 @utils.app_decorator()
