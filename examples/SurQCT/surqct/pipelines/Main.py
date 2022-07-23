@@ -18,10 +18,10 @@ from pycomet.utilities.utils import set_num_threads
 NUM_THREADS = 8
 TASKS       = [
     1, # Save predicted rates matrices to HDF5
-    0, # Write thermo and kinetics to Plato database
-    0, # Run 0D master equation simulations
-    0, # Postprocess 0D master equation simulations
-    0  # Postprocess MCoarseAir data and 0D master equation simulations
+    1, # Write thermo and kinetics to Plato database
+    1, # Run 0D master equation simulations
+    1, # Postprocess 0D master equation simulations
+    1  # Postprocess MCoarseAir data and 0D master equation simulations
 ]
 
 # Global
@@ -36,21 +36,23 @@ RatesType               = ['Inel', 'Exch_1']
 MinRateValue            = 1.e-16
 PathToRatesMaskingHDF5  = None
 
+MainSuffix              = '/configs/config.03/run.03.ln/'
+
 # SurQCT model-based inputs
 # >> TASKS: 1
 PathToModelFld  = {
     'Diss':   '',
-    'Inel':   PyCOMET+'/run/SurQCT/O3_UMN/Inel/configs/config.03/run.03.ln/',
-    'Exch_1': PyCOMET+'/run/SurQCT/O3_UMN/Exch_1/configs/config.03/run.03.ln/'
+    'Inel':   PyCOMET + '/run/SurQCT/O3_UMN/Inel/' + MainSuffix,
+    'Exch_1': PyCOMET + '/run/SurQCT/O3_UMN/Exch_1/' + MainSuffix
 }
 
 # 0d simulation-based inputs
 # >> TASKS: 2-3-4-5
-SuffixName      = '/em16/configs/config.03/run.03'
+SuffixName      = '/em16/' + MainSuffix
 
 # Rates HDF5 database
 # >> TASKS: 2-4
-SuffixHDF5      = '/configs/config.03/run.03'
+SuffixHDF5      = MainSuffix
 
 
 # Main
