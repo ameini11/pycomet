@@ -766,7 +766,7 @@ def save_predictiondata(
                 ijIdx   = tf.nest.map_structure(lambda x, y: np.vstack((x,y)), ijIdx, ijIdxi)
 
         iIdxVec, jIdxVec = ijIdx[0].squeeze(), ijIdx[1].squeeze()
-        Input           = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
+        Input            = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
 
         # Performing inference
         utils.print_submain(f'Performing inference for {len(Input[0])} data points', delimiter=' '*4)

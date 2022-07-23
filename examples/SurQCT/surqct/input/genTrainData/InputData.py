@@ -19,7 +19,7 @@ RatesType           = 'Inel'    # ['Diss', 'Inel', 'Exch_1', 'Exch_2']
 
 # Paths
 ###############################################################################
-PathToHDF5File      = cfg.HDF5Dtb + 'Active/O3_UMN.hdf5' # `None` or path to high fidelity data
+PathToHDF5File      = cfg.HDF5Dtb + 'Active/' # `None` or path to high fidelity data
 PathToLevelsFile    = {'O2': cfg.MERuns + 'database/levels/modified/O3_UMN/O2/VMin_VMax.csv'}
 
 # Training Quantities
@@ -27,7 +27,7 @@ PathToLevelsFile    = {'O2': cfg.MERuns + 'database/levels/modified/O3_UMN/O2/VM
 # Input variables
 # -----------------------------------------------------------------------------
 # i-th and j-th states
-xDiatVars           = ['log_EVib','log_ERot','log_VMax','log_rOut']
+xDiatVars           = ['log_EVib','log_ERot','log_VMax','log_rIn','log_rOut','log_rOut-rIn','rIn/rMin_min','log_rOut/rMin_min']
 xTTranVar           = {'i': True, 'j': True}
 DeltaProperties     = True
 NSamplesNoise       = 0    # Adding noise to data
