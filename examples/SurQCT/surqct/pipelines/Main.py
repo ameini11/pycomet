@@ -9,6 +9,7 @@ SurQCT  = PyCOMET + '/pycomet/examples/SurQCT/'
 sys.path.append(PyCOMET+'/pycomet/')
 sys.path.append(SurQCT)
 
+from surqct import config as cfg
 from pycomet.utilities.utils import set_num_threads
 
 
@@ -16,10 +17,10 @@ from pycomet.utilities.utils import set_num_threads
 ###############################################################################
 NUM_THREADS = 8
 TASKS       = [
-    0, # Save predicted rates matrices to HDF5
-    0, # Write thermo and kinetics to Plato database
-    0, # Run 0D master equation simulations
-    0, # Postprocess 0D master equation simulations
+    1, # Save predicted rates matrices to HDF5
+    1, # Write thermo and kinetics to Plato database
+    1, # Run 0D master equation simulations
+    1, # Postprocess 0D master equation simulations
     1  # Postprocess MCoarseAir data and 0D master equation simulations
 ]
 
@@ -64,6 +65,7 @@ def main():
     # Info: Save predicted rates matrices to HDF5
     # -------------------------------------------------------------------------
     if TASKS[0]:
+        print_task_header(1)
         # Importing modules
         from surqct.input.savePredData import InputData
         from surqct.apps.savePredData import _main
@@ -85,6 +87,7 @@ def main():
     # Info: Write thermo and kinetics to Plato database
     # -------------------------------------------------------------------------
     if TASKS[1]:
+        print_task_header(2)
         # Importing modules
         from surqct.input.writeToDtb import InputData
         from surqct.apps.writeToDtb import _main
@@ -109,6 +112,7 @@ def main():
     # Task: Run 0D master equation simulations
     # -------------------------------------------------------------------------
     if TASKS[2]:
+        print_task_header(3)
         plato_exec = SurQCT + '/surqct/pipelines/Plato/Exec/Run0D'
         for ProcBool in ProcBoolList:
             if ProcBool[0] > 0:
@@ -158,6 +162,7 @@ def main():
     # Info: Postprocess 0D master equation simulations
     # -------------------------------------------------------------------------
     if TASKS[3]:
+        print_task_header(4)
         mcoarseair_exec = SurQCT + f'/surqct/pipelines/MCoarseAir/Exec/{SystemName}.m'
         # Modifying exec file
         for ProcBool in ProcBoolList:
@@ -197,6 +202,7 @@ def main():
     # Info: Postprocess MCoarseAir data and 0D master equation simulations
     # -------------------------------------------------------------------------
     if TASKS[4]:
+        print_task_header(5)
         # Importing modules
         from surqct.input.postprocMEData import InputData
         from surqct.apps.postprocMEData import _main
@@ -227,6 +233,12 @@ def replace(file, patterns, replaces):
     file_new.close()
     file_old.close()
     os.rename(file+'_new', file)
+    
+def print_task_header(task_num):
+    header ="\n" + cfg.compose(start='# ', between='*') + \
+    "\n" + cfg.compose(text=f'TASK {task_num}', start='# ') + \
+    "\n" + cfg.compose(start='# ', between='*')
+    print(header)
 
 
 # Run
