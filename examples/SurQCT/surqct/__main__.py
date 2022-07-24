@@ -15,11 +15,27 @@ import threadpoolctl
 from pycomet.utilities import utils as pycomet_utils
 from surqct.src.utilities import utils as surqct_utils
 from surqct import config as cfg
+
 from surqct import apps
 apps_mod = [
 	__import__(
-		f'surqct.apps.{app}', globals(), locals(), [app], 0
+		f'surqct.apps.{app}',
+        globals(),
+        locals(),
+        [app],
+        0
 	) for app in apps.__all__
+]
+
+from surqct.pipelines import scripts as pipes_scripts
+pipes_scripts_mod = [
+	__import__(
+		f'surqct.pipelines.scripts.{script}',
+        globals(),
+        locals(),
+        [script],
+        0
+	) for script in pipes_scripts.__all__
 ]
 
 
@@ -38,6 +54,9 @@ def main():
     # Adding subparsers
     sp = ap.add_subparsers(dest='command')
     subparsers = [app.get_parser(sp) for app in apps_mod]
+    subparsers = subparsers + [
+        script.get_parser(sp) for script in pipes_scripts_mod
+    ]
 
     # Parsing args
     args = ap.parse_args()
