@@ -6,11 +6,11 @@ set -e
 # Inputs
 ###############################################################################
 # Misc
-export NUM_THREADS=4
+export NUM_THREADS=8
 export System='O3_UMN'
-export KinMainSource='SurQCT'
+export KinMainSource='QCT'
 # Paths
-export SuffixName='/em16//final/'
+export SuffixName='/em16/'
 export PathToDtbFldr=/home/zanardi/Workspace/AirDatabase/Run0D/database/
 export PathToRunFldr=/home/zanardi/Workspace/AirDatabase/Run0D/run/${KinMainSource}/${System}/${SuffixName}/
 export PathToSurQCT=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
