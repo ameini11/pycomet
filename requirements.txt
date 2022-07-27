@@ -1,0 +1,15 @@
+h5py
+joblib
+matplotlib
+netron
+numpy
+pandas
+pyDOE
+scikit-learn
+scipy
+seaborn
+setuptools
+tensorflow==2.4.1
+tensorflow_addons==0.12.1
+threadpoolctl
+tqdm
