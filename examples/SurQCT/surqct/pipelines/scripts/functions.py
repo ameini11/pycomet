@@ -1,20 +1,44 @@
 import os
+import sys
 import argparse
 
+from surqct import inputs
 from surqct import config as cfg
+from surqct.src.utilities import utils
 
 
 def dir_path(path):
     path = os.path.abspath(path)
-    if not os.path.exists(path):
-        raise argparse.ArgumentTypeError(f"Folder '{path}' does not exists.")
-    if os.path.exists(path+'/InputPipes.py'):
+    if os.path.exists(path+'/inputs'):
         return path
     else:
         raise argparse.ArgumentTypeError(
-            f"'InputPipes.py' file not found in '{path}'."
+            f"'inputs' folder not found in '{path}'."
         )
 
+def system_name(name):
+    path = os.path.dirname(inputs.__file__) + '/' + name
+    if os.path.exists(path):
+        return path
+    else:
+        raise argparse.ArgumentTypeError(
+            f"Default inputs for system '{name}' not available: "
+            "check the spelling or create a new inputs folder "
+            f"for this system in '{path}'."
+        )
+
+def set_inputs_dir(args):
+    if args.dir is not None:
+        args.dir = os.path.abspath(args.dir + '/inputs/') + '/'
+        utils.print_main(
+            f"Reading inputs from '{args.dir}' folder ...\n", start=''
+        )
+    else:
+        args.dir = os.path.abspath(args.system) + '/'
+        utils.print_main(
+            f"Reading default inputs from '{args.dir}' folder ...\n", start=''
+        )
+    
 def replace(file, patterns, replaces):
     file_old = open(file, 'r')
     file_new = open(file+'_new', 'w')
@@ -31,8 +55,8 @@ def replace(file, patterns, replaces):
     file_old.close()
     os.rename(file+'_new', file)
     
-def print_task_header(task_num, start="\n"):
-    header = start + cfg.compose(start='# ', between='-') + \
+def print_task_header(task_num):
+    header = cfg.compose(start='# ', between='-') + \
     "\n" + cfg.compose(text=f'TASK {task_num}', start='# ') + \
     "\n" + cfg.compose(start='# ', between='-')
     print(header)

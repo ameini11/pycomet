@@ -14,7 +14,6 @@ import argparse
 
 from surqct import config as cfg
 from surqct.src.utilities import utils
-from surqct.pipelines.scripts import functions as fun
 
 
 # Parse arguments
@@ -32,9 +31,14 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=fun.dir_path,
-        default="./",
-        help='path to the working directory containing `InputPipes.py`'
+        type=str,
+        default='',
+        help='path to the working directory containing the `inputs` folder'
+    )
+    parser.add_argument('-s', '--system',
+        type=str,
+        default='',
+        help='name of the chemical system under investigation (e.g., O3_UMN)'
     )
     parser.set_defaults(process=main)
     return parser

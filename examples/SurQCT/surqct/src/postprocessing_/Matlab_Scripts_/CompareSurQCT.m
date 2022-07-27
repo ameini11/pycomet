@@ -33,10 +33,10 @@ global Input Syst Temp Param Kin Rates OtherSyst OtherRates
 %% System Inputs
 Input.WORKSPACE_PATH            = '/home/zanardi/WORKSPACE/';
 
-% CoarseAir
-Input.Paths.CoarseAirSrc        = strcat(Input.WORKSPACE_PATH, '/NeqPlasma/CoarseAIR/coarseair/');
-Input.Paths.CoarseAirRun        = strcat(Input.WORKSPACE_PATH, '/NeqPlasma/CoarseAIR/run/');
-Input.Paths.ToQCTFldr           = strcat(Input.Paths.CoarseAirRun, '/O3_UMN/Test/');
+% CoarseAIR
+Input.Paths.CoarseAIRSrc        = strcat(Input.WORKSPACE_PATH, '/NeqPlasma/CoarseAIR/coarseair/');
+Input.Paths.CoarseAIRRun        = strcat(Input.WORKSPACE_PATH, '/NeqPlasma/CoarseAIR/run/');
+Input.Paths.ToQCTFldr           = strcat(Input.Paths.CoarseAIRRun, '/O3_UMN/Test/');
 
 % PLATO
 Input.Paths.ToKinMainFldr       = strcat(Input.WORKSPACE_PATH, '/AirDatabase/Run0D/');
@@ -177,8 +177,8 @@ Input.Tasks.Plot_EnergyDepletions.Targ                 = [2];
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%% Add MCoarseAir to MATLAB Search Path
-addpath(genpath(strcat(Input.Paths.CoarseAirSrc, '/extra/MCoarseAIR/')));
+%%%% Add MCoarseAIR to MATLAB Search Path
+addpath(genpath(strcat(Input.Paths.CoarseAIRSrc, '/extra/MCoarseAIR/')));
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

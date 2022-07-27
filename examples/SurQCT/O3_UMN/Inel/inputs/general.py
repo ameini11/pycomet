@@ -17,7 +17,7 @@
 model_name = 'SurQCT_OpNN'
 
 dim = {
-    "inp": [5, 5],  # Branch-Trunk input dimensionality
+    "inp": [4, 4],  # Branch-Trunk input dimensionality
     "out": 1        # Output dimensionality
 }
 

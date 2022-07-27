@@ -37,7 +37,7 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=fun.dir_path,
+       type=fun.dir_path,
         default="./",
         help='path to the working directory containing `InputData.py`'
     )
@@ -53,16 +53,14 @@ def _main(args=None, InputData=None):
         f"Initializing '{InputData.SystemName}' chemical system ...",
         start=''
     )
-    System = syst.get_system(InputData.SystemName)
-    for Mol in System.Molecules:
-        Mol.read_diatdata()
+    system = syst.get_system(InputData.SystemName)
 
     # Manipulating input diatomic data ----------------------------------------
     utils.print_main(
         'Preprocessing diatomic potential input features ...'
     )
     ModifiedDiatData = input_manipulation.get_modified_diatdata(
-        InputData, System
+        InputData, system
     )
 
     # Saving preprocessed input diatomic data ---------------------------------
@@ -70,7 +68,7 @@ def _main(args=None, InputData=None):
         'Saving preprocessed diatomic potential input features ...'
     )
     input_manipulation.save_modified_diatdata(
-        InputData, System, ModifiedDiatData
+        InputData, system, ModifiedDiatData
     )
 
 

@@ -10,6 +10,7 @@
 
 import os
 import surqct
+from argparse import Namespace
 
 
 # SurQCT ----------------------------------------------------------------------
@@ -21,6 +22,19 @@ HEADERS = {
 
 NUM_THREADS = 4
 
+# Paths -----------------------------------------------------------------------
+paths = {
+    'Workspace': '/home/zanardi/Workspace/',
+    'CoarseAIR': '/home/zanardi/Codes/CoarseAIR/coarseair/',
+    'MERuns':    '/home/zanardi/Workspace/AirDatabase/Run0D/',
+    'HDF5Dtb':   '/home/zanardi/Workspace/AirDatabase/HDF5/',
+    'SurQCT':    os.path.dirname(surqct.__file__)
+}
+paths = Namespace(**{
+    k: os.path.abspath(v)+'/' for k, v in paths.items()
+})
+
+
 # TensorFlow ------------------------------------------------------------------
 tf_cfg = {
     'setup': {
@@ -30,7 +44,7 @@ tf_cfg = {
     'env': {
         'TF_CPP_MIN_LOG_LEVEL': '3',
         'TF_XLA_FLAGS': f'--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit ' \
-           f'{os.path.dirname(surqct.__file__)}/__main__.py'
+           f'{paths.SurQCT}/__main__.py'
     }
 }
 
@@ -38,11 +52,6 @@ tf_cfg = {
 mpl_cfg = {
     'style': None
 }
-
-# Paths -----------------------------------------------------------------------
-CoarseAIR = '/home/zanardi/Codes/CoarseAIR/coarseair/'
-MERuns    = '/home/zanardi/Workspace/AirDatabase/Run0D/'
-HDF5Dtb   = '/home/zanardi/Workspace/AirDatabase/HDF5/'
 
 # Standard output -------------------------------------------------------------
 DISPLAY_LEN = 98

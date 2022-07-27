@@ -11,9 +11,9 @@ def read_levelsinfo(
     TTranVec,
     Modes=['Int']
 ):
-    utils.print_submain(f'Reading Variables {InputData.xDiatVars}')
+    utils.print_submain(f'Reading Variables {InputData.InpDiatVars}')
     for Mol in System.Molecules:
-        Mol.LevelsData  = read_levelsdata(InputData.PathToLevelsFile[Mol.Name], InputData.xDiatVars)
+        Mol.LevelsData  = read_levelsdata(InputData.PathToLevelsFile[Mol.Name], InputData.InpDiatVars)
         Mol.compute_partition_fn(TTranVec, Modes)
 
 def read_levelsdata(
@@ -46,7 +46,7 @@ def read_sampledinitiallevels(
 ):
     if TTran is not None:
         PathToSampledLevels = PathToSampledLevels + str(int(TTran)) + 'K.csv'
-    utils.print_submain(f'Reading Sampled Initial Levels List from File {PathToSampledLevels}', delimiter='    ')
+    utils.print_submain(f'Reading Sampled Initial Levels List from File {PathToSampledLevels}')
 
     iIdxVec             = pd.read_csv(PathToSampledLevels, header=0)
     iIdxVec             = np.squeeze(iIdxVec.to_numpy())

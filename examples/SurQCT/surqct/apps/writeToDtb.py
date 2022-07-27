@@ -48,13 +48,12 @@ def get_parser(subparsers):
 def _main(args=None, InputData=None):
 
     utils.print_main(
-        f"Initializing '{InputData.SystemName}' chemical system ..."
+        f"Initializing '{InputData.SystemName}' chemical system ...", start=''
     )
     system = syst.get_system(
         NameLong=InputData.SystemName,
-        ProcNames=InputData.RatesType,
         KinSource=InputData.KinSource,
-        PathToHDF5Fld=cfg.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
+        PathToHDF5Fld=cfg.paths.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
     )
     # Reading rates
     utils.print_main("Reading rates ...")
@@ -68,7 +67,7 @@ def _main(args=None, InputData=None):
         )
     # Reading rates
     utils.print_main("Writing thermo files to database ...")
-    ThermoDtb = cfg.MERuns + '/database/thermo/' + system.NameLong
+    ThermoDtb = cfg.paths.MERuns + '/database/thermo/' + system.NameLong
     for Comp in system.Components:
         Comp.create_thermofile(ThermoDtb)
     # Reading rates

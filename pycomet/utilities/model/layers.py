@@ -2,7 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-# import tensorflow.python.keras.layers as tf_layers
 import tensorflow.keras.layers as tf_layers
 
 from tensorflow.python.framework import dtypes
@@ -296,12 +295,6 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
         elif len(col) > 2:
             indeces = col
         return np.take(df, indeces, axis=1)
-
-    # def read_dataframe(self, df, col):
-    #     if any(isinstance(i, (list,tuple)) for i in col):
-    #         return [df[:,col[i][0]:col[i][1]] for i in range(len(col))]
-    #     else:
-    #         return df[:,col[0]:col[1]]
 
     # Handling mean and variance ----------------------------------------------
     def compute_mu_sigma(self):
@@ -639,3 +632,38 @@ class Equilibrium(tf_layers.Layer):
         if self.reaction == 'diss':
             for transPF_ in self.transPF.values():
                 transPF_.update(T)
+
+
+# =========================================================================== #
+# Permanent Dropout Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Dropout')
+class Dropout(tf_layers.Dropout):
+
+    def __init__(
+        self,
+        rate,
+        noise_shape=None,
+        seed=None,
+        permanent=False,
+        **kwargs
+    ):
+        super(Dropout, self).__init__(
+            rate=rate,
+            noise_shape=noise_shape,
+            seed=seed,
+            **kwargs
+        )
+        self.permanent = permanent
+
+    def call(self, inputs, training=None):
+        if self.permanent:
+            training = True
+        return super(Dropout, self).call(inputs, training)
+
+    def get_config(self):
+        config = {
+            'permanent': self.permanent
+        }
+        base_config = super(Dropout, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

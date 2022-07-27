@@ -21,7 +21,7 @@ from surqct.apps import functions as fun
 
 from surqct.src.utilities import utils
 from surqct.src.chemical_systems import systems as syst
-from surqct.src.rates_type.rates_type import get_rates_type_mod
+from surqct.src.rates_type.rates_type import RatesType
 
 
 # Parse arguments
@@ -42,6 +42,10 @@ def get_parser(subparsers):
         type=fun.dir_path,
         default="./",
         help='path to the working directory containing `InputData.py`'
+    )
+    parser.add_argument('-sd', '--savedir',
+        type=os.path.abspath,
+        help='path to the saving directory'
     )
     parser.add_argument('-tr', '--training',
         type=int,
@@ -64,26 +68,29 @@ def _main(args=None, InputData=None):
 
     # Initializing chemical system --------------------------------------------
     utils.print_main(
-        f"Initializing '{InputData.SystemName}' chemical system ...",
+        f"Initializing '{InputData.SystemName}' chemical system and rates type ...",
         start=''
     )
-    System = syst.get_system(
+    system = syst.get_system(
         NameLong=InputData.SystemName,
         ProcNames=InputData.RatesType,
         PathToHDF5Fld=InputData.PathToHDF5Fld
     )
-    # Initializing rates type module
-    rates_type_mod = get_rates_type_mod(System)
+    rates_type = RatesType(system, InputData)
 
     # Generating data
     ###########################################################################
+    if args.savedir is None:
+        args.savedir = args.dir
+        
     # Training/Validation -----------------------------------------------------
     if args.training:
-        for path in (args.dir+'/data/train/', args.dir+'/data/valid/'):
+        for path in (args.savedir+'/data/train/', args.savedir+'/data/valid/'):
             if not os.path.exists(path):
                 os.makedirs(path)
+            print(path)
 
-        TrainData, ValidData, AllData = rates_type_mod.generate_trainingdata(InputData, System)
+        TrainData, ValidData, AllData = rates_type.generate_trainingdata()
 
         utils.print_main('Saving training and validation data points ...')
         TrainData = pd.concat(TrainData, axis=1)
@@ -96,16 +103,16 @@ def _main(args=None, InputData=None):
     
     # Testing -----------------------------------------------------------------
     if args.testing:
-        for path in (args.dir+'/data/test/',):
-            if not os.path.exists(path):
-                os.makedirs(path)
+        path = args.savedir+'/data/test/'
+        if not os.path.exists(path):
+            os.makedirs(path)
 
         # Generating
-        TestData = rates_type_mod.generate_testingdata(InputData, System)
+        TestData = rates_type.generate_testingdata()
 
         utils.print_main('Saving labeled testing data points ...')
         TestData = pd.concat(TestData, axis=1)
-        TestData.to_csv(args.dir+'/data/test/labeled.csv', index=False, float_format='%.10e')
+        TestData.to_csv(path+'/labeled.csv', index=False, float_format='%.10e')
         utils.print_submain('Number of labeled testing pts:   %10d' % len(TestData))
 
 

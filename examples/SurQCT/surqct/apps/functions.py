@@ -1,5 +1,4 @@
 import os
-import argparse
 
 
 def dir_path(path):

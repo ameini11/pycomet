@@ -328,18 +328,32 @@ def set_num_threads(n):
     tf.config.threading.set_inter_op_parallelism_threads(n)
     tf.config.threading.set_intra_op_parallelism_threads(n)
 
-def reload_mod(modules=[]):
-    for mod in tf.nest.flatten(modules):
-        name = mod.__name__
+    
+def reload_mod(mod_names=[]):
+    mod_list = []
+    for name in tf.nest.flatten(mod_names):
         if name in sys.modules.keys():
             # Reload module
             importlib.reload(sys.modules[name])
             # Reload submodules
-            for importer, submod, ispkg in pkgutil.iter_modules(mod.__path__):
+            for importer, submod, ispkg in pkgutil.iter_modules(sys.modules[name].__path__):
                 if not submod.startswith('__'):
                     importlib.reload(sys.modules[name+'.'+submod])
+            mod_list.append(sys.modules[name])
+        else:
+            mod_list.append(importlib.import_module(name))
+    return mod_list
             
-    
+        
+def get_mod_from_path(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+
 #     mod_names = tf.nest.flatten(mod_names)
 #     mod_list = []
 #     for k in sys.modules.keys():

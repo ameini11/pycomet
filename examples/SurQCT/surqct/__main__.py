@@ -12,8 +12,8 @@ import os
 import argparse
 import threadpoolctl
 
-from pycomet.utilities import utils as pycomet_utils
-from surqct.src.utilities import utils as surqct_utils
+from pycomet.utilities import utils as pcm_utils
+from surqct.src.utilities import utils as sqct_utils
 from surqct import config as cfg
 
 from surqct import apps
@@ -39,7 +39,7 @@ pipes_scripts_mod = [
 ]
 
 
-@surqct_utils.main_decorator
+@sqct_utils.main_decorator
 def main():
 
     cwd = os.getcwd()
@@ -64,11 +64,7 @@ def main():
     # Setting number of threads
     if hasattr(args, 'threads'):
         cfg.NUM_THREADS = args.threads
-    pycomet_utils.set_num_threads(cfg.NUM_THREADS)
-
-    # Setting seed
-    if hasattr(args, 'dir'):
-        args.dir = os.path.abspath(args.dir)
+    pcm_utils.set_num_threads(cfg.NUM_THREADS)
 
     # Running process
     threadpoolctl_args = dict(limits=cfg.NUM_THREADS, user_api="blas")

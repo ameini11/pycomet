@@ -12,8 +12,8 @@
 # --------------------------------------------------------------------------- #
 
 
-import inputs.data as inp_data
 import inputs.general as inp_gen
+import inputs.data as inp_data
 
 from pycomet.utilities.model import layers as pcm_layers
 
@@ -31,7 +31,7 @@ common = {
         'l2': 1.e-6
     },
     'trainable': True,
-    'dropout_rate': 1.e-3,
+    'dropout_rate': 1.e-2,
     'batch_norm': None,
     'weight_norm': False
 }
@@ -42,14 +42,16 @@ lays_propty = {
         'branch': {
             'index': 0,
             'xform': pcm_layers.Normalization(
-                file=inp_data.file.values(),
+                mu_sigma_file='./saving/normalization_mu_sigma.txt',
+                data_files=list(inp_data.file.values()),
                 columns=inp_data.columns['x'][0]
             )
         },
         'trunk': {
             'index': 1,
             'xform': pcm_layers.Normalization(
-                file=inp_data.file.values(),
+                mu_sigma_file='./saving/normalization_1_mu_sigma.txt',
+                data_files=list(inp_data.file.values()),
                 columns=inp_data.columns['x'][1]
             )
         }

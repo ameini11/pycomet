@@ -12,7 +12,7 @@ from tqdm import tqdm
 from surqct import config as cfg
 from surqct.src.utilities import utils
 from surqct.src.utilities import reading
-from silx.io.dictdump import dicttoh5, h5todict
+from silx.io.dictdump import dicttoh5
 
 # Visualization libraries
 matplotlib = utils.import_matplotlib()
@@ -22,21 +22,15 @@ from matplotlib import ticker
 
 # Generating data
 ###############################################################################
-# Training/Validation data ----------------------------------------------------
-def generate_trainingdata(
+# Training/Validation data
+# -----------------------------------------------------------------------------
+def generate_data(
+    System,
     InputData,
-    System
+    TTranVec,
+    iIdxVec,
+    MinRateValue=0.
 ):
-    utils.print_main('Generating training and validation data points ...')
-
-    # Defining min rate value
-    MinValueTrain    = InputData.MinRateValue * InputData.MultFact
-    NoiseSD          = MinValueTrain
-
-    # Loading Input and Output for Training and Validation
-    TTranVec         = InputData.TTranVecTrain
-    NTTran           = len(InputData.TTranVecTrain)
-
     # Reading Levels Info of Initial and Final Molecules
     reading.read_levelsinfo(InputData, System, TTranVec)
         
@@ -47,83 +41,67 @@ def generate_trainingdata(
     # Initializing Quantities
     iIdxData         = pd.DataFrame(columns = ['Idx_i'])
     jIdxData         = pd.DataFrame(columns = ['Idx_j'])
-    iLevelsData      = pd.DataFrame(columns = InputData.xDiatVars)
-    jLevelsData      = pd.DataFrame(columns = InputData.xDiatVars)
+    iLevelsData      = pd.DataFrame(columns = InputData.InpDiatVars)
+    jLevelsData      = pd.DataFrame(columns = InputData.InpDiatVars)
     if InputData.DeltaProperties:
-        DeltaLevelsData = pd.DataFrame(columns = InputData.xDiatVars)
+        DeltaLevelsData = pd.DataFrame(columns = InputData.InpDiatVars)
     TTranData        = pd.DataFrame(columns = ['TTran'])
     KExcitData       = pd.DataFrame(columns = ['KExcit'])
-    
-    # Random seed
-    if hasattr(InputData, 'iLevelsSeedsVec'):
-        InputData.iLevelsSeedsVec = tf.nest.flatten(InputData.iLevelsSeedsVec)
 
     # Reading Rates at Temperatures TTranVec
     utils.print_submain(f"Reading '{InputData.RatesType}' Rates ...")
     System.Processes.read_rates(TTranVec)
     Rates = System.Processes.Rates[InputData.RatesType]
 
+    NTTran = len(TTranVec)
     for iT in range(NTTran):
 
         TTranStr = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K')
 
         # Rates Matrix at Temperature TTranVec[iT]
-        KMatoI = copy.deepcopy(Rates[TTranStr]) * InputData.MultFact
+        KMatoI = copy.deepcopy(Rates[TTranStr])
 
-        # Defining Initial Levels List
-        if (InputData.iLevelsIntFlg == 1):
-            iIdxVec = InputData.iLevelsVec
-        elif (InputData.iLevelsIntFlg == 2):
-            np.random.seed(InputData.iLevelsSeedsVec[0])
-            iIdxVec = np.random.choice(MolIn.NLevels, InputData.NiLevelsSampled, replace=False)
-        elif (InputData.iLevelsIntFlg == 3):
-            iIdxVec = reading.read_sampledinitiallevels_grouping(InputData.PathToGrouping[MolIn.Name], InputData.NSamplesPerGroup, InputData.iLevelsSeedsVec[iT])
-        elif (InputData.iLevelsIntFlg == 4):
-            iIdxVec = reading.read_sampledinitiallevels(InputData.PathToSampledLevels[MolIn.Name], TTranVec[iT])
-        if np.amin(iIdxVec) != 0:
-            iIdxVec = np.array(iIdxVec) - 1
-
-        for iIdx in tqdm(iIdxVec):
+        for iIdx in tqdm(iIdxVec[TTranStr]):
 
             # Selecting only Exothermic Rate > MinValueTrain
             if (InputData.ExoEndoFlg):
-                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.DiatData['EInt'].to_numpy()[jIdx] <= MolIn.DiatData['EInt'].to_numpy()[iIdx])]
-                jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.DiatData['EInt'].to_numpy()[jIdx] >  MolIn.DiatData['EInt'].to_numpy()[iIdx])]
+                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinRateValue) if (x and MolOut.DiatData['EInt'].to_numpy()[jIdx] <= MolIn.DiatData['EInt'].to_numpy()[iIdx])]
+                jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinRateValue) if (x and MolOut.DiatData['EInt'].to_numpy()[jIdx] >  MolIn.DiatData['EInt'].to_numpy()[iIdx])]
             elif (InputData.PartFnRatioFlg):
-                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] <= MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
-                jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x and MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] >  MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
+                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinRateValue) if (x and MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] <= MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
+                jIdxVecNo         = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinRateValue) if (x and MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] >  MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
             else:
-                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinValueTrain) if (x)]
+                jIdxVec           = [jIdx for jIdx, x in enumerate(KMatoI[iIdx,:] > MinRateValue) if (x)]
                 jIdxVecNo         = []
 
             jNLevels              = len(jIdxVec)
             kIdxVec               = [iIdx]*jNLevels
 
-            iIdxData              = iIdxData.append(pd.DataFrame({'Idx_i': kIdxVec}))
-            jIdxData              = jIdxData.append(pd.DataFrame({'Idx_j': jIdxVec}))
+            iIdxData              = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
+            jIdxData              = pd.concat([jIdxData, pd.DataFrame({'Idx_j': jIdxVec})], axis=0)
 
             TTran                 = np.ones((jNLevels)) * TTranVec[iT]
-            TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
+            TTranData             = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
 
-            KExcitData            = KExcitData.append(pd.DataFrame({'KExcit': KMatoI[iIdx, jIdxVec]}))
+            KExcitData            = pd.concat([KExcitData, pd.DataFrame({'KExcit': KMatoI[iIdx, jIdxVec]})], axis=0)
             
             # Data of i-th level
             iLevelsDataTemp       = MolIn.LevelsData.iloc[kIdxVec,:].copy()
             iLevelsDataTemp.index = np.arange(len(TTran))
-            iLevelsDataTemp       = iLevelsDataTemp[InputData.xDiatVars]
-            iLevelsData           = iLevelsData.append(iLevelsDataTemp)
+            iLevelsDataTemp       = iLevelsDataTemp[InputData.InpDiatVars]
+            iLevelsData           = pd.concat([iLevelsData, iLevelsDataTemp], axis=0)
 
             # Data of j-th level
             jLevelsDataTemp       = MolOut.LevelsData.iloc[jIdxVec,:].copy()
             jLevelsDataTemp.index = np.arange(len(TTran))
-            jLevelsDataTemp       = jLevelsDataTemp[InputData.xDiatVars]
-            jLevelsData           = jLevelsData.append(jLevelsDataTemp)
+            jLevelsDataTemp       = jLevelsDataTemp[InputData.InpDiatVars]
+            jLevelsData           = pd.concat([jLevelsData, jLevelsDataTemp], axis=0)
 
             # Delta levels data
             if InputData.DeltaProperties:
                 DeltaLevelsDataTemp       = iLevelsDataTemp.subtract(jLevelsDataTemp)
-                DeltaLevelsData           = DeltaLevelsData.append(DeltaLevelsDataTemp)
+                DeltaLevelsData           = pd.concat([DeltaLevelsData, DeltaLevelsDataTemp], axis=0)
 
             # Reconstruct Exothermic Rates from remaining Endothermic ones
             if (InputData.ReconstructExoth) and len(jIdxVecNo) > 0:
@@ -131,35 +109,33 @@ def generate_trainingdata(
                 jNLevels              = len(jIdxVecNo)
                 kIdxVec               = jIdxVecNo
                 jIdxVec               = [iIdx]*jNLevels
-
-                iIdxData              = iIdxData.append(pd.DataFrame({'Idx_i': kIdxVec}))
-                jIdxData              = jIdxData.append(pd.DataFrame({'Idx_j': jIdxVec}))
+                
+                iIdxData              = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
+                jIdxData              = pd.concat([jIdxData, pd.DataFrame({'Idx_j': jIdxVec})], axis=0)
 
                 TTran                 = np.ones((jNLevels)) * TTranVec[iT]
-                TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
+                TTranData             = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
 
-                KEquilibrium          = MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVecNo] / MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx]
-                KExcitReconstr        = KMatoI[iIdx, jIdxVecNo] / KEquilibrium
-                KExcitData            = KExcitData.append(pd.DataFrame({'KExcit': KExcitReconstr}))
+                KEquilibrium          = MolOut.PFData['Int'][TTranStr].to_numpy()[kIdxVec] / MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx]
+                KExcitReconstr        = KMatoI[iIdx, kIdxVec] / KEquilibrium
+                KExcitData            = pd.concat([KExcitData, pd.DataFrame({'KExcit': KExcitReconstr})], axis=0)
 
                 # Data of i-th level
                 iLevelsDataTemp       = MolIn.LevelsData.iloc[kIdxVec,:].copy()
                 iLevelsDataTemp.index = np.arange(len(TTran))
-                iLevelsDataTemp       = iLevelsDataTemp[InputData.xDiatVars]
-                iLevelsData           = iLevelsData.append(iLevelsDataTemp)
+                iLevelsDataTemp       = iLevelsDataTemp[InputData.InpDiatVars]
+                iLevelsData           = pd.concat([iLevelsData, iLevelsDataTemp], axis=0)
 
                 # Data of j-th level
                 jLevelsDataTemp       = MolOut.LevelsData.iloc[jIdxVec,:].copy()
                 jLevelsDataTemp.index = np.arange(len(TTran))
-                jLevelsDataTemp       = jLevelsDataTemp[InputData.xDiatVars]
-                jLevelsData           = jLevelsData.append(jLevelsDataTemp)
+                jLevelsDataTemp       = jLevelsDataTemp[InputData.InpDiatVars]
+                jLevelsData           = pd.concat([jLevelsData, jLevelsDataTemp], axis=0)
 
                 # Delta levels data
                 if InputData.DeltaProperties:
                     DeltaLevelsDataTemp   = iLevelsDataTemp.subtract(jLevelsDataTemp)
-                    DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
-
-        utils.print_submain(f'Data Matrix currently contains {len(KExcitData)} Data Points', delimiter='    ')
+                    DeltaLevelsData       = pd.concat([DeltaLevelsData, DeltaLevelsDataTemp], axis=0)
         
     # Resetting Data Frames Indexing
     indexNew            = np.arange(len(TTranData))
@@ -174,32 +150,72 @@ def generate_trainingdata(
 
     # Concatenating Horizontally
     # i-th level data
-    if InputData.xTTranVar['i']:
+    if InputData.InpTTranVar['i']:
         iLevelsData         = pd.concat([iLevelsData, TTranData], axis=1)
     iLevelsData.columns     = [(VarName + '_i') for VarName in iLevelsData.columns]
     # Delta or j-th level data
     if InputData.DeltaProperties:
-        if InputData.xTTranVar['j']:
+        if InputData.InpTTranVar['j']:
             DeltaLevelsData = pd.concat([DeltaLevelsData, TTranData], axis=1)
         DeltaLevelsData.columns = [(VarName + '_Delta') for VarName in DeltaLevelsData.columns]
-        DataSet             = pd.concat([iLevelsData, DeltaLevelsData], axis=1)
+        InputData           = pd.concat([iLevelsData, DeltaLevelsData], axis=1)
     else:
-        if InputData.xTTranVar['j']:
+        if InputData.InpTTranVar['j']:
             jLevelsData     = pd.concat([jLevelsData, TTranData], axis=1)
         jLevelsData.columns = [(VarName + '_j') for VarName in jLevelsData.columns]
-        DataSet             = pd.concat([iLevelsData, jLevelsData], axis=1)
-    # Rates data
-    DataSet = pd.concat([DataSet, iIdxData, jIdxData, KExcitData], axis=1)
+        InputData           = pd.concat([iLevelsData, jLevelsData], axis=1)
+        
+    return pd.concat([InputData, iIdxData, jIdxData, KExcitData], axis=1)
+
+    
+# Training/Validation data
+# -----------------------------------------------------------------------------
+def generate_trainingdata(
+    System,
+    InputData
+):
+    utils.print_main('Generating training and validation data points ...')
+
+    # Temperatures
+    TTranVec = InputData.TTranVecTrain
+    # Molecule In
+    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    
+    # Random seed
+    if hasattr(InputData, 'iLevelsSeedsVec'):
+        InputData.iLevelsSeedsVec = tf.nest.flatten(InputData.iLevelsSeedsVec)
+    
+    # Defining Initial Levels List
+    iIdxVec = {}
+    for iT in range(len(TTranVec)):
+        if (InputData.iLevelsIntFlg == 1):
+            iIdxVecT = InputData.iLevelsVec
+        elif (InputData.iLevelsIntFlg == 2):
+            np.random.seed(InputData.iLevelsSeedsVec[0])
+            iIdxVecT = np.random.choice(MolIn.NLevels, InputData.NiLevelsSampled, replace=False)
+        elif (InputData.iLevelsIntFlg == 3):
+            iIdxVecT = reading.read_sampledinitiallevels_grouping(InputData.PathToGrouping[MolIn.Name], InputData.NSamplesPerGroup, InputData.iLevelsSeedsVec[iT])
+        elif (InputData.iLevelsIntFlg == 4):
+            iIdxVecT = reading.read_sampledinitiallevels(InputData.PathToSampledLevels[MolIn.Name], TTranVec[iT])
+        if np.amin(iIdxVecT) != 0:
+            iIdxVecT = np.array(iIdxVecT) - 1
+        iIdxVec[str(int(TTranVec[iT]))] = iIdxVecT
+            
+    # Generate rates data
+    DataSet = generate_data(System, InputData, TTranVec, iIdxVec, InputData.MinRateValue)
     
     # Adding Noise
     DataSetFinal = DataSet.copy()
+    NoiseSD      = InputData.MinRateValue
     for iSample in range(InputData.NSamplesNoise):
         DataSetTemp        = DataSet.copy()
         DataSetTemp.KExcit = DataSetTemp.KExcit + np.random.normal(loc=0.0, scale=NoiseSD, size=len(DataSet))
-        DataSetFinal       = DataSetFinal.append(DataSetTemp[DataSetTemp['KExcit'] > MinValueTrain] )
+        DataSetFinal       = pd.concat([DataSetFinal, DataSetTemp[DataSetTemp['KExcit'] > MinValueTrain]], axis=0)
     
+    # Transform rates values
+    DataSetFinal.KExcit     = DataSetFinal.KExcit * InputData.MultFact
     if InputData.RatesLogScale:
-        DataSetFinal.KExcit = np.log( DataSetFinal.KExcit )
+        DataSetFinal.KExcit = np.log(DataSetFinal.KExcit)
         
     DataSetFinal.index = np.arange(len(DataSetFinal))
 
@@ -239,156 +255,25 @@ def generate_trainingdata(
 
     return TrainData, ValidData, AllData
 
-# Testing data ----------------------------------------------------------------
+
+# Testing data
+# -----------------------------------------------------------------------------
 def generate_testingdata(
     InputData,
     System
 ):
     utils.print_main('Generating testing data points ...')
 
-    # Loading Input and Output for Testing
+    # Temperatures
     TTranVec = InputData.TTranVecTest
-    NTTran   = len(TTranVec)
-
-    # Reading Levels Info of Initial and Final Molecules
-    reading.read_levelsinfo(InputData, System, TTranVec)
-        
-    # In/Out Molecules
-    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
-    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
-
-    # Initializing Quantities
-    iIdxData         = pd.DataFrame(columns = ['Idx_i'])
-    jIdxData         = pd.DataFrame(columns = ['Idx_j'])
-    iLevelsData      = pd.DataFrame(columns = InputData.xDiatVars)
-    jLevelsData      = pd.DataFrame(columns = InputData.xDiatVars)
-    if InputData.DeltaProperties:
-        DeltaLevelsData = pd.DataFrame(columns = InputData.xDiatVars)
-    TTranData        = pd.DataFrame(columns = ['TTran'])
-    KExcitData       = pd.DataFrame(columns = ['KExcit'])
-
-    # Initial Levels
-    iIdxVec = InputData.iLevelsVecTest
-    iIdxVec = np.array(iIdxVec) - 1
-
-    # Reading Rates at Temperatures TTranVec
-    utils.print_submain(f"Reading '{InputData.RatesType}' Rates ...")
-    System.Processes.read_rates(TTranVec)
-    Rates = System.Processes.Rates[InputData.RatesType]
-
-    for iT in range(NTTran):
-
-        TTranStr = str(int(TTranVec[iT]))
-        utils.print_submain(f'Translational Temperature: T = {TTranStr} K')
-
-        # Rates Matrix at Temperature TTranVec[iT]
-        KMatoI = copy.deepcopy(Rates[TTranStr])
-
-        for iIdx in tqdm(iIdxVec):
-
-            jIdxVecTemp           = np.arange(MolOut.NLevels)
-            jIdxVecNoTemp         = []
-            if (InputData.ExoEndoFlg):
-                jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.DiatData['EInt'].to_numpy()[jIdx] <= MolIn.DiatData['EInt'].to_numpy()[iIdx])]
-                jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.DiatData['EInt'].to_numpy()[jIdx] >  MolIn.DiatData['EInt'].to_numpy()[iIdx])]
-            elif (InputData.PartFnRatioFlg):
-                jIdxVec           = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] <= MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
-                jIdxVecNo         = [jIdx for jIdx in jIdxVecTemp if (MolOut.PFData['Int'][TTranStr].to_numpy()[jIdx] >  MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx])]
-            else:
-                jIdxVec           = jIdxVecTemp
-                jIdxVecNo         = jIdxVecNoTemp
-            
-            jNLevels              = len(jIdxVec)
-            kIdxVec               = [iIdx]*jNLevels
     
-            iIdxData              = iIdxData.append(pd.DataFrame({'Idx_i': kIdxVec}))
-            jIdxData              = jIdxData.append(pd.DataFrame({'Idx_j': jIdxVec}))
-
-            TTran                 = np.ones((jNLevels)) * TTranVec[iT]
-            TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
+    # Defining Initial Levels List
+    iIdxVec = {}
+    for iT in range(len(TTranVec)):
+        iIdxVec[str(int(TTranVec[iT]))] = np.array(InputData.iLevelsVecTest) - 1
             
-            KExcitij              = KMatoI[iIdx, jIdxVec]
-            KExcitData            = KExcitData.append(pd.DataFrame({'KExcit': KExcitij}))
-
-            # Data of i-th level
-            iLevelsDataTemp       = MolIn.LevelsData.iloc[kIdxVec,:].copy()
-            iLevelsDataTemp.index = np.arange(len(TTran))
-            iLevelsDataTemp       = iLevelsDataTemp[InputData.xDiatVars]
-            iLevelsData           = iLevelsData.append(iLevelsDataTemp)
-
-            # Data of j-th level
-            jLevelsDataTemp       = MolOut.LevelsData.iloc[jIdxVec,:].copy()
-            jLevelsDataTemp.index = np.arange(len(TTran))
-            jLevelsDataTemp       = jLevelsDataTemp[InputData.xDiatVars]
-            jLevelsData           = jLevelsData.append(jLevelsDataTemp)
-
-            # Delta levels data
-            if InputData.DeltaProperties:
-                DeltaLevelsDataTemp   = iLevelsDataTemp.subtract(jLevelsDataTemp)
-                DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
-
-            # Reconstruct Backward Rates
-            if (InputData.ReconstructExoth) and len(jIdxVecNo) > 0:
-    
-                jNLevels              = len(jIdxVecNo)
-                kIdxVec               = [iIdx]*jNLevels
-                jIdxVec               = jIdxVecNo
-
-                iIdxData              = iIdxData.append(pd.DataFrame({'Idx_i': kIdxVec}))
-                jIdxData              = jIdxData.append(pd.DataFrame({'Idx_j': jIdxVecNo}))
-
-                TTran                 = np.ones((jNLevels)) * TTranVec[iT]
-                TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
-
-                KEquilibrium          = MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx] / MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVecNo]
-                KExcitReconstr        = KMatoI[jIdxVecNo, iIdx] / KEquilibrium
-                KExcitData            = KExcitData.append(pd.DataFrame({'KExcit': KExcitReconstr}))
-
-                # Data of i-th level
-                iLevelsDataTemp       = MolIn.LevelsData.iloc[kIdxVec,:].copy()
-                iLevelsDataTemp.index = np.arange(len(TTran))
-                iLevelsDataTemp       = iLevelsDataTemp[InputData.xDiatVars]
-                iLevelsData           = iLevelsData.append(iLevelsDataTemp)
-
-                # Data of j-th level
-                jLevelsDataTemp       = MolOut.LevelsData.iloc[jIdxVec,:].copy()
-                jLevelsDataTemp.index = np.arange(len(TTran))
-                jLevelsDataTemp       = jLevelsDataTemp[InputData.xDiatVars]
-                jLevelsData           = jLevelsData.append(jLevelsDataTemp)
-
-                # Delta levels data
-                if InputData.DeltaProperties:
-                    DeltaLevelsDataTemp   = iLevelsDataTemp.subtract(jLevelsDataTemp)
-                    DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
-
-    # Resetting Data Frames Indexing
-    indexNew            = np.arange(len(TTranData))
-    iIdxData.index      = indexNew
-    jIdxData.index      = indexNew
-    TTranData.index     = indexNew
-    iLevelsData.index   = indexNew
-    jLevelsData.index   = indexNew
-    if InputData.DeltaProperties:
-        DeltaLevelsData.index = indexNew
-    KExcitData.index    = indexNew
-
-    # Concatenating Horizzontally
-    if InputData.xTTranVar['i']:
-        iLevelsData         = pd.concat([iLevelsData, TTranData], axis=1)
-    iLevelsData.columns     = [(VarName + '_i') for VarName in iLevelsData.columns]
-    # Delta or j-th level data
-    if InputData.DeltaProperties:
-        if InputData.xTTranVar['j']:
-            DeltaLevelsData = pd.concat([DeltaLevelsData, TTranData], axis=1)
-        DeltaLevelsData.columns = [(VarName + '_Delta') for VarName in DeltaLevelsData.columns]
-        DataSet             = pd.concat([iLevelsData, DeltaLevelsData], axis=1)
-    else:
-        if InputData.xTTranVar['j']:
-            jLevelsData     = pd.concat([jLevelsData, TTranData], axis=1)
-        jLevelsData.columns = [(VarName + '_j') for VarName in jLevelsData.columns]
-        DataSet             = pd.concat([iLevelsData, jLevelsData], axis=1)
-    # Rates data
-    DataSet                 = pd.concat([DataSet, iIdxData, jIdxData, KExcitData], axis=1)
+    # Generate rates data
+    DataSet = generate_data(System, InputData, TTranVec, iIdxVec)
 
     # Returning Data
     xTrue = DataSet.copy()
@@ -397,10 +282,12 @@ def generate_testingdata(
 
     return (xTrue, yTrue)
 
-# Prediction data -------------------------------------------------------------
+
+# Prediction data
+# -----------------------------------------------------------------------------
 def generate_predictiondata(
-    InputData,
     System,
+    InputData,
     Model,
     Labeled=True,
     Columns=None
@@ -419,18 +306,15 @@ def generate_predictiondata(
     MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
 
     # Initializing Quantities
-    iIdxData         = pd.DataFrame(columns = ['Idx_i'])
-    jIdxData         = pd.DataFrame(columns = ['Idx_j'])
-    iLevelsData      = pd.DataFrame(columns = InputData.xDiatVars)
-    jLevelsData      = pd.DataFrame(columns = InputData.xDiatVars)
-    if InputData.DeltaProperties:
-        DeltaLevelsData = pd.DataFrame(columns = InputData.xDiatVars)
-    TTranData        = pd.DataFrame(columns = ['TTran'])
-    KExcitData       = pd.DataFrame(columns = ['KExcit'])
+    iIdxData   = pd.DataFrame(columns = ['Idx_i'])
+    jIdxData   = pd.DataFrame(columns = ['Idx_j'])
+    TTranData  = pd.DataFrame(columns = ['TTran'])
+    KExcitData = pd.DataFrame(columns = ['KExcit'])
 
     # Initial Levels
     iIdxVec = InputData.iLevelsVecTest
-    iIdxVec = np.array(iIdxVec) - 1
+    if np.amin(iIdxVec) != 0:
+        iIdxVec = np.array(iIdxVec) - 1
 
     for iT in range(NTTran):
 
@@ -450,32 +334,15 @@ def generate_predictiondata(
             else:
                 jIdxVec           = jIdxVecTemp
                 jIdxVecNo         = jIdxVecNoTemp
-            
+
             jNLevels              = len(jIdxVec)
             kIdxVec               = [iIdx]*jNLevels
-    
-            iIdxData              = iIdxData.append(pd.DataFrame({'Idx_i': kIdxVec}))
-            jIdxData              = jIdxData.append(pd.DataFrame({'Idx_j': jIdxVec}))
+
+            iIdxData              = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
+            jIdxData              = pd.concat([jIdxData, pd.DataFrame({'Idx_j': jIdxVec})], axis=0)
 
             TTran                 = np.ones((jNLevels)) * TTranVec[iT]
-            TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
-
-            # Data of i-th level
-            iLevelsDataTemp       = MolIn.LevelsData.iloc[kIdxVec,:].copy()
-            iLevelsDataTemp.index = np.arange(len(TTran))
-            iLevelsDataTemp       = iLevelsDataTemp[InputData.xDiatVars]
-            iLevelsData           = iLevelsData.append(iLevelsDataTemp)
-
-            # Data of j-th level
-            jLevelsDataTemp       = MolOut.LevelsData.iloc[jIdxVec,:].copy()
-            jLevelsDataTemp.index = np.arange(len(TTran))
-            jLevelsDataTemp       = jLevelsDataTemp[InputData.xDiatVars]
-            jLevelsData           = jLevelsData.append(jLevelsDataTemp)
-
-            # Delta levels data
-            if InputData.DeltaProperties:
-                DeltaLevelsDataTemp   = iLevelsDataTemp.subtract(jLevelsDataTemp)
-                DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
+            TTranData             = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
 
             # Prediction Data
             Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
@@ -485,82 +352,41 @@ def generate_predictiondata(
             KExcitPred      = KExcitPred / InputData.MultFact
             KExcitData      = KExcitData.append(pd.DataFrame({'KExcit': KExcitPred}))
 
-            # Reconstruct Backward Rates
-            if (InputData.ReconstructExoth) and len(jIdxVecNo) > 0:
-    
+            # Reconstruct Remaining Rates
+            if len(jIdxVecNo) > 0:
+                
                 jNLevels              = len(jIdxVecNo)
                 kIdxVec               = [iIdx]*jNLevels
                 jIdxVec               = jIdxVecNo
-
-                iIdxData              = iIdxData.append(pd.DataFrame({'Idx_i': kIdxVec}))
-                jIdxData              = jIdxData.append(pd.DataFrame({'Idx_j': jIdxVecNo}))
+                
+                iIdxData              = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
+                jIdxData              = pd.concat([jIdxData, pd.DataFrame({'Idx_j': jIdxVec})], axis=0)
 
                 TTran                 = np.ones((jNLevels)) * TTranVec[iT]
-                TTranData             = TTranData.append(pd.DataFrame({'TTran': TTran}))
-
-                # Data of i-th level
-                iLevelsDataTemp       = MolIn.LevelsData.iloc[kIdxVec,:].copy()
-                iLevelsDataTemp.index = np.arange(len(TTran))
-                iLevelsDataTemp       = iLevelsDataTemp[InputData.xDiatVars]
-                iLevelsData           = iLevelsData.append(iLevelsDataTemp)
-
-                # Data of j-th level
-                jLevelsDataTemp       = MolOut.LevelsData.iloc[jIdxVec,:].copy()
-                jLevelsDataTemp.index = np.arange(len(TTran))
-                jLevelsDataTemp       = jLevelsDataTemp[InputData.xDiatVars]
-                jLevelsData           = jLevelsData.append(jLevelsDataTemp)
-
-                # Delta levels data
-                if InputData.DeltaProperties:
-                    DeltaLevelsDataTemp   = iLevelsDataTemp.subtract(jLevelsDataTemp)
-                    DeltaLevelsData       = DeltaLevelsData.append(DeltaLevelsDataTemp)
+                TTranData             = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
 
                 # Prediction Data
-                Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
+                Input           = get_input(InputData, MolIn, MolOut, jIdxVec, kIdxVec, TTran, Columns)
                 KExcitPred      = Model.predict(Input).reshape(-1)
                 if InputData.RatesLogScale:
                     KExcitPred  = np.exp(KExcitPred)
                 KExcitPred      = KExcitPred / InputData.MultFact
                 # Equilibrium constant
-                KEquilibrium            = MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx] / MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVecNo]
-                KExcitReconstr          = KExcitPred / KEquilibrium
+                KEquilibrium    = MolIn.PFData['Int'][TTranStr].to_numpy()[iIdx] / MolOut.PFData['Int'][TTranStr].to_numpy()[jIdxVec]
+                KExcitReconstr  = KExcitPred / KEquilibrium
                 # Collect data
-                KExcitData              = KExcitData.append(pd.DataFrame({'KExcit': KExcitReconstr}))
+                KExcitData      = pd.concat([KExcitData, pd.DataFrame({'KExcit': KExcitReconstr})], axis=0)
 
     # Resetting Data Frames Indexing
     indexNew            = np.arange(len(TTranData))
     iIdxData.index      = indexNew
     jIdxData.index      = indexNew
     TTranData.index     = indexNew
-    iLevelsData.index   = indexNew
-    jLevelsData.index   = indexNew
-    if InputData.DeltaProperties:
-        DeltaLevelsData.index = indexNew
-    if Labeled:
-        KExcitData.index      = indexNew
-
-    # Concatenating Horizzontally
-    if InputData.xTTranVar['i']:
-        iLevelsData         = pd.concat([iLevelsData, TTranData], axis=1)
-    iLevelsData.columns     = [(VarName + '_i') for VarName in iLevelsData.columns]
-    # Delta or j-th level data
-    if InputData.DeltaProperties:
-        if InputData.xTTranVar['j']:
-            DeltaLevelsData = pd.concat([DeltaLevelsData, TTranData], axis=1)
-        DeltaLevelsData.columns = [(VarName + '_Delta') for VarName in DeltaLevelsData.columns]
-        DataSet             = pd.concat([iLevelsData, DeltaLevelsData], axis=1)
-    else:
-        if InputData.xTTranVar['j']:
-            jLevelsData     = pd.concat([jLevelsData, TTranData], axis=1)
-        jLevelsData.columns = [(VarName + '_j') for VarName in jLevelsData.columns]
-        DataSet             = pd.concat([iLevelsData, jLevelsData], axis=1)
-    # Rates data
-    DataSet                 = pd.concat([DataSet, iIdxData, jIdxData, KExcitData], axis=1)
+    KExcitData.index    = indexNew
 
     # Returning Data
-    xPred = DataSet.copy()
-    xPred.pop('KExcit')
-    yPred = DataSet['KExcit']
+    xPred = pd.concat([iIdxData, jIdxData, TTranData], axis=1)
+    yPred = KExcitData
 
     return (xPred, yPred)
 
@@ -579,34 +405,127 @@ def get_input(
     # Data of i-th level
     iLevelsData             = MolIn.LevelsData.iloc[iIdxVec,:].copy()
     iLevelsData.index       = np.arange(len(TTranData))
-    iLevelsData             = iLevelsData[InputData.xDiatVars]
+    iLevelsData             = iLevelsData[InputData.InpDiatVars]
 
     # Data of j-th level
     jLevelsData             = MolOut.LevelsData.iloc[jIdxVec,:].copy()
     jLevelsData.index       = np.arange(len(TTranData))
-    jLevelsData             = jLevelsData[InputData.xDiatVars]
+    jLevelsData             = jLevelsData[InputData.InpDiatVars]
 
     # Delta levels data
     if InputData.DeltaProperties:
         DeltaLevelsData     = iLevelsData.subtract(jLevelsData)
 
     # i-th level data
-    if InputData.xTTranVar['i']:
+    if InputData.InpTTranVar['i']:
         iLevelsData         = pd.concat([iLevelsData, TTranData], axis=1)
     iLevelsData.columns     = [(VarName + '_i') for VarName in iLevelsData.columns]
     # Delta or j-th level data
     if InputData.DeltaProperties:
-        if InputData.xTTranVar['j']:
+        if InputData.InpTTranVar['j']:
             DeltaLevelsData = pd.concat([DeltaLevelsData, TTranData], axis=1)
         DeltaLevelsData.columns = [(VarName + '_Delta') for VarName in DeltaLevelsData.columns]
         DataSet             = pd.concat([iLevelsData, DeltaLevelsData], axis=1)
     else:
-        if InputData.xTTranVar['j']:
+        if InputData.InpTTranVar['j']:
             jLevelsData     = pd.concat([jLevelsData, TTranData], axis=1)
         jLevelsData.columns = [(VarName + '_j') for VarName in jLevelsData.columns]
         DataSet             = pd.concat([iLevelsData, jLevelsData], axis=1)
 
     return reading.read_inputcolumns(DataSet, Columns)
+
+
+# Saving to HDF5
+###############################################################################
+def save_predictiondata(
+    System,
+    InputData,
+    Model,
+    Columns,
+    BatchSize=1024,
+    RatesType=None
+):
+    # Initialize HDF5 file
+    PathToHDF5Fld    = os.path.abspath(cfg.paths.HDF5Dtb + '/SurQCT/' + InputData.SuffixHDF5) + '/'
+    if not os.path.exists(PathToHDF5Fld):
+        os.makedirs(PathToHDF5Fld)
+    PathToHDF5File   = PathToHDF5Fld + System.NameLong + '.hdf5'
+    utils.print_main(
+        f"Saving predicted '{RatesType}' rates in '{PathToHDF5File}' file ..."
+    )
+
+    # Check if exist a final version
+    if InputData.UseFinalVersion and not os.path.exists(PathToHDF5File):
+        FinalHDF5Version = os.path.abspath(cfg.paths.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
+        if os.path.exists(FinalHDF5Version):
+            shutil.copy(FinalHDF5Version, PathToHDF5Fld)
+
+    # Saving Diatomic Data
+    for Mol in System.Molecules:
+        Mol.save_levels(PathToHDF5File)
+
+    # Loading Input and Output for Training and Validation
+    TTranVec = InputData.TTranVec
+    NTTran   = len(InputData.TTranVec)
+
+    # Reading Levels Info of Initial and Final Molecules
+    reading.read_levelsinfo(InputData, System, TTranVec)
+
+    # In/Out Components
+    MolIn  = System.Processes.CompInOut[RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[RatesType]['Out'][0]
+
+    # Loop over temperatures
+    Groups = {}
+    for TTran in TTranVec:
+
+        TTran   = int(TTran)
+        utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K')
+
+        # Loop on Initial States
+        utils.print_submain('Composing inputs', delimiter=' '*4)
+        
+        iIdxData = pd.DataFrame(columns = ['Idx_i'])
+        jIdxData = pd.DataFrame(columns = ['Idx_j'])
+        
+        for iIdx in range(1, MolIn.NLevels):
+            
+            jIdxVec  = np.arange(iIdx)
+            jNLevels = len(jIdxVec)
+            iIdxVec  = [iIdx]*jNLevels
+
+            iIdxData = pd.concat([iIdxData, pd.DataFrame({'Idx_i': iIdxVec})], axis=0)
+            jIdxData = pd.concat([jIdxData, pd.DataFrame({'Idx_j': jIdxVec})], axis=0)
+        
+        iIdxVec = iIdxData.to_numpy().reshape(-1)
+        jIdxVec = jIdxData.to_numpy().reshape(-1)
+        Input   = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
+
+        # Performing inference
+        utils.print_submain('Performing inference', delimiter=' '*4)
+        KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+        if InputData.RatesLogScale:
+            KExcitPred  = np.exp(KExcitPred)
+        KExcitPred      = KExcitPred / InputData.MultFact
+
+        # Feeding rate matrix
+        utils.print_submain('Filling rate matrix', delimiter=' '*4)
+        RateMatrix = np.zeros((MolIn.NLevels, MolOut.NLevels))
+        RateMatrix[iIdxVec, jIdxVec] = KExcitPred
+
+        # Collecting rate matrix
+        Groups[f'T_{TTran}_{TTran}'] = {'Rates': {RatesType: RateMatrix}}
+
+    # Saving rate matrix in HDF5
+    utils.print_submain('Dumping the rate matrices to HDF5 file')
+    if os.path.exists(PathToHDF5File):
+        f = h5py.File(PathToHDF5File, 'a')
+    else:
+        f = h5py.File(PathToHDF5File, 'w')
+
+    dicttoh5(treedict=Groups, h5file=f, overwrite_data=True, create_dataset_args={'compression': "gzip", 'compression_opts': 9})
+
+    f.close()
 
 
 # Plotting
@@ -618,9 +537,9 @@ def log_tick_formatter(
     return f"$10^{{{int(val)}}}$"
 
 def plot_prediction2D(
+    System,
     Path,
     iIdx,
-    System,
     TrueData,
     PredData
 ):
@@ -653,9 +572,9 @@ def plot_prediction2D(
     return fig
 
 def plot_prediction3D(
+    System,
     Path,
     iIdx,
-    System,
     TrueData,
     PredData
 ):
@@ -699,355 +618,3 @@ def plot_prediction3D(
     plt.savefig(Path + f'/level{iIdx}_v{v}_J{J}.pdf')
 
     return fig
-
-
-# Writing
-###############################################################################
-def save_predictiondata(
-    InputData,
-    System,
-    Model,
-    Columns,
-    BatchSize=1024,
-    RatesType=None
-):
-    # Initialize HDF5 file
-    PathToHDF5Fld    = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/' + InputData.SuffixHDF5) + '/'
-    if not os.path.exists(PathToHDF5Fld):
-        os.makedirs(PathToHDF5Fld)
-    PathToHDF5File   = PathToHDF5Fld + System.NameLong + '.hdf5'
-    utils.print_main(
-        f"Saving predicted '{RatesType}' rates in '{PathToHDF5File}' file ..."
-    )
-
-    # Check if exist a final version
-    if InputData.UseFinalVersion and not os.path.exists(PathToHDF5File):
-        FinalHDF5Version = os.path.abspath(cfg.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
-        if os.path.exists(FinalHDF5Version):
-            shutil.copy(FinalHDF5Version, PathToHDF5Fld)
-
-    # Saving Diatomic Data
-    for Mol in System.Molecules:
-        Mol.save_levels(PathToHDF5File)
-
-    # Loading Input and Output for Training and Validation
-    TTranVec = InputData.TTranVec
-    NTTran   = len(InputData.TTranVec)
-
-    # Reading Levels Info of Initial and Final Molecules
-    reading.read_levelsinfo(InputData, System, TTranVec)
-
-    # In/Out Components
-    MolIn  = System.Processes.CompInOut[RatesType]['In'][0]
-    MolOut = System.Processes.CompInOut[RatesType]['Out'][0]
-
-    # Loop over temperatures
-    Groups = {}
-    for TTran in TTranVec:
-
-        ts      = time.time()
-
-        TTran   = int(TTran)
-        utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K')
-
-        # Loop on Initial States
-        utils.print_submain('Composing inputs', delimiter=' '*4)
-        ijIdx = None
-        for iIdx in range(1, MolIn.NLevels):
-
-            jIdxVec     = np.arange(iIdx).reshape(-1,1)
-            jNLevels    = len(jIdxVec)
-            iIdxVec     = np.array(list([iIdx]*jNLevels)).reshape(-1,1)
-
-            ijIdxi      = [iIdxVec, jIdxVec]
-            if ijIdx is None:
-                ijIdx   = ijIdxi
-            else:
-                ijIdx   = tf.nest.map_structure(lambda x, y: np.vstack((x,y)), ijIdx, ijIdxi)
-
-        iIdxVec, jIdxVec = ijIdx[0].squeeze(), ijIdx[1].squeeze()
-        Input            = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
-
-        # Performing inference
-        utils.print_submain(f'Performing inference for {len(Input[0])} data points', delimiter=' '*4)
-        KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
-        if InputData.RatesLogScale:
-            KExcitPred  = np.exp(KExcitPred)
-        KExcitPred      = KExcitPred / InputData.MultFact
-
-        # Feeding rate matrix
-        utils.print_submain('Feeding rate matrix', delimiter=' '*4)
-        NPts        = 0
-        RateMatrix  = np.zeros((MolIn.NLevels, MolOut.NLevels))
-        for iIdx in range(1, MolIn.NLevels):
-
-            jIdxVec     = np.arange(iIdx)
-            jNLevels    = len(jIdxVec)
-
-            RateMatrix[iIdx, jIdxVec] = KExcitPred[NPts:NPts+jNLevels]
-
-            NPts        = NPts + jNLevels
-
-        # Collecting rate matrix
-        Groups[f'T_{TTran}_{TTran}'] = {'Rates': {RatesType: RateMatrix}}
-
-        te      = time.time()
-        delta   = datetime.timedelta(seconds=(te - ts))
-        utils.print_submain('>> Time taken for Single Temperature: %s' % delta, delimiter=' '*4)
-
-    # Saving rate matrix in HDF5
-    utils.print_submain('Dumping the rate matrices to HDF5 file')
-    if os.path.exists(PathToHDF5File):
-        f = h5py.File(PathToHDF5File, 'a')
-    else:
-        f = h5py.File(PathToHDF5File, 'w')
-
-    dicttoh5(treedict=Groups, h5file=f, overwrite_data=True, create_dataset_args={'compression': "gzip", 'compression_opts': 9})
-
-    f.close()
-
-
-    # # Loop over temperatures
-    # for TTran in TTranVec:
-
-    #     TTran = int(TTran)
-    #     utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K', delimiter='    ')
-
-    #     # Initialize group in HDF5
-    #     GrpName = f'T_{TTran}_{TTran}/Rates/'
-    #     if GrpName not in f.keys():
-    #         Grp = f.create_group(GrpName)
-    #     else:
-    #         Grp = f[GrpName]
-
-    #     # Initialize rate matrix
-    #     RateMatrix = np.zeros((MolIn.NLevels, MolOut.NLevels))
-
-    #     # Loop on Initial States
-    #     for iIdx in tqdm(range(1, MolIn.NLevels)):
-
-    #         jIdxVec         = np.arange(iIdx)
-    #         jNLevels        = len(jIdxVec)
-    #         kIdxVec         = [iIdx]*jNLevels
-
-    #         # Prediction Data
-    #         Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
-    #         KExcitPred      = Model.predict(Input).reshape(-1)
-    #         if InputData.RatesLogScale:
-    #             KExcitPred  = np.exp(KExcitPred)
-    #         KExcitPred      = KExcitPred / InputData.MultFact
-
-    #         # Feeding rate matrix
-    #         RateMatrix[iIdx, jIdxVec] = KExcitPred
-
-    #     # Saving rate matrix in HDF5
-    #     if InputData.RatesType in Grp.keys():
-    #         del f[GrpName+'/'+InputData.RatesType]
-    #     Grp.create_dataset(InputData.RatesType, data=RateMatrix, compression="gzip", compression_opts=9)
-
-    # f.close()
-
-
-# # Writing
-# ###############################################################################
-# def write_predictiondata(
-#     InputData,
-#     System,
-#     Model,
-#     KineticFldr,
-#     TTran,
-#     Columns=None
-# ):
-#     if os.path.exists(Path):
-#         f = h5py.File(Path, 'a')
-#     else:
-#         f = h5py.File(Path, 'w')
-
-#     if self.Name not in f.keys():
-#         grp = f.create_group(self.Name)
-#     else:
-#         del f[self.Name]
-#     for k in DiatData.columns:
-#         grp.create_dataset(f'Level{k}', data=DiatData[k].to_numpy(), compression="gzip", compression_opts=9)
-#     grp.create_dataset('NLevels', data=np.array(self.NLevels), compression="gzip", compression_opts=9)
-#     grp.create_dataset('DissE',   data=np.array(self.DissE),   compression="gzip", compression_opts=9)
-#     grp.create_dataset('g',       data=np.array(self.g),       compression="gzip", compression_opts=9)
-
-#     f.close()
-
-
-#     HDF5Exist_Flg = path.exists(PathToFile)
-#     f = h5py.File(PathToFile, 'a')
-
-# # ***************************************************************************************************************************
-# def Save_RatesAtT_HDF5( self, Syst ):
-
-#     if (Syst.NAtoms == 3):
-
-#         PathToFile    = Syst.PathToHDF5File
-#         HDF5Exist_Flg = path.exists(PathToFile)
-#         #if (HDF5Exist_Flg):
-#         f = h5py.File(PathToFile, 'a')
-#         #else:
-#         #    f = {'key': 'value'}
-
-#         TStr = 'T_' + str(int(self.TTra)) + '_' + str(int(self.TInt)) + '/Rates/'       
-#         if TStr in f.keys():
-#             grp               = f[TStr]
-
-#             Data      = grp["Diss"]
-#             Data[...] = self.Proc[0].Rates
-#             Data      = grp["Inel"]
-#             Data[...] = self.Proc[1].Rates
-
-#             for iProc in range(2, Syst.NProcTypes):
-#                 ExchStr   = "Exch_" + str(iProc-1)
-#                 Data      = grp[ExchStr]
-#                 Data[...] = self.ProcExch[iProc-2].Rates
-
-#         else:
-#             grp           = f.create_group(TStr)
-
-#             Proc0         = grp.create_dataset("Diss", data=self.Proc[0].Rates, compression="gzip", compression_opts=9)
-#             Proc1         = grp.create_dataset("Inel", data=self.Proc[1].Rates, compression="gzip", compression_opts=9)
-
-#             for iProc in range(2, Syst.NProcTypes):
-#                 ExchStr   = "Exch_" + str(iProc-1)
-#                 ProcExchi = grp.create_dataset(ExchStr, data=self.ProcExch[iProc-2].Rates, compression="gzip", compression_opts=9)
-
-#         f.close()
-
-#     else:
-        
-#         PathToFile = Syst.PathToHDF5File
-#         f          = h5py.File(PathToFile, 'a')
-
-#         TStr = 'T_' + str(int(self.TTra)) + '_' + str(int(self.TInt)) + '/Rates/'       
-#         if TStr in f.keys():
-#             grp               = f[TStr]
-
-#             Data      = grp["Diss"]
-#             Data[...] = self.DissRates
-#             Data      = grp["DissInel"]
-#             Data[...] = self.Proc[0].Rates
-#             Data      = grp["Inel"]
-#             Data[...] = self.Proc[1].Rates
-
-#             for iProc in range(2, Syst.NProcTypes):
-#                 ExchStr   = "Exch_" + str(iProc-1)
-#                 Data      = grp[ExchStr]
-#                 Data[...] = self.ProcExch[iProc-2].Rates
-
-#         else:
-#             grp           = f.create_group(TStr)
-
-#             Proc00        = grp.create_dataset("Diss",     data=self.DissRates,     compression="gzip", compression_opts=9)
-#             Proc0         = grp.create_dataset("DissInel", data=self.Proc[0].Rates, compression="gzip", compression_opts=9)
-#             Proc1         = grp.create_dataset("Inel",     data=self.Proc[1].Rates, compression="gzip", compression_opts=9)
-
-#             for iProc in range(2, Syst.NProcTypes):
-#                 ExchStr   = "Exch_" + str(iProc-1)
-#                 ProcExchi = grp.create_dataset(ExchStr,    data=self.ProcExch[iProc-2].Rates, compression="gzip", compression_opts=9)
-
-#         f.close()
-
-
-
-# # Writing
-# ###############################################################################
-# def write_predictiondata(
-#     InputData,
-#     System,
-#     Model,
-#     KineticFldr,
-#     TTran,
-#     Columns=None
-# ):
-#     TTranStr = str(int(TTran))
-#     utils.print_submain(f'Generating Rate Matrix at Translational Temperature: T = {TTranStr} K')
-
-#     # Reading Levels Info of Initial and Final Molecules
-#     reading.read_levelsinfo(InputData, System, [TTran])
-
-#     # In/Out Components
-#     CompInOut   = System.ThermochemicalProc.Proc[InputData.RatesType].CompInOut
-#     MolIn       = CompInOut['In']['Molecules'][0]
-#     MolOut      = CompInOut['Out']['Molecules'][0]
-
-#     # Reading Levels Info of Initial and Final Molecules
-#     PathToKineticFldr = os.path.abspath(KineticFldr + '/T' + TTranStr + 'K')
-#     try:
-#         os.makedirs(PathToKineticFldr)
-#     except OSError as e:
-#         pass
-    
-#     # Opening Files for Writing Rates
-#     FileHandler = writing_steps(InputData, PathToKineticFldr=PathToKineticFldr)
-
-#     # Loop on Initial States
-#     for iIdx in tqdm(range(1, CompInOut['In']['Molecules'][0].NLevels)):
-
-#         jIdxVec                 = np.arange(iIdx)
-#         jNLevels                = len(jIdxVec)
-#         kIdxVec                 = [iIdx]*jNLevels
-
-#         # Prediction Data
-#         BranchInput, TrunkInput = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran)
-#         if Columns is not None:
-#             Input               = np.hstack([BranchInput, TrunkInput])
-#             BranchInput         = np.take(Input, Columns[0], axis=1)
-#             TrunkInput          = np.take(Input, Columns[1], axis=1)
-
-#         KExcitPred              = Model.predict([BranchInput, TrunkInput]).reshape(-1)
-#         if InputData.RatesLogScale:
-#             KExcitPred          = np.exp(KExcitPred)
-#         KExcitPred              = KExcitPred / InputData.MultFact
-
-#         # Mask from min value
-#         jIdxVec                 = np.where(KExcitPred >= InputData.MinRateValue)[0]
-
-#         FileHandler             = writing_steps(InputData, iFlg=0, FileHandler=FileHandler, iLevel=iIdx, jLevelVec=jIdxVec, KVec=KExcitPred, CompInOut=CompInOut)
-
-#     # Closing Files for Rates
-#     FileHandler                 = writing_steps(InputData, PathToKineticFldr=PathToKineticFldr, iFlg=1, FileHandler=FileHandler)
-
-# def writing_steps(
-#     InputData,
-#     PathToKineticFldr=None,
-#     iFlg=-1,
-#     FileHandler=None,
-#     iLevel=None, 
-#     jLevelVec=None,
-#     KVec=None,
-#     CompInOut=None
-# ):
-#     if (iFlg == -1):
-
-#         utils.print_submain(f'Writing Kinetics File {PathToKineticFldr}', delimiter='    ')
-#         if InputData.RatesType == 'Inel':
-#             InputData.ProcessIndex = 5
-#             KineticFile = PathToKineticFldr + '/Inel.dat'
-#         elif InputData.RatesType == 'Exch_1':
-#             InputData.ProcessIndex = 6
-#             KineticFile = PathToKineticFldr + '/Exch_Type1.dat'
-#         elif InputData.RatesType == 'Exch_2':
-#             InputData.ProcessIndex = 6
-#             KineticFile = PathToKineticFldr + '/Exch_Type2.dat'
-#         else:
-#             raise ValueError
-#         FileHandler = open(KineticFile, 'w')
-
-#     elif (iFlg == 0):
-
-#         for i in range(len(jLevelVec)):
-#             Reactants = CompInOut['In']['Molecules'][0].Name  + '(' + str(iLevel+1)       + ')+' + CompInOut['In']['Atoms'][0].Name
-#             Products  = CompInOut['Out']['Molecules'][0].Name + '(' + str(jLevelVec[i]+1) + ')+' + CompInOut['Out']['Atoms'][0].Name
-#             ProcName  = Reactants + '=' + Products
-#             Line      = ProcName + ':%.4e,%.4e,%.4e,%d\n' % (KVec[i], 0., 0., InputData.ProcessIndex)
-#             FileHandler.write(Line)
-
-#     elif (iFlg == 1):
-#         utils.print_submain(f'Closing Kinetics File {PathToKineticFldr}', delimiter='    ')
-#         FileHandler.close()
-
-#     return FileHandler
