@@ -13,6 +13,7 @@ from surqct import config as cfg
 from surqct.src.utilities import utils
 from surqct.src.utilities import reading
 from silx.io.dictdump import dicttoh5
+from pycomet.math.welford import Welford
 
 # Visualization libraries
 matplotlib = utils.import_matplotlib()
@@ -515,6 +516,40 @@ def save_predictiondata(
 
         # Collecting rate matrix
         Groups[f'T_{TTran}_{TTran}'] = {'Rates': {RatesType: RateMatrix}}
+
+#         if InputData.Dropout:
+#             WF = Welford()
+#             for _ in tqdm(range(InputData.NEvals)):
+#                 # Performing inference
+#                 KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+#                 if InputData.RatesLogScale:
+#                     KExcitPred  = np.exp(KExcitPred)
+#                 KExcitPred      = KExcitPred / InputData.MultFact
+#                 # Updating mean and std
+#                 WF.update(KExcitPred)
+#             # Saving mean and std
+#             KExcitPred = WF.mean
+#             KExcitPred_std = WF.std
+#         else:
+#             KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+#             if InputData.RatesLogScale:
+#                 KExcitPred  = np.exp(KExcitPred)
+#             KExcitPred      = KExcitPred / InputData.MultFact
+
+#         # Feeding rate matrix
+#         utils.print_submain('Filling rate matrix', delimiter=' '*4)
+#         RateMatrix = np.zeros((MolIn.NLevels, MolOut.NLevels))
+#         RateMatrix[iIdxVec, jIdxVec] = KExcitPred
+#         RateMatrix_std = np.zeros((MolIn.NLevels, MolOut.NLevels))
+#         RateMatrix_std[iIdxVec, jIdxVec] = KExcitPred_std
+
+#         # Collecting rate matrix
+#         Groups[f'T_{TTran}_{TTran}'] = {
+#             'Rates': {
+#                 RatesType: RateMatrix,
+#                 RatesType+'_std': RateMatrix_std
+#             }
+#         }
 
     # Saving rate matrix in HDF5
     utils.print_submain('Dumping the rate matrices to HDF5 file')

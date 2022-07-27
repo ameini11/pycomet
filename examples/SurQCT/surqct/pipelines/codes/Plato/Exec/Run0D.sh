@@ -17,11 +17,11 @@ export PathToSurQCT=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/s
 export PathToInput=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/surqct/pipelines/codes/Plato/Input/${System}/
 # Heat Bath Conditions
 export TTranVec=(1500 5000 10000 20000)
-export InputSuffixVec=(relax excit excit excit)
+export InputSuffixVec=(excit excit excit excit)
 # Processes
-export DissFlg=2
+export DissFlg=0
 export InelFlg=1
-export Exch1Flg=1
+export Exch1Flg=0
 export Exch2Flg=0
 # Kinetic Sources
 export KinSource=${PathToDtbFldr}"/kinetics/"${KinMainSource}"/"${System}"/"${SuffixName}
