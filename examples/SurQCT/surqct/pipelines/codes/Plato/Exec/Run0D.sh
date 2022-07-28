@@ -8,20 +8,20 @@ set -e
 # Misc
 export NUM_THREADS=8
 export System='O3_UMN'
-export KinMainSource='QCT'
+export KinMainSource='SurQCT'
 # Paths
-export SuffixName='/em16/'
+export SuffixName='/em16//configs.ln/config.03/run.03/'
 export PathToDtbFldr=/home/zanardi/Workspace/AirDatabase/Run0D/database/
 export PathToRunFldr=/home/zanardi/Workspace/AirDatabase/Run0D/run/${KinMainSource}/${System}/${SuffixName}/
 export PathToSurQCT=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
 export PathToInput=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/surqct/pipelines/codes/Plato/Input/${System}/
 # Heat Bath Conditions
-export TTranVec=(1500 5000 10000 20000)
-export InputSuffixVec=(excit excit excit excit)
+export TTranVec=(1500 2500 5000 8000 10000 12000 15000 20000)
+export InputSuffixVec=(relax relax excit excit excit excit excit excit)
 # Processes
-export DissFlg=0
+export DissFlg=2
 export InelFlg=1
-export Exch1Flg=0
+export Exch1Flg=1
 export Exch2Flg=0
 # Kinetic Sources
 export KinSource=${PathToDtbFldr}"/kinetics/"${KinMainSource}"/"${System}"/"${SuffixName}

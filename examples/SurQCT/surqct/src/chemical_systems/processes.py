@@ -35,7 +35,7 @@ class Processes():
             for iProcNames in ProcNames:
                 self.ProcBool = self.ProcBool + (self.ValidProcNames == np.array(iProcNames))
         self.DissCorrFactor = 1.
-        self.RatesMasking   = None
+        self.RatesMasking   = {}
 
         self.CompInOut      = CompInOut
         if self.CompInOut is None:
@@ -58,50 +58,77 @@ class Processes():
                 }
             }
     
+#     def read_rates(
+#         self,
+#         TTranVec
+#     ):
+#         if self.System.NAtoms == 3:
+#             if os.path.exists(self.PathToHDF5File):
+#                 f = h5py.File(self.PathToHDF5File, 'r')
+#             else:
+#                 utils.raise_value_err(f"File '{self.PathToHDF5File}' not found.")
+
+#             for i, k in enumerate(self.ValidProcNames):
+#                 if self.ProcBool[i] > 0:
+#                     self.Rates[k] = {}
+#                     for iT in tf.nest.flatten(TTranVec):
+#                         iT = str(int(iT))
+#                         self.Rates[k][iT] = f[f'/T_{iT}_{iT}/Rates/{k}'][()]
+#                         if k == 'Diss':
+#                             self.Rates[k][iT] = self.Rates[k][iT][:,0:1]
+#             f.close()
+#         else:
+#             raise NotImplementedError
+            
+#     def read_ratesmasking(
+#         self,
+#         TTranVec,
+#         PathToHDF5File
+#     ):
+#         if self.System.NAtoms == 3:
+#             if os.path.exists(PathToHDF5File):
+#                 f = h5py.File(PathToHDF5File, 'r')
+#             else:
+#                 utils.raise_value_err(f"File '{PathToHDF5File}' not found.")
+
+#             for i, k in enumerate(self.ValidProcNames):
+#                 if self.ProcBool[i]:
+#                     self.RatesMasking[k] = {}
+#                     for iT in tf.nest.flatten(TTranVec):
+#                         iT = str(int(iT))
+#                         self.RatesMasking[k][iT] = f[f'/T_{iT}_{iT}/RatesMasking/{k}'][()]
+#                         if k == 'Diss':
+#                             self.RatesMasking[k][iT] = self.RatesMasking[k][iT][:,0:1]
+#             f.close()
+#         else:
+#             raise NotImplementedError
+            
     def read_rates(
         self,
-        TTranVec
-    ):
-        if self.System.NAtoms == 3:
-            if os.path.exists(self.PathToHDF5File):
-                f = h5py.File(self.PathToHDF5File, 'r')
-            else:
-                utils.raise_value_err(f"File '{self.PathToHDF5File}' not found.")
-
-            for i, k in enumerate(self.ValidProcNames):
-                if self.ProcBool[i] > 0:
-                    self.Rates[k] = {}
-                    for iT in tf.nest.flatten(TTranVec):
-                        iT = str(int(iT))
-                        self.Rates[k][iT] = f[f'/T_{iT}_{iT}/Rates/{k}'][()]
-                        if k == 'Diss':
-                            self.Rates[k][iT] = self.Rates[k][iT][:,0:1]
-            f.close()
-        else:
-            raise NotImplementedError
-            
-    def read_ratesmasking(
-        self,
         TTranVec,
-        PathToHDF5File
+        Group='Rates' # 'RatesMasking'
+        PathToHDF5File=None
     ):
+        if PathToHDF5File is None:
+            PathToHDF5File = self.PathToHDF5File
         if self.System.NAtoms == 3:
             if os.path.exists(PathToHDF5File):
                 f = h5py.File(PathToHDF5File, 'r')
             else:
                 utils.raise_value_err(f"File '{PathToHDF5File}' not found.")
-
+            Container = {}
             for i, k in enumerate(self.ValidProcNames):
                 if self.ProcBool[i]:
-                    self.RatesMasking[k] = {}
+                    Container[k] = {}
                     for iT in tf.nest.flatten(TTranVec):
                         iT = str(int(iT))
-                        self.RatesMasking[k][iT] = f[f'/T_{iT}_{iT}/RatesMasking/{k}'][()]
+                        Container[k][iT] = f[f'/T_{iT}_{iT}/{Group}/{k}'][()]
                         if k == 'Diss':
-                            self.RatesMasking[k][iT] = self.RatesMasking[k][iT][:,0:1]
+                            Container[k][iT] = Container[k][iT][:,0:1]
             f.close()
         else:
             raise NotImplementedError
+        setattr(self, Group, Container)
 
     def write_rates(
         self,

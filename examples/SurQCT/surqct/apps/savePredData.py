@@ -51,31 +51,39 @@ def get_parser(subparsers):
 # Main
 ###############################################################################
 def _main(args=None, InputData=None):
+    sqct_utils.print_main("Generating rates matrix", start='')
     
-    for iRatesType in tf.nest.flatten(InputData.RatesType):
-        sqct_utils.print_main(
-            f"Generating rates matrix for '{iRatesType}' process", start=''
-        )
+    for i, iRatesType in enumerate(tf.nest.flatten(InputData.RatesType)):
         wd = InputData.PathToModelFld[iRatesType]
 
         # PyCOMET model
         #######################################################################
         os.chdir(wd)
-        sqct_utils.print_main("Initializing PyCOMET ...")
+        sqct_utils.print_main(
+            f"Initializing PyCOMET model for '{iRatesType}' process ..."
+        )
 
         # Add modules ---------------------------------------------------------
         sys.path.insert(0, wd)
-        # Input module 
-        # if 'inputs'
-        # sys.modules[name]
-        # import inputs
-        inputs = pcm_utils.reload_mod(mod_names=['inputs'])
-        from inputs.general import flags
+        if i == 0:
+            import inputs
+        else:
+            inputs = pcm_utils.reload_mod(mod_names=['inputs'])[0]
         
-        # Check flags ---------------------------------------------------------
+        # Check dropout
+        if InputData.Dropout:
+            from inputs.network import common, lays_propty
+            common['dropout_kwargs'].update({'permanent': True})
+            for k in lays_propty.keys():
+                if 'dropout_kwargs' in lays_propty[k].keys():
+                    lays_propty[k]['dropout_kwargs'] = common['dropout_kwargs']
+            setattr(inputs.network, 'lays_propty', lays_propty)
+        
+        # Check flags
+        from inputs.general import flags
         for k in ('train', 'save'):
             flags[k] = 0
-        flags['load'] = 1
+        flags['load'] = 2 # 1
         if flags['load'] not in (1, 2):
             sqct_utils.raise_value_err(
                 "The network has to be restored from a saved or a checkpointed "
@@ -96,12 +104,9 @@ def _main(args=None, InputData=None):
         
         # SurQCT model
         #######################################################################
-        sqct_utils.print_main(f"Initializing SurQCT ...")
-
         # Initializing chemical system ----------------------------------------
-        utils.print_main(
+        sqct_utils.print_main(
             f"Initializing '{InputData.SystemName}' chemical system and rates type ...",
-            start=''
         )
         system = syst.get_system(
             NameLong=InputData.SystemName,

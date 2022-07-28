@@ -1,10 +1,13 @@
 import os
 import sys
 import argparse
+import numpy as np
 
 from surqct import inputs
 from surqct import config as cfg
 from surqct.src.utilities import utils
+
+NUM_RND = int(1.e6)
 
 
 def dir_path(path):
@@ -60,3 +63,7 @@ def print_task_header(task_num):
     "\n" + cfg.compose(text=f'TASK {task_num}', start='# ') + \
     "\n" + cfg.compose(start='# ', between='-')
     print(header)
+
+def generate_rnd_name(ref_name):
+    text = os.path.splitext(ref_name)
+    return text[0] + f'_{np.random.randint(NUM_RND)}' + text[1]

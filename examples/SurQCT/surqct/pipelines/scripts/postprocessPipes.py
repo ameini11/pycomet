@@ -12,8 +12,9 @@ NAME = 'postprocessPipes'
 
 import os
 import sys
-import argparse
 import surqct
+import shutil
+import argparse
 import subprocess
 import importlib
 import numpy as np
@@ -65,6 +66,12 @@ def main(args):
         'InputData', f"{args.dir}/pipelines/postprocessPipes/InputData.py"
     )
     
+    # Executables
+    exe = argparse.Namespace(**{
+        'Plato':      codes.__all__['Plato'] + '/Run0D.sh',
+        'MCoarseAIR': codes.__all__['MCoarseAIR'] + f'/{InputPipes.SystemName}.m'
+    })
+
     # TASK 1
     # -------------------------------------------------------------------------
     # Code: SurQCT
@@ -79,16 +86,15 @@ def main(args):
         from surqct.apps.savePredData import _main
         # Modifying input module
         InputData.SystemName       = InputPipes.SystemName
+        InputData.RatesType        = InputPipes.RatesType
         InputData.PathToModelFld   = InputPipes.PathToModelFld
         InputData.PathToLevelsFile = InputPipes.PathToLevelsFile
-        InputData.SuffixHDF5       = InputPipes.SuffixHDF5
         InputData.TTranVec         = InputPipes.TTranVec
-        InputData.RatesType        = InputPipes.RatesType
+        InputData.SuffixHDF5       = InputPipes.SuffixHDF5
         # Executing main
         _main(InputData=InputData)
         # Deleting modules
         del InputData, _main
-
 
     # TASK 2
     # -------------------------------------------------------------------------
@@ -104,7 +110,6 @@ def main(args):
         from surqct.apps.writeToDtb import _main
         # Modifying input module
         InputData.SystemName             = InputPipes.SystemName
-        InputData.RatesType              = InputPipes.RatesType
         InputData.KinSource              = InputPipes.KinSource
         InputData.TTranVec               = InputPipes.TTranVec
         InputData.MinRateValue           = InputPipes.MinRateValue
@@ -116,7 +121,6 @@ def main(args):
         # Deleting modules
         del InputData, _main
 
-
     # TASK 3
     # -------------------------------------------------------------------------
     # Code: Plato
@@ -124,9 +128,10 @@ def main(args):
     # -------------------------------------------------------------------------
     if InputPipes.TASKS[2]:
         fun.print_task_header(3)
-        plato_exec = codes.__all__['Plato'] + '/Run0D.sh'
+        plato_exe = fun.generate_rnd_name(exe.Plato)
+        shutil.copyfile(exe.Plato, plato_exe)
         fun.replace(
-            file=plato_exec,
+            file=plato_exe,
             patterns=(
                 "export PathToDtbFldr=",
                 "export PathToRunFldr=",
@@ -153,9 +158,9 @@ def main(args):
                 InputSuffixVec = ' '.join(['excit' for _ in InputPipes.TTranVec])
             # Modifying exec file
             fun.replace(
-                file=plato_exec,
+                file=plato_exe,
                 patterns=(
-                    "export NUM_THREADS=",
+                    # "export NUM_THREADS=",
                     "export System=",
                     "export KinMainSource=",
                     "export SuffixName=",
@@ -167,7 +172,7 @@ def main(args):
                     "export Exch2Flg="
                 ),
                 replaces=(
-                    f"export NUM_THREADS={cfg.NUM_THREADS}\n",
+                    # f"export NUM_THREADS={cfg.NUM_THREADS}\n",
                     f"export System='{InputPipes.SystemName}'\n",
                     f"export KinMainSource='{InputPipes.KinSource}'\n",
                     f"export SuffixName='{InputPipes.SuffixName}'\n",
@@ -180,7 +185,8 @@ def main(args):
                 )
             )
             # Running
-            subprocess.run(f"bash -l {plato_exec}", shell=True)
+            subprocess.run(f"bash -l {plato_exe}", shell=True)
+        os.remove(plato_exe)
 
     # TASK 4
     # -------------------------------------------------------------------------
@@ -189,9 +195,10 @@ def main(args):
     # -------------------------------------------------------------------------
     if InputPipes.TASKS[3]:
         fun.print_task_header(4)
-        mcoarseair_exec = codes.__all__['MCoarseAIR'] + f'/{InputPipes.SystemName}.m'
+        mcoarseair_exe = fun.generate_rnd_name(exe.MCoarseAIR)
+        shutil.copyfile(exe.MCoarseAIR, mcoarseair_exe)
         fun.replace(
-            file=mcoarseair_exec,
+            file=mcoarseair_exe,
             patterns=(
                 "WORKSPACE_PATH  =",
                 "CoarseAIRSrc    =",
@@ -211,7 +218,7 @@ def main(args):
         for ProcBool in InputPipes.ProcBoolList:
             ReadRatesProc = list(np.array(ProcBool).astype(bool).astype(int))
             fun.replace(
-                file=mcoarseair_exec,
+                file=mcoarseair_exe,
                 patterns=(
                     "KinSource       =",
                     "SuffixName      =",
@@ -235,12 +242,12 @@ def main(args):
                     f"ReadRatesProc   = {ReadRatesProc};\n"
                 )
             )
-
             # Running
-            command = f'run("{mcoarseair_exec}");exit;'
+            command = f'run("{mcoarseair_exe}");exit;'
             subprocess.run(
                 f"matlab -nodesktop -nodisplay -nosplash -r '{command}'", shell=True
             )
+        os.remove(mcoarseair_exe)
 
     # TASK 5
     # -------------------------------------------------------------------------

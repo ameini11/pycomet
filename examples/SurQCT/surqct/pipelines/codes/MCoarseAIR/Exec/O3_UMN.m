@@ -39,16 +39,16 @@ ToKinMainFldr   = '/home/zanardi/Workspace/AirDatabase/Run0D/';
 ToHDF5Dtb       = '/home/zanardi/Workspace/AirDatabase/HDF5/';
 
 %% Case-specific inputs
-KinSource       = 'QCT';
-SuffixName      = '//em16//';
-SuffixHDF5      = '//Orig//';
+KinSource       = 'SurQCT';
+SuffixName      = '//em16//configs.ln/config.03/run.03//';
+SuffixHDF5      = '//configs.ln/config.03/run.03//';
 
 DissFlg         = 0;
 InelFlg         = 1;
 ExchFlg1        = 0;
 ExchFlg2        = 0;
 
-TranVec         = [1500.0, 5000.0, 10000.0, 20000.0];
+TranVec         = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0];
 
 ReadRatesProc   = [0, 1, 0, 0];
 

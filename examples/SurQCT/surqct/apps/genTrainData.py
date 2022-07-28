@@ -88,7 +88,6 @@ def _main(args=None, InputData=None):
         for path in (args.savedir+'/data/train/', args.savedir+'/data/valid/'):
             if not os.path.exists(path):
                 os.makedirs(path)
-            print(path)
 
         TrainData, ValidData, AllData = rates_type.generate_trainingdata()
 
