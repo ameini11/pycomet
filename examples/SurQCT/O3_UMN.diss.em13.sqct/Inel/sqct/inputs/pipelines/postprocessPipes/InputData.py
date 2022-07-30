@@ -34,7 +34,7 @@ MainPrefix      =  cfg.paths.Workspace + '/ML/PyCOMET/run/SurQCT/O3_UMN.temp/'
 # >> TASKS: 1-2
 ###############################################################################
 RatesType               = ['Inel', 'Exch_1']
-MinRateValue            = 1.e-12
+MinRateValue            = 1.e-13
 PathToRatesMaskingHDF5  = None
 
 # SurQCT model-based inputs
@@ -52,7 +52,7 @@ PathToLevelsFile = {
 # 0d simulation-based inputs
 # >> TASKS: 2-3-4-5
 ###############################################################################
-SuffixName = '/em12/' + MainSuffix
+SuffixName = '/em13/' + MainSuffix
 
 # Rates HDF5 database
 # >> TASKS: 2-4

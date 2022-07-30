@@ -52,7 +52,7 @@ def read_sampledinitiallevels(
     return iIdxVec
 
 # Reading Input Columns
-def read_inputcolumns(array, columns=None):
+def extract_columns(array, columns=None):
     if isinstance(array, pd.DataFrame):
         array = array.to_numpy()
     if columns is not None:

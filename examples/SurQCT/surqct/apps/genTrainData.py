@@ -82,10 +82,11 @@ def _main(args=None, InputData=None):
     ###########################################################################
     if args.savedir is None:
         args.savedir = args.dir
-        
+    
     # Training/Validation -----------------------------------------------------
     if args.training:
-        for path in (args.savedir+'/data/train/', args.savedir+'/data/valid/'):
+        paths = (args.savedir+'/data/train/', args.savedir+'/data/valid/')
+        for path in paths:
             if not os.path.exists(path):
                 os.makedirs(path)
 
@@ -93,11 +94,11 @@ def _main(args=None, InputData=None):
 
         utils.print_main('Saving training and validation data points ...')
         TrainData = pd.concat(TrainData, axis=1)
-        TrainData.to_csv(args.dir+'/data/train/pts.csv', index=False, float_format='%.10e')
+        TrainData.to_csv(paths[0]+'/pts.csv', index=False, float_format='%.10e')
         utils.print_submain('Number of training pts:   %10d' % len(TrainData))
 
         ValidData = pd.concat(ValidData, axis=1)
-        ValidData.to_csv(args.dir+'/data/valid/pts.csv', index=False, float_format='%.10e')
+        ValidData.to_csv(paths[1]+'/pts.csv', index=False, float_format='%.10e')
         utils.print_submain('Number of validation pts: %10d' % len(ValidData))
     
     # Testing -----------------------------------------------------------------

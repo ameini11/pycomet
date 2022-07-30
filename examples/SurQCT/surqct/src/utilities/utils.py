@@ -72,6 +72,14 @@ def app_decorator(name=None):
         return wrapper
     return dec
 
+# Plotting
+###############################################################################
+def log_tick_formatter(
+    val,
+    pos=None
+):
+    return f"$10^{{{int(val)}}}$"
+
 # Handling libraries
 ###############################################################################
 def import_matplotlib():

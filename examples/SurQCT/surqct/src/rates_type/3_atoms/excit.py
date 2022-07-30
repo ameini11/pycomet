@@ -2,9 +2,7 @@ import os
 import gc
 import h5py
 import copy
-import time
 import shutil
-import datetime
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -12,6 +10,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from surqct import config as cfg
 from surqct.src.utilities import utils
+from surqct.src.utilities import const
 from surqct.src.utilities import reading
 from silx.io.dictdump import dicttoh5
 from pycomet.math.welford import Welford
@@ -144,15 +143,15 @@ def generate_data(
                     DeltaLevelsData       = pd.concat([DeltaLevelsData, DeltaLevelsDataTemp], axis=0)
         
     # Resetting Data Frames Indexing
-    indexNew            = np.arange(len(TTranData))
-    iIdxData.index      = indexNew
-    jIdxData.index      = indexNew
-    TTranData.index     = indexNew
-    iLevelsData.index   = indexNew
-    jLevelsData.index   = indexNew
+    IndexNew            = np.arange(len(TTranData))
+    iIdxData.index      = IndexNew
+    jIdxData.index      = IndexNew
+    TTranData.index     = IndexNew
+    iLevelsData.index   = IndexNew
+    jLevelsData.index   = IndexNew
     if InputData.DeltaProperties:
-        DeltaLevelsData.index = indexNew
-    KExcitData.index    = indexNew
+        DeltaLevelsData.index = IndexNew
+    KExcitData.index    = IndexNew
 
     # Concatenating Horizontally
     # i-th level data
@@ -211,36 +210,36 @@ def generate_trainingdata(
     DataSet = generate_data(System, InputData, TTranVec, iIdxVec, InputData.MinRateValue)
     
     # Adding Noise
-    DataSetFinal = DataSet.copy()
-    NoiseSD      = InputData.MinRateValue
+    Noise    = InputData.MinRateValue
+    DataSets = [DataSet]
     for iSample in range(InputData.NSamplesNoise):
-        DataSetTemp        = DataSet.copy()
-        DataSetTemp.KExcit = DataSetTemp.KExcit + np.random.normal(loc=0.0, scale=NoiseSD, size=len(DataSet))
-        DataSetFinal       = pd.concat([DataSetFinal, DataSetTemp[DataSetTemp['KExcit'] > MinValueTrain]], axis=0)
+        DataSetTemp = DataSet.copy()
+        DataSetTemp.KExcit = DataSet.KExcit.to_numpy().reshape(-1) + np.random.normal(loc=Noise, scale=0.5, size=len(DataSetTemp))
+        DataSets.append(DataSetTemp)     
+    DataSet         = pd.concat(DataSets, axis=0)
+    DataSet.index   = np.arange(len(DataSet))
     
     # Transform rates values
-    DataSetFinal.KExcit     = DataSetFinal.KExcit * InputData.MultFact
+    DataSet.KExcit     = DataSet.KExcit * InputData.MultFact
     if InputData.RatesLogScale:
-        DataSetFinal.KExcit = np.log(DataSetFinal.KExcit)
-        
-    DataSetFinal.index = np.arange(len(DataSetFinal))
+        DataSet.KExcit = np.log(DataSet.KExcit)
 
     # Adding sample weights
     if hasattr(InputData, 'SampleWeights'):
-        SampleWeights = np.ones(len(DataSetFinal))
+        SampleWeights = np.ones(len(DataSet))
         for (v, w) in InputData.SampleWeights:
-            Value     = v * InputData.MultFact
+            Value = v * InputData.MultFact
             if InputData.RatesLogScale:
                 Value = np.log(Value)
-            SampleWeights[DataSetFinal.KExcit > Value] = w
+            SampleWeights[DataSet.KExcit > Value] = w
         SampleWeights = pd.DataFrame({'SampleWeights': SampleWeights})
-        DataSetFinal  = pd.concat([DataSetFinal, SampleWeights], axis=1) 
+        DataSet = pd.concat([DataSet, SampleWeights], axis=1) 
 
     # Splitting DataSet in Training and Validation
-    TrainData = DataSetFinal.copy()
-    AllData   = DataSetFinal.copy()
-    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.), random_state=3)
-    ValidData = DataSetFinal.drop(TrainData.index)
+    TrainData = DataSet.copy()
+    AllData   = DataSet.copy()
+    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.))#, random_state=3)
+    ValidData = DataSet.drop(TrainData.index)
 
     # Collecting Training and Validation
     xTrain = TrainData.copy()
@@ -443,7 +442,7 @@ def get_input(
         jLevelsData.columns = [(VarName + '_j') for VarName in jLevelsData.columns]
         DataSet             = pd.concat([iLevelsData, jLevelsData], axis=1)
 
-    return reading.read_inputcolumns(DataSet, Columns)
+    return reading.extract_columns(DataSet, Columns)
 
 
 # Saving to HDF5
@@ -468,9 +467,9 @@ def save_predictiondata(
 
     # Check if exist a final version
     if InputData.UseFinalVersion and not os.path.exists(PathToHDF5File):
-        FinalHDF5Version = os.path.abspath(cfg.paths.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
-        if os.path.exists(FinalHDF5Version):
-            shutil.copy(FinalHDF5Version, PathToHDF5Fld)
+        FinalVerHDF5 = os.path.abspath(cfg.paths.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
+        if os.path.exists(FinalVerHDF5):
+            shutil.copyfile(FinalVerHDF5, PathToHDF5File)
 
     # Saving Diatomic Data
     for Mol in System.Molecules:
@@ -489,62 +488,17 @@ def save_predictiondata(
 
     # i-th & j-th index
     iIdxVec, jIdxVec = np.tril_indices(MolIn.NLevels, k=-1)
-    
-    # utils.print_submain('Composing inputs')
-    # iIdxData = pd.DataFrame(columns = ['Idx_i'])
-    # jIdxData = pd.DataFrame(columns = ['Idx_j'])
-    # for iIdx in tqdm(range(1, MolIn.NLevels)):
-    #     jIdxVec  = np.arange(iIdx)
-    #     jNLevels = len(jIdxVec)
-    #     iIdxVec  = [iIdx]*jNLevels
-    #     iIdxData = pd.concat([iIdxData, pd.DataFrame({'Idx_i': iIdxVec})], axis=0)
-    #     jIdxData = pd.concat([jIdxData, pd.DataFrame({'Idx_j': jIdxVec})], axis=0)
-    # iIdxVec = iIdxData.to_numpy().reshape(-1)
-    # jIdxVec = jIdxData.to_numpy().reshape(-1)
 
     # Loop over temperatures
     HDF5Groups = {}
     for TTran in TTranVec:
 
-        TTran  = int(TTran)
+        TTran = int(TTran)
         utils.print_submain(f'Prediction for Translational Temperature: T = {TTran} K')
 
         # Composing inputs
         utils.print_submain('Composing inputs', delimiter=' '*4)
-        Input  = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
-#         # Loop on Initial States
-#         utils.print_submain('Composing inputs', delimiter=' '*4)
-        
-#         iIdxData = pd.DataFrame(columns = ['Idx_i'])
-#         jIdxData = pd.DataFrame(columns = ['Idx_j'])
-        
-#         for iIdx in tqdm(range(1, MolIn.NLevels)):
-            
-#             jIdxVec  = np.arange(iIdx)
-#             jNLevels = len(jIdxVec)
-#             iIdxVec  = [iIdx]*jNLevels
-
-#             iIdxData = pd.concat([iIdxData, pd.DataFrame({'Idx_i': iIdxVec})], axis=0)
-#             jIdxData = pd.concat([jIdxData, pd.DataFrame({'Idx_j': jIdxVec})], axis=0)
-        
-#         iIdxVec = iIdxData.to_numpy().reshape(-1)
-#         jIdxVec = jIdxData.to_numpy().reshape(-1)
-#         Input   = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
-
-#         # Performing inference
-#         utils.print_submain('Performing inference', delimiter=' '*4)
-#         KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
-#         if InputData.RatesLogScale:
-#             KExcitPred  = np.exp(KExcitPred)
-#         KExcitPred      = KExcitPred / InputData.MultFact
-
-#         # Feeding rate matrix
-#         utils.print_submain('Filling rate matrix', delimiter=' '*4)
-#         RateMatrix = np.zeros((MolIn.NLevels, MolOut.NLevels))
-#         RateMatrix[iIdxVec, jIdxVec] = KExcitPred
-
-#         # Collecting rate matrix
-#         Groups[f'T_{TTran}_{TTran}'] = {'Rates': {RatesType: RateMatrix}}
+        Input = get_input(InputData, MolIn, MolOut, iIdxVec, jIdxVec, TTran, Columns)
 
         # Performing inference
         RatesVec = {}
@@ -554,10 +508,10 @@ def save_predictiondata(
             WF_log = Welford()
             for i in tqdm(range(InputData.NEvals)):
                 # Performing inference
-                KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+                KExcitPred     = Model.predict(Input, batch_size=BatchSize).reshape(-1)
                 if InputData.RatesLogScale:
-                    KExcitPred  = np.exp(KExcitPred)
-                KExcitPred      = KExcitPred / InputData.MultFact
+                    KExcitPred = np.exp(KExcitPred)
+                KExcitPred     = KExcitPred / InputData.MultFact
                 # Updating mean and std
                 WF.update(KExcitPred)
                 WF_log.update(np.log(KExcitPred))
@@ -601,12 +555,6 @@ def save_predictiondata(
 
 # Plotting
 ###############################################################################
-def log_tick_formatter(
-    val,
-    pos=None
-):
-    return f"$10^{{{int(val)}}}$"
-
 def plot_prediction2D(
     System,
     Path,
@@ -678,7 +626,7 @@ def plot_prediction3D(
     ax.view_init(elev=25., azim=-45)
     ax.dist = 9.5
 
-    ax.zaxis.set_major_formatter(ticker.FuncFormatter(log_tick_formatter))
+    ax.zaxis.set_major_formatter(ticker.FuncFormatter(utils.log_tick_formatter))
     ax.zaxis.set_major_locator(ticker.MaxNLocator(integer=True))
 
     ax.scatter(JTrue, vTrue, np.log10(KTrue), c='k', s=3, label='QCT')

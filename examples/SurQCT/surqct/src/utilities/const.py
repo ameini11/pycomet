@@ -34,3 +34,19 @@ EH_to_J     = HA_to_EV*EV_to_J                      # [Eh]    -> [J]  Hartree to
 # Hydrogen constants ----------------------------------------------------------
 UIH         = 13.598434599702e0                     # Hydrogen ionization potential [eV]
 UA0         = 4.e0*np.pi*UEPS0*UHT**2/(UME*UE**2)   # Bohr radius [m]
+
+# Diatomic potential labels ---------------------------------------------------
+diat_data_lbl = {
+    'vqn':  '$v$',
+    'jqn':  '$J$',
+    'EInt': '$E$ [eV]',
+    'EVib': '$E_{vib}$ [eV]',
+    'ERot': '$E_{rot}$ [eV]',
+    'ECB':  '$E_{CB}$ [eV]',
+    'rMin': '$r_{min}$ [$\r{A}$]',
+    'rMax': '$r_{max}$ [$\r{A}$]',
+    'VMin': '$V_{min}$ [eV]',
+    'VMax': '$V_{max}$ [eV]',
+    'rIn':  '$r_{in}$ [$\r{A}$]',
+    'rOut': '$r_{out}$ [$\r{A}$]'
+}
