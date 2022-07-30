@@ -28,14 +28,15 @@ class Processes():
         self.ProcBool       = ProcBool
         self.ValidProcNames = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
         self.ProcIndices    = np.array([2, 5, 6, 6])
-        self.Rates          = {}
+        self.Rates          = None
+        self.RatesMasking   = None
+        
         if self.ProcBool is None and ProcNames is not None:
             self.ProcBool = np.zeros(1, dtype=np.int)
             ProcNames     = tf.nest.flatten(ProcNames)
             for iProcNames in ProcNames:
                 self.ProcBool = self.ProcBool + (self.ValidProcNames == np.array(iProcNames))
         self.DissCorrFactor = 1.
-        self.RatesMasking   = {}
 
         self.CompInOut      = CompInOut
         if self.CompInOut is None:
@@ -106,7 +107,7 @@ class Processes():
     def read_rates(
         self,
         TTranVec,
-        Group='Rates' # 'RatesMasking'
+        Group='Rates', # 'RatesMasking'
         PathToHDF5File=None
     ):
         if PathToHDF5File is None:

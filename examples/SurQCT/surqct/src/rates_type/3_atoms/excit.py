@@ -1,4 +1,5 @@
 import os
+import gc
 import h5py
 import copy
 import time
@@ -453,7 +454,8 @@ def save_predictiondata(
     Model,
     Columns,
     BatchSize=40960,
-    RatesType=None
+    RatesType=None,
+    gc_freq=100
 ):
     # Initialize HDF5 file
     PathToHDF5Fld    = os.path.abspath(cfg.paths.HDF5Dtb + '/SurQCT/' + InputData.SuffixHDF5) + '/'
@@ -550,7 +552,7 @@ def save_predictiondata(
             utils.print_submain('Performing inference with dropout', delimiter=' '*4)
             WF = Welford()
             WF_log = Welford()
-            for _ in tqdm(range(InputData.NEvals)):
+            for i in tqdm(range(InputData.NEvals)):
                 # Performing inference
                 KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
                 if InputData.RatesLogScale:
@@ -559,6 +561,8 @@ def save_predictiondata(
                 # Updating mean and std
                 WF.update(KExcitPred)
                 WF_log.update(np.log(KExcitPred))
+                if (i+1) % gc_freq == 0:
+                    gc.collect()
             # Saving mean and std
             RatesVec[RatesType] = WF.mean
             RatesVec[RatesType+'_std'] = WF.std
