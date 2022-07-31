@@ -17,19 +17,18 @@ class OpNN(Net):
         self,
         dim,
         lays_propty,
+        name='opnn',
         *args,
         **kwargs
     ):
         super(OpNN, self).__init__(
             dim=dim,
+            name=name,
             *args,
             **kwargs
         )
-        # Private attributes --------------------------------------------------
+        # Global attributes ---------------------------------------------------
         self.sub_nets = ("branch", "trunk")
-        self.lays_name = (
-            'input', 'prenet', 'branch', 'trunk', 'end_scale', 'output'
-        )
 
         # Input dimensionality ------------------------------------------------
         if not isinstance(self.inp_dim, (list, tuple)):
@@ -40,11 +39,14 @@ class OpNN(Net):
 
         # Layers --------------------------------------------------------------
         self.lays_propty = lays_propty
+        self.lays_name = (
+            'input', 'prenet', 'branch', 'trunk', 'end_scale', 'output'
+        )
         # Checking
         self.check_layers(lays_propty)
         if any(net not in lays_propty for net in self.sub_nets):
             utils.raise_value_err(
-                f"{self.sub_nets} layers have to be provided in `lays_propty` "
+                f"{self.sub_nets} have to be provided in `lays_propty` "
                 f"input passed into `{self.name}`."
             )
         # Initializing
@@ -167,8 +169,8 @@ class OpNN(Net):
     def get_config(self):
         config = {
             'sub_nets': self.sub_nets,
-            'lays_name': self.lays_name,
-            'lays_propty': self.lays_propty
+            'lays_propty': self.lays_propty,
+            'lays_name': self.lays_name
         }
         base_config = super(OpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -240,3 +242,18 @@ class OpNN(Net):
         if self.active_lays['output']['xform'] is not None:
             y = self.active_lays['output']['xform'](y)
         return y
+
+    # Temporary !!!!!!!!!!!!!1
+    def check_layers(self, layers={}):
+        # Check input layers format
+        if not isinstance(layers, dict):
+            utils.raise_value_err(
+                f"`layers` input passed into `{self.name}` has to be a `dict`."
+            )
+        # Check valid layers
+        for k in layers.keys():
+            if k not in self.lays_name:
+                utils.raise_value_err(
+                    f"Layer '{k}' in `layers` input not recognized. "
+                    f"Layers available: {self.lays_name}"
+                )
