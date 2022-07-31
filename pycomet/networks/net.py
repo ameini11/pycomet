@@ -23,11 +23,10 @@ class Net(tf.keras.Model):
         dim,
         block='FFBlock',
         block_linear_out=True,
-        name='net',
         *args,
         **kwargs
     ):
-        super(Net, self).__init__(name=name, *args, **kwargs)
+        super(Net, self).__init__(*args, **kwargs)
 
         if not isinstance(dim, dict):
             utils.raise_value_err(
@@ -41,7 +40,8 @@ class Net(tf.keras.Model):
 
         self.inp_dim = dim["inp"]
         self.out_dim = dim["out"]
-
+        
+        self.active_lays = {}
         self.block = block if callable(block) \
             else utils.get_class(blocks, block)
         self.block_linear_out = block_linear_out
@@ -423,14 +423,28 @@ class Net(tf.keras.Model):
 
     # Utils
     ###########################################################################
-    def check_layers(self, layers):
+    def check_layers(self, layers={}, not_opt=[]):
+        # Check input layers format
         if not isinstance(layers, dict):
             utils.raise_value_err(
                 f"`layers` input passed into `{self.name}` has to be a `dict`."
             )
+        # Check valid layers
         for k in layers.keys():
             if k not in self.lays_name:
                 utils.raise_value_err(
                     f"Layer '{k}' in `layers` input not recognized. "
                     f"Layers available: {self.lays_name}"
                 )
+        # Check not optional layers
+        for k in not_opt:
+            if k not in layers.keys():
+                utils.raise_value_err(
+                    f"'{k}' layer have to be provided in `lays_propty` "
+                    f"input passed into `{self.name}`."
+                )
+        # Add missing optional layers
+        for k in self.lays_name:
+            if k not in layers.keys():
+                layers[k] = None
+        return layers

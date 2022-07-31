@@ -48,7 +48,7 @@ def generate_data(
     utils.print_submain(f"Reading '{InputData.RatesType}' Rates ...", start='\n')
     System.Processes.read_rates(TTranVec)
     Rates = System.Processes.Rates[InputData.RatesType]
-
+    
     for iT in range(len(TTranVec)):
 
         TTranStr    = str(int(TTranVec[iT]))
@@ -61,7 +61,8 @@ def generate_data(
         iLevelsData = pd.concat([iLevelsData, MolIn.LevelsData.iloc[kIdxVec]], axis=0)
         TTran       = np.ones((len(kIdxVec))) * TTranVec[iT]
         TTranData   = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
-        KDissData   = pd.concat([KDissData, pd.DataFrame({'KDiss': Rates[TTranStr][kIdxVec]})], axis=0)
+        KDissTemp   = Rates[TTranStr][kIdxVec].reshape(-1)
+        KDissData   = pd.concat([KDissData, pd.DataFrame({'KDiss': KDissTemp})], axis=0)
 
     # Resetting Data Frames Indexing
     IndexNew           = np.arange(len(TTranData))
@@ -116,7 +117,7 @@ def generate_trainingdata(
     for iSample in range(InputData.NSamplesNoise):
         DataSetTemp = DataSet.copy()
         KDissTemp   = DataSetTemp.KDiss.to_numpy().reshape(-1)
-        DataSetTemp.KDiss = KDissTemp + np.random.normal(loc=np.amin(KDissTemp), scale=0.5, size=len(DataSetTemp))
+        DataSetTemp.KDiss = KDissTemp + np.random.normal(loc=np.amin(KDissTemp), scale=0.2, size=len(DataSetTemp))
         DataSets.append(DataSetTemp)     
     DataSet         = pd.concat(DataSets, axis=0)
     DataSet.index   = np.arange(len(DataSet))

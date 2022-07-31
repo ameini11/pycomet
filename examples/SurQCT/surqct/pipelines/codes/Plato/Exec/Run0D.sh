@@ -6,7 +6,7 @@ set -e
 # Inputs
 ###############################################################################
 # Misc
-export NUM_THREADS=16
+export NUM_THREADS=8
 export System='O3_UMN'
 export KinMainSource='SurQCT'
 # Paths

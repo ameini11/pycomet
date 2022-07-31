@@ -8,11 +8,11 @@ import numpy as np
 def manipulate_diatdata(DiatData, RefValue, NormValue, LogBase='e'):
 
     # Shifting/Scaling energies
-    for k in ('EInt','EVib','ERot', 'VMin', 'VMax'):
+    for k in ('EInt', 'EVib', 'ERot', 'VMin', 'VMax'):
         DiatData[k] = (DiatData[k] - RefValue) / NormValue
 
     # Taking differences
-    keys = ('rOut','rIn','rMax','rMin')
+    keys = ('rOut', 'rIn', 'rMax', 'rMin')
     for k1 in keys:
         for k2 in keys:
             if k1 != k2:

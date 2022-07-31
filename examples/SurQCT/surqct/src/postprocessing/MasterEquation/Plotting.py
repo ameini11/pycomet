@@ -17,7 +17,7 @@ def energies(
     System,
     Data,
     TTranVec,
-    xlim=[1.e-9, 1.e-4]
+    xlim=[1.e-9, 1.e-1]
 ):
     for iMol, Mol in enumerate(System.Molecules):
         fig = plt.figure()
