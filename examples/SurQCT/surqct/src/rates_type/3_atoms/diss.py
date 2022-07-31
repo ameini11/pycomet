@@ -54,14 +54,18 @@ def generate_data(
         TTranStr    = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K', delimiter=' '*4)
 
-        kIdxVec     = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] > MinRateValue)]
+        kIdxVec     = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] >= MinRateValue)]
 
         # Appending Vertically
         iIdxData    = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
         iLevelsData = pd.concat([iLevelsData, MolIn.LevelsData.iloc[kIdxVec]], axis=0)
         TTran       = np.ones((len(kIdxVec))) * TTranVec[iT]
         TTranData   = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
+        
         KDissTemp   = Rates[TTranStr][kIdxVec].reshape(-1)
+        NoiseMean   = np.log(1.e-17)
+        # NoiseMean   = np.log(np.amin(KDissTemp[np.where(KDissTemp > 0.)]) * 1.e-2)
+        KDissTemp   = KDissTemp + np.exp(np.random.normal(loc=NoiseMean, scale=0.5, size=len(KDissTemp)))
         KDissData   = pd.concat([KDissData, pd.DataFrame({'KDiss': KDissTemp})], axis=0)
 
     # Resetting Data Frames Indexing
@@ -79,7 +83,8 @@ def generate_data(
 # -----------------------------------------------------------------------------
 def generate_trainingdata(
     System,
-    InputData
+    InputData,
+    random_state=3
 ):
     utils.print_main('Generating training and validation data points ...')
 
@@ -129,7 +134,7 @@ def generate_trainingdata(
 
     # Adding sample weights
     if hasattr(InputData, 'SampleWeights'):
-        SampleWeights = np.zeros(len(DataSet))
+        SampleWeights = np.ones(len(DataSet))
         for (v, w) in InputData.SampleWeights:
             Value     = v * InputData.MultFact
             if InputData.RatesLogScale:
@@ -141,7 +146,7 @@ def generate_trainingdata(
     # Splitting DataSet in Training and Validation
     TrainData = DataSet.copy()
     AllData   = DataSet.copy()
-    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.), random_state=3)
+    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.), random_state=random_state)
     ValidData = DataSet.drop(TrainData.index)
 
     # Collecting Training and Validation

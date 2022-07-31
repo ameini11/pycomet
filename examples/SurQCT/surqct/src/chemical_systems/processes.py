@@ -36,7 +36,7 @@ class Processes():
             ProcNames     = tf.nest.flatten(ProcNames)
             for iProcNames in ProcNames:
                 self.ProcBool = self.ProcBool + (self.ValidProcNames == np.array(iProcNames))
-        self.DissCorrFactor = 1.
+        self.DissCorrFactor = 1
 
         self.CompInOut      = CompInOut
         if self.CompInOut is None:
@@ -153,9 +153,9 @@ class Processes():
                     ProcName  = self.ValidProcNames[0]
                     ProcIndex = self.ProcIndices[0]
 
-                    if self.ProcBool[0] == 1:
+                    if self.DissCorrFactor == 1:
                         DissKinetics = TempFldr + '/Diss.dat'
-                    elif self.ProcBool[0] == 2:
+                    else:
                         DissKinetics = TempFldr + '/Diss_Corrected.dat'
                     KinFile = open(DissKinetics, 'w')
 

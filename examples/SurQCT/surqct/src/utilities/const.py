@@ -43,10 +43,10 @@ diat_data_lbl = {
     'EVib': '$E_{vib}$ [eV]',
     'ERot': '$E_{rot}$ [eV]',
     'ECB':  '$E_{CB}$ [eV]',
-    'rMin': '$r_{min}$ [$\r{A}$]',
-    'rMax': '$r_{max}$ [$\r{A}$]',
+    'rMin': '$r_{min}$ [A]',#[$\r{A}$]'
+    'rMax': '$r_{max}$ [A]',#[$\r{A}$]'
     'VMin': '$V_{min}$ [eV]',
     'VMax': '$V_{max}$ [eV]',
-    'rIn':  '$r_{in}$ [$\r{A}$]',
-    'rOut': '$r_{out}$ [$\r{A}$]'
+    'rIn':  '$r_{in}$ [A]',#[$\r{A}$]'
+    'rOut': '$r_{out}$ [A]'#[$\r{A}$]'
 }

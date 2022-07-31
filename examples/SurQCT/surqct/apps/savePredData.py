@@ -83,7 +83,7 @@ def _main(args=None, InputData=None):
         from inputs.general import flags
         for k in ('train', 'save'):
             flags[k] = 0
-        flags['load'] = 2 # 1
+        flags['load'] = 1
         if flags['load'] not in (1, 2):
             sqct_utils.raise_value_err(
                 "The network has to be restored from a saved or a checkpointed "
@@ -101,7 +101,7 @@ def _main(args=None, InputData=None):
             input_mod=inputs,
             net=net
         )
-        
+
         # SurQCT model
         #######################################################################
         # Initializing chemical system ----------------------------------------
@@ -121,7 +121,7 @@ def _main(args=None, InputData=None):
             Columns=inputs.data.columns['x'],
             RatesType=iRatesType
         )
-        
+
         del inputs, net, model, sys.path[0]
 
 

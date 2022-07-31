@@ -53,6 +53,7 @@ def _main(args=None, InputData=None):
     system = syst.get_system(
         NameLong=InputData.SystemName,
         KinSource=InputData.KinSource,
+        ProcNames=InputData.RatesType,
         PathToHDF5Fld=cfg.paths.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
     )
     # Reading rates
