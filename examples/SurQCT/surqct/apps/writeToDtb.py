@@ -57,7 +57,7 @@ def _main(args=None, InputData=None):
         PathToHDF5Fld=cfg.paths.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
     )
     # Reading rates
-    utils.print_main("Reading rates ...")
+    utils.print_main(f"Reading rates from '{system.Processes.PathToHDF5File}'...")
     system.Processes.read_rates(TTranVec=InputData.TTranVec)
     # Reading rates masking
     if InputData.PathToRatesMaskingHDF5 is not None:

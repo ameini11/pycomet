@@ -123,7 +123,10 @@ class Processes():
                     Container[k] = {}
                     for iT in tf.nest.flatten(TTranVec):
                         iT = str(int(iT))
-                        Container[k][iT] = f[f'/T_{iT}_{iT}/{Group}/{k}'][()]
+                        try:
+                            Container[k][iT] = f[f'/T_{iT}_{iT}/{Group}/{k}'][()]
+                        except:
+                            continue
                         if k == 'Diss':
                             Container[k][iT] = Container[k][iT][:,0:1]
             f.close()
@@ -166,7 +169,8 @@ class Processes():
                         else:
                             Mask = True
                         Rate = self.Rates[ProcName][iT][iLevel] * self.DissCorrFactor
-                        if Rate > MinRateValue and bool(Mask):
+                        ProcMinRateValue = MinRateValue[ProcName] if isinstance(MinRateValue, dict) else MinRateValue
+                        if Rate > ProcMinRateValue and bool(Mask):
                             KinFile.write(self.line_diss(Rate, ProcName, ProcIndex, iLevel))
 
                     KinFile.close()
@@ -190,7 +194,8 @@ class Processes():
                                 else:
                                     Mask = True
                                 Rate = self.Rates[ProcName][iT][iLevel, jLevel]
-                                if Rate > MinRateValue and bool(Mask):
+                                ProcMinRateValue = MinRateValue[ProcName] if isinstance(MinRateValue, dict) else MinRateValue
+                                if Rate > ProcMinRateValue and bool(Mask):
                                     KinFile.write(self.line_excit(Rate, ProcName, ProcIndex, iLevel, jLevel))
 
                         KinFile.close()

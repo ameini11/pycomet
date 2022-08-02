@@ -14,7 +14,7 @@ from surqct import config as cfg
 
 TASKS = [
     1,   # Save predicted rates matrices to HDF5
-    1,   # Write thermo and kinetics to Plato database
+    0,   # Write thermo and kinetics to Plato database
     0,   # Run 0D master equation simulations
     0,   # Postprocess 0D master equation simulations
     0    # Postprocess MCoarseAIR data and 0D master equation simulations
@@ -52,9 +52,9 @@ PathToLevelsFile = {
 # 0d simulation-based inputs
 # >> TASKS: 2-3-4-5
 ###############################################################################
-SuffixName = '/diss/em16/' + MainSuffix
+SuffixName = '/diss.new/em16/' + MainSuffix
 
 # Rates HDF5 database
 # >> TASKS: 2-4
 ###############################################################################
-SuffixHDF5 = '/diss/' + MainSuffix
+SuffixHDF5 = '/diss.new/' + MainSuffix

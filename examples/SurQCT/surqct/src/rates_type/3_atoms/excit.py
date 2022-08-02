@@ -557,6 +557,7 @@ def save_predictiondata(
 ###############################################################################
 def plot_prediction2D(
     System,
+    InputData,
     Path,
     iIdx,
     TrueData,
@@ -592,6 +593,7 @@ def plot_prediction2D(
 
 def plot_prediction3D(
     System,
+    InputData,
     Path,
     iIdx,
     TrueData,

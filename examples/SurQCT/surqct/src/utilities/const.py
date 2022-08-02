@@ -39,14 +39,14 @@ UA0         = 4.e0*np.pi*UEPS0*UHT**2/(UME*UE**2)   # Bohr radius [m]
 diat_data_lbl = {
     'vqn':  '$v$',
     'jqn':  '$J$',
-    'EInt': '$E$ [eV]',
-    'EVib': '$E_{vib}$ [eV]',
-    'ERot': '$E_{rot}$ [eV]',
+    'EInt': '$\epsilon_{Int}$ [eV]',
+    'EVib': '$\epsilon_{Vib}$ [eV]',
+    'ERot': '$\epsilon_{Rot}$ [eV]',
     'ECB':  '$E_{CB}$ [eV]',
-    'rMin': '$r_{min}$ [A]',#[$\r{A}$]'
-    'rMax': '$r_{max}$ [A]',#[$\r{A}$]'
-    'VMin': '$V_{min}$ [eV]',
-    'VMax': '$V_{max}$ [eV]',
-    'rIn':  '$r_{in}$ [A]',#[$\r{A}$]'
-    'rOut': '$r_{out}$ [A]'#[$\r{A}$]'
+    'rMin': '$r_{Min}$ [\AA]',
+    'rMax': '$r_{Max}$ [\AA]',
+    'VMin': '$V_{Min}$ [eV]',
+    'VMax': '$V_{Max}$ [eV]',
+    'rIn':  '$r_{In}$ [\AA]',
+    'rOut': '$r_{Out}$ [\AA]'
 }

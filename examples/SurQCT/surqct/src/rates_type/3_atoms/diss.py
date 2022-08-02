@@ -54,7 +54,7 @@ def generate_data(
         TTranStr    = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K', delimiter=' '*4)
 
-        kIdxVec     = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] >= MinRateValue)]
+        kIdxVec     = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] > MinRateValue)]
 
         # Appending Vertically
         iIdxData    = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
@@ -63,9 +63,9 @@ def generate_data(
         TTranData   = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
         
         KDissTemp   = Rates[TTranStr][kIdxVec].reshape(-1)
-        NoiseMean   = np.log(1.e-17)
+        # NoiseMean   = np.log(1.e-17)
         # NoiseMean   = np.log(np.amin(KDissTemp[np.where(KDissTemp > 0.)]) * 1.e-2)
-        KDissTemp   = KDissTemp + np.exp(np.random.normal(loc=NoiseMean, scale=0.5, size=len(KDissTemp)))
+        # KDissTemp   = KDissTemp + np.exp(np.random.normal(loc=NoiseMean, scale=0.5, size=len(KDissTemp)))
         KDissData   = pd.concat([KDissData, pd.DataFrame({'KDiss': KDissTemp})], axis=0)
 
     # Resetting Data Frames Indexing
@@ -202,10 +202,60 @@ def generate_predictiondata(
     System,
     InputData,
     Model,
-    Labeled=True,
-    Columns=None
+    Columns,
+    TTranVec=[],
+    iIdxVec=None,
+    BatchSize=1024
 ):
-    raise NotImplementedError
+    utils.print_main('Generating Prediction data points ...')
+
+    # Reading Levels Info of Initial and Final Molecules
+    reading.read_levelsinfo(InputData, System, TTranVec)
+
+    # In/Out Molecules
+    MolIn     = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+
+    # Initializing Quantities
+    iIdxData  = pd.DataFrame(columns = ['Idx_i'])
+    TTranData = pd.DataFrame(columns = ['TTran'])
+    KDissData = pd.DataFrame(columns = ['KDiss'])
+
+    # Initial Levels
+    if iIdxVec is None:
+        iIdxVec = InputData.iLevelsVecTest
+        if np.amin(iIdxVec) != 0:
+            iIdxVec = np.array(iIdxVec) - 1
+
+    # Loop over temperatures
+    for iT in range(len(TTranVec)):
+
+        TTranStr = str(int(TTranVec[iT]))
+        utils.print_submain(f'Translational Temperature: T = {TTranStr} K')
+
+        # Performing inference
+        Input         = get_input(MolIn, iIdxVec, TTranVec[iT], Columns)
+        KDissPred     = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+        if InputData.RatesLogScale:
+            KDissPred = np.exp(KDissPred)
+        KDissPred     = KDissPred / InputData.MultFact
+
+        # Appending Vertically
+        iIdxData    = pd.concat([iIdxData, pd.DataFrame({'Idx_i': iIdxVec})], axis=0)
+        TTran       = np.ones((len(iIdxVec))) * TTranVec[iT]
+        TTranData   = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
+        KDissData   = pd.concat([KDissData, pd.DataFrame({'KDiss': KDissPred})], axis=0)
+
+    # Resetting Data Frames Indexing
+    IndexNew           = np.arange(len(TTranData))
+    iIdxData.index     = IndexNew
+    TTranData.index    = IndexNew
+    KDissData.index    = IndexNew
+
+    # Returning Data
+    xPred = pd.concat([iIdxData, TTranData], axis=1)
+    yPred = KDissData
+
+    return (xPred, yPred)
 
 def get_input(
     MolIn,
@@ -220,7 +270,6 @@ def get_input(
     TTranData         = pd.DataFrame({'TTran': np.ones(len(iIdxVec)) * TTran})
     # Dataset
     DataSet           = pd.concat([iLevelsData, TTranData], axis=1)
-
     return reading.extract_columns(DataSet, Columns)
 
 
@@ -335,47 +384,62 @@ def save_predictiondata(
 ###############################################################################
 def plot_prediction2D(
     System,
+    InputData,
     Path,
-    TrueData,
     PredData,
-    XAxis='EInt'
+    TrueData=None,
+    XAxis='EInt',
+    FigName=None,
+    ylim=[1.e-15, None]
 ):
     MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
     
     # Rates and j-th level data
-    iIdxTrue, KTrue = TrueData
+    if TrueData is not None:
+        iIdxTrue, KTrue = TrueData
+        XTrue = MolIn.DiatData[XAxis].to_numpy()[iIdxTrue]
+        if XAxis == 'EInt':
+            XTrue = XTrue - MolIn.DissE
     iIdxPred, KPred = PredData
-    XTrue = MolIn.DiatData[XAxis].to_numpy()[iIdxTrue]
     XPred = MolIn.DiatData[XAxis].to_numpy()[iIdxPred]
+    if XAxis == 'EInt':
+        XPred = XPred - MolIn.DissE
     
     XLbl = const.diat_data_lbl[XAxis]
-
+    
     # Figure
     fig = plt.figure()
-    plt.scatter(XTrue, KTrue, c='k', s=3, label='QCT')
-    plt.scatter(XPred, KPred, c='r', s=3, label='SurQCT')
+    if TrueData is not None:
+        plt.scatter([], [], c='k', label='QCT')
+        plt.scatter(XTrue, KTrue, c='k', s=10)
+    plt.scatter([], [], c='r', label='SurQCT')
+    plt.scatter(XPred, KPred, c='r', s=10, alpha=0.5)
     plt.yscale('log')
     plt.legend()
     plt.xlabel(XLbl)
-    plt.ylabel(r'$k_{i}$ [$cm^3$/s]')
-
-    plt.savefig(Path + f'/diss.pdf')
-
-    return fig
+    plt.ylabel(r'$k_{i}^D$ [cm$^3$/s]')
+    plt.ylim(ylim)
+    
+    if FigName is None:
+        FigName = 'diss2D'
+    plt.savefig(Path + '/' + FigName + '.pdf')
 
 def plot_prediction3D(
     System,
+    InputData,
     Path,
-    TrueData,
     PredData,
-    XYAxis=['EInt', 'rOut']
+    TrueData=None,
+    XYAxis=['ECB', 'rOut'],
+    FigName=None
 ):
     MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
     
     # Rates and j-th level data
-    iIdxTrue, KTrue = TrueData
+    if TrueData is not None:
+        iIdxTrue, KTrue = TrueData
+        XYTrue = MolIn.DiatData[XYAxis].to_numpy()[iIdxTrue]
     iIdxPred, KPred = PredData
-    XYTrue = MolIn.DiatData[XYAxis].to_numpy()[iIdxTrue]
     XYPred = MolIn.DiatData[XYAxis].to_numpy()[iIdxPred]
     
     XYLbl = [const.diat_data_lbl[k] for k in XYAxis]
@@ -393,11 +457,17 @@ def plot_prediction3D(
     ax.zaxis.set_major_formatter(ticker.FuncFormatter(utils.log_tick_formatter))
     ax.zaxis.set_major_locator(ticker.MaxNLocator(integer=True))
 
-    ax.scatter(XYTrue[0], XYTrue[1], np.log10(KTrue), c='k', s=3, label='QCT')
-    ax.scatter(XYPred[0], XYPred[1], np.log10(KPred), c='r', s=3, label='SurQCT')
-
+    if TrueData is not None:
+        IdxTrue = np.where(KTrue > 0.)[0]
+        ax.scatter(XYTrue[0][IdxTrue], XYTrue[1][IdxTrue], np.log10(KTrue[IdxTrue]), c='k', s=3, label='QCT')
+    IdxPred = np.where(KPred > 0.)[0]
+    ax.scatter(XYPred[0][IdxPred], XYPred[1][IdxPred], np.log10(KPred[IdxPred]), c='r', s=3, label='SurQCT')
     plt.tight_layout()
 
-    plt.savefig(Path + f'/diss.pdf')
+    plt.show()
+    
+    if FigName is None:
+        FigName = 'diss3D'
+    plt.savefig(Path + '/' + FigName + '.pdf')
 
     return fig

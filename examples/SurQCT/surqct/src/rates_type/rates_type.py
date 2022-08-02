@@ -88,6 +88,7 @@ class RatesType():
         if hasattr(self.rates_type_mod, attr):
             return self.rates_type_mod.plot_prediction2D(
                 System=self.System,
+                InputData=self.InputData,
                 *args,
                 **kwargs
             )
@@ -101,6 +102,7 @@ class RatesType():
         if hasattr(self.rates_type_mod, attr):
             return self.rates_type_mod.plot_prediction3D(
                 System=self.System,
+                InputData=self.InputData,
                 *args,
                 **kwargs
             )
