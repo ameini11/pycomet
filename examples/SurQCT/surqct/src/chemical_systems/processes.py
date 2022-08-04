@@ -36,6 +36,7 @@ class Processes():
             ProcNames     = tf.nest.flatten(ProcNames)
             for iProcNames in ProcNames:
                 self.ProcBool = self.ProcBool + (self.ValidProcNames == np.array(iProcNames))
+            self.ProcBool.astype(np.int)
         self.DissCorrFactor = 1
 
         self.CompInOut      = CompInOut
@@ -58,56 +59,14 @@ class Processes():
                     'Out': (self.System.Molecules[0], self.System.Atoms[0])
                 }
             }
-    
-#     def read_rates(
-#         self,
-#         TTranVec
-#     ):
-#         if self.System.NAtoms == 3:
-#             if os.path.exists(self.PathToHDF5File):
-#                 f = h5py.File(self.PathToHDF5File, 'r')
-#             else:
-#                 utils.raise_value_err(f"File '{self.PathToHDF5File}' not found.")
 
-#             for i, k in enumerate(self.ValidProcNames):
-#                 if self.ProcBool[i] > 0:
-#                     self.Rates[k] = {}
-#                     for iT in tf.nest.flatten(TTranVec):
-#                         iT = str(int(iT))
-#                         self.Rates[k][iT] = f[f'/T_{iT}_{iT}/Rates/{k}'][()]
-#                         if k == 'Diss':
-#                             self.Rates[k][iT] = self.Rates[k][iT][:,0:1]
-#             f.close()
-#         else:
-#             raise NotImplementedError
-            
-#     def read_ratesmasking(
-#         self,
-#         TTranVec,
-#         PathToHDF5File
-#     ):
-#         if self.System.NAtoms == 3:
-#             if os.path.exists(PathToHDF5File):
-#                 f = h5py.File(PathToHDF5File, 'r')
-#             else:
-#                 utils.raise_value_err(f"File '{PathToHDF5File}' not found.")
-
-#             for i, k in enumerate(self.ValidProcNames):
-#                 if self.ProcBool[i]:
-#                     self.RatesMasking[k] = {}
-#                     for iT in tf.nest.flatten(TTranVec):
-#                         iT = str(int(iT))
-#                         self.RatesMasking[k][iT] = f[f'/T_{iT}_{iT}/RatesMasking/{k}'][()]
-#                         if k == 'Diss':
-#                             self.RatesMasking[k][iT] = self.RatesMasking[k][iT][:,0:1]
-#             f.close()
-#         else:
-#             raise NotImplementedError
-            
+    # Reading
+    ###########################################################################
     def read_rates(
         self,
         TTranVec,
         Group='Rates', # 'RatesMasking'
+        Source='HDF5',
         PathToHDF5File=None
     ):
         if PathToHDF5File is None:
@@ -133,7 +92,58 @@ class Processes():
         else:
             raise NotImplementedError
         setattr(self, Group, Container)
+    
+    def read_rates_Plato(
+        self,
+        TTranVec,
+        PathToFld=None
+    ):
+        if self.System.NAtoms == 3:
+            self.Rates = {}
+            for i, k in enumerate(self.ValidProcNames):
+                if self.ProcBool[i]:
+                    utils.print_submain(f"Process '{self.ValidProcNames[i]}'")
+                    self.Rates[k] = {}
+                    MolIn = self.CompInOut[k]['In'][0]
+                    MolOut = self.CompInOut[k]['Out'][0]
+                    for iT in tf.nest.flatten(TTranVec):
+                        iT = str(int(iT))
+                        utils.print_submain(f'Translational Temperature: T = {iT} K', delimiter=' '*4)
+                        # Initialize rates matrix
+                        if i == 0:
+                            Rates = np.zeros(MolIn.NLevels)
+                        else:
+                            Rates = np.zeros((MolIn.NLevels, MolOut.NLevels))
+                        # Open file
+                        if i == 0 and self.ProcBool[i] == 2:
+                            Path = PathToFld + f'/{iT}/{k}_Corrected.dat'
+                        elif i in (2, 3):
+                            Path = PathToFld + f'/{iT}/Exch_Type{i-1}.dat'
+                        else:
+                            Path = PathToFld + f'/{iT}/{k}.dat'
+                        file = open(Path, 'r')
+                        # Read lines
+                        for line in file:
+                            rate, indices = read_line(line)
+                            if i == 0:
+                                Rates[indices[0]] = rate
+                            else:
+                                Rates[indices[0], indices[1]] = rate
+                        file.close()
+                        # Assign rate matrix
+                        self.Rates[k][iT] = Rates
+        else:
+            raise NotImplementedError
+        
+    def read_line(line):
+        name, arrhenius = line.split(':')
+        rate = float(arrhenius.split(',')[0])
+        indices = tf.nest.flatten(re.findall('\(.*?\)', name))
+        indices = [int(i[1:-1])-1 for i in indices]
+        return rate, indices
 
+    # Writing
+    ###########################################################################
     def write_rates(
         self,
         TTranVec,
@@ -171,7 +181,7 @@ class Processes():
                         Rate = self.Rates[ProcName][iT][iLevel] * self.DissCorrFactor
                         ProcMinRateValue = MinRateValue[ProcName] if isinstance(MinRateValue, dict) else MinRateValue
                         if Rate > ProcMinRateValue and bool(Mask):
-                            KinFile.write(self.line_diss(Rate, ProcName, ProcIndex, iLevel))
+                            KinFile.write(self.get_line(Rate, ProcName, ProcIndex, iLevel))
 
                     KinFile.close()
 
@@ -196,25 +206,28 @@ class Processes():
                                 Rate = self.Rates[ProcName][iT][iLevel, jLevel]
                                 ProcMinRateValue = MinRateValue[ProcName] if isinstance(MinRateValue, dict) else MinRateValue
                                 if Rate > ProcMinRateValue and bool(Mask):
-                                    KinFile.write(self.line_excit(Rate, ProcName, ProcIndex, iLevel, jLevel))
+                                    KinFile.write(self.get_line(Rate, ProcName, ProcIndex, iLevel, jLevel))
 
                         KinFile.close()
             else:
                 raise NotImplementedError
 
-    def line_diss(self, Rate, ProcName, ProcIndex, iLevel, *args, **kwargs):
+    def get_line(
+        self,
+        Rate,
+        ProcName,
+        ProcIndex,
+        iLevel=0,
+        jLevel=0,
+        *args,
+        **kwargs
+    ):
         if self.System.NAtoms == 3:
-            LHS  = self.CompInOut[ProcName]['In'][0].Name + f'({iLevel+1})+' + self.CompInOut[ProcName]['In'][1].Name
-            RHS  = "+".join([Comp.Name for Comp in self.CompInOut[ProcName]['Out']])
-            Line = LHS + '=' + RHS + ':%.5e,%.5e,%.5e,%d\n' % (Rate, 0., 0., ProcIndex)
-        else:
-            raise NotImplementedError
-        return Line
-
-    def line_excit(self, Rate, ProcName, ProcIndex, iLevel, jLevel, *args, **kwargs):
-        if self.System.NAtoms == 3:
-            LHS  = self.CompInOut[ProcName]['In'][0].Name  + f'({iLevel+1})+' + self.CompInOut[ProcName]['In'][1].Name
-            RHS  = self.CompInOut[ProcName]['Out'][0].Name + f'({jLevel+1})+' + self.CompInOut[ProcName]['Out'][1].Name
+            LHS = self.CompInOut[ProcName]['In'][0].Name + f'({iLevel+1})+' + self.CompInOut[ProcName]['In'][1].Name
+            if ProcIndex == self.ProcIndices[0]:
+                RHS = "+".join([Comp.Name for Comp in self.CompInOut[ProcName]['Out']])
+            else:
+                RHS = self.CompInOut[ProcName]['Out'][0].Name + f'({jLevel+1})+' + self.CompInOut[ProcName]['Out'][1].Name
             Line = LHS + '=' + RHS + ':%.5e,%.5e,%.5e,%d\n' % (Rate, 0., 0., ProcIndex)
         else:
             raise NotImplementedError

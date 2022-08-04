@@ -23,7 +23,7 @@ class RatesType():
         self.rates_type_mod = importlib.import_module(
             f'surqct.src.rates_type.{self.System.NAtoms}_atoms.{self.rates_type}'
         )
-    
+
     # Generate data
     def generate_trainingdata(self, *args, **kwargs):
         attr = 'generate_trainingdata'
@@ -38,7 +38,7 @@ class RatesType():
             utils.raise_value_err(
                 f"Rate types module has not '{attr}' attribute."
             )
-        
+
     def generate_testingdata(self, *args, **kwargs):
         attr = 'generate_testingdata'
         if hasattr(self.rates_type_mod, attr):
@@ -52,7 +52,7 @@ class RatesType():
             utils.raise_value_err(
                 f"Rate types module has not '{attr}' attribute."
             )
-        
+
     def generate_predictiondata(self, *args, **kwargs):
         attr = 'generate_predictiondata'
         if hasattr(self.rates_type_mod, attr):
@@ -81,7 +81,7 @@ class RatesType():
             utils.raise_value_err(
                 f"Rate types module has not '{attr}' attribute."
             )
-    
+
     # Plotting
     def plot_prediction2D(self, *args, **kwargs):
         attr = 'plot_prediction2D'
@@ -96,7 +96,7 @@ class RatesType():
             utils.raise_value_err(
                 f"Rate types module has not '{attr}' attribute."
             )
-        
+
     def plot_prediction3D(self, *args, **kwargs):
         attr = 'plot_prediction3D'
         if hasattr(self.rates_type_mod, attr):

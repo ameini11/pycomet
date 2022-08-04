@@ -11,12 +11,19 @@ def manipulate_diatdata(DiatData, RefValue, NormValue, LogBase='e'):
     for k in ('EInt', 'EVib', 'ERot', 'VMin', 'VMax'):
         DiatData[k] = (DiatData[k] - RefValue) / NormValue
 
-    # Taking differences
+    # Deltas/Ratios
     keys = ('rOut', 'rIn', 'rMax', 'rMin')
     for k1 in keys:
         for k2 in keys:
             if k1 != k2:
+                # Delta
                 DiatData[k1+'-'+k2] = DiatData[k1] - DiatData[k2]
+                # Ratio
+                DiatData_k2 = DiatData[k2]
+                if not (DiatData_k2 > 0).all():
+                    amin = np.amin(DiatData_k2[DiatData_k2 > 0])
+                    DiatData_k2 = DiatData_k2 + amin * 1.e-2
+                DiatData[k1+'/'+k2] = DiatData[k1] / DiatData_k2
     
     rMin, rMax = np.amin(DiatData['rMin']), np.amax(DiatData['rMax'])
     for k in ('rIn','rOut','rMin','rMax'):

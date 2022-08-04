@@ -1,13 +1,14 @@
+import sys
+
 from surqct import config as cfg
-from surqct.src.chemical_systems import component_prop as comp_prop
 
 
-def get_properties(
+def get_component_prop(
     Name,
     Component
 ):
-    if hasattr(comp_prop, Name):
-        return getattr(comp_prop, Name)(Component)
+    if hasattr(sys.modules[__name__], Name):
+        return getattr(sys.modules[__name__], Name)(Component)
     else:
         utils.raise_value_err(
             f"Chemical component '{Name}' not available."

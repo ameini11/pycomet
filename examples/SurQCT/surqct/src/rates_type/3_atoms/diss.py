@@ -54,7 +54,7 @@ def generate_data(
         TTranStr    = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K', delimiter=' '*4)
 
-        kIdxVec     = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] > MinRateValue)]
+        kIdxVec     = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] >= MinRateValue)]
 
         # Appending Vertically
         iIdxData    = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
@@ -63,9 +63,9 @@ def generate_data(
         TTranData   = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
         
         KDissTemp   = Rates[TTranStr][kIdxVec].reshape(-1)
-        # NoiseMean   = np.log(1.e-17)
+        NoiseMean   = np.log(1.e-18)
         # NoiseMean   = np.log(np.amin(KDissTemp[np.where(KDissTemp > 0.)]) * 1.e-2)
-        # KDissTemp   = KDissTemp + np.exp(np.random.normal(loc=NoiseMean, scale=0.5, size=len(KDissTemp)))
+        KDissTemp   = KDissTemp + np.exp(np.random.normal(loc=NoiseMean, scale=0.5, size=len(KDissTemp)))
         KDissData   = pd.concat([KDissData, pd.DataFrame({'KDiss': KDissTemp})], axis=0)
 
     # Resetting Data Frames Indexing

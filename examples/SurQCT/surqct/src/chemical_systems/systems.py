@@ -1,7 +1,7 @@
 from surqct.src.chemical_systems.component import Atom, Molecule
 from surqct.src.chemical_systems.processes import Processes
 from surqct.src.chemical_systems.master_equation import MasterEquation
-from surqct.src.chemical_systems.component_prop import get_properties
+from surqct.src.chemical_systems.component_prop import get_component_prop
 from surqct.src.chemical_systems import systems
 from surqct.src.utilities import utils
 from surqct import config as cfg
@@ -72,10 +72,10 @@ def O3_UMN(ProcBool, ProcNames, KinSource, PathToHDF5Fld):
 
     # Atoms
     for iA in range(NAtoms):
-        Syst.Atoms[iA]  = get_properties(Name='O', Component=Syst.Atoms[iA])
+        Syst.Atoms[iA]  = get_component_prop(Name='O', Component=Syst.Atoms[iA])
 
     # Molecules
-    Syst.Molecules[0]   = get_properties(Name='O2', Component=Syst.Molecules[0])
+    Syst.Molecules[0]   = get_component_prop(Name='O2', Component=Syst.Molecules[0])
     
     # Thermochemical Processes
     if PathToHDF5Fld is None:
@@ -113,10 +113,10 @@ def N3_NASA(ProcBool, ProcNames, KinSource, PathToHDF5Fld):
 
     # Atoms
     for iA in range(NAtoms):
-        Syst.Atoms[iA]  = get_properties(Name='N', Component=Syst.Atoms[iA])
+        Syst.Atoms[iA]  = get_component_prop(Name='N', Component=Syst.Atoms[iA])
 
     # Molecules
-    Syst.Molecules[0]   = get_properties(Name='N2', Component=Syst.Molecules[0])
+    Syst.Molecules[0]   = get_component_prop(Name='N2', Component=Syst.Molecules[0])
 
     # Thermochemical Processes
     if PathToHDF5Fld is None:
@@ -153,12 +153,12 @@ def NON_UMN(ProcBool=[1,1,1,1], ProcNames=None, KinSource='QCT', PathToHDF5Fld=N
 
     # Atoms
     for iA in (0, 2):
-        Syst.Atoms[iA]  = get_properties(Name='N', Component=Syst.Atoms[iA])
-    Syst.Atoms[1]       = get_properties(Name='O', Component=Syst.Atoms[1])
+        Syst.Atoms[iA]  = get_component_prop(Name='N', Component=Syst.Atoms[iA])
+    Syst.Atoms[1]       = get_component_prop(Name='O', Component=Syst.Atoms[1])
 
     # Molecules
-    Syst.Molecules[0]   = get_properties(Name='NO', Component=Syst.Molecules[0])
-    Syst.Molecules[1]   = get_properties(Name='N2', Component=Syst.Molecules[1])
+    Syst.Molecules[0]   = get_component_prop(Name='NO', Component=Syst.Molecules[0])
+    Syst.Molecules[1]   = get_component_prop(Name='N2', Component=Syst.Molecules[1])
     Syst.Molecules[1].PathToDiatFile   = cfg.paths.CoarseAIR + '/dtb/Molecules/N2/UMN_ForN2O2/Recomputed.inp'
     Syst.Molecules[1].DegeneracyFactor = [3.0, 6.0]
 

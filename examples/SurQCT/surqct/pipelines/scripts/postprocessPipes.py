@@ -160,7 +160,6 @@ def main(args):
             fun.replace(
                 file=plato_exe,
                 patterns=(
-                    # "export NUM_THREADS=",
                     "export System=",
                     "export KinMainSource=",
                     "export SuffixName=",
@@ -172,7 +171,6 @@ def main(args):
                     "export Exch2Flg="
                 ),
                 replaces=(
-                    # f"export NUM_THREADS={cfg.NUM_THREADS}\n",
                     f"export System='{InputPipes.SystemName}'\n",
                     f"export KinMainSource='{InputPipes.KinSource}'\n",
                     f"export SuffixName='{InputPipes.SuffixName}'\n",
