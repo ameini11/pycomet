@@ -30,7 +30,8 @@ def generate_data(
     InputData,
     TTranVec,
     iIdxVec,
-    MinRateValue=0.
+    MinRateValue=0.,
+    Noise=False
 ):
     # Reading Levels Info of Initial Molecule
     reading.read_levelsinfo(InputData, System, TTranVec)
@@ -54,7 +55,10 @@ def generate_data(
         TTranStr    = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K', delimiter=' '*4)
 
-        kIdxVec     = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] >= MinRateValue)]
+        if Noise:
+            kIdxVec = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] >= MinRateValue)]
+        else:
+            kIdxVec = [jIdx for jIdx in iIdxVec[TTranStr] if (Rates[TTranStr][jIdx] > MinRateValue)]
 
         # Appending Vertically
         iIdxData    = pd.concat([iIdxData, pd.DataFrame({'Idx_i': kIdxVec})], axis=0)
@@ -63,9 +67,10 @@ def generate_data(
         TTranData   = pd.concat([TTranData, pd.DataFrame({'TTran': TTran})], axis=0)
         
         KDissTemp   = Rates[TTranStr][kIdxVec].reshape(-1)
-        NoiseMean   = np.log(1.e-18)
-        # NoiseMean   = np.log(np.amin(KDissTemp[np.where(KDissTemp > 0.)]) * 1.e-2)
-        KDissTemp   = KDissTemp + np.exp(np.random.normal(loc=NoiseMean, scale=0.5, size=len(KDissTemp)))
+        if Noise:
+            NoiseMean   = np.log(1.e-17)
+            # NoiseMean   = np.log(np.amin(KDissTemp[np.where(KDissTemp > 0.)]) * 1.e-2)
+            KDissTemp   = KDissTemp + np.exp(np.random.normal(loc=NoiseMean, scale=0.5, size=len(KDissTemp)))
         KDissData   = pd.concat([KDissData, pd.DataFrame({'KDiss': KDissTemp})], axis=0)
 
     # Resetting Data Frames Indexing
@@ -282,6 +287,7 @@ def save_predictiondata(
     Columns,
     BatchSize=1024,
     RatesType=None,
+    FinalVerFld=None,
     gc_freq=100
 ):
     # Initialize HDF5 file
@@ -295,7 +301,9 @@ def save_predictiondata(
 
     # Check if exist a final version
     if InputData.UseFinalVersion and not os.path.exists(PathToHDF5File):
-        FinalVerHDF5 = os.path.abspath(cfg.paths.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
+        if FinalVerFld is None:
+            FinalVerFld = cfg.paths.HDF5Dtb + '/SurQCT/final'
+        FinalVerHDF5 = os.path.abspath(FinalVerFld + '/' + System.NameLong + '.hdf5')
         if os.path.exists(FinalVerHDF5):
             shutil.copyfile(FinalVerHDF5, PathToHDF5File)
 

@@ -149,7 +149,8 @@ def main(args):
             if ProcBool[0] > 0:
                 InputSuffixVec = []
                 for T in InputPipes.TTranVec:
-                    if int(T) < 5000:
+                    # if int(T) < 5000:
+                    if int(T) < 0:
                         InputSuffixVec.append('relax')
                     else:
                         InputSuffixVec.append('excit')

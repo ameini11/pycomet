@@ -238,7 +238,7 @@ def generate_trainingdata(
     # Splitting DataSet in Training and Validation
     TrainData = DataSet.copy()
     AllData   = DataSet.copy()
-    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.))#, random_state=3)
+    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.), random_state=3)
     ValidData = DataSet.drop(TrainData.index)
 
     # Collecting Training and Validation
@@ -454,6 +454,7 @@ def save_predictiondata(
     Columns,
     BatchSize=40960,
     RatesType=None,
+    FinalVerFld=None,
     gc_freq=100
 ):
     # Initialize HDF5 file
@@ -467,7 +468,9 @@ def save_predictiondata(
 
     # Check if exist a final version
     if InputData.UseFinalVersion and not os.path.exists(PathToHDF5File):
-        FinalVerHDF5 = os.path.abspath(cfg.paths.HDF5Dtb + '/SurQCT/final/' + System.NameLong + '.hdf5')
+        if FinalVerFld is None:
+            FinalVerFld = cfg.paths.HDF5Dtb + '/SurQCT/final'
+        FinalVerHDF5 = os.path.abspath(FinalVerFld + '/' + System.NameLong + '.hdf5')
         if os.path.exists(FinalVerHDF5):
             shutil.copyfile(FinalVerHDF5, PathToHDF5File)
 

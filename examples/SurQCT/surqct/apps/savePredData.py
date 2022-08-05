@@ -119,7 +119,8 @@ def _main(args=None, InputData=None):
         rates_type.save_predictiondata(
             Model=model.net,
             Columns=inputs.data.columns['x'],
-            RatesType=iRatesType
+            RatesType=iRatesType,
+            FinalVerFld=InputData.FinalVerFld
         )
 
         del inputs, net, model, sys.path[0]
