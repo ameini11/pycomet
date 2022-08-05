@@ -200,7 +200,9 @@ class MasterEquation():
                 MoleFrac = Data[f'X_{Mol.Name}']
                 # Percentage molar fraction
                 MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[0] - MoleFrac[-1]))
-                TimeIdx  = np.argmin(np.abs(MolePerc - DepPerc))
+                for TimeIdx in range(len(MolePerc)):
+                    if MolePerc[TimeIdx] >= DepPerc:
+                        break
                 # Deltas
                 DeltaT   = Time[TimeIdx] - Time[TimeIdx-1]
                 DeltaM   = np.abs(MoleFrac[TimeIdx] - MoleFrac[TimeIdx-1])

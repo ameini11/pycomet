@@ -17,7 +17,7 @@ def energies(
     System,
     Data,
     TTranVec,
-    xlim=[1.e-10, 1.e-1]
+    xlim=[1.e-10, 1.e-3]
 ):
     for iMol, Mol in enumerate(System.Molecules):
         fig = plt.figure()
@@ -44,10 +44,11 @@ def energies(
                 xy=(1, max(EMed)),
                 xytext=(8, 0),
                 xycoords=('axes fraction', 'data'),
-                textcoords='offset points'
+                textcoords='offset points',
+                fontsize=22
             )
 
-            plt.legend()
+            plt.legend(loc='upper left')
             plt.xscale('log')
             plt.xlabel('$t$ [s]')
             plt.ylabel('$E$ [eV]')
@@ -56,7 +57,7 @@ def energies(
         Path = Path + '/' + Mol.Name
         if not os.path.exists(Path):
             os.makedirs(Path)
-        plt.savefig(Path + '/EVib_ERot.pdf')#, bbox_inches="tight")
+        plt.savefig(Path + '/EVib_ERot.pdf')
 
 
 def taus(
@@ -66,28 +67,26 @@ def taus(
 ):
     for iMol, Mol in enumerate(System.Molecules):
         fig = plt.figure()
-        plt.plot([], [], ls='', marker='s', c=COLORS[0], label='$p\tau_{Rot}$')
-        plt.plot([], [], ls='', marker='s', c=COLORS[0], label='$p\tau_{Vib}$')
+        plt.scatter([], [], marker='s', c=COLORS[0], label='$p\\tau_{Rot}$')
+        plt.scatter([], [], marker='^', c=COLORS[0], label='$p\\tau_{Vib}$')
         for i, k in enumerate(Data.keys()):
             plt.plot([], [], label=k, c=COLORS[i])
 
         for i, (k, d) in enumerate(Data.items()):
-            # X = d[Mol.Name]['T']**(-1/3) * 1.e2
             X = d[Mol.Name]['T']**(-1/3)
-            plt.plot(X, d[Mol.Name]['pTauRot'], ls='', marker='s', c=COLORS[i])
-            plt.plot(X, d[Mol.Name]['pTauVib'], ls='', marker='^', c=COLORS[i])
+            plt.plot(X, d[Mol.Name]['pTauRot'], ls='--', marker='s', c=COLORS[i], lw=2.)
+            plt.plot(X, d[Mol.Name]['pTauVib'], ls='--', marker='^', c=COLORS[i], lw=2.)
 
         plt.legend()
-        plt.ticklabel_format(axis='x', style='sci', scilimits=(-2,-2))
+        plt.ticklabel_format(axis='x', style='sci', scilimits=(-3,3))
         plt.yscale('log')
-        # plt.xlabel('$T^{-1/3}$ [K$^{-1/3}$] $\\times 10^2$')
         plt.xlabel('$T^{-1/3}$ [K$^{-1/3}$]')
-        plt.ylabel('$p\tau$ [atm s]')
+        plt.ylabel('$p\\tau$ [atm s]')
 
         Path = Path + '/' + Mol.Name
         if not os.path.exists(Path):
             os.makedirs(Path)
-        plt.savefig(Path + '/Taus.pdf')#, bbox_inches="tight")
+        plt.savefig(Path + '/Taus.pdf')
 
 
 def mole_fraction(
@@ -111,23 +110,24 @@ def mole_fraction(
                 X = d[Temp][1][f'X_{Mol.Name}']
                 plt.plot(t, X, c=COLORS[i])
 
-            plt.legend()
+            plt.legend(loc='upper center')
             plt.xscale('log')
             plt.xlabel('$t$ [s]')
-            plt.ylabel('$X_{\text{O}_2}$')
+            plt.ylabel('$X_{\\text{O}_2}$')
             plt.xlim(xlim)
 
         Path = Path + '/' + Mol.Name
         if not os.path.exists(Path):
             os.makedirs(Path)
-        plt.savefig(Path + '/MoleFrac.pdf')#, bbox_inches="tight")
+        plt.savefig(Path + '/MoleFrac.pdf')
 
     
 def mole_depletion_delays(
     Path,
     System,
     Data,
-    TTranVec
+    TTranVec,
+    xlim=[1.e3, 2.1e4]
 ):
     for iMol, Mol in enumerate(System.Molecules):
         fig = plt.figure()
@@ -135,27 +135,37 @@ def mole_depletion_delays(
             if k == 'QCT':
                 continue
             plt.plot([], [], label=k, c=COLORS[i])
-
+            
+        Delay = {}
         for iTemp in range(len(TTranVec)):
-
             Temp = int(TTranVec[iTemp])
             DeplQCT = Data['QCT'][Temp][Mol.Name]
             for i, (k, d) in enumerate(Data.items()):
                 if k == 'QCT':
                     continue
+                if k not in Delay:
+                    Delay[k] = {}
                 Depl  = Data[k][Temp][Mol.Name]
-                Delay = -100*(Depl - DeplQCT)/DeplQCT
-                plt.plot(Temp, Delay, ls='--', marker='^', c=COLORS[i])
+                Delay[k][Temp] = -100*(Depl - DeplQCT)/DeplQCT
+        
+        for i, (k, d) in enumerate(Data.items()):
+            if k == 'QCT':
+                continue
+            x = list(Delay[k].keys())
+            y = list(Delay[k].values())
+            plt.plot(x, y, ls='--', marker='^', c=COLORS[i], lw=2.)
 
-            plt.legend()
-            plt.ticklabel_format(axis='x', style='sci', scilimits=(3,3))
-            plt.xlabel('$T$ [K]')
-            plt.ylabel('Depletion Delay [%]')
+        plt.hlines(0., xlim[0], xlim[1], colors='grey', lw=0.5)
+        plt.legend(loc='upper right')
+        plt.ticklabel_format(axis='x', style='sci', scilimits=(3,3))
+        plt.xlim(xlim)
+        plt.xlabel('$T$ [K]')
+        plt.ylabel('Depletion Delay [\%]')
 
         Path = Path + '/' + Mol.Name
         if not os.path.exists(Path):
             os.makedirs(Path)
-        plt.savefig(Path + '/Delays.pdf')#, bbox_inches="tight")
+        plt.savefig(Path + '/Delays.pdf')
 
 
 def KD_ThQSS(
@@ -165,16 +175,16 @@ def KD_ThQSS(
 ):
     for iMol, Mol in enumerate(System.Molecules):
         fig = plt.figure()
-        plt.plot([], [], ls='', marker='s', c=COLORS[0], label='$K^D_{Th}$')
-        plt.plot([], [], ls='', marker='o', c=COLORS[0], label='$K^D_{QSS}$')
+        plt.scatter([], [], marker='s', c=COLORS[0], label='$K^D_{Th}$')
+        plt.scatter([], [], marker='^', c=COLORS[0], label='$K^D_{QSS}$')
         for i, k in enumerate(Data.keys()):
             plt.plot([], [], label=k, c=COLORS[i])
 
         for i, (k, d) in enumerate(Data.items()):
             X = 10000/d[Mol.Name]['T']
             idx = np.where(X < 3)[0]
-            plt.plot(X.iloc[idx], d[Mol.Name]['Diss_Eq'].iloc[idx], ls='--', marker='s', c=COLORS[i])
-            plt.plot(X.iloc[idx], d[Mol.Name]['Diss_QSS'].iloc[idx], ls='--', marker='^', c=COLORS[i])
+            plt.plot(X.iloc[idx], d[Mol.Name]['Diss_Eq'].iloc[idx], ls='--', marker='s', c=COLORS[i], lw=2.)
+            plt.plot(X.iloc[idx], d[Mol.Name]['Diss_QSS'].iloc[idx], ls='--', marker='^', c=COLORS[i], lw=2.)
             
         plt.legend()
         plt.yscale('log')
@@ -184,7 +194,7 @@ def KD_ThQSS(
         Path = Path + '/' + Mol.Name
         if not os.path.exists(Path):
             os.makedirs(Path)
-        plt.savefig(Path + '/KGlobal.pdf')#, bbox_inches="tight")
+        plt.savefig(Path + '/KGlobal.pdf')
 
     
 # Population plot times

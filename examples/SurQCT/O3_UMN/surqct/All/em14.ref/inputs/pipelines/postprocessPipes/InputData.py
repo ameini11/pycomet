@@ -14,9 +14,9 @@ from surqct import config as cfg
 
 TASKS = [
     0,   # Save predicted rates matrices to HDF5
-    1,   # Write thermo and kinetics to Plato database
-    1,   # Run 0D master equation simulations
-    1,   # Postprocess 0D master equation simulations
+    0,   # Write thermo and kinetics to Plato database
+    0,   # Run 0D master equation simulations
+    0,   # Postprocess 0D master equation simulations
     1    # Postprocess MCoarseAIR data and 0D master equation simulations
 ]
 
