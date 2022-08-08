@@ -24,7 +24,7 @@ TASKS = [
 ###############################################################################
 SystemName      = 'O3_UMN'
 KinSource       = 'SurQCT'
-ProcBoolList    = [(2,1,1,0), (0,1,1,0)]
+ProcBoolList    = [(2,1,1,0)]
 TTranVec        = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
 
 # MainSuffix      = ''
@@ -56,9 +56,9 @@ PathToRatesMaskingHDF5  = None
 # 0d simulation-based inputs
 # >> TASKS: 2-3-4-5
 ###############################################################################
-SuffixName = '/em15.ref/'
+SuffixName = '/diss.qct_excit/em15.ref/'
 
 # Rates HDF5 database
 # >> TASKS: 2-4
 ###############################################################################
-SuffixHDF5 = '/final.ref/'
+SuffixHDF5 = '/diss.qct_excit/ref/'

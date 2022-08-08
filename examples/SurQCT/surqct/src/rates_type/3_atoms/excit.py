@@ -238,7 +238,7 @@ def generate_trainingdata(
     # Splitting DataSet in Training and Validation
     TrainData = DataSet.copy()
     AllData   = DataSet.copy()
-    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.), random_state=3)
+    TrainData = TrainData.sample(frac=(1.0-InputData.ValidPerc/100.), random_state=1)
     ValidData = DataSet.drop(TrainData.index)
 
     # Collecting Training and Validation
@@ -505,33 +505,39 @@ def save_predictiondata(
 
         # Performing inference
         RatesVec = {}
-        if InputData.Dropout:
-            utils.print_submain('Performing inference with dropout', delimiter=' '*4)
-            WF = Welford()
-            WF_log = Welford()
-            for i in tqdm(range(InputData.NEvals)):
-                # Performing inference
-                KExcitPred     = Model.predict(Input, batch_size=BatchSize).reshape(-1)
-                if InputData.RatesLogScale:
-                    KExcitPred = np.exp(KExcitPred)
-                KExcitPred     = KExcitPred / InputData.MultFact
-                # Updating mean and std
-                WF.update(KExcitPred)
-                WF_log.update(np.log(KExcitPred))
-                if (i+1) % gc_freq == 0:
-                    gc.collect()
-            # Saving mean and std
-            RatesVec[RatesType] = WF.mean
-            RatesVec[RatesType+'_std'] = WF.std
-            RatesVec[RatesType+'_log'] = WF_log.mean
-            RatesVec[RatesType+'_log_std'] = WF_log.std
-        else:
-            utils.print_submain('Performing inference', delimiter=' '*4)
-            KExcitPred          = Model.predict(Input, batch_size=BatchSize).reshape(-1)
-            if InputData.RatesLogScale:
-                KExcitPred      = np.exp(KExcitPred)
-            KExcitPred          = KExcitPred / InputData.MultFact
-            RatesVec[RatesType] = KExcitPred
+        # if InputData.Dropout:
+        #     utils.print_submain('Performing inference with dropout', delimiter=' '*4)
+        #     WF = Welford()
+        #     WF_log = Welford()
+        #     for i in tqdm(range(InputData.NEvals)):
+        #         # Performing inference
+        #         KExcitPred     = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+        #         if InputData.RatesLogScale:
+        #             KExcitPred = np.exp(KExcitPred)
+        #         KExcitPred     = KExcitPred / InputData.MultFact
+        #         # Updating mean and std
+        #         WF.update(KExcitPred)
+        #         WF_log.update(np.log(KExcitPred))
+        #         if (i+1) % gc_freq == 0:
+        #             gc.collect()
+        #     # Saving mean and std
+        #     RatesVec[RatesType] = WF.mean
+        #     RatesVec[RatesType+'_std'] = WF.std
+        #     RatesVec[RatesType+'_log'] = WF_log.mean
+        #     RatesVec[RatesType+'_log_std'] = WF_log.std
+        # else:
+        #     utils.print_submain('Performing inference', delimiter=' '*4)
+        #     KExcitPred          = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+        #     if InputData.RatesLogScale:
+        #         KExcitPred      = np.exp(KExcitPred)
+        #     KExcitPred          = KExcitPred / InputData.MultFact
+        #     RatesVec[RatesType] = KExcitPred
+        utils.print_submain('Performing inference', delimiter=' '*4)
+        KExcitPred          = Model.predict(Input, batch_size=BatchSize).reshape(-1)
+        if InputData.RatesLogScale:
+            KExcitPred      = np.exp(KExcitPred)
+        KExcitPred          = KExcitPred / InputData.MultFact
+        RatesVec[RatesType] = KExcitPred
             
         # Feeding rate matrix
         utils.print_submain('Filling rate matrix', delimiter=' '*4)

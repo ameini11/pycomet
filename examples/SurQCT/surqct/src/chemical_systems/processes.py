@@ -178,9 +178,10 @@ class Processes():
                             Mask = self.RatesMasking[ProcName][iT][iLevel]
                         else:
                             Mask = True
-                        Rate = self.Rates[ProcName][iT][iLevel] * self.DissCorrFactor
+                        Rate = self.Rates[ProcName][iT][iLevel]
                         ProcMinRateValue = MinRateValue[ProcName] if isinstance(MinRateValue, dict) else MinRateValue
                         if Rate > ProcMinRateValue and bool(Mask):
+                            Rate = Rate * self.DissCorrFactor
                             KinFile.write(self.get_line(Rate, ProcName, ProcIndex, iLevel))
 
                     KinFile.close()

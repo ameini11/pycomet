@@ -83,7 +83,7 @@ def _main(args=None, InputData=None):
         from inputs.general import flags
         for k in ('train', 'save'):
             flags[k] = 0
-        flags['load'] = 1
+        flags['load'] = 2#1
         if flags['load'] not in (1, 2):
             sqct_utils.raise_value_err(
                 "The network has to be restored from a saved or a checkpointed "

@@ -18,6 +18,7 @@ export PathToInput=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/su
 # Heat Bath Conditions
 export TTranVec=(1500 2500 5000 8000 10000 12000 15000 20000)
 export InputSuffixVec=(excit excit excit excit excit excit excit excit)
+# export EndTimeVec=(1.d3 1.d3 1.d-1 1.d-1 1.d-1 1.d-1 1.d-1 1.d-1)
 # Processes
 export DissFlg=0
 export InelFlg=1
@@ -106,6 +107,7 @@ Initialize_0D_Case () {
     sed -i '/^PATH.*/c\PATH = '${PathToDtbFldr} $InputFile
     sed -i '/^REACTION.*/c\REACTION = '${KineticsFileInDtb} $InputFile
     sed -i '/^T_BATH.*/c\T_BATH = '${TTran}'.d0' $InputFile
+    # sed -i '/^TE.*/c\TE = '${EndTime} $InputFile
 }
 
 # Main
@@ -145,6 +147,7 @@ for (( i=0; i<${#TTranVec[@]}; i++ )); do
     # Set Temperature and specific Input
     TTran=${TTranVec[$i]}
     InputSuffix=${InputSuffixVec[$i]}
+    # EndTime=${EndTimeVec[$i]}
 
     cwd=$(pwd)
 

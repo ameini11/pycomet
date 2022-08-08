@@ -9,8 +9,7 @@ from surqct.src.utilities import utils
 from surqct.src.utilities import const
 from surqct import config as cfg
 
-from scipy.interpolate import CubicSpline
-from scipy.optimize import fsolve
+from scipy.interpolate import UnivariateSpline
 
 
 # 0D Master Equation Simulation
@@ -191,23 +190,38 @@ class MasterEquation():
                     E[Mol.Name][k]  = np.sum(Ni[Mol.Name] * Ei, axis=1) / NiTot
         return {'Energies': E}
 
+    # def compute_mass_depletion(self, Data, DepPerc=0.5):
+    #     DepTime = {}
+    #     Time    = Data['t']
+    #     for iMol, Mol in enumerate(self.System.Molecules):
+    #         if Mol.Name not in DepTime:
+    #             # Molar fraction
+    #             MoleFrac = Data[f'X_{Mol.Name}']
+    #             # Percentage molar fraction
+    #             MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[0] - MoleFrac[-1]))
+    #             for TimeIdx in range(len(MolePerc)):
+    #                 if MolePerc[TimeIdx] >= DepPerc:
+    #                     break
+    #             # Deltas
+    #             DeltaT   = Time[TimeIdx] - Time[TimeIdx-1]
+    #             DeltaM   = np.abs(MoleFrac[TimeIdx] - MoleFrac[TimeIdx-1])
+    #             # Depletion time
+    #             TempM    = DepPerc * np.abs(MoleFrac[0] - MoleFrac[-1])
+    #             TempM    = TempM - np.abs(MoleFrac[0] - MoleFrac[TimeIdx-1])
+    #             DepTime[Mol.Name] = Time[TimeIdx-1] + TempM * DeltaT / DeltaM
+    #     return {'MassDeplTime': DepTime}
+
     def compute_mass_depletion(self, Data, DepPerc=0.5):
         DepTime = {}
-        Time    = Data['t']
+        Time    = np.log(Data['t']+1.e-20)
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in DepTime:
                 # Molar fraction
                 MoleFrac = Data[f'X_{Mol.Name}']
-                # Percentage molar fraction
-                MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[0] - MoleFrac[-1]))
-                for TimeIdx in range(len(MolePerc)):
-                    if MolePerc[TimeIdx] >= DepPerc:
-                        break
-                # Deltas
-                DeltaT   = Time[TimeIdx] - Time[TimeIdx-1]
-                DeltaM   = np.abs(MoleFrac[TimeIdx] - MoleFrac[TimeIdx-1])
+                # Percentage of molar fraction
+                MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[-1] - MoleFrac[0]))
+                # Cubic spline fit
+                Fit = UnivariateSpline(Time, MolePerc - DepPerc, k=3, s=0)
                 # Depletion time
-                TempM    = DepPerc * np.abs(MoleFrac[0] - MoleFrac[-1])
-                TempM    = TempM - np.abs(MoleFrac[0] - MoleFrac[TimeIdx-1])
-                DepTime[Mol.Name] = Time[TimeIdx-1] + TempM * DeltaT / DeltaM
+                DepTime[Mol.Name] = np.exp(Fit.roots().squeeze())
         return {'MassDeplTime': DepTime}

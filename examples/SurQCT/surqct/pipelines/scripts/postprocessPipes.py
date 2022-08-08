@@ -147,16 +147,23 @@ def main(args):
         )
         for ProcBool in InputPipes.ProcBoolList:
             if ProcBool[0] > 0:
+                # EndTimeVec = []
                 InputSuffixVec = []
                 for T in InputPipes.TTranVec:
-                    # if int(T) < 5000:
-                    if int(T) < 0:
+                    if int(T) < 5000:
+                    # if int(T) < 0:
                         InputSuffixVec.append('relax')
                     else:
                         InputSuffixVec.append('excit')
-                InputSuffixVec = ' '.join(InputSuffixVec)
+                    # if int(T) < 5000:
+                    #     EndTimeVec.append('1.d3')
+                    # else:
+                    #     EndTimeVec.append('1.d-1')
             else:
-                InputSuffixVec = ' '.join(['excit' for _ in InputPipes.TTranVec])
+                # EndTimeVec = ['1.d-1' for _ in InputPipes.TTranVec]
+                InputSuffixVec = ['excit' for _ in InputPipes.TTranVec]
+            # EndTimeVec = ' '.join(EndTimeVec)
+            InputSuffixVec = ' '.join(InputSuffixVec)
             # Modifying exec file
             fun.replace(
                 file=plato_exe,
@@ -166,6 +173,7 @@ def main(args):
                     "export SuffixName=",
                     "export TTranVec=",
                     "export InputSuffixVec=",
+                    # "export EndTimeVec=",
                     "export DissFlg=",
                     "export InelFlg=",
                     "export Exch1Flg=",
@@ -177,6 +185,7 @@ def main(args):
                     f"export SuffixName='{InputPipes.SuffixName}'\n",
                     f"export TTranVec=({' '.join([str(int(T)) for T in InputPipes.TTranVec])})\n",
                     f"export InputSuffixVec=({InputSuffixVec})\n",
+                    # f"export EndTimeVec=({EndTimeVec})\n",
                     f"export DissFlg={ProcBool[0]}\n",
                     f"export InelFlg={ProcBool[1]}\n",
                     f"export Exch1Flg={ProcBool[2]}\n",

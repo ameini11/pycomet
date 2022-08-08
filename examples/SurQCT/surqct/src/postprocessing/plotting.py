@@ -127,7 +127,8 @@ def mole_depletion_delays(
     System,
     Data,
     TTranVec,
-    xlim=[1.e3, 2.1e4]
+    xlim=[1.e3, 2.1e4],
+    ylim=[-1, 15]
 ):
     for iMol, Mol in enumerate(System.Molecules):
         fig = plt.figure()
@@ -159,6 +160,7 @@ def mole_depletion_delays(
         plt.legend(loc='upper right')
         plt.ticklabel_format(axis='x', style='sci', scilimits=(3,3))
         plt.xlim(xlim)
+        plt.ylim(ylim)
         plt.xlabel('$T$ [K]')
         plt.ylabel('Depletion Delay [\%]')
 

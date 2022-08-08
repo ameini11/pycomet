@@ -31,7 +31,7 @@ def generate_data(
     TTranVec,
     iIdxVec,
     MinRateValue=0.,
-    Noise=False
+    Noise=True
 ):
     # Reading Levels Info of Initial Molecule
     reading.read_levelsinfo(InputData, System, TTranVec)
