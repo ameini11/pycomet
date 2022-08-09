@@ -392,7 +392,7 @@ def save_predictiondata(
 ###############################################################################
 def plot_prediction2D(
     System,
-    InputData,
+    RatesType,
     Path,
     PredData,
     TrueData=None,
@@ -400,7 +400,7 @@ def plot_prediction2D(
     FigName=None,
     ylim=[1.e-15, None]
 ):
-    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolIn  = System.Processes.CompInOut[RatesType]['In'][0]
     
     # Rates and j-th level data
     if TrueData is not None:
@@ -434,14 +434,14 @@ def plot_prediction2D(
 
 def plot_prediction3D(
     System,
-    InputData,
+    RatesType,
     Path,
     PredData,
     TrueData=None,
     XYAxis=['ECB', 'rOut'],
     FigName=None
 ):
-    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
+    MolIn  = System.Processes.CompInOut[RatesType]['In'][0]
     
     # Rates and j-th level data
     if TrueData is not None:

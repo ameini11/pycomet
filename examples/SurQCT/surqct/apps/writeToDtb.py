@@ -65,8 +65,9 @@ def _main(args=None, InputData=None):
     # Reading rates masking
     if InputData.PathToRatesMaskingHDF5 is not None:
         utils.print_main("Reading rates masking ...")
-        system.Processes.read_ratesmasking(
+        system.Processes.read_rates(
             TTranVec=InputData.TTranVec,
+            Group='RatesMasking',
             PathToHDF5File=InputData.PathToRatesMaskingHDF5
         )
     # Reading rates

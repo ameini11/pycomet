@@ -66,11 +66,16 @@ class Processes():
         self,
         TTranVec,
         Group='Rates', # 'RatesMasking'
-        Source='HDF5',
-        PathToHDF5File=None
+        PathToHDF5File=None,
+        MicroRev=False
     ):
+        if MicroRev:
+            for Mol in self.System.Molecules:
+                Mol.compute_partition_fn(TTranVec, ['Int'])
+        
         if PathToHDF5File is None:
             PathToHDF5File = self.PathToHDF5File
+            
         if self.System.NAtoms == 3:
             if os.path.exists(PathToHDF5File):
                 f = h5py.File(PathToHDF5File, 'r')
@@ -88,11 +93,17 @@ class Processes():
                             continue
                         if k == 'Diss':
                             Container[k][iT] = Container[k][iT][:,0:1]
-            f.close()
+                            
+                        if MicroRev and k != 'Diss':
+                            qIn = self.CompInOut[k]['In'][0].PFData['Int'][iT].to_numpy().reshape(-1,1)
+                            qOut = self.CompInOut[k]['Out'][0].PFData['Int'][iT].to_numpy().reshape(1,-1)
+                            FwdRates = np.tril(Container[k][iT], k=-1)
+                            BwdRates = FwdRates * qIn / qOut
+                            Container[k][iT] = FwdRates + BwdRates.T
         else:
             raise NotImplementedError
         setattr(self, Group, Container)
-    
+
     def read_rates_Plato(
         self,
         TTranVec,

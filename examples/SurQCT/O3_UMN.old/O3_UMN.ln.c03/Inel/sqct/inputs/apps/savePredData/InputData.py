@@ -47,5 +47,6 @@ NEvals              = 100
 # Saving/Writing Quantities
 ###############################################################################
 TTranVec            = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
-UseFinalVersion     = True   # Use database with final values for other processes in "cfg.paths.HDF5Dtb/SurQCT/final/"
+UseFinalVersion     = False   # Use database with final values for other processes in "cfg.paths.HDF5Dtb/SurQCT/final/"
 SuffixHDF5          = '/configs.ln/config.03/dropout/'   # In HDF5 database
+FinalVerFld         = ''   # In HDF5 database

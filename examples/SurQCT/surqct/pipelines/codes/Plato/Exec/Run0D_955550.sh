@@ -10,19 +10,19 @@ export NUM_THREADS=8
 export System='O3_UMN'
 export KinMainSource='SurQCT'
 # Paths
-export SuffixName='/excit.qct_diss.new/em15.c01.I04.E02/'
+export SuffixName='/excit.qct_diss/em15.c06.I01.E01/'
 export PathToDtbFldr=/home/zanardi/Workspace/AirDatabase/Run0D/database/
 export PathToRunFldr=/home/zanardi/Workspace/AirDatabase/Run0D/run/${KinMainSource}/${System}/${SuffixName}/
 export PathToSurQCT=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
 export PathToInput=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/surqct/pipelines/codes/Plato/Input/${System}/
 # Heat Bath Conditions
 export TTranVec=(1500 2500 5000 8000 10000 12000 15000 20000)
-export InputSuffixVec=(excit excit excit excit excit excit excit excit)
+export InputSuffixVec=(relax relax excit excit excit excit excit excit)
 # export EndTimeVec=(1.d3 1.d3 1.d-1 1.d-1 1.d-1 1.d-1 1.d-1 1.d-1)
 # Processes
-export DissFlg=0
+export DissFlg=2
 export InelFlg=1
-export Exch1Flg=0
+export Exch1Flg=1
 export Exch2Flg=0
 # Kinetic Sources
 export KinSource=${PathToDtbFldr}"/kinetics/"${KinMainSource}"/"${System}"/"${SuffixName}

@@ -107,6 +107,7 @@ def main(args):
         InputData = pcm_utils.get_mod_from_path(
             'InputData', f"{args.dir}/apps/writeToDtb/InputData.py"
         )
+        print()
         from surqct.apps.writeToDtb import _main
         # Modifying input module
         InputData.SystemName             = InputPipes.SystemName

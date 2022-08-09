@@ -566,14 +566,14 @@ def save_predictiondata(
 ###############################################################################
 def plot_prediction2D(
     System,
-    InputData,
+    RatesType,
     Path,
     iIdx,
     TrueData,
     PredData
 ):
-    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
-    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
+    MolIn  = System.Processes.CompInOut[RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[RatesType]['Out'][0]
     
     # i-th level data
     v = MolIn.DiatData['vqn'].to_numpy()[iIdx].astype(int)
@@ -602,14 +602,14 @@ def plot_prediction2D(
 
 def plot_prediction3D(
     System,
-    InputData,
+    RatesType,
     Path,
     iIdx,
     TrueData,
     PredData
 ):
-    MolIn  = System.Processes.CompInOut[InputData.RatesType]['In'][0]
-    MolOut = System.Processes.CompInOut[InputData.RatesType]['Out'][0]
+    MolIn  = System.Processes.CompInOut[RatesType]['In'][0]
+    MolOut = System.Processes.CompInOut[RatesType]['Out'][0]
     
     # i-th level data
     v = MolIn.DiatData['vqn'].to_numpy()[iIdx].astype(int)

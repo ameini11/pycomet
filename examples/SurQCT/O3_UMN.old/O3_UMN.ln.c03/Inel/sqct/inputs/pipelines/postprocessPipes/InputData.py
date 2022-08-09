@@ -13,11 +13,11 @@ from surqct import config as cfg
 
 
 TASKS = [
-    0,   # Save predicted rates matrices to HDF5
+    1,   # Save predicted rates matrices to HDF5
     0,   # Write thermo and kinetics to Plato database
     0,   # Run 0D master equation simulations
-    1,   # Postprocess 0D master equation simulations
-    1    # Postprocess MCoarseAIR data and 0D master equation simulations
+    0,   # Postprocess 0D master equation simulations
+    0    # Postprocess MCoarseAIR data and 0D master equation simulations
 ]
 
 # Global
@@ -28,12 +28,12 @@ ProcBoolList    = [(2,1,1,0), (0,1,1,0), (0,0,1,0), (0,1,0,0)]
 TTranVec        = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
 
 MainSuffix      = '/configs.ln/config.03/run.03/'
-MainPrefix      =  cfg.paths.Workspace + '/ML/PyCOMET/run/SurQCT/O3_UMN.temp/'
+MainPrefix      =  cfg.paths.Workspace + '/ML/PyCOMET/run/SurQCT/O3_UMN/final/'
 
 # Rates masking
 # >> TASKS: 1-2
 ###############################################################################
-RatesType               = ['Inel', 'Exch_1']
+RatesType               = ['Inel']
 MinRateValue            = 1.e-16
 PathToRatesMaskingHDF5  = None
 
@@ -57,4 +57,4 @@ SuffixName = '/em16/' + MainSuffix
 # Rates HDF5 database
 # >> TASKS: 2-4
 ###############################################################################
-SuffixHDF5 = MainSuffix
+SuffixHDF5 = '/c03.old/'
