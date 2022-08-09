@@ -190,27 +190,6 @@ class MasterEquation():
                     E[Mol.Name][k]  = np.sum(Ni[Mol.Name] * Ei, axis=1) / NiTot
         return {'Energies': E}
 
-    # def compute_mass_depletion(self, Data, DepPerc=0.5):
-    #     DepTime = {}
-    #     Time    = Data['t']
-    #     for iMol, Mol in enumerate(self.System.Molecules):
-    #         if Mol.Name not in DepTime:
-    #             # Molar fraction
-    #             MoleFrac = Data[f'X_{Mol.Name}']
-    #             # Percentage molar fraction
-    #             MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[0] - MoleFrac[-1]))
-    #             for TimeIdx in range(len(MolePerc)):
-    #                 if MolePerc[TimeIdx] >= DepPerc:
-    #                     break
-    #             # Deltas
-    #             DeltaT   = Time[TimeIdx] - Time[TimeIdx-1]
-    #             DeltaM   = np.abs(MoleFrac[TimeIdx] - MoleFrac[TimeIdx-1])
-    #             # Depletion time
-    #             TempM    = DepPerc * np.abs(MoleFrac[0] - MoleFrac[-1])
-    #             TempM    = TempM - np.abs(MoleFrac[0] - MoleFrac[TimeIdx-1])
-    #             DepTime[Mol.Name] = Time[TimeIdx-1] + TempM * DeltaT / DeltaM
-    #     return {'MassDeplTime': DepTime}
-
     def compute_mass_depletion(self, Data, DepPerc=0.5):
         DepTime = {}
         Time    = np.log(Data['t']+1.e-20)

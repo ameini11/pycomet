@@ -128,7 +128,8 @@ def mole_depletion_delays(
     Data,
     TTranVec,
     xlim=[1.e3, 2.1e4],
-    ylim=[-1, 15]
+    ylim=[None, None]
+    # ylim=[-1, 15]
 ):
     for iMol, Mol in enumerate(System.Molecules):
         fig = plt.figure()

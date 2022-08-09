@@ -294,14 +294,12 @@ def generate_predictiondata(
     System,
     InputData,
     Model,
-    Labeled=True,
-    Columns=None
+    Columns,
+    TTranVec=[],
+    iIdxVec=None,
+    BatchSize=256
 ):
     utils.print_main('Generating Prediction data points ...')
-
-    # Loading Input and Output for Testing
-    TTranVec = InputData.TTranVecTest if Labeled else InputData.TTranVecExtra
-    NTTran   = len(TTranVec)
 
     # Reading Levels Info of Initial and Final Molecules
     reading.read_levelsinfo(InputData, System, TTranVec)
@@ -319,11 +317,13 @@ def generate_predictiondata(
     KExcitData = pd.DataFrame(columns = ['KExcit'])
 
     # Initial Levels
-    iIdxVec = InputData.iLevelsVecTest
-    if np.amin(iIdxVec) != 0:
-        iIdxVec = np.array(iIdxVec) - 1
+    if iIdxVec is None:
+        iIdxVec = InputData.iLevelsVecTest
+        if np.amin(iIdxVec) != 0:
+            iIdxVec = np.array(iIdxVec) - 1
 
-    for iT in range(NTTran):
+    # Loop over temperatures
+    for iT in range(len(TTranVec)):
 
         TTranStr = str(int(TTranVec[iT]))
         utils.print_submain(f'Translational Temperature: T = {TTranStr} K')
@@ -357,11 +357,11 @@ def generate_predictiondata(
 
             # Prediction Data
             Input           = get_input(InputData, MolIn, MolOut, kIdxVec, jIdxVec, TTran, Columns)
-            KExcitPred      = Model.predict(Input).reshape(-1)
+            KExcitPred      = Model.predict(Input, batch_size=BatchSize).reshape(-1)
             if InputData.RatesLogScale:
                 KExcitPred  = np.exp(KExcitPred)
             KExcitPred      = KExcitPred / InputData.MultFact
-            KExcitData      = KExcitData.append(pd.DataFrame({'KExcit': KExcitPred}))
+            KExcitData      = pd.concat([KExcitData, pd.DataFrame({'KExcit': KExcitPred})], axis=0)
 
             # Reconstruct Remaining Rates
             if len(jIdxVecNo) > 0:
@@ -385,7 +385,7 @@ def generate_predictiondata(
                 # Equilibrium constant
                 KExcitRec       = KExcitPred / (qIn[iIdx] / qOut[jIdxVec])
                 # Collect data
-                KExcitData      = pd.concat([KExcitData, pd.DataFrame({'KExcit': KExcitRec})], axis=0)
+                KExcitData      = pd.concat([KExcitData, pd.DataFrame({'KExcit': KExcitPred})], axis=0)
 
     # Resetting Data Frames Indexing
     indexNew            = np.arange(len(TTranData))
@@ -415,12 +415,12 @@ def get_input(
     # Data of i-th level
     iLevelsData             = MolIn.LevelsData.iloc[iIdxVec,:].copy()
     iLevelsData.index       = np.arange(len(TTranData))
-    # iLevelsData             = iLevelsData[InputData.InpDiatVars]
+    iLevelsData             = iLevelsData[InputData.InpDiatVars]
 
     # Data of j-th level
     jLevelsData             = MolOut.LevelsData.iloc[jIdxVec,:].copy()
     jLevelsData.index       = np.arange(len(TTranData))
-    # jLevelsData             = jLevelsData[InputData.InpDiatVars]
+    jLevelsData             = jLevelsData[InputData.InpDiatVars]
 
     # Delta levels data
     if InputData.DeltaProperties:
