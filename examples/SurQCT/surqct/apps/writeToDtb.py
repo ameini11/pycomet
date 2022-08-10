@@ -64,7 +64,10 @@ def _main(args=None, InputData=None):
     system.Processes.read_rates(TTranVec=InputData.TTranVec)
     # Reading rates masking
     if InputData.PathToRatesMaskingHDF5 is not None:
-        utils.print_main("Reading rates masking ...")
+        utils.print_main(
+            "Reading rates masking from "
+            f"'{os.path.abspath(InputData.PathToRatesMaskingHDF5)}'..."
+        )
         system.Processes.read_rates(
             TTranVec=InputData.TTranVec,
             Group='RatesMasking',

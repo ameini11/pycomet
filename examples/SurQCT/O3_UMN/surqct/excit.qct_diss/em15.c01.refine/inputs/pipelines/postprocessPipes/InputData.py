@@ -16,15 +16,15 @@ TASKS = [
     0,   # Save predicted rates matrices to HDF5
     0,   # Write thermo and kinetics to Plato database
     1,   # Run 0D master equation simulations
-    1,   # Postprocess 0D master equation simulations
-    1    # Postprocess MCoarseAIR data and 0D master equation simulations
+    0,   # Postprocess 0D master equation simulations
+    0    # Postprocess MCoarseAIR data and 0D master equation simulations
 ]
 
 # Global
 ###############################################################################
 SystemName      = 'O3_UMN'
 KinSource       = 'SurQCT'
-ProcBoolList    = [(2,1,1,0)]
+ProcBoolList    = [(0,1,1,0)]
 TTranVec        = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
 
 MainSuffix      = '/configs.ln/config.03/run.03.refine/'

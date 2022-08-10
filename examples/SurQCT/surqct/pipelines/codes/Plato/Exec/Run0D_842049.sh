@@ -10,7 +10,7 @@ export NUM_THREADS=8
 export System='O3_UMN'
 export KinMainSource='SurQCT'
 # Paths
-export SuffixName='/excit.qct_diss/em15.c01.refine/'
+export SuffixName='/exch_1.qct/em15.c01.ref/'
 export PathToDtbFldr=/home/zanardi/Workspace/AirDatabase/Run0D/database/
 export PathToRunFldr=/home/zanardi/Workspace/AirDatabase/Run0D/run/${KinMainSource}/${System}/${SuffixName}/
 export PathToSurQCT=/home/zanardi/Workspace/ML/PyCOMET/pycomet/examples/SurQCT/surqct/
