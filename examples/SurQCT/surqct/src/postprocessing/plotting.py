@@ -158,7 +158,8 @@ def mole_depletion_delays(
             plt.plot(x, y, ls='--', marker='^', c=COLORS[i], lw=2.)
 
         plt.hlines(0., xlim[0], xlim[1], colors='grey', lw=0.5)
-        plt.legend(loc='upper right')
+        plt.legend(loc='best')
+        # plt.legend(loc='upper right')
         plt.ticklabel_format(axis='x', style='sci', scilimits=(3,3))
         plt.xlim(xlim)
         plt.ylim(ylim)

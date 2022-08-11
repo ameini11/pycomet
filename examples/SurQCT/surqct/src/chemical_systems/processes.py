@@ -97,9 +97,8 @@ class Processes():
                         if MicroRev and k != 'Diss':
                             qIn = self.CompInOut[k]['In'][0].PFData['Int'][iT].to_numpy().reshape(-1,1)
                             qOut = self.CompInOut[k]['Out'][0].PFData['Int'][iT].to_numpy().reshape(1,-1)
-                            FwdRates = np.tril(Container[k][iT], k=-1)
-                            BwdRates = FwdRates * qIn / qOut
-                            Container[k][iT] = FwdRates + BwdRates.T
+                            BwdRates = np.tril(Container[k][iT], k=-1) * qIn / qOut
+                            Container[k][iT] = np.tril(Container[k][iT], k=0) + BwdRates.T
         else:
             raise NotImplementedError
         setattr(self, Group, Container)
@@ -219,7 +218,6 @@ class Processes():
                                 ProcMinRateValue = MinRateValue[ProcName] if isinstance(MinRateValue, dict) else MinRateValue
                                 if Rate > ProcMinRateValue and bool(Mask):
                                     KinFile.write(self.get_line(Rate, ProcName, ProcIndex, iLevel, jLevel))
-
                         KinFile.close()
             else:
                 raise NotImplementedError

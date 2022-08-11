@@ -490,10 +490,10 @@ def save_predictiondata(
     MolOut = System.Processes.CompInOut[RatesType]['Out'][0]
 
     # i-th & j-th index
-    iIdxVec, jIdxVec = np.tril_indices(MolIn.NLevels, k=-1)
+    iIdxVec, jIdxVec = np.tril_indices(MolIn.NLevels, k=0)
 
     # Loop over temperatures
-    HDF5Groups = {}
+    Groups = {}
     for TTran in TTranVec:
 
         TTran = int(TTran)
@@ -547,14 +547,14 @@ def save_predictiondata(
             Rates[k][iIdxVec, jIdxVec] = RatesVec[k]
 
         # Collecting rate matrix
-        HDF5Groups[f'T_{TTran}_{TTran}'] = {'Rates': Rates}
+        Groups[f'T_{TTran}_{TTran}'] = {'Rates': Rates}
 
     # Saving rate matrix in HDF5
     utils.print_submain('Dumping the rate matrices to HDF5 file')
     mode = 'a' if os.path.exists(PathToHDF5File) else 'w'
     file = h5py.File(PathToHDF5File, mode)
     dicttoh5(
-        treedict=HDF5Groups,
+        treedict=Groups,
         h5file=file,
         overwrite_data=True,
         create_dataset_args={'compression': "gzip", 'compression_opts': 9}

@@ -48,7 +48,7 @@ def get_parser(subparsers):
 def _main(args=None, InputData=None):
 
     utils.print_main(
-        f"Initializing '{InputData.SystemName}' chemical system ..."
+        f"Initializing '{InputData.SystemName}' chemical system ...", start=''
     )
     system = syst.get_system(
         NameLong=InputData.SystemName,
@@ -56,13 +56,13 @@ def _main(args=None, InputData=None):
     )
 
     utils.print_main(
-        "Postprocessing Master Equation solution ..."
+        "Postprocessing master equation solution ..."
     )
     system.MasterEquation.postprocess_data(CaseSuffix=InputData.SuffixName)
 
     utils.print_main(
-        "Saving postprocessed Master Equation data in "
-        f"{system.MasterEquation.MEPath} ..."
+        "Saving postprocessed master equation data in "
+        f"'{os.path.abspath(system.MasterEquation.MEPath)}/MEData.hdf5' ..."
     )
     system.MasterEquation.save_data()
 
