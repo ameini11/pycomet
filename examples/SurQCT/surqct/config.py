@@ -50,8 +50,8 @@ tf_cfg = {
 
 # Matplotlib ------------------------------------------------------------------
 mpl_cfg = {
-    'style': 'default'
-    # 'style': paths.Workspace + '/Research/styles/matplotlib/paper_1column_venturi.mplstyle'
+    # 'style': 'default'
+    'style': paths.Workspace + '/Research/styles/matplotlib/paper_1column_venturi.mplstyle'
 }
 
 # Standard output -------------------------------------------------------------
