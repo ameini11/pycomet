@@ -25,10 +25,10 @@ TASKS = [
 SystemName      = 'O3_UMN'
 KinSource       = 'SurQCT'
 ProcBoolList    = [(2,1,1,0)]
-TTranVec        = [1500.0, 2500.0, 5000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
+TTranVec        = [1500.0, 2500.0, 5000.0, 6000.0, 8000.0, 10000.0, 12000.0, 15000.0, 20000.0]
 
-MainSuffix      = '/config.13/run.01/'
-MainPrefix      =  cfg.paths.Workspace + '/ML/PyCOMET/run/SurQCT/O3_UMN/tests/'
+MainSuffix      = '/config.13/run.02/'
+MainPrefix      =  cfg.paths.Workspace + '/ML/PyCOMET/run/SurQCT/O3_UMN/'
 
 # Rates masking
 # >> TASKS: 1-2
@@ -56,9 +56,9 @@ PathToLevelsFile = {
 # 0d simulation-based inputs
 # >> TASKS: 2-3-4-5
 ###############################################################################
-SuffixName = '/diss.qct_excit/em15.c13/'
+SuffixName = '/diss/em15.c13/'
 
 # Rates HDF5 database
 # >> TASKS: 2-4
 ###############################################################################
-SuffixHDF5 = '/diss.qct_excit/c13/'
+SuffixHDF5 = '/diss/c13/'
