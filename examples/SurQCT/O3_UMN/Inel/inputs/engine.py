@@ -56,6 +56,13 @@ callbacks = {
         'write_graph':    True,
         'write_images':   True,
         'profile_batch':  0
+    }, 
+
+    'tensorboard': {
+        'histogram_freq': 0,
+        'write_graph':    True,
+        'write_images':   True,
+        'profile_batch':  0
     }
     
 }

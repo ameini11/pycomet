@@ -1,14 +1,14 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.python.keras.backend as K
-import tensorflow.python.keras.callbacks as CB
+import tensorflow.python.keras.callbacks as cb
 
 from tensorflow.python.util.tf_export import keras_export
 from pycomet.utilities import utils
 
 
 @keras_export('keras.callbacks.LRPiecewiseConstantDecay')
-class LRPiecewiseConstantDecay(CB.Callback):
+class LRPiecewiseConstantDecay(cb.Callback):
     """A Learning Rate Schedule that uses a piecewise constant decay schedule."""
 
     def __init__(self, boundaries, values, verbose=0):
@@ -40,7 +40,7 @@ class LRPiecewiseConstantDecay(CB.Callback):
 
 
 @keras_export('keras.callbacks.LearningRateTracker')
-class LearningRateTracker(CB.Callback):
+class LearningRateTracker(cb.Callback):
     """Learning rate tracker."""
 
     def __init__(
@@ -82,3 +82,53 @@ class LearningRateTracker(CB.Callback):
     def on_train_end(self, logs=None):
         if self.file is not None:
             self.file.close()
+
+
+@keras_export('keras.callbacks.ReduceLROnPlateau')
+class ReduceLROnPlateau(cb.ReduceLROnPlateau):
+    def __init__(
+        self,
+        monitor='val_loss',
+        factor=0.1,
+        patience=10,
+        verbose=0,
+        mode='auto',
+        min_delta=1e-4,
+        cooldown=0,
+        min_lr=0,
+        **kwargs
+    ):
+        super(ReduceLROnPlateau, self).__init__()
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        logs['lr'] = float(K.get_value(self.model.optimizer._decayed_lr(tf.float64)))
+        current = logs.get(self.monitor)
+        if current is None:
+            logging.warning(
+                'Learning rate reduction is conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s',
+                self.monitor, ','.join(list(logs.keys()))
+            )
+        else:
+            if self.in_cooldown():
+                self.cooldown_counter -= 1
+                self.wait = 0
+            if self.monitor_op(current, self.best):
+                self.best = current
+                self.wait = 0
+            elif not self.in_cooldown():
+                self.wait += 1
+                if self.wait >= self.patience:
+                    old_lr = float(K.get_value(self.model.optimizer.lr))
+                    if old_lr > self.min_lr:
+                        new_lr = old_lr * self.factor
+                        new_lr = max(new_lr, self.min_lr)
+                        K.set_value(self.model.optimizer.lr, new_lr)
+                        if self.verbose > 0:
+                            print(
+                                '\nEpoch %05d: ReduceLROnPlateau reducing learning'
+                                ' rate to %s.' % (epoch + 1, new_lr)
+                            )  
+                        self.cooldown_counter = self.cooldown
+                        self.wait = 0

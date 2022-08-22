@@ -242,3 +242,18 @@ class OpNN(Net):
         if self.active_lays['output']['xform'] is not None:
             y = self.active_lays['output']['xform'](y)
         return y
+
+    # Temporary !!!!!!!!!!!!!1
+    def check_layers(self, layers={}):
+        # Check input layers format
+        if not isinstance(layers, dict):
+            utils.raise_value_err(
+                f"`layers` input passed into `{self.name}` has to be a `dict`."
+            )
+        # Check valid layers
+        for k in layers.keys():
+            if k not in self.lays_name:
+                utils.raise_value_err(
+                    f"Layer '{k}' in `layers` input not recognized. "
+                    f"Layers available: {self.lays_name}"
+                )
