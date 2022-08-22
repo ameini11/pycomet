@@ -1,6 +1,7 @@
 import sys
 import time
 import datetime
+import importlib
 
 from tqdm import tqdm
 from functools import wraps
@@ -72,10 +73,23 @@ def app_decorator(name=None):
         return wrapper
     return dec
 
-# Handling libraries
+# Plotting
+###############################################################################
+def log_tick_formatter(
+    val,
+    pos=None
+):
+    return f"$10^{{{int(val)}}}$"
+
+# Handling packages
 ###############################################################################
 def import_matplotlib():
-    import matplotlib as mpl
+    import matplotlib
     if cfg.mpl_cfg['style'] is not None:
-        mpl.style.use(cfg.mpl_cfg['style'])
-    return mpl
+        matplotlib.style.use(cfg.mpl_cfg['style'])
+    return matplotlib
+
+def add_package_path(packages={}):
+    for name, path in packages.items():
+        if importlib.util.find_spec(name) is None:
+            sys.path.append(os.path.abspath(path))

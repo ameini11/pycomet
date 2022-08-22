@@ -74,14 +74,19 @@ class Model(object):
 
         # Build the network ---------------------------------------------------
         input_shape = tf.nest.map_structure(
-            lambda i: (None, i), self.net.inp_dim
+            lambda i: (None, i), tf.nest.flatten(self.net.inp_dim)
         )
         if not self.net.built:
-            self.net.build(input_shape)
+            if len(input_shape) == 1:
+                self.net.build(input_shape[-1])
+            else:
+                self.net.build(input_shape)
         # I/O characterization
         self.net.inputs = [
             K.placeholder(shape=s, dtype=K.floatx()) for s in input_shape
         ]
+        if len(self.net.inputs) == 1:
+            self.net.inputs = self.net.inputs[-1]
         self.net.outputs = self.net.call(self.net.inputs)
         # I/O features space dimensions
         self.net.input_dim = utils.get_struct_shape(self.net.inputs, axis=1)

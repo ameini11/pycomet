@@ -156,6 +156,7 @@ def dir_path(path):
             )
         )
 
+
 def _data(
     flags,
     input_mod,

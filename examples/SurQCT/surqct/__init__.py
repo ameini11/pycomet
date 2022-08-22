@@ -33,9 +33,11 @@ python_backend.set_epsilon(tf_cfg['setup']['EPSILON'])
 ###############################################################################
 # Import all modules
 from surqct import apps
+from surqct import pipelines
 from surqct import src
 
 __all__ = [
     "apps",
+    "pipelines",
     "src"
 ]

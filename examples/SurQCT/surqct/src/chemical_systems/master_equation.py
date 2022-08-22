@@ -9,8 +9,7 @@ from surqct.src.utilities import utils
 from surqct.src.utilities import const
 from surqct import config as cfg
 
-from scipy.interpolate import CubicSpline
-from scipy.optimize import fsolve
+from scipy.interpolate import UnivariateSpline
 
 
 # 0D Master Equation Simulation
@@ -21,26 +20,26 @@ class MasterEquation():
 
         if CompNames is None:
             CompNames = [System.Atoms[0].Name, System.Molecules[0].Name]
-        CompNames = list(CompNames)
+        CompNames     = list(CompNames)
 
         self.System     = System
-        self.BoxHeader  = ['t'] + ['X_' + k for k in CompNames] + ['T','rho','p','nd','E']
+        self.BoxHeader  = ['t'] + ['X_' + k for k in CompNames] + ['T','rho','p','nd','ETot']
 
         self.ProcNames  = np.array(['Diss', 'Inel', 'Exch_1', 'Exch_2'])
 
     def postprocess_data(self, CaseSuffix=''):
-        self.MEPath = f'{cfg.MERuns}/run/{self.System.KinSource}/{self.System.NameLong}/{CaseSuffix}/'
-        self.Data   = {}
+        self.MEPath  = f'{cfg.paths.MERuns}/run/{self.System.KinSource}/{self.System.NameLong}/{CaseSuffix}/'
+        self.Data    = {}
         for ProcCode in os.scandir(self.MEPath):
-            ProcCode            = ProcCode.name
-            if any(ProcCode.startswith(k) for k in ('0','1','2')):
+            ProcCode = ProcCode.name
+            if any([ProcCode.startswith(k) for k in ('0_','1_','2_')]):
                 ProcBool            = [int(i) for i in ProcCode.split('_')]
                 self.Data[ProcCode] = {}
-                utils.print_submain(f"Postprocessing Case with Code '{ProcCode}'")
+                utils.print_submain(f"Processes Code '{ProcCode}'")
                 for TTran in os.scandir(self.MEPath + '/' + ProcCode):
                     TTran = TTran.name
                     if TTran.startswith('T') and TTran.endswith('K'):
-                        T     = TTran[1:-1]
+                        T = TTran[1:-1]
                         utils.print_submain(f'Temperature T = {T} K', delimiter=' '*4)
                         # Initialize master equation run
                         Path  = self.MEPath + '/' + ProcCode + '/' + TTran + '/'
@@ -62,7 +61,7 @@ class MasterEquation():
                             self.Data[ProcCode][T].update(
                                 self.compute_mass_depletion(Data=self.Data[ProcCode][T])
                             )
-                # From MCoarseAir ---------------------------------------------
+                # From MCoarseAIR ---------------------------------------------
                 # Read energy depletion
                 self.Data[ProcCode].update(
                     self.read_energy_depletion(ProcCode=ProcCode)
@@ -97,7 +96,7 @@ class MasterEquation():
         )
         
     def read_data(self, CaseSuffix=''):
-        self.MEPath = f'{cfg.MERuns}/run/{self.System.KinSource}/{self.System.NameLong}/{CaseSuffix}/'
+        self.MEPath = f'{cfg.paths.MERuns}/run/{self.System.KinSource}/{self.System.NameLong}/{CaseSuffix}/'
         self.Data   = h5todict(self.MEPath+'/MEData.hdf5')
 
     # Reading
@@ -127,7 +126,7 @@ class MasterEquation():
                 EDCoeff[Mol.Name] = pd.read_csv(FileName, delimiter=',', skiprows=2, header=None, engine='python')
                 EDCoeff[Mol.Name].columns = Columns
                 EDCoeff[Mol.Name] = EDCoeff[Mol.Name].to_records(index=False)
-        return {'EnergyDepCoeff': EDCoeff}
+        return {'EnergyDeplCoeff': EDCoeff}
 
     def read_taus(self, ProcCode):
         Taus    = {}
@@ -152,9 +151,8 @@ class MasterEquation():
         KGlobal = {}
         Columns = ['T']
         for j in ('Eq', 'QSS'):
-            Columns = Columns + [f'Diss_{j}']
             for i, k in enumerate(self.ProcNames):
-                if i > 1 and ProcBool[i]:
+                if (i == 0 or i > 1) and self.System.Processes.NMaxProc-1 >= i:
                     Columns = Columns + [f'{k}_{j}']
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in KGlobal:
@@ -166,9 +164,9 @@ class MasterEquation():
 
     def read_thermalrates(self, ProcCode, ProcBool):
         KTh     = {}
-        Columns = ['T', 'Diss']
+        Columns = ['T']
         for i, k in enumerate(self.ProcNames):
-            if i > 1 and ProcBool[i]:
+            if (i == 0 or i > 1) and self.System.Processes.NMaxProc-1 >= i:
                 Columns = Columns + [k]
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in KTh:
@@ -193,21 +191,16 @@ class MasterEquation():
         return {'Energies': E}
 
     def compute_mass_depletion(self, Data, DepPerc=0.5):
-        # Delay = (t_SurQCT - t_QCT)/t_QCT
         DepTime = {}
-        Time    = Data['t']
+        Time    = np.log(Data['t']+1.e-20)
         for iMol, Mol in enumerate(self.System.Molecules):
             if Mol.Name not in DepTime:
                 # Molar fraction
                 MoleFrac = Data[f'X_{Mol.Name}']
-                # Percentage molar fraction
-                MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[0] - MoleFrac[-1]))
-                TimeIdx  = np.argmin(np.abs(MolePerc - DepPerc))
-                # Deltas
-                DeltaT   = Time[TimeIdx] - Time[TimeIdx-1]
-                DeltaM   = np.abs(MoleFrac[TimeIdx] - MoleFrac[TimeIdx-1])
+                # Percentage of molar fraction
+                MolePerc = np.abs((MoleFrac - MoleFrac[0])/(MoleFrac[-1] - MoleFrac[0]))
+                # Cubic spline fit
+                Fit = UnivariateSpline(Time, MolePerc - DepPerc, k=3, s=0)
                 # Depletion time
-                TempM    = DepPerc * np.abs(MoleFrac[0] - MoleFrac[-1])
-                TempM    = TempM - np.abs(MoleFrac[0] - MoleFrac[TimeIdx-1])
-                DepTime[Mol.Name] = Time[TimeIdx-1] + TempM * DeltaT / DeltaM
-        return {'MassDepTime': DepTime}
+                DepTime[Mol.Name] = np.exp(Fit.roots().squeeze())
+        return {'MassDeplTime': DepTime}

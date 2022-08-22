@@ -1,9 +1,8 @@
 import tensorflow as tf
 
-from pycomet.utilities.model import activations
-from pycomet.utilities.model import initializers
-from pycomet.utilities.model import regularizers
+from pycomet.utilities.model import blocks
 from pycomet.networks.net import Net
+from pycomet.utilities import utils
 
 
 @tf.keras.utils.register_keras_serializable(package='PyCOMET', name='FFNN')
@@ -15,65 +14,61 @@ class FFNN(Net):
     def __init__(
         self,
         dim,
-        layer_size,
-        activation,
-        kernel_initializer,
-        regularization=None,
-        dropout_rate=0,
-        batch_norm=None,
-        weight_norm=False,
-        block='FFBlock',
-        block_linear_out=True,
-        name='ffnn',
+        lays_propty,
         *args,
         **kwargs
     ):
         super(FFNN, self).__init__(
             dim=dim,
-            block=block,
-            block_linear_out=block_linear_out,
-            name=name,
             *args,
             **kwargs
         )
-        
-        ### Hyperparameters Initialization ------------------------------------
-        self.layer_size = layer_size
-        self.activation = activations.get(activation)
-        self.kernel_initializer = initializers.get(kernel_initializer)
-        self.dropout_rate = dropout_rate
-        self.batch_norm = batch_norm
-        self.weight_norm = weight_norm
-
-        if regularization is not None:
-            self.regularizer = regularizers.get(**regularization)
-        else:
-            self.regularizer = regularization
-
-        ### Layers Initialization ---------------------------------------------
-        self.hidden_blk = self.block(
-            self.layer_size,
-            self.activation,
-            self.kernel_initializer,
-            regularizer=self.regularizer,
-            dropout_rate=self.dropout_rate,
-            batch_norm=self.batch_norm,
-            weight_norm=self.weight_norm,
-            linear_out=self.block_linear_out
+        # Layers
+        self.lays_name = ('input', 'hidden_block', 'output')
+        self.lays_propty = self.check_layers(
+            layers=lays_propty, not_opt=['hidden_block']
         )
+        # Initializing
+        self.init_layers()
+
+    # Layers initialization
+    ###########################################################################
+    def init_layers(self):
+        for identifier in self.lays_name:
+            if identifier in ('input', 'output'):
+                self.init_inout_lay(identifier)
+            elif identifier == 'hidden_block':
+                self.init_block_lay(identifier)
+
+    def init_inout_lay(self, identifier):
+        # Initializing default properties
+        _propty = {
+            'xform': None
+        }
+        if self.lays_propty[identifier] is not None:
+            # Initializing layer
+            propty = self.lays_propty[identifier]
+            for k, v in propty.items():
+                if k in ('xform',):
+                    _propty[k] = v
+        self.active_lays[identifier] = _propty
+
+    def init_block_lay(self, identifier):
+        # Initializing properties
+        propty = self.lays_propty[identifier]
+        # Initializing block
+        blk = 'FFBlock' if 'block_type' not in propty else propty['block_type']
+        blk = blk if callable(blk) else utils.get_class(blocks, blk)
+        if 'block_type' in propty:
+            propty.pop('block_type')
+        self.active_lays[identifier] = blk(**propty)
 
     # Configuration update
     ###########################################################################
     def get_config(self):
         config = {
-            'layer_size': self.layer_size,
-            'activation': self.activation,
-            'kernel_initializer': self.kernel_initializer,
-            'regularizer': self.regularizer,
-            'dropout_rate': self.dropout_rate,
-            'batch_norm': self.batch_norm,
-            'weight_norm': self.weight_norm,
-            'hidden_blk': self.hidden_blk
+            'lays_name': self.lays_name,
+            'lays_propty': self.lays_propty
         }
         base_config = super(FFNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -84,22 +79,16 @@ class FFNN(Net):
 
     # Calling
     ###########################################################################
-    def call(
-        self,
-        x,
-        training=False
-    ):
-        # Inputs manipulation -------------------------------------------------
-        y = x
-        if self.inp_trans is not None:
-            y = self.inp_trans(y)
+    def call(self, x, training=False):
+        # Inputs manipulation
+        x = self._manipulate_inout(x, identifier='input')
+        # Kernel
+        y = self.active_lays['hidden_block'](x, training=training)
+        # Outputs manipulation
+        y = self._manipulate_inout(y, identifier='output')
+        return y
 
-        # Kernel --------------------------------------------------------------
-        # Block Hidden Layer
-        y = self.hidden_blk(y, training=training)
-
-        # Outputs manipulation ------------------------------------------------
-        if self.out_trans is not None:
-            y = self.out_trans(y)
-
+    def _manipulate_inout(self, y, identifier):
+        if self.active_lays[identifier]['xform'] is not None:
+            y = self.active_lays[identifier]['xform'](y)
         return y

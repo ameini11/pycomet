@@ -48,34 +48,42 @@ def get_parser(subparsers):
 def _main(args=None, InputData=None):
 
     utils.print_main(
-        f"Initializing '{InputData.SystemName}' chemical system ..."
+        f"Initializing '{InputData.SystemName}' chemical system ...", start=''
     )
-    System = syst.get_system(
+    system = syst.get_system(
         NameLong=InputData.SystemName,
-        ProcNames=InputData.RatesType,
         KinSource=InputData.KinSource,
-        PathToHDF5File=cfg.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
+        ProcNames=InputData.RatesType,
+        PathToHDF5Fld=cfg.paths.HDF5Dtb + '/' + InputData.KinSource + '/' + InputData.SuffixHDF5
     )
     # Reading rates
-    utils.print_main("Reading rates ...")
-    syst.read_rates(TTranVec=InputData.TTranVec)
+    utils.print_main(
+        "Reading rates from "
+        f"'{os.path.abspath(system.Processes.PathToHDF5File)}'..."
+    )
+    system.Processes.read_rates(TTranVec=InputData.TTranVec)
     # Reading rates masking
-    if InputData.PathToRatesMaskingHDF5 is not None
-        utils.print_main("Reading rates masking ...")
-        syst.read_ratesmasking(
+    if InputData.PathToRatesMaskingHDF5 is not None:
+        utils.print_main(
+            "Reading rates masking from "
+            f"'{os.path.abspath(InputData.PathToRatesMaskingHDF5)}'..."
+        )
+        system.Processes.read_rates(
             TTranVec=InputData.TTranVec,
+            Group='RatesMasking',
             PathToHDF5File=InputData.PathToRatesMaskingHDF5
         )
     # Reading rates
     utils.print_main("Writing thermo files to database ...")
-    for Comp in syst.Components:
-        Comp.create_thermofile()
+    ThermoDtb = cfg.paths.MERuns + '/database/thermo/' + system.NameLong
+    for Comp in system.Components:
+        Comp.create_thermofile(ThermoDtb)
     # Reading rates
     utils.print_main("Writing kinetic files to database ...")
-    syst.write_rates(
+    system.Processes.write_rates(
         TTranVec=InputData.TTranVec,
         SuffixName=InputData.SuffixName,
-        MinValueRate=InputData.MinValueRate
+        MinRateValue=InputData.MinRateValue
     )
 
 

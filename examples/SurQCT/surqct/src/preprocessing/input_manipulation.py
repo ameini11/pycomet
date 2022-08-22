@@ -5,21 +5,25 @@ import numpy as np
 
 # Manipulate diatomic potential data
 ###############################################################################
-def manipulate_diatdata(DiatData, RefValue, NormValue):
-    # Shifting energies w.r.t. the reference value
-    for k in ('EInt', 'VMin', 'VMax'):
-        DiatData[k] = (DiatData[k] - RefValue)
+def manipulate_diatdata(DiatData, RefValue, NormValue, LogBase='e'):
 
-    # Taking differences
-    keys = ('rOut','rIn','rMax','rMin')
+    # Shifting/Scaling energies
+    for k in ('EInt', 'EVib', 'ERot', 'VMin', 'VMax'):
+        DiatData[k] = (DiatData[k] - RefValue) / NormValue
+
+    # Deltas/Ratios
+    keys = ('rOut', 'rIn', 'rMax', 'rMin')
     for k1 in keys:
         for k2 in keys:
             if k1 != k2:
+                # Delta
                 DiatData[k1+'-'+k2] = DiatData[k1] - DiatData[k2]
-
-    # Scaling variables w.r.t. the normalizing value
-    for k in ('EInt','EVib','ERot','VMin','VMax'):
-        DiatData[k] = DiatData[k] / NormValue
+                # Ratio
+                DiatData_k2 = DiatData[k2]
+                if not (DiatData_k2 > 0).all():
+                    amin = np.amin(DiatData_k2[DiatData_k2 > 0])
+                    DiatData_k2 = DiatData_k2 + amin * 1.e-2
+                DiatData[k1+'/'+k2] = DiatData[k1] / DiatData_k2
     
     rMin, rMax = np.amin(DiatData['rMin']), np.amax(DiatData['rMax'])
     for k in ('rIn','rOut','rMin','rMax'):
@@ -36,7 +40,8 @@ def manipulate_diatdata(DiatData, RefValue, NormValue):
             else:
                 data_temp = DiatData[k]
             DiatData['log_'+k] = np.log(data_temp)
-            # DiatData['log_'+k] = np.log10(data_temp)
+            if LogBase != 'e':
+                DiatData['log_'+k] = DiatData['log_'+k]/np.log(float(LogBase))
 
     return DiatData
 
@@ -77,7 +82,7 @@ def get_modified_diatdata(InputData, System):
             else:
                 NormValue       = NormValue[iMol]
             ModifiedDiatData[Mol.Name]  = manipulate_diatdata(
-                copy.deepcopy(Mol.DiatData), RefValue, NormValue
+                copy.deepcopy(Mol.DiatData), RefValue, NormValue, InputData.LogBase
             )
     return ModifiedDiatData
 
@@ -88,6 +93,10 @@ def save_modified_diatdata(InputData, System, ModifiedDiatData):
             file = file + '_' + v
         else:
             file = file + '_None'
+    if InputData.LogBase == 'e':
+        file = file + '_ln'
+    else:
+        file = file + f'_log{int(InputData.LogBase)}'
     for name, data in ModifiedDiatData.items():
         path = InputData.PathToLevelsFld + f'/{System.NameLong}/{name}/'
         if not os.path.exists(path):

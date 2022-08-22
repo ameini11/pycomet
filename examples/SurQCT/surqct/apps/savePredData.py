@@ -13,13 +13,17 @@ NAME = 'savePredData'
 import os
 import sys
 import argparse
+import tensorflow as tf
 
 from surqct import config as cfg
-from surqct.apps import functions as fun
+from pycomet.apps import functions as pcm_fun
+from surqct.apps import functions as sqct_fun
 
-from surqct.src.utilities import utils
+from pycomet.utilities import utils as pcm_utils
+from surqct.src.utilities import utils as sqct_utils
 from surqct.src.rates_type import rates_type
 from surqct.src.chemical_systems import systems as syst
+from surqct.src.rates_type.rates_type import RatesType
 
 
 # Parse arguments
@@ -37,7 +41,7 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=fun.dir_path,
+        type=sqct_fun.dir_path,
         default="./",
         help='path to the working directory containing `InputData.py`'
     )
@@ -47,76 +51,82 @@ def get_parser(subparsers):
 # Main
 ###############################################################################
 def _main(args=None, InputData=None):
-
-    for RatesType in tf.nest.flatten(InputData.RatesType):
-        utils.print_main(
-            f"Generating rates matrix for '{InputData.RatesType}' process",
-            start=''
-        )
-        wd = InputData.PathToModelFld[RatesType]
+    sqct_utils.print_main("Generating rates matrix", start='')
+    
+    for i, iRatesType in enumerate(tf.nest.flatten(InputData.RatesType)):
+        wd = InputData.PathToModelFld[iRatesType]
 
         # PyCOMET model
         #######################################################################
         os.chdir(wd)
-        utils.print_main("Initializing PyCOMET ...")
+        sqct_utils.print_main(
+            f"Initializing PyCOMET model for '{iRatesType}' process ..."
+        )
 
         # Add modules ---------------------------------------------------------
-        sys.path.append(wd)
-        # Input module
-        import inputs
-        print(inputs.__file__)
+        sys.path.insert(0, wd)
+        if i == 0:
+            import inputs
+        else:
+            inputs = pcm_utils.reload_mod(mod_names=['inputs'])[0]
+        
+        # Check dropout
+        if InputData.Dropout:
+            from inputs.network import common, lays_propty
+            common['dropout_kwargs'].update({'permanent': True})
+            for k in lays_propty.keys():
+                if 'dropout_kwargs' in lays_propty[k].keys():
+                    lays_propty[k]['dropout_kwargs'] = common['dropout_kwargs']
+            setattr(inputs.network, 'lays_propty', lays_propty)
+        
+        # Check flags
         from inputs.general import flags
-
-        # Check flags ---------------------------------------------------------
         for k in ('train', 'save'):
             flags[k] = 0
-        flags['load'] = 1
+        flags['load'] = 2#1
         if flags['load'] not in (1, 2):
-            utils.raise_value_err(
+            sqct_utils.raise_value_err(
                 "The network has to be restored from a saved or a checkpointed "
                 "one. Modified the 'load' entry in the `flags` input variable."
             )
 
         # Network -------------------------------------------------------------
-        net = pycomet_fun._net(
+        net = pcm_fun._net(
             input_mod=inputs
         )
 
         # Model ---------------------------------------------------------------
-        model = pycomet_fun._model(
+        model = pcm_fun._model(
             flags=flags,
             input_mod=inputs,
             net=net
         )
-        
+
         # SurQCT model
         #######################################################################
-        utils.print_main(f"Initializing SurQCT ...")
-
         # Initializing chemical system ----------------------------------------
-        utils.print_main(
-            f"Initializing '{InputData.SystemName}' chemical system ..."
+        sqct_utils.print_main(
+            f"Initializing '{InputData.SystemName}' chemical system and rates type ...",
         )
         system = syst.get_system(
             NameLong=InputData.SystemName,
-            ProcNames=RatesType
+            ProcNames=iRatesType
         )
-        # Initializing rates type module
-        rates_type_mod = rates_type.get_rates_type_mod(system)
+        rates_type = RatesType(system, InputData)
 
         # Saving data
         #######################################################################
-        rates_type_mod.save_predictiondata(
-            InputData=InputData,
-            System=system,
+        rates_type.save_predictiondata(
             Model=model.net,
-            Columns=inputs.data.columns['x']
+            Columns=inputs.data.columns['x'],
+            RatesType=iRatesType,
+            FinalVerFld=InputData.FinalVerFld
         )
 
-        del sys.path[-1], model, net
+        del inputs, net, model, sys.path[0]
 
 
-@utils.app_decorator()
+@sqct_utils.app_decorator()
 def main(args):
     
     os.chdir(args.dir)

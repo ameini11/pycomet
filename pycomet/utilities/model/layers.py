@@ -2,7 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-# import tensorflow.python.keras.layers as tf_layers
 import tensorflow.keras.layers as tf_layers
 
 from tensorflow.python.framework import dtypes
@@ -238,7 +237,8 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
     ###########################################################################
     def __init__(
         self,
-        file=None,
+        mu_sigma_file=None,
+        data_files=None,
         columns=None,
         header=0,
         preproc_fn=None,
@@ -251,7 +251,8 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
         super(Normalization, self).__init__(
             axis=axis, mean=mean, variance=variance, **kwargs
         )
-        self.file = file
+        self.mu_sigma_file = mu_sigma_file
+        self.data_files = data_files
         self.columns = columns
         self.header = header
         self.preproc_fn = preproc_fn
@@ -260,9 +261,11 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
     def build(self, input_shape):
         if self.mean_val is None and self.variance_val is None:
             self.saved_file = self.save_dir + self.name + '_mu_sigma.txt'
-            if os.path.exists(self.saved_file):
-                self.read_mu_sigma()
-            elif self.file is not None:
+            if self.mu_sigma_file is not None and os.path.exists(self.mu_sigma_file):
+                self.read_mu_sigma(file=self.mu_sigma_file)
+            elif os.path.exists(self.saved_file):
+                self.read_mu_sigma(file=self.saved_file)
+            elif self.data_files is not None:
                 self.compute_mu_sigma()
         super(Normalization, self).build(input_shape)
 
@@ -293,24 +296,18 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
             indeces = col
         return np.take(df, indeces, axis=1)
 
-    # def read_dataframe(self, df, col):
-    #     if any(isinstance(i, (list,tuple)) for i in col):
-    #         return [df[:,col[i][0]:col[i][1]] for i in range(len(col))]
-    #     else:
-    #         return df[:,col[0]:col[1]]
-
     # Handling mean and variance ----------------------------------------------
     def compute_mu_sigma(self):
         utils.print_submain(
             f"Computing mean and variance of layer '{self.name}'"
         )
-        data = self.read_datafile(self.file)
+        data = self.read_datafile(self.data_files)
         self.mean_val, self.variance_val = tf.nn.moments(data, axes=0)
         array = np.vstack((self.mean_val, self.variance_val))
         np.savetxt(self.saved_file, array, fmt='%1.10e')
 
-    def read_mu_sigma(self):
-        array = np.loadtxt(self.saved_file)
+    def read_mu_sigma(self, file):
+        array = np.loadtxt(file)
         self.mean_val = array[0]
         self.variance_val = array[1]
 
@@ -635,3 +632,38 @@ class Equilibrium(tf_layers.Layer):
         if self.reaction == 'diss':
             for transPF_ in self.transPF.values():
                 transPF_.update(T)
+
+
+# =========================================================================== #
+# Permanent Dropout Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Dropout')
+class Dropout(tf_layers.Dropout):
+
+    def __init__(
+        self,
+        rate,
+        noise_shape=None,
+        seed=None,
+        permanent=False,
+        **kwargs
+    ):
+        super(Dropout, self).__init__(
+            rate=rate,
+            noise_shape=noise_shape,
+            seed=seed,
+            **kwargs
+        )
+        self.permanent = permanent
+
+    def call(self, inputs, training=None):
+        if self.permanent:
+            training = True
+        return super(Dropout, self).call(inputs, training)
+
+    def get_config(self):
+        config = {
+            'permanent': self.permanent
+        }
+        base_config = super(Dropout, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

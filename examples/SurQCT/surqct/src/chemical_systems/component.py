@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from surqct import config as cfg
 from surqct.src.utilities import utils
 from surqct.src.utilities import const
 
@@ -49,10 +50,9 @@ class Atom(Component):
         self.g      = np.array([self.ElecDeg])
         self.EInt   = np.zeros(1)
 
-    def create_thermofile(self):
-        ThermoFile = cfg.MERuns + '/database/thermo/' + self.System.NameLong + '/' + self.Name
+    def create_thermofile(self, ThermoDtb):
         self.get_g_EInt()
-        file = open(ThermoFile, 'w')
+        file = open(ThermoDtb + '/' + self.Name, 'w')
         file.write('#------------------------------------------\n')
         file.write('#Species file for ' + self.Name +         '\n')
         file.write('#------------------------------------------\n')
@@ -81,7 +81,7 @@ class Atom(Component):
         file.write('                                           \n')
         file.write('#------------------------------------------\n')
         file.write('#Nuclear charge (or atomic number)         \n')
-        file.write('NUCLEAR_CHARGE = %d\n' % self.LinFactor       )
+        file.write('NUCLEAR_CHARGE = %d\n' % self.NuclearCharge   )
         file.write('                                           \n')
         file.write('#------------------------------------------\n')
         file.write('#Ionization potential [eV]                 \n')
@@ -97,10 +97,6 @@ class Atom(Component):
         file.write('#------------------------------------------\n')
         file.write('#Polarizability [A^3]                      \n')
         file.write('POLAR = %.8e\n' % self.Polar                  )
-        file.write('                                           \n')
-        file.write('#------------------------------------------\n')
-        file.write('#Symmetry factor                           \n')
-        file.write('SYM = %.2e\n' % self.SymmFactor               )
         file.write('                                           \n')
         file.write('#------------------------------------------\n')
         file.write('#Thermal model for internal energy         \n')
@@ -147,7 +143,9 @@ class Molecule(Component):
         for k in ('EInt','EVib','ERot'):
             self.DiatData[k+'0']  = self.DiatData[k] - np.amin(self.DiatData[k])
 
-    def get_g_E(self):
+        self.get_g_EInt()
+
+    def get_g_EInt(self):
         self.g      = self.DiatData['g'].to_numpy()
         self.EInt   = self.DiatData['EInt0'].to_numpy()
 
@@ -199,10 +197,9 @@ class Molecule(Component):
 
         f.close()
 
-    def create_thermofile(self):
-        ThermoFile = cfg.MERuns + '/database/thermo/' + self.System.NameLong + '/' + self.Name
+    def create_thermofile(self, ThermoDtb):
         self.get_g_EInt()
-        file = open(ThermoFile, 'w')
+        file = open(ThermoDtb + '/' + self.Name, 'w')
         file.write('#------------------------------------------\n')
         file.write('#Species file for ' + self.Name +         '\n')
         file.write('#------------------------------------------\n')

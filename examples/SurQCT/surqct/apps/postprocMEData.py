@@ -27,7 +27,7 @@ def get_parser(subparsers):
     parser = subparsers.add_parser(
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Postprocess MCoarseAir data and 0D master equation solution.",
+        description="Postprocess MCoarseAIR data and 0D master equation solution.",
         epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',
@@ -48,21 +48,23 @@ def get_parser(subparsers):
 def _main(args=None, InputData=None):
 
     utils.print_main(
-        f"Initializing '{InputData.SystemName}' chemical system ..."
+        f"Initializing '{InputData.SystemName}' chemical system ...", start=''
     )
-    System = syst.get_system(
+    system = syst.get_system(
         NameLong=InputData.SystemName,
         KinSource=InputData.KinSource
     )
 
-    utils.print_main("Postprocessing Master Equation solution ...")
-    System.MasterEquation.postprocess_data(CaseSuffix=InputData.SuffixName)
+    utils.print_main(
+        "Postprocessing master equation solution ..."
+    )
+    system.MasterEquation.postprocess_data(CaseSuffix=InputData.SuffixName)
 
     utils.print_main(
-        "Saving postprocessed Master Equation data in "
-        f"{System.MasterEquation.MEPath}..."
+        "Saving postprocessed master equation data in "
+        f"'{os.path.abspath(system.MasterEquation.MEPath)}/MEData.hdf5' ..."
     )
-    System.MasterEquation.save_data()
+    system.MasterEquation.save_data()
 
 
 @utils.app_decorator()

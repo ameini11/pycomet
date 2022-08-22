@@ -11,20 +11,18 @@ def read_levelsinfo(
     TTranVec,
     Modes=['Int']
 ):
-    utils.print_submain(f'Reading Variables {InputData.xDiatVars}')
+    utils.print_submain(f'Reading Variables {InputData.InpDiatVars}')
     for Mol in System.Molecules:
-        Mol.LevelsData  = read_levelsdata(InputData.PathToLevelsFile[Mol.Name], InputData.xDiatVars)
+        Mol.LevelsData = read_levelsdata(InputData.PathToLevelsFile[Mol.Name], InputData.InpDiatVars)
         Mol.compute_partition_fn(TTranVec, Modes)
 
 def read_levelsdata(
     DataFile,
-    xVarsVec
+    InpDiatVars
 ):
-    xMat = pd.read_csv(DataFile, header=0, skiprows=0)
-    xMat = xMat.astype('float64')
-    xMat = xMat[xVarsVec]
-
-    return xMat
+    X = pd.read_csv(DataFile, header=0, skiprows=0)
+    X = X.astype('float64')
+    return X[InpDiatVars]
 
 # Reading Levels-to-Group Mapping
 def read_sampledinitiallevels_grouping(
@@ -46,18 +44,21 @@ def read_sampledinitiallevels(
 ):
     if TTran is not None:
         PathToSampledLevels = PathToSampledLevels + str(int(TTran)) + 'K.csv'
-    utils.print_submain(f'Reading Sampled Initial Levels List from File {PathToSampledLevels}', delimiter='    ')
+    utils.print_submain(f'Reading Sampled Initial Levels List from File {PathToSampledLevels}')
 
-    iIdxVec             = pd.read_csv(PathToSampledLevels, header=0)
-    iIdxVec             = np.squeeze(iIdxVec.to_numpy())
+    iIdxVec = pd.read_csv(PathToSampledLevels, header=0)
+    iIdxVec = iIdxVec.to_numpy().reshape(-1)
   
     return iIdxVec
 
 # Reading Input Columns
-def read_inputcolumns(Array, Columns):
-    if isinstance(Array, pd.DataFrame):
-        Array = Array.to_numpy()
-    if any(isinstance(c, (list,tuple)) for c in Columns):
-        return [np.take(Array, c, axis=1) for c in Columns]
+def extract_columns(array, columns=None):
+    if isinstance(array, pd.DataFrame):
+        array = array.to_numpy()
+    if columns is not None:
+        if any(isinstance(c, (list,tuple)) for c in columns):
+            return [np.take(array, c, axis=1) for c in columns]
+        else:
+            return np.take(array, columns, axis=1)
     else:
-        return np.take(Array, Columns, axis=1)
+        return array
