@@ -22,6 +22,10 @@ def get_callback(model, identifier, kwargs):
             return cb.EarlyStopping(**kwargs)
         elif identifier == "lr_scheduler":
             return utils.get_class(learning_rate, kwargs=kwargs)
+        elif identifier == "reduce_lr_on_plateau":
+            return learning_rate.ReduceLROnPlateau(
+                **kwargs
+            )
         elif identifier == "lr_tracker":
             return learning_rate.LearningRateTracker(
                 file=model.dir['train']+'/lr.csv',

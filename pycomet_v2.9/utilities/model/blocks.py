@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_addons.layers as tfa_layers
 import tensorflow.python.keras.layers as tf_layers
 
+from pycomet.utilities.model import layers as pcm_layers
 from pycomet.utilities.model import activations
 from pycomet.utilities.model import initializers
 from pycomet.utilities.model import regularizers
@@ -29,7 +30,7 @@ class MultiLayerBlock(tf_layers.Layer):
         regularizer=None,
         weight_norm=False,
         batch_norm=None,
-        dropout_rate=0,
+        dropout_kwargs=dict(rate=0.),
         name='multi_layer_block',
         **kwargs
     ):
@@ -49,7 +50,7 @@ class MultiLayerBlock(tf_layers.Layer):
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.regularizer = regularizers.get(**regularizer)
         self.weight_norm = weight_norm
-        self.dropout_rate = dropout_rate
+        self.dropout_kwargs = dropout_kwargs
 
         ### Layers Initialization ---------------------------------------------
         self.lays = []
@@ -71,9 +72,12 @@ class MultiLayerBlock(tf_layers.Layer):
                 tf_layers.BatchNormalization(name=self.name+'_batchNorm')
             )
 
-        if self.dropout_rate > 0:
+        if self.dropout_kwargs['rate'] > 0.:
             self.lays.append(
-                tf_layers.Dropout(self.dropout_rate, name=self.name+'_dropout')
+                pcm_layers.Dropout(
+                    **dropout_kwargs,
+                    name=self.name+'_dropout'
+                )
             )
 
     # Configuration update
@@ -87,7 +91,7 @@ class MultiLayerBlock(tf_layers.Layer):
             'kernel_initializer': self.kernel_initializer,
             'regularizer': self.regularizer,
             'weight_norm': self.weight_norm,
-            'dropout_rate': self.dropout_rate,
+            'dropout_kwargs': self.dropout_kwargs,
             'lays': self.lays
         }
         base_config = super(MultiLayerBlock, self).get_config()
@@ -105,7 +109,7 @@ class MultiLayerBlock(tf_layers.Layer):
             y = self.activation(self.lays[1](y, training=training))
         elif self.batch_norm == "after":
             y = self.lays[1](y, training=training)
-        if self.dropout_rate > 0:
+        if self.dropout_kwargs['rate'] > 0.:
             y = self.lays[-1](y, training=training)
         return y
 
@@ -226,7 +230,7 @@ class FFBlock(tf_layers.Layer):
         activation=['linear'],
         kernel_initializer=None,
         regularizer=None,
-        dropout_rate=0,
+        dropout_kwargs=dict(rate=0.),
         batch_norm=None,
         weight_norm=False,
         name='ff_block',
@@ -239,7 +243,7 @@ class FFBlock(tf_layers.Layer):
         self.activation = activation
         self.kernel_initializer = kernel_initializer
         self.regularizer = regularizer
-        self.dropout_rate = dropout_rate
+        self.dropout_kwargs = dropout_kwargs
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
         # Checking
@@ -264,7 +268,7 @@ class FFBlock(tf_layers.Layer):
                 regularizer=self.regularizer,
                 weight_norm=self.weight_norm,
                 batch_norm=self.batch_norm,
-                dropout_rate=self.dropout_rate,
+                dropout_kwargs=self.dropout_kwargs,
                 name=names[i]
             ) for i in range(len(self.layer_size)-1)
         ]
@@ -277,7 +281,7 @@ class FFBlock(tf_layers.Layer):
             'activation': self.activation,
             'kernel_initializer': self.kernel_initializer,
             'regularizer': self.regularizer,
-            'dropout_rate': self.dropout_rate,
+            'dropout_kwargs': self.dropout_kwargs,
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm
         }
@@ -321,7 +325,7 @@ class ResPIBlock(FFBlock):
         uv_activation=['sigmoid','sigmoid'],
         kernel_initializer=None,
         regularizer=None,
-        dropout_rate=0,
+        dropout_kwargs=dict(rate=0.),
         batch_norm=None,
         weight_norm=False,
         name='res_pi_block',
@@ -332,7 +336,7 @@ class ResPIBlock(FFBlock):
             activation=activation,
             kernel_initializer=kernel_initializer,
             regularizer=regularizer,
-            dropout_rate=dropout_rate,
+            dropout_kwargs=dropout_kwargs,
             batch_norm=batch_norm,
             weight_norm=weight_norm,
             name=name,
@@ -357,7 +361,7 @@ class ResPIBlock(FFBlock):
                 regularizer=self.regularizer,
                 weight_norm=self.weight_norm,
                 batch_norm=self.batch_norm,
-                dropout_rate=self.dropout_rate,
+                dropout_kwargs=self.dropout_kwargs,
                 name=name
             ) for i, name in enumerate(('U', 'V'))
         ]
@@ -475,7 +479,7 @@ class PreNetBlock(FFBlock):
         activation=['linear'],
         kernel_initializer=None,
         regularizer=None,
-        dropout_rate=0,
+        dropout_kwargs=dict(rate=0.),
         batch_norm=None,
         weight_norm=False,
         out_xform=None,
@@ -517,7 +521,7 @@ class PreNetBlock(FFBlock):
             activation=activation,
             kernel_initializer=kernel_initializer,
             regularizer=regularizer,
-            dropout_rate=dropout_rate,
+            dropout_kwargs=dropout_kwargs,
             batch_norm=batch_norm,
             weight_norm=weight_norm,
             name=name,
