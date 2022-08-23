@@ -1,0 +1,30 @@
+import os
+import gc
+import random
+import numpy as np
+import tensorflow as tf
+
+
+def kill_process():
+    """Send terminating signal to job `pid`."""
+    os.kill(os.getpid(), signal.SIGTERM)
+
+def close_all_hdf5():
+    """Close all opened hdf5 files."""
+    for obj in gc.get_objects():        # Browse through all objects
+        if isinstance(obj, h5py.File):  # Just HDF5 files
+            try:
+                obj.close()
+            except:
+                pass
+
+def set_seed(seed=None):
+    if seed is not None:
+        os.environ['PYTHONHASHSEED'] = str(seed)
+        random.seed(seed)
+        tf.random.set_seed(seed)
+        np.random.seed(seed)
+
+def set_num_threads(n):
+    tf.config.threading.set_inter_op_parallelism_threads(n)
+    tf.config.threading.set_intra_op_parallelism_threads(n)

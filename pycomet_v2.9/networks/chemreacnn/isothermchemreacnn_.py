@@ -30,10 +30,11 @@ class IsoThermChemReacNN(Net):
         batch_norm=None,
         weight_norm=False,
         opnn_end_scale='bias',
-        stacked_blocks={"branch": True, "trunk": False},
+        stacked=True,
         block='FFBlock',
         block_linear_out=True,
-        shifter=None,
+        cross_encoder=False,
+        cross_encoder_layer_size=None,
         augmented=False,
         name='isothermchemreacnn',
         *args,
@@ -50,7 +51,7 @@ class IsoThermChemReacNN(Net):
 
         ### Physical Quantities -----------------------------------------------
         self.groups_graph = groups_graph
-        self.TS = utils.depth(self.groups_graph)
+        self.TS = utils.compute_dict_depth(self.groups_graph)
         if len(names) != self.TS+1:
             utils.raise_value_err(
                 "The number of `names` passed into `{}` "
@@ -82,14 +83,15 @@ class IsoThermChemReacNN(Net):
         self.dropout_rate = dropout_rate
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
-        self.stacked_blocks = stacked_blocks
-        self.shifter = utils.value_to_dict(shifter, self.names)
+        self.cross_encoder = cross_encoder
+        self.cross_encoder_layer_size = cross_encoder_layer_size
         self.augmented = augmented
 
         ### TimeScaleNNs Initialization ---------------------------------------
         self.sub_nets = ("branch", "trunk")
         self.tsnn_dim = tsnn_dim
         self.opnn_end_scale = utils.value_to_dict(opnn_end_scale, self.names)
+        self.stacked = stacked
         self.timescales = [
             TimeScaleNN(
                 **self.ts_thermochem[name],
@@ -105,10 +107,11 @@ class IsoThermChemReacNN(Net):
                 batch_norm=self.batch_norm,
                 weight_norm=self.weight_norm,
                 opnn_end_scale=self.opnn_end_scale[name],
-                stacked_blocks=self.stacked_blocks,
+                stacked=self.stacked,
                 block=self.block,
                 block_linear_out=self.block_linear_out,
-                shifter=self.shifter[name],
+                cross_encoder=self.cross_encoder,
+                cross_encoder_layer_size=self.cross_encoder_layer_size,
                 augmented=self.augmented,
                 name=name
             ) for i, name in enumerate(self.names)
@@ -132,8 +135,9 @@ class IsoThermChemReacNN(Net):
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
             'opnn_end_scale': self.opnn_end_scale,
-            'stacked_blocks': self.stacked_blocks,
-            'shifter': self.shifter,
+            'stacked': self.stacked,
+            'cross_encoder': self.cross_encoder,
+            'cross_encoder_layer_size': self.cross_encoder_layer_size,
             'augmented': self.augmented
         }
         base_config = super(IsoThermChemReacNN, self).get_config()
@@ -149,43 +153,43 @@ class IsoThermChemReacNN(Net):
         self,
         x,
         training=False,
-        neq_mask=None
+        mask=None,
+        noneq_factor=False,
+        max_ts=None
     ):
-        # Inputs manipulation
-        x = self._manipulate_input(x)
-        # Kernel - Timescales NN
-        if training or neq_mask is None:
-            y = [ ts(x, training=training) for ts in self.timescales ]
-        else:
-            y = []
-            for i, ts in enumerate(self.timescales):
-                if i == 0:
-                    y.append(ts(x))
-                else:
-                    y.append(ts(x, neq_mask=neq_mask[i-1]))
-        # Outputs manipulation
-        y = self._manipulate_output(y)
-        return y
 
-    def _manipulate_input(self, x):
+        # Inputs manipulation -------------------------------------------------
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
-        # Inputs transformation
-        if self.inp_trans is not None:
+
+        # Input transformation
+        if self.inp_trans != None:
             for k in self.sub_nets:
                 if isinstance(self.inp_trans, dict):
                     x[k] = self.inp_trans[k](x[k])
                 else:
                     x[k] = self.inp_trans(x[k])
-        # Inputs flattening
-        x = tf.nest.flatten(x)
-        return x
 
-    def _manipulate_output(self, y):
+        # Input flattening
+        x = tf.nest.flatten(x)
+
+        # Kernel - Timescales NN ----------------------------------------------
+        y = []
+        for i, ts in enumerate(self.timescales):
+            y.append(ts(x, training, mask, noneq_factor))
+            if i == max_ts:
+                break
+        if training is False and noneq_factor is True:
+            return y if len(y) > 1 else y[-1]
+        # y = [ ts(x, training, mask, noneq_factor) for ts in self.timescales ]
+        # if training is False and noneq_factor is True:
+        #     return y if len(y) > 1 else y[-1]
+
+        # Outputs manipulation ------------------------------------------------
         if len(y) > 1:
             # Concatenate Timescales NN outputs
             y = [ tf_layers.Concatenate()(y_i) \
@@ -207,6 +211,8 @@ class IsoThermChemReacNN(Net):
                         for ys, yf in zip(y_slow, y_fast) ]
                     y[ts+1] = tf_layers.Concatenate()(y_mul) \
                         if len(y_mul) > 1 else y_mul[-1]
+                if ts+1 == max_ts:
+                    break
             return y
         else:
             return y[-1]

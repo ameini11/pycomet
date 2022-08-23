@@ -80,7 +80,7 @@ class BaseWeightsAdapter(CB.Callback):
                 "  - 'pts': weight for anchor pts loss;\n"
                 "  - 'res': weight for residual loss.".format(self.name)
             )
-        self.multi_obj_loss_weights = utils.convert_struct_to_tf(
+        self.multi_obj_loss_weights = utils.convert_struct_to_tensor(
             self.multi_obj_loss_weights
         )
         for k, w in self.multi_obj_loss_weights.items():

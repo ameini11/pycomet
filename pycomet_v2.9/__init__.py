@@ -2,7 +2,7 @@
 #                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
 #                    Physics-informed machine learning for                    #
-#                scientific computations and operator discovery               #
+#                 scientific computing and operator discovery                 #
 #                                                                             #
 # *************************************************************************** #
 
@@ -13,26 +13,20 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-# TensorFlow 
-###############################################################################
+# TensorFlow ------------------------------------------------------------------
 import os
-from pycomet.config import tf_setup
-from pycomet.config import tf_env
+from pycomet.config import _TF
 
 # Setting verbosity level
-os.environ.update(tf_env)
+os.environ.update(_TF['env'])
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
-# Setting python/keras backends
-from tensorflow.keras import backend as keras_backend
-keras_backend.set_floatx(tf_setup['DTYPE'])
-keras_backend.set_epsilon(tf_setup['EPSILON'])
-from tensorflow.python.keras import backend as python_backend
-python_backend.set_floatx(tf_setup['DTYPE'])
-python_backend.set_epsilon(tf_setup['EPSILON'])
+# Setting python.keras backends
+from tensorflow.python.keras import backend
+backend.set_floatx(_TF['setup']['FLOATX'])
+backend.set_epsilon(_TF['setup']['EPSILON'])
 
-# PyCOMET
-###############################################################################
+# PyCOMET ---------------------------------------------------------------------
 __author__  = "Ivan Zanardi"
 __email__   = "zanardi3@illinois.edu"
 __url__     = "https://github.com/ivanZanardi/pycomet"
@@ -43,17 +37,21 @@ __version__ = "0.0.1"
 from pycomet import apps
 from pycomet import config
 from pycomet import data
-from pycomet import networks
-from pycomet import physics
 from pycomet import model
+from pycomet import networks
+from pycomet import ops
+from pycomet import optimization
 from pycomet import postprocessing
+from pycomet import utils
 
 __all__ = [
     "apps",
     "config",
     "data",
-    "networks",
-    "physics",
     "model",
-    "postprocessing"
+    "networks",
+    "ops",
+    "optimization",
+    "postprocessing",
+    "utils"
 ]

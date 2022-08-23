@@ -156,9 +156,9 @@ def get_args_values(modules, args):
                 break
     return _args
 
-def depth(d):
+def.compute_dict_depth(d):
     if isinstance(d, dict):
-        return 1 + (max(map(depth, d.values())) if d else 0)
+        return 1 + (max(map.compute_dict_depth, d.values())) if d else 0)
     return 0
 
 def value_to_dict(value, keys):
@@ -193,7 +193,7 @@ def zip_dict_of_lists(d):
     return tuple(dict(zip(keys, v)) for v in zip(*(d[k] for k in keys)))
 
 
-def convert_struct_to_tf(x):
+def convert_struct_to_tensor(x):
     return tf.nest.map_structure(
         lambda y: tf.convert_to_tensor(y, dtype=backend.floatx()), x
     )

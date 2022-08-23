@@ -11,7 +11,7 @@ version = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", file, re.M).group(1)
 
 # Description
 description = "Physics-informed machine learning for scientific " \
-    "computations and operator discovery."
+    "computing and operator discovery."
 
 # Dependencies
 with open("requirements.txt", "r") as f:
