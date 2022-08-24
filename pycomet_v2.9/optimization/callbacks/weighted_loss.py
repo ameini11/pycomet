@@ -4,18 +4,18 @@ import itertools
 import numpy as np
 import joblib as jl
 import tensorflow as tf
-import tensorflow.python.keras.backend as K
-import tensorflow.python.keras.callbacks as CB
+import tensorflow.python.keras.callbacks as cb
 import tensorflow.python.keras.initializers as tf_init
 
-from tqdm import tqdm
+from tensorflow.python.keras import backend
 from tensorflow.python.eager import backprop
 from tensorflow.python.util.tf_export import keras_export
-from pycomet.utilities import utils
+from pycomet import utils
+from tqdm import tqdm
 
 
 @keras_export('keras.callbacks.BaseWeightsAdapter')
-class BaseWeightsAdapter(CB.Callback):
+class BaseWeightsAdapter(cb.Callback):
     """Base class for adaptive multi-objective loss weights techniques."""
 
     def __init__(
@@ -41,9 +41,9 @@ class BaseWeightsAdapter(CB.Callback):
 
     # Callback methods --------------------------------------------------------
     def on_train_begin(self, logs={}):
-        utils.print_submain(
+        utils._print(
             "The `{}` callback is used to balance "
-            "the multi-objective loss.".format(self.name)
+            "the multi-objective loss.".format(self.name), lev=1
         )
         # Assign `weighted_loss` class to Keras model
         self.model.weighted_loss = self
@@ -60,7 +60,7 @@ class BaseWeightsAdapter(CB.Callback):
                 "the initial value of 1 will be applied.".format(self.name)
             )
             self.multi_obj_loss_weights = {
-                obj: tf.ones(1, dtype=K.floatx()) \
+                obj: tf.ones(1, dtype=backend.floatx()) \
                     for obj in self.model.objectives['train']
             }
         elif isinstance(self.multi_obj_loss_weights, (list,tuple)):
@@ -120,12 +120,12 @@ class BaseWeightsAdapter(CB.Callback):
                 "are `inf` or `nan`.".format(self.name)
             )
             if self.multi_obj_loss_weights is not None:
-                utils.print_submain(
-                    "Here the `multi_obj_loss_weights` values:"
+                utils._print(
+                    "Here the `multi_obj_loss_weights` values:", lev=1
                 )
                 for k, v in self.multi_obj_loss_weights.items():
-                    utils.print_submain("  - '{}': {}".format(k,v))
-                utils.print_submain("The training will be stopped.")
+                    utils._print("  - '{}': {}".format(k,v), lev=1)
+                utils._print("The training will be stopped.", lev=1)
                 self.model.stop_training = True
 
     # Gradient descent methods ------------------------------------------------
@@ -202,7 +202,7 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
             **kwargs
         )
 
-        self.alpha = tf.cast(tf.clip_by_value(alpha, 0., 1.), K.floatx())
+        self.alpha = tf.cast(tf.clip_by_value(alpha, 0., 1.), backend.floatx())
         self.gradients = {}
         self.dataset = {}
         self.max_samples = max_samples
@@ -251,7 +251,7 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
                     indeces, self.max_samples, replace=False
                 )
             self.dataset[obj] = tf.nest.map_structure(
-                lambda z: tf.convert_to_tensor(z[indeces], dtype=K.floatx()),
+                lambda z: tf.convert_to_tensor(z[indeces], dtype=backend.floatx()),
                 dset
             )
 
@@ -412,13 +412,14 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #         return self.eval_diag_ntk(pred, tape)
 
 #     def eval_diag_ntk(self, pred, tape):
-#         utils.print_submain("From `NTKWeightsAdapter` callback:")
+#         utils._print("From `NTKWeightsAdapter` callback:", lev=1)
 #         ntk = {}
 #         for data_id, pred_i in pred.items():
-#             utils.print_submain("  - Evaluating NTK matrix for `{}` data "
-#                 "points".format(data_id))
+#             utils._print(
+#                 "  - Evaluating NTK matrix for `{data_id}` data points", lev=1
+#             )
 #             ta = tf.TensorArray(
-#                 dtype=K.floatx(),
+#                 dtype=backend.floatx(),
 #                 size=0,
 #                 dynamic_size=True,
 #                 clear_after_read=False
@@ -444,7 +445,6 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #         norm_grad = tf.reduce_sum(list(trace.values())).numpy()
 #         for data_id in self.model.data_ids:
 #             self.model.ode_loss_weights[data_id] = norm_grad / trace[data_id]
-
 
 
 # @keras_export('keras.callbacks.SoftAttentionWeightsAdapter')

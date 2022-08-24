@@ -5,30 +5,28 @@ from pycomet import config as cfg
 
 
 _EPILOG = '\n' + '='*cfg._DISPLAY_LEN + '\n '
+_TABS = np.arange(5)*min(cfg._TAB, 2)
 
 # Printing --------------------------------------------------------------------
-def print_main(text, start='\n', verbose=True, *args, **kwargs):
+def _print(text, start='\n', lev=0, verbose=True, *args, **kwargs):
     if verbose:
-        print(start + cfg._HEADERS['main'] + text, *args, **kwargs)
+        print(
+            start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text, *args, **kwargs
+        )
 
-def print_submain(text, start='', verbose=True, *args, **kwargs):
-    if verbose:
-        print(start + cfg._HEADERS['main'] + '  ' + text, *args, **kwargs)
+def _input(text, start='', lev=0, *args, **kwargs):
+    return input(
+        start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text, *args, **kwargs
+    )
 
-def input_main(text, start='', *args, **kwargs):
-    return input(start + cfg._HEADERS['main'] + text, *args, **kwargs)
-
-def input_submain(text, start='', *args, **kwargs):
-    return input(start + cfg._HEADERS['main'] + '  ' + text, *args, **kwargs)
-
-def warning(text, start='', *args, **kwargs):
+def _warning(text, start='', *args, **kwargs):
     print(start + cfg._HEADERS['warning'] + text, *args, **kwargs)
 
-def raise_value_err(text):
+def _raise_value_err(text):
     message = ''.join([cfg._HEADERS['err'], text])
     raise ValueError(message)
 
-def raise_module_not_found_error(text):
+def _raise_module_not_found_error(text):
     message = ''.join([cfg._HEADERS['err'], text])
     raise ModuleNotFoundError(message)
 

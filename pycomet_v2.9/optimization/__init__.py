@@ -1,8 +1,10 @@
-from pycomet.utilities.training import losses
-from pycomet.utilities.training import metrics
-from pycomet.utilities.training import optimizers
+from pycomet.optimization import callbacks
+from pycomet.optimization import losses
+from pycomet.optimization import metrics
+from pycomet.optimization import optimizers
 
 __all__ = [
+    "callbacks",
     "losses",
     "metrics",
     "optimizers"

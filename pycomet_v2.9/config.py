@@ -12,6 +12,7 @@
 import os
 import pycomet
 
+from numpy import 
 
 # Global ----------------------------------------------------------------------
 _NUM_THREADS = 4
@@ -25,11 +26,14 @@ _HEADERS = {
     'err':     'from '+_NAME+'\n>>> '
 }
 
+_TAB = 2
+
 # TensorFlow ------------------------------------------------------------------
 _TF = {
     'setup': {
         'EPSILON': 1.e-15,
-        'FLOATX': 'float64'
+        'FLOATX': 'float64',
+        'XLA': True
     },
     'env': {
         'TF_CPP_MIN_LOG_LEVEL': '3',

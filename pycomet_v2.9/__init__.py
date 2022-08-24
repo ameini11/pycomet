@@ -21,7 +21,7 @@ from pycomet.config import _TF
 os.environ.update(_TF['env'])
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
-# Setting python.keras backends
+# Setting backend
 from tensorflow.python.keras import backend
 backend.set_floatx(_TF['setup']['FLOATX'])
 backend.set_epsilon(_TF['setup']['EPSILON'])
@@ -31,7 +31,7 @@ __author__  = "Ivan Zanardi"
 __email__   = "zanardi3@illinois.edu"
 __url__     = "https://github.com/ivanZanardi/pycomet"
 __license__ = "Apache-2.0"
-__version__ = "0.0.1"
+__version__ = "0.1"
 
 # Import all modules
 from pycomet import apps
@@ -39,7 +39,7 @@ from pycomet import config
 from pycomet import data
 from pycomet import model
 from pycomet import networks
-from pycomet import ops
+from pycomet import operations
 from pycomet import optimization
 from pycomet import postprocessing
 from pycomet import utils
@@ -50,7 +50,7 @@ __all__ = [
     "data",
     "model",
     "networks",
-    "ops",
+    "operations",
     "optimization",
     "postprocessing",
     "utils"

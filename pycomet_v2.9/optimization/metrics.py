@@ -1,7 +1,7 @@
 import tensorflow.python.keras.metrics as tf_met
 
 from pycomet.utilities.training import losses as losses_module
-from pycomet.utilities import utils
+from pycomet import utils
 
 
 # Utils
@@ -25,6 +25,6 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        utils.raise_value_err(
+        utils._raise_value_err(
             f"Could not interpret metric function identifier: `{identifier}`."
         )

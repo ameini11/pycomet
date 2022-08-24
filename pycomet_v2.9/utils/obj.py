@@ -3,7 +3,7 @@ import inspect
 import importlib
 import tensorflow as tf
 
-from pycomet.utilities import stdout as pcm_stdout
+from pycomet import utils
 
 
 # Modules ---------------------------------------------------------------------
@@ -38,11 +38,11 @@ def get_class(module, name=None, kwargs=None):
         if 'name' in kwargs.keys():
             name = kwargs.pop('name')
         else:
-            pcm_stdout.raise_value_err("Class name not provided.")
+            utils._raise_value_err("Class name not provided.")
     for name_i, cls_i in inspect.getmembers(module, inspect.isclass):
         if name_i == name:
             return cls_i(**kwargs) if kwargs is not None else cls_i
-    pcm_stdout.raise_value_err(
+    utils._raise_value_err(
         "Class `{}` not found in module `{}`.".format(name, module.__name__)
     )
 
@@ -51,13 +51,13 @@ def get_class_name(cls):
     return cls.__class__.__name__
 
 # Functions -------------------------------------------------------------------
-def get_fun_args(obj):
+def get_fun_args(obj, rm_args=('self', 'args', 'kwargs')):
     """Get the arguments of a Python function."""
     if inspect.isclass(obj):
         args = inspect.getfullargspec(obj).args
     else:
         args = list(dict(inspect.signature(obj).parameters).keys())
-    for arg in ('self', 'args', 'kwargs'):
+    for arg in rm_args:
         if arg in args:
             args.remove(arg)
     return args

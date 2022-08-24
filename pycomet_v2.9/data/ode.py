@@ -6,6 +6,7 @@ from pycomet.data.sequence import MultiObjData
 from pycomet.data.data import Data
 from pycomet.data import gradients
 from pycomet.utilities import utils
+from pycomet import config as cfg
 
 
 class ODE(Data):
@@ -17,9 +18,7 @@ class ODE(Data):
         self,
         dim,
         training=True,
-        ode_func=None,
-        ode_order=0,
-        time_idx=-1,
+        ode=None,
         train_data=None,
         valid_data=None,
         test_data=None,
@@ -28,7 +27,8 @@ class ODE(Data):
         from_file=False,
         columns=None,
         header=0,
-        preproc_fn=None
+        preproc_fn=None,
+        obj_list=None
     ):
         super(ODE, self).__init__(
             dim=dim,
@@ -42,11 +42,13 @@ class ODE(Data):
         )
 
         # Defining multi-objective functions identifiers
-        self.obj_list = (
-            'ics',  # Initial condition pts
-            'pts',  # Anchor pts
-            'res'   # Collocation pts (residual)
-        )
+        self.obj_list = obj_list
+        if self.obj_list is None:
+            self.obj_list = (
+                'ics',  # Initial condition pts
+                'pts',  # Anchor pts
+                'res'   # Collocation pts (residual)
+            )
         self.multi_obj_loss = True
         # Defining multi-objective functions identifiers
         self.objectives = {
@@ -89,16 +91,11 @@ class ODE(Data):
                 if self.valid is not None else None
 
         # ODE properties
-        if time_idx not in [0,-1]:
-            utils.raise_value_err(
-                "`time_idx` passed into `{}` has to be 0 or -1. "
-                "It's the position (if list) or column (if array) "
-                "of time input vector.".format(self.name))
-        self.time_idx = time_idx
-        self.ode_order = ode_order
-        self.ode_func = ode_func
-        if self.ode_func is not None:
+        self.ode = ode
+        self.grads = None
+        if self.ode is not None:
             self.physics_informed = True
+            self.grads = Gradients()
 
     def build(self, model):
         if self.training:
@@ -176,26 +173,15 @@ class ODE(Data):
 
     # Handling Residual Loss
     ###########################################################################
-    def make_residual_function(self, model):
-        '''Residual loss function definition.'''
+    @tf.function(jit_compile=cfg._TF['setup']['XLA'])
+    def residual(inputs, model, training=True):
 
-        def residual(inputs, training=True):
+        # Evaluate model outputs
+        outputs = model(inputs=inputs, training=training)
 
-            # Manipulate inputs
-            if len(model.inputs) > 1:
-                ic, t = inputs[self.time_idx-1], inputs[self.time_idx]
-            else:
-                t = np.take(inputs, [self.time_idx], axis=1)
-                ic = np.delete(inputs, self.time_idx, axis=1)
+        # Evaluate residual
+        res = self.ode(x=inputs, y=outputs, grads=self.grads)
+        if self.grads is not None:
+            self.grads.clear()
 
-            # Evaluate gradients
-            grads = gradients.eval(
-                self.time_idx, self.ode_order, model, ic, t, training
-            )
-
-            # Evaluate residual
-            res_pred = self.ode_func(ic, t, grads)
-
-            return res_pred
-        
-        return residual
+        return res

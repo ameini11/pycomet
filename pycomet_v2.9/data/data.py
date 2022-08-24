@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-from tensorflow.python.keras import backend as K
-from pycomet.utilities import utils
+from tensorflow.python.keras import backend
+from pycomet import utils
 from pathlib import Path
 
 
@@ -69,7 +69,7 @@ class Data(object):
                     f'case_'.zfill(3): dset for i, dset in enumerate(self.test)
                 }
         else:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 f"Input 'test_data' passed into `{self.name}` has to be a "
                 "`list`/`tuple`/`dict` of arrays or a `str` pointing at the " 
                 "folder containting all the test cases saved in `.csv` format."
@@ -85,13 +85,16 @@ class Data(object):
     def get_data(self, data, identifier):
         if data is None:
             if identifier == 'training':
-                utils.raise_value_err(
+                utils._raise_value_err(
                     f"No '{identifier}' data passed into `{self.name}`."
                 )
             else:
                 return None
         if self.from_file:
             # Data from a `.csv` file
+            return tf.nest.map_structure(
+                lambda x: self.read_datafile(data, identifier), data
+            )
             return self.read_datafile(data, identifier)
         else:
             # Data from lists of `numpy.ndarray`
@@ -99,7 +102,7 @@ class Data(object):
                 self.check_data_consistency(data)
                 return tuple(data)
             else:
-                utils.raise_value_err(
+                utils._raise_value_err(
                     f"'{identifier}' data passed into `{self.name}` has "
                     "to be a list or a tuple of arrays: [x, y]"
                 )
@@ -112,27 +115,27 @@ class Data(object):
             print_fn(dset, identifier, verbose)
         else:
             if verbose:
-                utils.print_submain("No {} pts available.".format(identifier))
+                utils._print(text=f"No {identifier} pts available.", lev=1)
 
-    # Reading data from file
+    # Reading data from file+
     ###########################################################################
     def read_datafile(self, file, identifier=None):
         utils.check_file_extension(file, '.csv')
         if not isinstance(self.columns, dict):
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "`columns` provided in `{}` has to be a `dict` with keys "
-                "['x', 'y', 'sample_weight']. The corresponding values are "
-                "doublets (start, end) columns (or a list of those if "
+                "['train','valid']['x', 'y', 'sample_weight']. The corresponding values are "
+                "lists of column indices (or a list of those if "
                 "multi I/O) for extracting input and target data "
                 "from file.".format(self.name)
             )
         elif None in self.columns.values():
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "In `columns` dictionary, provided in `{}`, all the provided "
                 "values have to be not `None`.".format(self.name)
             )
         df = pd.read_csv(file, sep=',', header=self.header)
-        df = df.to_numpy(dtype=K.floatx())
+        df = df.to_numpy(dtype=backend.floatx())
         if self.preproc_fn is not None:
             df = self.preproc_fn(df)
         # Collect data from file
@@ -141,7 +144,7 @@ class Data(object):
             if i == 'sample_weight' and identifier == 'testing':
                 continue
             if i in ('x', 'y') and i not in self.columns.keys():
-                utils.raise_value_err(
+                utils._raise_value_err(
                     f"'{i}' values have not been "
                     "provided in `columns` dictionary."
                 )
@@ -151,28 +154,21 @@ class Data(object):
 
     def read_dataframe(self, df, col):
         if any(isinstance(c, (list,tuple)) for c in col):
-            return [self.extract_data(df, c) for c in col]
+            return [np.take(df, c, axis=1) for c in col]
         else:
-            return self.extract_data(df, col)
-
-    def extract_data(self, df, col):
-        if len(col) == 2:
-            indeces = np.arange(*col)
-        elif len(col) > 2:
-            indeces = col
-        return np.take(df, indeces, axis=1)
+            return np.take(df, col, axis=1)
 
     # Checking data - network consistency
     ###########################################################################
     def check_data_consistency(self, data):
         net_dim = list(self.dim.values())
-        data_dim = utils.get_struct_shape(data, axis=1)
-        for i, IO in enumerate(data_dim):
+        data_dim = utils.array_ops.get_struct_shape(data, axis=1)
+        for i, io in enumerate(data_dim):
             if i <= 2 and data_dim[i]:
                 if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
-                    utils.raise_value_err(
+                    utils._raise_value_err(
                         "Data and network '{}' dimensions not "
-                        "consistent: check `dim` or data shape.".format(IO)
+                        "consistent: check `dim` or data shape.".format(io)
                     )
 
     # Updating default batch sizes
@@ -182,7 +178,7 @@ class Data(object):
             if all(k in batch_size.keys() for k in ['train', 'valid']):
                 self.batch_size = batch_size
             else:
-                utils.raise_value_err(
+                utils._raise_value_err(
                     "`batch_size` dictionary passed into `{}` has to have "
                     "['train', 'valid'] as keys.".format(self.name)
                 )
@@ -190,7 +186,7 @@ class Data(object):
             for k in self.batch_size.keys():
                 self.batch_size[k] = batch_size
         else:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "`batch_size` passed into `{}` has to be a "
                 "`int` or a `dict`".format(self.name)
             )

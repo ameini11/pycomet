@@ -1,9 +1,9 @@
-from pycomet.utilities.callbacks import callbacks
-from pycomet.utilities.callbacks import early_stopping
-from pycomet.utilities.callbacks import learning_rate
-from pycomet.utilities.callbacks import plotting
-from pycomet.utilities.callbacks import variable
-from pycomet.utilities.callbacks import weighted_loss
+from pycomet.optimization.callbacks import callbacks
+from pycomet.optimization.callbacks import early_stopping
+from pycomet.optimization.callbacks import learning_rate
+from pycomet.optimization.callbacks import plotting
+from pycomet.optimization.callbacks import variable
+from pycomet.optimization.callbacks import weighted_loss
 
 __all__ = [
     "callbacks",

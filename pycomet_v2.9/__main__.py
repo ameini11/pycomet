@@ -15,6 +15,7 @@ import threadpoolctl
 
 from pycomet.utils import decorators
 from pycomet import config as cfg
+from pycomet import utils
 from pycomet import apps
 apps_mod = [
 	__import__(
@@ -23,8 +24,9 @@ apps_mod = [
 ]
 
 
-@decorators.main_fun
 def main():
+
+    utils._pkg_header()
 
     cwd = os.getcwd()
 
@@ -49,7 +51,7 @@ def main():
 
     # Setting seed
     if hasattr(args, 'seed'):
-        utils.set_seed(args.seed)
+        utils.set_random_seed(args.seed)
 
     # Setting seed
     if hasattr(args, 'dir'):

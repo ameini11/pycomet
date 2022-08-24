@@ -18,12 +18,13 @@ def close_all_hdf5():
             except:
                 pass
 
-def set_seed(seed=None):
+def set_random_seed(seed=None):
     if seed is not None:
-        os.environ['PYTHONHASHSEED'] = str(seed)
         random.seed(seed)
-        tf.random.set_seed(seed)
         np.random.seed(seed)
+        os.environ["TF_DETERMINISTIC_OPS"] = "1"
+        tf.random.set_seed(seed)
+        os.environ['PYTHONHASHSEED'] = str(seed)
 
 def set_num_threads(n):
     tf.config.threading.set_inter_op_parallelism_threads(n)

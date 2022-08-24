@@ -3,15 +3,15 @@ import h5py
 import numpy as np
 import tensorflow as tf
 
+from pycomet import utils
 from tensorflow.python.keras import backend
-from pycomet.utilities import stdout as pcm_stdout
 
 
 def make_dict(keys, values):
     """Convert two lists or two variables into a dictionary."""
     if isinstance(keys, (list, tuple)):
         if len(keys) != len(values):
-            raise_value_err("Keys and values have different length.")
+            utils._raise_value_err("Keys and values have different length.")
         return dict(zip(keys, values))
     return {keys: values}
 
@@ -44,7 +44,7 @@ def check_file_extension(file, extension):
     file = os.path.abspath(file)
     if os.path.isfile(file):
         if os.path.splitext(file)[-1] != extension:
-            pcm_stdout.raise_value_err(
+            utils._raise_value_err(
                 f"The file '{file}' has to be a '{extension}' one."
             )
 
@@ -52,16 +52,11 @@ def zip_dict_of_lists(d):
     keys = d.keys()
     return tuple(dict(zip(keys, v)) for v in zip(*(d[k] for k in keys)))
 
-def convert_struct_to_tensor(x):
-    return tf.nest.map_structure(
-        lambda y: tf.convert_to_tensor(y, dtype=backend.floatx()), x
-    )
-
 def get_key_from_value(d, v):
     for key, value in d.items():
         if v == value:
             return key
-    pcm_stdout.raise_value_err(
+    utils._raise_value_err(
         f"A key for value `{v}` doesn't exist in the dictionary."
     )
 

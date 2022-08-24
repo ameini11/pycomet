@@ -5,7 +5,7 @@ from pycomet.utilities.callbacks import learning_rate
 from pycomet.utilities.callbacks import plotting
 from pycomet.utilities.callbacks import variable
 from pycomet.utilities.callbacks import weighted_loss
-from pycomet.utilities import utils
+from pycomet import utils
 
 
 def get_cb_list(model, callbacks=None):
@@ -14,7 +14,6 @@ def get_cb_list(model, callbacks=None):
             get_callback(model, identifier, kwargs) for identifier, kwargs \
                 in callbacks.items() if kwargs is not None
         ]
-
 
 def get_callback(model, identifier, kwargs):
     if isinstance(identifier, str):
@@ -59,6 +58,6 @@ def get_callback(model, identifier, kwargs):
     elif callable(identifier):
         return identifier
     else:
-        utils.raise_value_err(
+        utils._raise_value_err(
             f"Could not interpret callback identifier: '{identifier}'."
         )

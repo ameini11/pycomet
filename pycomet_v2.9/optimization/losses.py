@@ -3,8 +3,9 @@ import tensorflow.python.keras.losses as tf_losses
 
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.keras import backend as K
-from pycomet.utilities import utils
+from tensorflow.python.keras import backend
+from pycomet import config as cfg
+from pycomet import utils
 
 
 def get(
@@ -14,7 +15,7 @@ def get(
 ):
     # Check `axis` variable
     if axis not in {0, -1, None}:
-        utils.raise_value_err(
+        utils._raise_value_err(
             "`axis` for loss function is not interpretable. Valid "
             "options are: {0, -1, None}."
         )
@@ -81,7 +82,7 @@ def get_loss_fn(identifier=None, axis=0, reduction='auto'):
     elif identifier is None:
         return None
     else:
-        utils.raise_value_err(
+        utils._raise_value_err(
             f"Could not interpret loss function identifier: `{identifier}`."
         )
 
@@ -100,13 +101,13 @@ class MeanAbsoluteError(tf_losses.LossFunctionWrapper):
         err_fn = mean_absolute_error(axis)
         super().__init__(err_fn, name=name, reduction=reduction)
 
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='MAE')
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MAE')
 def mean_absolute_error(axis):
     def err_fn(y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
         err = tf.abs(y_true - y_pred)
-        return K.mean(err, axis=axis) if axis else err
+        return backend.mean(err, axis=axis) if axis else err
     return err_fn
 
 # MALPE -----------------------------------------------------------------------
@@ -121,15 +122,15 @@ class MeanAbsoluteLogarithmicPercentageError(tf_losses.LossFunctionWrapper):
         err_fn = mean_absolute_logarithmic_percentage_error(axis)
         super().__init__(err_fn, name=name, reduction=reduction)
 
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='MALPE')
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MALPE')
 def mean_absolute_logarithmic_percentage_error(axis):
     def err_fn(y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
-        y_pred = tf.math.log(K.maximum(y_pred, K.epsilon()))
-        y_true = tf.math.log(K.maximum(y_true, K.epsilon()))
+        y_pred = tf.math.log(backend.maximum(y_pred, backend.epsilon()))
+        y_true = tf.math.log(backend.maximum(y_true, backend.epsilon()))
         err = 100. * tf.abs((y_true - y_pred) / y_true)
-        return K.mean(err, axis=axis) if axis else err
+        return backend.mean(err, axis=axis) if axis else err
     return err_fn
 
 # MAPE ------------------------------------------------------------------------
@@ -144,15 +145,14 @@ class MeanAbsolutePercentageError(tf_losses.LossFunctionWrapper):
         err_fn = mean_absolute_percentage_error(axis)
         super().__init__(err_fn, name=name, reduction=reduction)
 
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='MAPE')
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MAPE')
 def mean_absolute_percentage_error(axis):
     def err_fn(y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
-        err = 100. * tf.abs(
-            (y_true - y_pred) / K.maximum(tf.abs(y_true), K.epsilon())
-        )
-        return K.mean(err, axis=axis) if axis else err
+        den = backend.maximum(tf.abs(y_true), backend.epsilon())
+        err = 100. * tf.abs((y_true - y_pred) / den)
+        return backend.mean(err, axis=axis) if axis else err
     return err_fn
 
 # MSE -------------------------------------------------------------------------
@@ -167,13 +167,13 @@ class MeanSquaredError(tf_losses.LossFunctionWrapper):
         err_fn = mean_squared_error(axis)
         super().__init__(err_fn, name=name, reduction=reduction)
 
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='MSE')
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MSE')
 def mean_squared_error(axis):
     def err_fn(y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
         err = tf.math.squared_difference(y_pred, y_true)
-        return K.mean(err, axis=axis) if axis else err
+        return backend.mean(err, axis=axis) if axis else err
     return err_fn
 
 # MSLE ------------------------------------------------------------------------
@@ -188,15 +188,15 @@ class MeanSquaredLogarithmicError(tf_losses.LossFunctionWrapper):
         err_fn = mean_squared_logarithmic_error(axis)
         super().__init__(err_fn, name=name, reduction=reduction)
 
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='MSLE')
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MSLE')
 def mean_squared_logarithmic_error(axis):
     def err_fn(y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = tf.cast(y_true, y_pred.dtype)
-        y_pred = tf.math.log(K.maximum(y_pred, K.epsilon()))
-        y_true = tf.math.log(K.maximum(y_true, K.epsilon()))
+        y_pred = tf.math.log(backend.maximum(y_pred, backend.epsilon()))
+        y_true = tf.math.log(backend.maximum(y_true, backend.epsilon()))
         err = tf.math.squared_difference(y_pred, y_true)
-        return K.mean(err, axis=axis) if axis else err
+        return backend.mean(err, axis=axis) if axis else err
     return err_fn
 
 # ZERO ------------------------------------------------------------------------
@@ -210,6 +210,6 @@ class Zero(tf_losses.LossFunctionWrapper):
     ):
         super().__init__(zero, name=name, reduction=reduction)
 
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='ZERO')
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='ZERO')
 def zero():
-    return tf.constant(0., dtype=K.floatx())
+    return tf.constant(0., dtype=backend.floatx())
