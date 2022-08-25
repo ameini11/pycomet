@@ -1,9 +1,11 @@
+import os
 import h5py
 import tensorflow as tf
 import tensorflow.python.keras.regularizers as tf_reg
 
-from tensorflow.python.keras import backend as K
-from pycomet.utilities import utils
+from tensorflow.python.keras import backend
+from pycomet import config as cfg
+from pycomet import utils
 
 
 def get(name="l1+l2", l1=0., l2=0., weights_path=None):
@@ -19,12 +21,10 @@ def get(name="l1+l2", l1=0., l2=0., weights_path=None):
         else None
     )
 
-
-# =========================================================================== #
 # Fine Tuning Regularizer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(
-    package='PyCOMET', name='FineTuningRegularizer'
+    package=cfg._NAME, name='FineTuningRegularizer'
 )
 class FineTuningRegularizer(tf_reg.L1L2):
     """Transfer learning technique for fine-tuning.
@@ -41,37 +41,40 @@ class FineTuningRegularizer(tf_reg.L1L2):
         l1=0.,
         l2=0.,
         weights_path=None,
-        name='fine_tuning_reg'
+        *args,
+        **kwargs
     ):
-        super(FineTuningRegularizer, self).__init__(l1=l1, l2=l2)
-
-        self.name = name
+        super(FineTuningRegularizer, self).__init__(
+            l1=l1,
+            l2=l2,
+            *args,
+            **kwargs
+        )
         self.weights_path = weights_path
-
         if self.weights_path is not None:
+            self.weights_path = os.path.abspath(str(weights_path))
             if not h5py.is_hdf5(self.weights_path):
-                utils.raise_value_err(
-                    "The `weights_path` argument of `FineTuningRegularizer` "
+                utils._raise_value_err(
+                    "The 'weights_path' argument of `FineTuningRegularizer` "
                     f"has to be an hdf5 file. Check `{self.weights_path}`"
                 )
         else:
-            utils.warning(
+            utils._warning(
                 "`FineTuningRegularizer` is not given any starting point "
                 "weights (see `weights_path`)."
             )
 
-        self.weights_SP = utils.H5DataSet(self.weights_path).data
-        self.weights_SP = tf.nest.map_structure(
-            lambda x: tf.convert_to_tensor(x, dtype=K.floatx()),
-            self.weights_SP
+        self.sp_weights = utils.H5DataSet(self.weights_path).data
+        self.sp_weights = tf.nest.map_structure(
+            lambda x: tf.convert_to_tensor(x, dtype=backend.floatx()),
+            self.sp_weights
         )
 
     # Configuration update
     ###########################################################################
     def get_config(self):
         config = {
-            'name': self.name,
-            'weights_SP': self.weights_SP
+            'weights_path': self.weights_path
         }
         base_config = super(FineTuningRegularizer, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -79,6 +82,6 @@ class FineTuningRegularizer(tf_reg.L1L2):
     # Calling
     ###########################################################################
     def __call__(self, x):
-        if self.weights_SP is not None and x.name in self.weights_SP:
-            x = x - self.weights_SP[x.name]
-        return super(FineTuningRegularizer, self).__call__(x)
+        if self.sp_weights is not None and x.name in self.sp_weights:
+            x = x - self.sp_weights[x.name]
+        return super(FineTuningRegularizer, self)(x)

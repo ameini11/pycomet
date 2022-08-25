@@ -4,26 +4,22 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow.keras.layers as tf_layers
 
-from tensorflow.python.framework import dtypes
-from tensorflow.python.framework import tensor_shape
+from tensorflow.python.keras import backend
 from tensorflow.python.keras import activations
-from tensorflow.python.keras import backend as K
 from tensorflow.python.keras import constraints
 from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
-from tensorflow.python.ops import math_ops
-from tensorflow.python.ops import nn_ops
-from tensorflow.keras.layers.experimental.preprocessing import Normalization 
-from pycomet.physics.thermochemistry.specie_thermo import partition_fun
-from pycomet.physics.thermochemistry.specie_thermo import specie
-from pycomet.utilities import utils
+from pycomet import config as cfg
+from pycomet import utils
 
 
 # =========================================================================== #
-# TrainableAct Layer
+# TrainableActivationFun Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='TrainableAct')
-class TrainableAct(tf_layers.Layer):
+@tf.keras.utils.register_keras_serializable(
+    package=cfg._NAME, name='TrainableActivationFun'
+)
+class TrainableActivationFun(tf_layers.Layer):
 
     # Initialization
     ###########################################################################
@@ -33,36 +29,34 @@ class TrainableAct(tf_layers.Layer):
         kernel_initializer='glorot_uniform',
         kernel_regularizer=None,
         stretch_axis={'x': False, 'y': True},
-        pos_output=False,
-        name='trainable_act',
+        positive_output=False,
         **kwargs
     ):
-        super(TrainableAct, self).__init__(name=name, **kwargs)
-
+        super(TrainableActivationFun, self).__init__(
+            **kwargs
+        )
         self.activation = activations.get(activation)
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.stretch_axis = stretch_axis
-        self.pos_output = pos_output
+        self.positive_output = positive_output
 
     # Building
     ###########################################################################
     def build(self, input_shape):
-        dtype = tf.as_dtype(self.dtype or K.floatx())
+        dtype = tf.as_dtype(self.dtype or backend.floatx())
         if not (dtype.is_floating or dtype.is_complex):
-            raise TypeError(
-                'A Dense layer can only be built with a floating-point '
-                f'dtype. Received: dtype={dtype}'
+            utils._raise_value_err(
+                "Unable to build `TrainableActivationFun` layer with "
+                f"non-floating point dtype {dtype}."
             )
         input_shape = tf.TensorShape(input_shape)
         last_dim = tf.compat.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils.raise_value_err(
-                'The last dimension of the inputs to a Dense layer '
-                'should be defined. Found None. '
-                f'Full input shape received: {input_shape}'
+            utils._raise_value_err(
+                "The last dimension of the inputs to `TrainableActivationFun` "
+                "should be defined. Found `None`."
             )
-
         if self.stretch_axis['y']:
             self.a = self.add_weight(
                 'a',
@@ -72,7 +66,6 @@ class TrainableAct(tf_layers.Layer):
                 dtype=self.dtype,
                 trainable=True
             )
-
         if self.stretch_axis['x']:
             self.b = self.add_weight(
                 'b',
@@ -82,35 +75,17 @@ class TrainableAct(tf_layers.Layer):
                 dtype=self.dtype,
                 trainable=True
             )
-
         self.built = True
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'activation': activations.serialize(self.activation),
-            'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'stretch_axis': self.stretch_axis,
-            'pos_output': self.pos_output
-        }
-        base_config = super(TrainableAct, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
 
     # Calling
     ###########################################################################
-    def call(self, inputs, training=None):
+    def call(self, inputs):
         if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
             inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
 
         outputs = inputs
 
-        # First matrix multiplication (x-axis stretching)
+        # First matrix multiplication (x-axis stretching) ---------------------
         if self.stretch_axis['x']:
             rank = outputs.shape.rank
             if rank == 2 or rank is None:
@@ -128,12 +103,12 @@ class TrainableAct(tf_layers.Layer):
             outputs = self.activation(outputs)
 
         # Check if output is positive
-        if self.pos_output and self.stretch_axis['y']:
+        if self.positive_output and self.stretch_axis['y']:
             a = tf.math.exp(self.a)
         else:
             a = self.a
 
-        # Second matrix multiplication (y-axis stretching)
+        # Second matrix multiplication (y-axis stretching) --------------------
         if self.stretch_axis['y']:
             rank = outputs.shape.rank
             if rank == 2 or rank is None:
@@ -148,11 +123,26 @@ class TrainableAct(tf_layers.Layer):
 
         return outputs
 
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'activation': activations.serialize(self.activation),
+            'kernel_initializer': initializers.serialize(self.kernel_initializer),
+            'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+            'stretch_axis': self.stretch_axis,
+            'positive_output': self.positive_output
+        }
+        base_config = super(TrainableActivationFun, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 # =========================================================================== #
 # Scaling Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Scaling')
+@tf.keras.utils.register_keras_serializable(
+    package=cfg._NAME, name='Scaling'
+)
 class Scaling(tf_layers.Layer):
 
     # Initialization
@@ -162,19 +152,14 @@ class Scaling(tf_layers.Layer):
         slope=1.,
         offset=0.,
         trans_fn=None,
-        name='scaling',
         **kwargs
     ):
-        super(Scaling, self).__init__(name=name, **kwargs)
-
+        super(Scaling, self).__init__(
+            **kwargs
+        )
         self.slope = slope
         self.offset = offset
-
-        if trans_fn is not None:
-            self.trans_fn = trans_fn
-        else:
-            self.trans_fn = lambda x: x
-
+        self.trans_fn = trans_fn
         self.weights_values = {
             'slope': self.slope,
             'offset': self.offset,
@@ -183,24 +168,30 @@ class Scaling(tf_layers.Layer):
     # Building
     ###########################################################################
     def build(self, input_shape):
-        input_shape = tensor_shape.TensorShape(input_shape)
-        last_dim = tensor_shape.dimension_value(input_shape[-1])
+        input_shape = tf.TensorShape(input_shape)
+        last_dim = tf.compat.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "The last dimension of the inputs to "
-                "`Scale` should be defined. Found `None`."
+                f"`{self.name}` should be defined. Found `None`."
             )
-
         self._weights = {}
         for name, w in self.weights_values.items():
             self._weights[name] = self.add_weight(
                 name=name,
-                dtype=K.floatx(),
+                dtype=backend.floatx(),
                 initializer=initializers.Constant(value=w),
                 trainable=self.trainable
             )
-
         self.built = True
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs):
+        outputs = inputs * self._weights['slope'] + self._weights['offset']
+        if self.trans_fn is not None:
+            outputs = self.trans_fn(outputs)
+        return outputs
 
     # Configuration update
     ###########################################################################
@@ -213,15 +204,33 @@ class Scaling(tf_layers.Layer):
         base_config = super(Scaling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
 
-    # Calling
+# =========================================================================== #
+# LinearNormalization Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(
+    package=cfg._NAME, name='LinearNormalization'
+)
+class LinearNormalization(Scaling):
+
+    # Initialization
     ###########################################################################
-    def call(self, x, training=None):
-        return self.trans_fn(
-            x * self._weights['slope'] + self._weights['offset']
+    def __init__(
+        self,
+        mn=0.,
+        mx=1.,
+        **kwargs
+    ):
+        if mx != mn:
+            slope = 1. / (mx-mn)
+            offset = - mn * slope
+        else:
+            slope = 1. / mx
+            offset = 0.
+        super(LinearNormalization, self).__init__(
+            slope=slope,
+            offset=offset,
+            **kwargs
         )
 
 
@@ -229,9 +238,9 @@ class Scaling(tf_layers.Layer):
 # Normalization Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(
-    package='PyCOMET', name='Normalization'
+    package=cfg._NAME, name='Normalization'
 )
-class Normalization(tf_layers.experimental.preprocessing.Normalization):
+class Normalization(tf_layers.Normalization):
 
     # Initialization
     ###########################################################################
@@ -258,9 +267,11 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
         self.preproc_fn = preproc_fn
         self.save_dir = save_dir
 
+    # Building
+    ###########################################################################
     def build(self, input_shape):
-        if self.mean_val is None and self.variance_val is None:
-            self.saved_file = self.save_dir + self.name + '_mu_sigma.txt'
+        if self.input_mean is None and self.input_variance is None:
+            self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
             if self.mu_sigma_file is not None and os.path.exists(self.mu_sigma_file):
                 self.read_mu_sigma(file=self.mu_sigma_file)
             elif os.path.exists(self.saved_file):
@@ -269,6 +280,21 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
                 self.compute_mu_sigma()
         super(Normalization, self).build(input_shape)
 
+    # Handling mean and variance ----------------------------------------------
+    def compute_mu_sigma(self):
+        utils._print(
+            f"Computing mean and variance of layer '{self.name}'", lev=1
+        )
+        data = self.read_datafile(self.data_files)
+        self.input_mean, self.input_variance = tf.nn.moments(data, axes=0)
+        array = np.vstack((self.input_mean, self.input_variance))
+        np.savetxt(self.saved_file, array, fmt='%1.10e')
+
+    def read_mu_sigma(self, file):
+        array = np.loadtxt(file)
+        self.input_mean = array[0]
+        self.input_variance = array[1]
+
     # Reading data from file --------------------------------------------------
     def read_datafile(self, file):
         file = tf.nest.flatten(file)
@@ -276,7 +302,7 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
         for f in file:
             utils.check_file_extension(f, '.csv')
             df = pd.read_csv(f, sep=',', header=self.header)
-            df = df.to_numpy(dtype=K.floatx())
+            df = df.to_numpy(dtype=backend.floatx())
             if self.preproc_fn is not None:
                 df = self.preproc_fn(df)
             data.append(self.read_dataframe(df, self.columns))
@@ -285,67 +311,31 @@ class Normalization(tf_layers.experimental.preprocessing.Normalization):
 
     def read_dataframe(self, df, col):
         if any(isinstance(c, (list,tuple)) for c in col):
-            return [self.extract_data(df, c) for c in col]
+            return [np.take(df, c, axis=1) for c in col]
         else:
-            return self.extract_data(df, col)
+            return np.take(df, col, axis=1)
 
-    def extract_data(self, df, col):
-        if len(col) == 2:
-            indeces = np.arange(*col)
-        elif len(col) > 2:
-            indeces = col
-        return np.take(df, indeces, axis=1)
-
-    # Handling mean and variance ----------------------------------------------
-    def compute_mu_sigma(self):
-        utils.print_submain(
-            f"Computing mean and variance of layer '{self.name}'"
-        )
-        data = self.read_datafile(self.data_files)
-        self.mean_val, self.variance_val = tf.nn.moments(data, axes=0)
-        array = np.vstack((self.mean_val, self.variance_val))
-        np.savetxt(self.saved_file, array, fmt='%1.10e')
-
-    def read_mu_sigma(self, file):
-        array = np.loadtxt(file)
-        self.mean_val = array[0]
-        self.variance_val = array[1]
-
-
-# =========================================================================== #
-# LinearNorm Layer
-# =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='LinearNorm')
-class LinearNorm(Scaling):
-
-    # Initialization
+    # Configuration update
     ###########################################################################
-    def __init__(
-        self,
-        mn=0.,
-        mx=1.,
-        trans_fn=None,
-        name='linear_norm',
-        **kwargs
-    ):
-        if mx != mn:
-            slope = 1. / (mx-mn)
-            offset = - mn * slope
-        else:
-            slope = 1. / mx
-            offset = 0.
-
-        super(LinearNorm, self).__init__(
-            slope=slope,
-            offset=offset,
-            **kwargs
-        )
+    def get_config(self):
+        config = {
+            'mu_sigma_file': self.mu_sigma_file,
+            'data_files': self.data_files,
+            'columns': self.columns,
+            'header': self.header,
+            'preproc_fn': self.preproc_fn,
+            'save_dir': self.save_dir
+        }
+        base_config = super(Normalization, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 # =========================================================================== #
 # Logarithmic Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Log')
+@tf.keras.utils.register_keras_serializable(
+    package=cfg._NAME, name='Log'
+)
 class Log(tf_layers.Layer):
 
     # Initialization
@@ -355,20 +345,18 @@ class Log(tf_layers.Layer):
         base=10.,
         slope=1.,
         offset=1.,
-        name='log',
         **kwargs
     ):
-        super(Log, self).__init__(name=name, **kwargs)
-
+        super(Log, self).__init__(
+            **kwargs
+        )
         self.base = base
         self.slope = slope
         self.offset = offset
-
         if self.base == 'e':
             self.scale = 1.
         else:
             self.scale = np.log(float(self.base))
-
         self.weights_values = {
             'slope': self.slope,
             'offset': self.offset,
@@ -378,24 +366,30 @@ class Log(tf_layers.Layer):
     # Building
     ###########################################################################
     def build(self, input_shape):
-        input_shape = tensor_shape.TensorShape(input_shape)
-        last_dim = tensor_shape.dimension_value(input_shape[-1])
+        input_shape = tf.TensorShape(input_shape)
+        last_dim = tf.compat.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "The last dimension of the inputs to "
-                "`Scale` should be defined. Found `None`."
+                "`Log` should be defined. Found `None`."
             )
-
         self._weights = {}
         for name, w in self.weights_values.items():
             self._weights[name] = self.add_weight(
                 name=name,
-                dtype=K.floatx(),
+                dtype=backend.floatx(),
                 initializer=initializers.Constant(value=w),
                 trainable=self.trainable
             )
-
         self.built = True
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs):
+        outputs = tf.math.log(inputs + self._weights['offset'])
+        outputs = outputs / self._weights['scale']
+        outputs = outputs + self._weights['slope']
+        return outputs
 
     # Configuration update
     ###########################################################################
@@ -408,22 +402,13 @@ class Log(tf_layers.Layer):
         base_config = super(Log, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    # Calling
-    ###########################################################################
-    def call(self, x, training=None):
-        y = tf.math.log(x + self._weights['offset']) / self._weights['scale']
-        y = y + self._weights['slope']
-        return y
-
 
 # =========================================================================== #
 # Bias Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Bias')
+@tf.keras.utils.register_keras_serializable(
+    package=cfg._NAME, name='Bias'
+)
 class Bias(tf_layers.Layer):
 
     # Initialization
@@ -441,7 +426,6 @@ class Bias(tf_layers.Layer):
         super(Bias, self).__init__(
             activity_regularizer=activity_regularizer, name=name, **kwargs
         )
-
         self.activation = activations.get(activation)
         self.initializer = initializers.get(initializer)
         self.regularizer = regularizers.get(regularizer)
@@ -450,19 +434,19 @@ class Bias(tf_layers.Layer):
     # Building
     ###########################################################################
     def build(self, input_shape):
-        dtype = dtypes.as_dtype(self.dtype or K.floatx())
+        dtype = tf.as_dtype(self.dtype or backend.floatx())
         if not (dtype.is_floating or dtype.is_complex):
-            raise TypeError("Unable to build `Bias` layer with non-floating"
-                " point dtype %s." % (dtype,))
-
-        input_shape = tensor_shape.TensorShape(input_shape)
-        last_dim = tensor_shape.dimension_value(input_shape[-1])
-        if last_dim is None:
-            utils.raise_value_err(
-                "The last dimension of the inputs to "
-                "`Scale` should be defined. Found `None`."
+            utils._raise_value_err(
+                "Unable to build `Bias` layer with "
+                f"non-floating point dtype {dtype}."
             )
-
+        input_shape = tf.TensorShape(input_shape)
+        last_dim = tf.compat.dimension_value(input_shape[-1])
+        if last_dim is None:
+            utils._raise_value_err(
+                "The last dimension of the inputs to "
+                "`Bias` should be defined. Found `None`."
+            )
         self.bias = self.add_weight(
             'bias',
             shape=[last_dim,],
@@ -472,8 +456,17 @@ class Bias(tf_layers.Layer):
             dtype=self.dtype,
             trainable=self.trainable
         )
-
         self.built = True
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs):
+        if inputs.dtype.base_dtype != self._compute_dtype_object.base_dtype:
+            inputs = tf.cast(inputs, dtype=self._compute_dtype_object)
+        outputs = tf.nn.bias_add(inputs, self.bias)
+        if self.activation is not None:
+            outputs = self.activation(outputs)
+        return outputs
 
     # Configuration update
     ###########################################################################
@@ -487,159 +480,17 @@ class Bias(tf_layers.Layer):
         base_config = super(Bias, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    # Calling
-    ###########################################################################
-    def call(self, x, training=None):
-        if x.dtype.base_dtype != self._compute_dtype_object.base_dtype:
-            x = math_ops.cast(x, dtype=self._compute_dtype_object)
-
-        y = nn_ops.bias_add(x, self.bias)
-        if self.activation is not None:
-            y = self.activation(y)
-
-        return y
-
-
-# =========================================================================== #
-# Equilibrium Layer
-# =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Equilibrium')
-class Equilibrium(tf_layers.Layer):
-
-    # Initialization
-    ###########################################################################
-    def __init__(
-        self,
-        out_dim,
-        species,
-        reaction=None,
-        name='equilibrium',
-        *args,
-        **kwargs
-    ):
-        super(Equilibrium, self).__init__(
-            name=name,
-            *args,
-            **kwargs
-        )
-
-        self.out_dim = out_dim
-        self.reaction = reaction
-
-        # Species -------------------------------------------------------------
-        self.species = {
-            sp: specie.Specie(sp, **info) if info != None else specie.Specie(sp) \
-                for sp, info in species.items()
-        }
-
-        for name, sp_ in self.species.items():
-            if sp_.n_at > 1:
-                self.molecule = name
-            else:
-                self.atom = name
-
-        # Partition functions -------------------------------------------------
-        if self.reaction is not None:
-            self.intPF = {
-                name: partition_fun.internal.Internal(specie) \
-                    for name, specie in self.species.items()
-            }
-            if self.reaction == 'diss':
-                self.transPF = {
-                    name: partition_fun.translational.Translational(specie) \
-                        for name, specie in self.species.items()
-                }
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'out_dim': self.out_dim,
-            'reaction': self.reaction,
-            'species': self.species
-        }
-        base_config = super(Equilibrium, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-    @classmethod
-    def from_config(cls, config):
-        return cls(**config)
-
-    # Calling
-    ###########################################################################
-    def call(self, inputs):
-        if isinstance(inputs, (list, tuple)):
-            x, T, rho = inputs
-        else:
-            utils.raise_value_err(
-                "The inputs of the `{}` layer have to be a `list` "
-                "or a `tuple`: [x, T]".format(self.name))
-
-        if self.reaction is None:
-            y = tf.split(x, num_or_size_splits=self.out_dim, axis=1)
-            y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
-        else:
-            # Partition functions
-            self.updatePF(T)
-            if self.reaction == 'diss':
-                Q = self.eq_diss(rho)
-            elif self.reaction == 'excit':
-                Q = [ pf.Q for pf in self.intPF.values() ]
-                Q = tf_layers.Concatenate()(Q) if len(Q) > 1 else Q[-1]
-            # Simil-Softmax layer
-            y = tf_layers.Multiply()([tf.math.exp(x), Q])
-            y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
-            y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
-            # y = tf_layers.Multiply()(
-            #     [tf.math.exp(-x), Q / tf.reduce_sum(Q, axis=-1, keepdims=True)]
-            # )
-            # y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
-
-        return y if len(y) > 1 else y[-1]
-
-    def Keq(self):
-        '''Diss.-Recomb. equilibrium constants matrix'''
-        PFdot = {
-            name: self.intPF[name].Q * self.transPF[name].Q \
-                for name in self.species.keys()
-        }
-        return PFdot[self.atom]**2 / PFdot[self.molecule]
-
-    def eq_diss(self, rho):
-        '''Diss.-Recomb. equilibrium constants matrix'''
-
-        # Calculate equilibrium constant
-        K = self.Keq()
-
-        # Calculate mass fractions
-        A = tf.math.pow(rho / self.species[self.atom].m, 2.)
-        B = K * rho / self.species[self.molecule].m
-        C = - B
-
-        Y_O = (- B + tf.math.sqrt(B**2. - 4.*A*C)) / (2.*A)
-        Y_O2 = 1. - Y_O
-
-        return tf.concat([Y_O2, Y_O], 1)
-
-    def updatePF(self, T):
-        # Update partition functions
-        for intPF_ in self.intPF.values():
-            intPF_.update(T)
-        if self.reaction == 'diss':
-            for transPF_ in self.transPF.values():
-                transPF_.update(T)
-
 
 # =========================================================================== #
 # Permanent Dropout Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Dropout')
+@tf.keras.utils.register_keras_serializable(
+    package=cfg._NAME, name='Dropout'
+)
 class Dropout(tf_layers.Dropout):
 
+    # Initialization
+    ###########################################################################
     def __init__(
         self,
         rate,
@@ -656,11 +507,15 @@ class Dropout(tf_layers.Dropout):
         )
         self.permanent = permanent
 
+    # Calling
+    ###########################################################################
     def call(self, inputs, training=None):
         if self.permanent:
             training = True
         return super(Dropout, self).call(inputs, training)
 
+    # Configuration update
+    ###########################################################################
     def get_config(self):
         config = {
             'permanent': self.permanent

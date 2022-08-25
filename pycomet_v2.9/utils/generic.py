@@ -1,6 +1,7 @@
 import os
 import gc
 import random
+import signal
 import numpy as np
 import tensorflow as tf
 

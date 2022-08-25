@@ -16,64 +16,83 @@ class Data(object):
     def __init__(
         self,
         dim,
+        data_src={},
+        validation_split=None,
         training=True,
-        test_data=None,
         batch_size=None,
         from_file=False,
-        columns=None,
         header=0,
+        columns=None,
         preproc_fn=None
     ):
+        # Globals -------------------------------------------------------------
         self.name = utils.get_class_name(self)
-
         self.dim = dim
         self.training = training
         self.built = False
 
+        # Data ----------------------------------------------------------------
+        self.data_src = data_src
         self.train = None
         self.valid = None
         self.test = None
-        self.validation_split = None
-        
+        self.validation_split = validation_split
+        # Check data sources
+        if not isinstance(self.data_src, dict) or any([
+            k not in ('train', 'valid', 'test') for k in self.data_src.keys()
+        ]):
+            utils._raise_value_err(
+                "'data_src' has to be a 'dict' with keys "
+                "['train', 'valid', 'test']."
+            )
+        if 'train' not in self.data_src or self.data_src['train'] is None:
+            utils._raise_value_err("No 'train' data passed into 'data_src'.")
+
+        # Batch sizes ---------------------------------------------------------
         self.batch_size = {
             'train': 32,
             'valid': None
         }
-        if batch_size != None:
+        if batch_size is not None:
             self.set_batch_size(batch_size)
 
-        # Extra attributes if `data` extracted from file
+        # Extra attributes if data extracted from file ------------------------
         self.from_file = from_file
-        self.columns = columns
         self.header = header
+        self.columns = columns
         self.preproc_fn = preproc_fn
+        if self.from_file:
+            # Check consistency between dictionaries
+            list_of_dicts = [
+                ('data_src', self.data_src), ('columns', self.columns)
+            ]
+            if self.preproc_fn is not None:
+                list_of_dicts += [('preproc_fn', self.preproc_fn)]
+            utils.check_dicts_consistency(list_of_dicts)
 
-        # Defining multi-objective loss function identifiers
-        self.multi_obj_loss = False
-        self.objectives = None
-        self.physics_informed = False
-
-        # Testing data
-        if test_data is None:
-            pass
-        elif isinstance(test_data, str) and os.path.isdir(test_data):
-            self.test = {}
-            for file in os.listdir(test_data):
-                self.test[Path(file).stem] = self.get_data(
-                    os.path.join(test_data, file), 'testing'
+        # Testing data --------------------------------------------------------
+        if 'test' in self.data_src:
+            test = self.data_src['test']
+            if isinstance(test, str) and os.path.isdir(test):
+                self.test = {}
+                for file in os.listdir(test):
+                    self.test[Path(file).stem] = self.get_data(
+                        os.path.join(test, file), 'test'
+                    )
+            elif isinstance(test, (list,tuple,dict)):
+                self.test = tf.nest.map_structure(lambda x: np.array(x), test)
+                if not isinstance(self.test, dict):
+                    self.test = {
+                        'case_' + str(i).zfill(4): dset \
+                            for i, dset in enumerate(self.test)
+                    }
+            else:
+                utils._raise_value_err(
+                    f"Input 'data_src['test']' passed into `{self.name}` has "
+                    "to be a `list`/`tuple`/`dict` of arrays or a `str` "
+                    "pointing at the folder containting all the test cases "
+                    "saved in `.csv` format."
                 )
-        elif isinstance(test_data, (list,tuple,dict)):
-            self.test = tf.nest.map_structure(lambda x: np.array(x), test_data)
-            if not isinstance(self.test, dict):
-                self.test = {
-                    f'case_'.zfill(3): dset for i, dset in enumerate(self.test)
-                }
-        else:
-            utils._raise_value_err(
-                f"Input 'test_data' passed into `{self.name}` has to be a "
-                "`list`/`tuple`/`dict` of arrays or a `str` pointing at the " 
-                "folder containting all the test cases saved in `.csv` format."
-            )
 
     # Building Data
     ###########################################################################
@@ -83,73 +102,40 @@ class Data(object):
     # Handling Data
     ###########################################################################
     def get_data(self, data, identifier):
-        if data is None:
-            if identifier == 'training':
-                utils._raise_value_err(
-                    f"No '{identifier}' data passed into `{self.name}`."
+        if data is not None:
+            if self.from_file:
+                return self.read_datafile(
+                    data, self.columns[identifier], self.preproc_fn[identifier]
                 )
             else:
-                return None
-        if self.from_file:
-            # Data from a `.csv` file
-            return tf.nest.map_structure(
-                lambda x: self.read_datafile(data, identifier), data
-            )
-            return self.read_datafile(data, identifier)
-        else:
-            # Data from lists of `numpy.ndarray`
-            if isinstance(data, (list,tuple)):
-                self.check_data_consistency(data)
-                return tuple(data)
-            else:
-                utils._raise_value_err(
-                    f"'{identifier}' data passed into `{self.name}` has "
-                    "to be a list or a tuple of arrays: [x, y]"
-                )
+                # Data from lists of `numpy.ndarray`
+                if isinstance(data, (list,tuple)):
+                    self.check_data_consistency(data)
+                    return tuple(data)
+                else:
+                    utils._raise_value_err(
+                        f"'{identifier}' data passed into `{self.name}` has "
+                        "to be a list or a tuple of arrays: [x, y]"
+                    )
 
-    # Util functions
+    # Reading data from file
     ###########################################################################
-    def get_num_pts(self, identifier='training', verbose=1, print_fn=None):
-        dset = self.train if identifier == 'training' else self.valid
-        if dset is not None and print_fn is not None:
-            print_fn(dset, identifier, verbose)
-        else:
-            if verbose:
-                utils._print(text=f"No {identifier} pts available.", lev=1)
-
-    # Reading data from file+
-    ###########################################################################
-    def read_datafile(self, file, identifier=None):
+    def read_datafile(self, file, columns, preproc_fn=None):
         utils.check_file_extension(file, '.csv')
-        if not isinstance(self.columns, dict):
-            utils._raise_value_err(
-                "`columns` provided in `{}` has to be a `dict` with keys "
-                "['train','valid']['x', 'y', 'sample_weight']. The corresponding values are "
-                "lists of column indices (or a list of those if "
-                "multi I/O) for extracting input and target data "
-                "from file.".format(self.name)
-            )
-        elif None in self.columns.values():
-            utils._raise_value_err(
-                "In `columns` dictionary, provided in `{}`, all the provided "
-                "values have to be not `None`.".format(self.name)
-            )
+        # Read '.csv' file
         df = pd.read_csv(file, sep=',', header=self.header)
         df = df.to_numpy(dtype=backend.floatx())
-        if self.preproc_fn is not None:
-            df = self.preproc_fn(df)
+        if preproc_fn is not None and callable(preproc_fn):
+            df = preproc_fn(df)
         # Collect data from file
         data = []
         for i in ('x', 'y', 'sample_weight'):
-            if i == 'sample_weight' and identifier == 'testing':
-                continue
-            if i in ('x', 'y') and i not in self.columns.keys():
+            if i in ('x', 'y') and i not in columns.keys():
                 utils._raise_value_err(
-                    f"'{i}' values have not been "
-                    "provided in `columns` dictionary."
+                    f"'{i}' has not been provided in `columns` dictionary."
                 )
-            if i in self.columns.keys():
-                data.append(self.read_dataframe(df, self.columns[i]))
+            if i in columns.keys():
+                data.append(self.read_dataframe(df, columns[i]))
         return tuple(data)
 
     def read_dataframe(self, df, col):
@@ -175,7 +161,7 @@ class Data(object):
     ###########################################################################
     def set_batch_size(self, batch_size):
         if isinstance(batch_size, dict):
-            if all(k in batch_size.keys() for k in ['train', 'valid']):
+            if all([k in batch_size.keys() for k in ('train', 'valid')]):
                 self.batch_size = batch_size
             else:
                 utils._raise_value_err(
@@ -190,3 +176,13 @@ class Data(object):
                 "`batch_size` passed into `{}` has to be a "
                 "`int` or a `dict`".format(self.name)
             )
+
+    # Util functions
+    ###########################################################################
+    def get_num_pts(self, identifier='training', verbose=1, print_fn=None):
+        dset = self.train if identifier == 'training' else self.valid
+        if dset is not None and print_fn is not None:
+            print_fn(dset, identifier, verbose)
+        else:
+            if verbose:
+                utils._print(text=f"No {identifier} pts available.", lev=1)

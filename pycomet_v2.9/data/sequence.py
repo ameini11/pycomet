@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.python.keras import backend as K
+from pycomet import utils
+from tensorflow.python.keras import backend
 from tensorflow.python.util.tf_export import keras_export
-from pycomet.utilities import utils
 
 
 @keras_export('keras.utils.MultiObjData')
@@ -13,8 +13,8 @@ class MultiObjData(tf.keras.utils.Sequence):
     ###########################################################################
     def __init__(
         self,
-        data,
-        objectives,
+        data={},
+        obj_list=[],
         batch_size=32,
         shuffle=True
     ):
@@ -22,53 +22,48 @@ class MultiObjData(tf.keras.utils.Sequence):
 
         self.name = utils.get_class_name(self)
 
-        # Objective functions identifiers: ['ics','pts','res']
-        self.objectives = list(objectives)
+        # Objective functions identifiers
+        # Example with 'ODE' data: ['ics','pts','res']
+        self.obj_list = list(obj_list)
 
-        # Checking `batch_size`
+        # Checking 'batch_size'
         if not isinstance(batch_size, (dict, int)):
             utils.raise_value_err(
-                "`batch_size` passed into `{}` has to be a"
-                " `int` or `dict`. If `dict`:\n"
-                "  - 'ics': initial condition pts batch size;\n"
-                "  - 'pts': additional anchor pts batch size;\n"
-                "  - 'res': collocation pts batch size "
-                "(residual).".format(self.name))
+                f"'batch_size' passed into `{self.name}` has to be a `int` "
+                "or `dict`. If `dict`, the keys have to be the same as the "
+                "objective functions identifiers (see 'obj_list')."
+            )
         if isinstance(batch_size, int):
-            self.batch_size = {
-                obj: batch_size for obj in self.objectives
-            }
+            self.batch_size = {obj: batch_size for obj in self.obj_list}
         else:
             self.batch_size = batch_size
 
-        # Checking `data`
+        # Checking 'data'
         if not isinstance(data, dict):
             utils.raise_value_err(
-                "`data` passed into `{}` has to be a `dict`:\n"
-                "  - 'ics': initial condition pts dataset;\n"
-                "  - 'pts': additional anchor pts dataset;\n"
-                "  - 'res': collocation pts dataset "
-                "(residual).".format(self.name)
+                f"'data' passed into `{self.name}` has to be a `dict` with "
+                "objective functions identifiers (see 'obj_list') as keys."
             )
         else:
             self.data, self.n_samples = {}, {}
-            for obj in list(objectives):
+            for obj in list(obj_list):
                 if obj not in data or data[obj] is None:
                     # Deleting the corresponding `key` entry
-                    self.objectives.remove(obj)
+                    self.obj_list.remove(obj)
                     if obj in self.batch_size:
                         self.batch_size.pop(obj)
                 else:
                     if not isinstance(data[obj], (list,tuple)):
                         # Check data type: [x, y, sample_weight]
                         utils.raise_value_err(
-                            "Values passed into `data` dictionary in `{}` "
-                            "must be a `list`/`tuple` of `np.ndarray`: "
-                            "[x, y, sample_weight].".format(self.name)
+                            "Values passed into 'data' dictionary in "
+                            f"`{self.name}` must be a `list`/`tuple` of "
+                            "array: [x, y, sample_weight]."
                         )
                     else:
                         self.data[obj] = list(data[obj])
                         self.n_samples[obj] = utils.get_cardinality(data[obj])
+        self.data = tf.nest.map_structure(np.array, self.data)
 
         # Data dimensions
         self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
@@ -91,12 +86,12 @@ class MultiObjData(tf.keras.utils.Sequence):
         self,
         model
     ):
-        for obj in self.objectives:
+        for obj in self.obj_list:
             # Get true and pred values
             y = self.data[obj][1]
             y_pred = model.multi_obj_pred(
                 tf.nest.map_structure(
-                    lambda d: tf.random.normal((1, d), dtype=K.floatx()),
+                    lambda d: tf.random.normal((1, d), dtype=backend.floatx()),
                     model.input_dim
                 ),
                 objective=obj
@@ -130,14 +125,14 @@ class MultiObjData(tf.keras.utils.Sequence):
         trainable=False,
         rank=2
     ):
-        for obj in self.objectives:
+        for obj in self.obj_list:
             # Get initializers
             init_fn = initializer[obj] if initializer else np.ones
             # Define shape
             if rank == 1:
-                fn = lambda x: init_fn(shape=(x.shape[0],1), dtype=K.floatx())
+                fn = lambda x: init_fn(shape=(x.shape[0],1), dtype=backend.floatx())
             else:
-                fn = lambda x: init_fn(shape=x.shape, dtype=K.floatx())
+                fn = lambda x: init_fn(shape=x.shape, dtype=backend.floatx())
             # Construct weights
             sample_weight = tf.nest.map_structure(fn, self.data[obj][1])
             # Make them tf.Variable if trainable

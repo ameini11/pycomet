@@ -1,8 +1,8 @@
 import tensorflow as tf
 import tensorflow.python.keras.activations as act
 
-from tensorflow.python.keras import backend as K
-from pycomet.utilities import utils
+from pycomet import utils
+from tensorflow.python.keras import backend
 
 
 def layer_wise_locally_adaptive(activation, n=1):
@@ -20,7 +20,7 @@ def layer_wise_locally_adaptive(activation, n=1):
     References: `Jagtap et al., 2019 <https://arxiv.org/abs/1909.12228>`_.
     """
     a = tf.Variable(
-        1./n, trainable=True, name='act_scaling', dtype=K.floatx()
+        1./n, trainable=True, name='act_scaling', dtype=backend.floatx()
     )
     return lambda x: activation(n*a*x)
 
@@ -55,7 +55,7 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        utils.raise_value_err(
+        utils._raise_value_err(
             f"Could not interpret activation function "
             f"identifier: {str(identifier)}"
         )

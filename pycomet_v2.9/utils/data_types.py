@@ -60,6 +60,34 @@ def get_key_from_value(d, v):
         f"A key for value `{v}` doesn't exist in the dictionary."
     )
 
+def get_keys(d):
+    result = []
+    for key, value in d.items():
+        if type(value) is dict:
+            new_keys = get_keys(value)
+            result.append(key)
+            for innerkey in new_keys:
+                result.append(f'{key}/{innerkey}')
+        else:
+            result.append(key)
+    return result
+
+def check_dicts_consistency(self, list_of_dicts=[], idx_ref_dict=0):
+    list_of_keys = tf.nest.map_structure(
+        lambda x: (x[0], get_keys(x[1])), list_of_dicts
+    )
+    for i, (name, keys) in enumerate(list_of_keys):
+        if i == idx_ref_dict:
+            continue
+        else:
+            for k in keys[idx_ref_dict]:
+                if k not in keys[i]:
+                    utils._raise_value_err(
+                        f"A structure discrepancy between '{name}' and "
+                        f"'{list_of_dicts[idx_ref_dict][0]}' dictionaries "
+                        "has been found."
+                    )
+
 class H5DataSet:
     def __init__(self, path, no_group=False):
         self.data = {}

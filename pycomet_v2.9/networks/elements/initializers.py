@@ -1,6 +1,6 @@
 import tensorflow.python.keras.initializers as tf_init
 
-from pycomet.utilities import utils
+from pycomet import utils
 
 
 def get(identifier):
@@ -25,6 +25,6 @@ def get(identifier):
             identifier = identifier()
         return identifier
     else:
-        utils.raise_value_err(
+        utils._raise_value_err(
             "Could not interpret initializer identifier: " + str(identifier)
         )

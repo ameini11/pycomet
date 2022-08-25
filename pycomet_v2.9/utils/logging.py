@@ -8,16 +8,12 @@ _EPILOG = '\n' + '='*cfg._DISPLAY_LEN + '\n '
 _TABS = np.arange(5)*min(cfg._TAB, 2)
 
 # Printing --------------------------------------------------------------------
-def _print(text, start='\n', lev=0, verbose=True, *args, **kwargs):
+def _print(text, start='\n', lev=0, verbose=True):
     if verbose:
-        print(
-            start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text, *args, **kwargs
-        )
+        print(start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text)
 
-def _input(text, start='', lev=0, *args, **kwargs):
-    return input(
-        start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text, *args, **kwargs
-    )
+def _input(text, start='', lev=0):
+    return input(start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text)
 
 def _warning(text, start='', *args, **kwargs):
     print(start + cfg._HEADERS['warning'] + text, *args, **kwargs)

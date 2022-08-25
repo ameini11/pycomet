@@ -21,7 +21,7 @@ def timing(fun):
         return result
     return wrapper
 
-def app(name=None):
+def app_dec(name=None):
     def dec(fun):
         @wraps(fun)
         def wrapper(name=name, *args, **kwargs):

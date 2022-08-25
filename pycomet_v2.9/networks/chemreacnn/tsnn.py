@@ -217,3 +217,137 @@ class TimeScaleNN(Net):
                 )
             y.append(y_i)
         return y
+
+
+
+
+from pycomet.physics.thermochemistry.specie_thermo import partition_fun
+from pycomet.physics.thermochemistry.specie_thermo import specie
+# =========================================================================== #
+# Equilibrium Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='Equilibrium')
+class Equilibrium(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        out_dim,
+        species,
+        reaction=None,
+        name='equilibrium',
+        *args,
+        **kwargs
+    ):
+        super(Equilibrium, self).__init__(
+            name=name,
+            *args,
+            **kwargs
+        )
+
+        self.out_dim = out_dim
+        self.reaction = reaction
+
+        # Species -------------------------------------------------------------
+        self.species = {
+            sp: specie.Specie(sp, **info) if info != None else specie.Specie(sp) \
+                for sp, info in species.items()
+        }
+
+        for name, sp_ in self.species.items():
+            if sp_.n_at > 1:
+                self.molecule = name
+            else:
+                self.atom = name
+
+        # Partition functions -------------------------------------------------
+        if self.reaction is not None:
+            self.intPF = {
+                name: partition_fun.internal.Internal(specie) \
+                    for name, specie in self.species.items()
+            }
+            if self.reaction == 'diss':
+                self.transPF = {
+                    name: partition_fun.translational.Translational(specie) \
+                        for name, specie in self.species.items()
+                }
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'out_dim': self.out_dim,
+            'reaction': self.reaction,
+            'species': self.species
+        }
+        base_config = super(Equilibrium, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs):
+        if isinstance(inputs, (list, tuple)):
+            x, T, rho = inputs
+        else:
+            utils._raise_value_err(
+                "The inputs of the `{}` layer have to be a `list` "
+                "or a `tuple`: [x, T]".format(self.name))
+
+        if self.reaction is None:
+            y = tf.split(x, num_or_size_splits=self.out_dim, axis=1)
+            y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
+        else:
+            # Partition functions
+            self.updatePF(T)
+            if self.reaction == 'diss':
+                Q = self.eq_diss(rho)
+            elif self.reaction == 'excit':
+                Q = [ pf.Q for pf in self.intPF.values() ]
+                Q = tf_layers.Concatenate()(Q) if len(Q) > 1 else Q[-1]
+            # Simil-Softmax layer
+            y = tf_layers.Multiply()([tf.math.exp(x), Q])
+            y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
+            y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
+            # y = tf_layers.Multiply()(
+            #     [tf.math.exp(-x), Q / tf.reduce_sum(Q, axis=-1, keepdims=True)]
+            # )
+            # y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
+
+        return y if len(y) > 1 else y[-1]
+
+    def Keq(self):
+        '''Diss.-Recomb. equilibrium constants matrix'''
+        PFdot = {
+            name: self.intPF[name].Q * self.transPF[name].Q \
+                for name in self.species.keys()
+        }
+        return PFdot[self.atom]**2 / PFdot[self.molecule]
+
+    def eq_diss(self, rho):
+        '''Diss.-Recomb. equilibrium constants matrix'''
+
+        # Calculate equilibrium constant
+        backend = self.Keq()
+
+        # Calculate mass fractions
+        A = tf.math.pow(rho / self.species[self.atom].m, 2.)
+        B = backend * rho / self.species[self.molecule].m
+        C = - B
+
+        Y_O = (- B + tf.math.sqrt(B**2. - 4.*A*C)) / (2.*A)
+        Y_O2 = 1. - Y_O
+
+        return tf.concat([Y_O2, Y_O], 1)
+
+    def updatePF(self, T):
+        # Update partition functions
+        for intPF_ in self.intPF.values():
+            intPF_.update(T)
+        if self.reaction == 'diss':
+            for transPF_ in self.transPF.values():
+                transPF_.update(T)

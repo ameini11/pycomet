@@ -1,11 +1,9 @@
 import tensorflow.python.keras.metrics as tf_met
 
-from pycomet.utilities.training import losses as losses_module
 from pycomet import utils
+from pycomet.utilities.training import losses as losses_module
 
 
-# Utils
-###########################################################################
 def get(identifier):
     metric_identifier = {
         "accuracy": tf_met.Accuracy(),

@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.python.keras import backend
 from pycomet import utils
+from tensorflow.python.keras import backend
 
 
 def convert_struct_to_tensor(x):

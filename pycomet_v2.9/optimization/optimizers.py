@@ -1,5 +1,5 @@
-from tensorflow.keras import optimizers as tf_opt
 from pycomet import utils
+from tensorflow.keras import optimizers as tf_opt
 
 
 def get_train_opt(optimizer, lr=None, decay=None):
