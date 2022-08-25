@@ -1,111 +1,93 @@
 import os
 import numpy as np
+import pandas as pd
+import tensorflow as tf
 
-from tensorflow.python.keras.engine import data_adapter
-from pycomet.data.sequence import MultiObjData
+from pycomet import utils
 from pycomet.data.data import Data
-from pycomet.data import gradients
-from pycomet.utilities import utils
-from pycomet import config as cfg
 
 
-class ODE(Data):
-    '''ODE solver.'''
+class MultiObjData(Data):
 
     # Initialization
     ###########################################################################
     def __init__(
         self,
         dim,
-        training=True,
-        ode=None,
-        train_data=None,
-        valid_data=None,
-        test_data=None,
+        data_src={},
         validation_split=None,
+        training=True,
         batch_size=None,
         from_file=False,
-        columns=None,
         header=0,
+        columns=None,
         preproc_fn=None,
-        obj_list=None
+        obj_list=[]
     ):
-        super(ODE, self).__init__(
+        super(DataSet, self).__init__(
             dim=dim,
+            data_src=data_src,
+            validation_split=validation_split,
             training=training,
-            test_data=test_data,
             batch_size=batch_size,
             from_file=from_file,
-            columns=columns,
             header=header,
+            columns=columns,
             preproc_fn=preproc_fn
         )
-
-        # Defining multi-objective functions identifiers
-        self.obj_list = obj_list
-        if self.obj_list is None:
-            self.obj_list = (
-                'ics',  # Initial condition pts
-                'pts',  # Anchor pts
-                'res'   # Collocation pts (residual)
-            )
+        # Attributes for handling multi-objective loss
         self.multi_obj_loss = True
-        # Defining multi-objective functions identifiers
+        self.obj_list = obj_list
         self.objectives = {
             'train': None,
             'valid': None
         }
+        self.obj_pred_fn = {}
+        self.weighted_loss = None
+        self.opt_target = []
 
-        # Training/Validation data
-        if self.training:
-            # Extracting/Manipulating data objects
-            self.check_data_source(train_data, 'training')
-            if valid_data:
-                self.check_data_source(valid_data, 'validation')
-                train_dset = self.data_as_dict(train_data)
-                valid_dset = self.data_as_dict(valid_data)
-            elif validation_split:
-                train_dset, valid_dset = data_adapter.train_validation_split(
-                    self.data_as_dict(train_data), validation_split
-                )
-            else:
-                train_dset = self.data_as_dict(train_data)
-                valid_dset = None
-
-            # Creating multi-objective data sequences 
-            self.train = MultiObjData(
-                data=train_dset,
-                objectives=self.obj_list,
-                batch_size=self.batch_size['train']
-            )
-            if valid_dset is not None:
-                self.valid = MultiObjData(
-                    data=valid_dset,
-                    objectives=self.obj_list,
-                    batch_size=self.batch_size['valid'] \
-                        or self.batch_size['train']
-                )
-            # Defining multi-objective functions identifiers
-            self.objectives['train'] = self.train.objectives
-            self.objectives['valid'] = self.valid.objectives \
-                if self.valid is not None else None
-
-        # ODE properties
-        self.ode = ode
-        self.grads = None
-        if self.ode is not None:
-            self.physics_informed = True
-            self.grads = Gradients()
-
-    def build(self, model):
-        if self.training:
-            self.train.build(model)
-            if self.valid is not None:
-                self.valid.build(model)
-        self.built = True
+        # Attributes for physics-informed loss
+        self.physics_informed = False
 
     # Handling Data
     ###########################################################################
+
+
+
+    # def get_data(self, data):
+    #     d = {}
+    #     for obj in self.obj_list:
+    #         if obj in data.keys():
+    #             d[obj] = self.get_data(data[obj], obj)
+    #             super(DataSet, self).__init__(
+
+
+
+    def get_data(self, data, identifier):
+        if data is None:
+            if identifier == 'training':
+                utils._raise_value_err(
+                    f"No '{identifier}' data passed into `{self.name}`."
+                )
+            else:
+                return None
+        if self.from_file:
+            # Data from a `.csv` file
+            return tf.nest.map_structure(
+                lambda x: self.read_datafile(data, identifier), data
+            )
+            return self.read_datafile(data, identifier)
+        else:
+            # Data from lists of `numpy.ndarray`
+            if isinstance(data, (list,tuple)):
+                self.check_data_consistency(data)
+                return tuple(data)
+            else:
+                utils._raise_value_err(
+                    f"'{identifier}' data passed into `{self.name}` has "
+                    "to be a list or a tuple of arrays: [x, y]"
+                )
+
     def check_data_source(self, data, identifier):
         if data is None:
             utils.raise_value_err(
@@ -160,6 +142,8 @@ class ODE(Data):
                     "a tuple of arrays: [x, y]".format(self.name)
                 )
 
+    # Util functions
+    ###########################################################################
     def get_num_pts(self, identifier='training', verbose=1):
 
         def print_fn(dset, identifier, verbose):
@@ -169,19 +153,4 @@ class ODE(Data):
                 for k, v in num_pts.items():
                     utils.print_submain("  - '%s': %8d" % (k, v))
 
-        super(ODE, self).get_num_pts(identifier, verbose, print_fn)
-
-    # Handling Residual Loss
-    ###########################################################################
-    @tf.function(jit_compile=cfg._TF['setup']['XLA'])
-    def residual(inputs, model, training=True):
-
-        # Evaluate model outputs
-        outputs = model(inputs=inputs, training=training)
-
-        # Evaluate residual
-        res = self.ode(x=inputs, y=outputs, grads=self.grads)
-        if self.grads is not None:
-            self.grads.clear()
-
-        return res
+        super(MultiObjData, self).get_num_pts(identifier, verbose, print_fn)

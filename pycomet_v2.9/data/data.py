@@ -30,6 +30,7 @@ class Data(object):
         self.dim = dim
         self.training = training
         self.built = False
+        self.multi_obj_loss = False
 
         # Data ----------------------------------------------------------------
         self.data_src = data_src

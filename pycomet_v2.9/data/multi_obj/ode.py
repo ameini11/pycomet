@@ -2,8 +2,8 @@ import os
 import numpy as np
 
 from tensorflow.python.keras.engine import data_adapter
-from pycomet.data.sequence import MultiObjSequence
-from pycomet.data.data import Data
+from pycomet.data.multi_obj.data import MultiObjData
+from pycomet.data.multi_obj.sequence import MultiObjSequence
 from pycomet.data import gradients
 from pycomet.utilities import utils
 from pycomet import config as cfg
