@@ -4,6 +4,7 @@ import pandas as pd
 import tensorflow as tf
 
 from tensorflow.python.keras import backend
+from pycomet import operations as ops
 from pycomet import utils
 from pathlib import Path
 
@@ -155,7 +156,7 @@ class Data(object):
     ###########################################################################
     def check_data_consistency(self, data):
         net_dim = list(self.dim.values())
-        data_dim = utils.array_ops.get_struct_shape(data, axis=1)
+        data_dim = ops.get_struct_shape(data, axis=1)
         for i, io in enumerate(data_dim):
             if i <= 2 and data_dim[i]:
                 if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):

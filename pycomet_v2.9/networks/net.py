@@ -8,6 +8,7 @@ from tensorflow.python.keras.utils import traceback_utils
 from tensorflow.python.keras import metrics as metrics_mod
 from tensorflow.python.keras import backend
 from pycomet.networks.elements import blocks
+from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import utils
 
@@ -163,7 +164,7 @@ class Net(tf.keras.Model):
     def multi_obj_train_step(self, data):
         # Unpack data
         x, y, sample_weight, sample_index = \
-            utils.unpack_x_y_sample_weight_index(data)
+            ops.unpack_x_y_sample_weight_index(data)
         # Manipulate sample weights
         if self.weighted_loss:
             sample_weight = self.weighted_loss.on_grad_step_begin(

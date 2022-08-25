@@ -1,4 +1,5 @@
 from tensorflow.python.keras.engine import data_adapter
+from pycomet import operations as ops
 from pycomet.data.data import Data
 from pycomet import utils
 
@@ -54,7 +55,7 @@ class DataSet(Data):
     def get_num_pts(self, identifier='training', verbose=1):
 
         def print_fn(dset, identifier, verbose):
-            num_pts = utils.get_cardinality(dset)
+            num_pts = ops.get_cardinality(dset)
             if verbose:
                 text = f"Number of {identifier} pts:"
                 utils._print(

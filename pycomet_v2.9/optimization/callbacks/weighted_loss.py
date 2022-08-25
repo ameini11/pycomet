@@ -10,6 +10,7 @@ import tensorflow.python.keras.initializers as tf_init
 from tensorflow.python.keras import backend
 from tensorflow.python.eager import backprop
 from tensorflow.python.util.tf_export import keras_export
+from pycomet import operations as ops
 from pycomet import utils
 from tqdm import tqdm
 
@@ -80,7 +81,7 @@ class BaseWeightsAdapter(cb.Callback):
                 "  - 'pts': weight for anchor pts loss;\n"
                 "  - 'res': weight for residual loss.".format(self.name)
             )
-        self.multi_obj_loss_weights = utils.convert_struct_to_tensor(
+        self.multi_obj_loss_weights = ops.convert_struct_to_tensor(
             self.multi_obj_loss_weights
         )
         for k, w in self.multi_obj_loss_weights.items():
