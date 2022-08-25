@@ -88,6 +88,12 @@ def check_dicts_consistency(self, list_of_dicts=[], idx_ref_dict=0):
                         "has been found."
                     )
 
+def extract_columns_from_array(self, x, columns):
+    if any(isinstance(c, (list,tuple)) for c in columns):
+        return [np.take(x, c, axis=1) for c in columns]
+    else:
+        return np.take(x, columns, axis=1)
+
 class H5DataSet:
     def __init__(self, path, no_group=False):
         self.data = {}

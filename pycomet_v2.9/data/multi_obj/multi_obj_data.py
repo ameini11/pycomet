@@ -1,8 +1,3 @@
-import os
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-
 from pycomet import utils
 from pycomet.data.data import Data
 
@@ -22,9 +17,11 @@ class MultiObjData(Data):
         header=0,
         columns=None,
         preproc_fn=None,
-        obj_list=[]
+        obj_list=[],
+        obj_opt_targets=[],
+        physics_informed=False
     ):
-        super(DataSet, self).__init__(
+        super(MultiObjData, self).__init__(
             dim=dim,
             data_src=data_src,
             validation_split=validation_split,
@@ -35,112 +32,45 @@ class MultiObjData(Data):
             columns=columns,
             preproc_fn=preproc_fn
         )
-        # Attributes for handling multi-objective loss
+        # Attributes for handling multi-objective loss ------------------------
+        # Setting a multi-objective loss function
         self.multi_obj_loss = True
-        self.obj_list = obj_list
-        self.objectives = {
-            'train': None,
-            'valid': None
-        }
-        self.obj_pred_fn = {}
+        # Setting an adaptive multi-objective loss weights balancing
         self.weighted_loss = None
-        self.opt_target = []
 
-        # Attributes for physics-informed loss
-        self.physics_informed = False
+        # Objectives ----------------------------------------------------------
+        # Multi-objective functions identifiers (`list`)
+        self.obj_list = obj_list
+        # List of objectives with optional targets (meaning having zero as
+        # target value)
+        self.obj_opt_targets = obj_opt_targets
+        # Objectives predictive functions (`model.predict` by default)
+        self.obj_pred_fn = {k: 'model' for k in self.obj_list}
+        # Actual list of objectives identifiers based on data availability
+        self.objectives = {
+            'train': self.obj_list,
+            'valid': self.obj_list
+        }
+
+        # Attributes for physics-informed loss --------------------------------
+        self.physics_informed = physics_informed
 
     # Handling Data
     ###########################################################################
-
-
-
-    # def get_data(self, data):
-    #     d = {}
-    #     for obj in self.obj_list:
-    #         if obj in data.keys():
-    #             d[obj] = self.get_data(data[obj], obj)
-    #             super(DataSet, self).__init__(
-
-
-
     def get_data(self, data, identifier):
-        if data is None:
-            if identifier == 'training':
-                utils._raise_value_err(
-                    f"No '{identifier}' data passed into `{self.name}`."
-                )
-            else:
-                return None
-        if self.from_file:
-            # Data from a `.csv` file
-            return tf.nest.map_structure(
-                lambda x: self.read_datafile(data, identifier), data
-            )
-            return self.read_datafile(data, identifier)
+        if identifier == 'test':
+            return super(MultiObjData, self).get_data(data, identifier)
         else:
-            # Data from lists of `numpy.ndarray`
-            if isinstance(data, (list,tuple)):
-                self.check_data_consistency(data)
-                return tuple(data)
-            else:
-                utils._raise_value_err(
-                    f"'{identifier}' data passed into `{self.name}` has "
-                    "to be a list or a tuple of arrays: [x, y]"
-                )
-
-    def check_data_source(self, data, identifier):
-        if data is None:
-            utils.raise_value_err(
-                "No '{}' data passed into `{}`.".format(identifier, self.name)
-            )
-        elif not isinstance(data, dict):
-            utils.raise_value_err(
-                "'{}' data passed into `{}` has to be a `dict`:\n"
-                "  - 'ics': initial condition pts (arrays or file path);\n"
-                "  - 'pts': additional anchor pts (arrays or file path);\n"
-                "  - 'res': collocation pts for residual evaluation "
-                "(arrays or file path).".format(identifier, self.name)
-            )
-
-    def data_as_dict(self, data):
-        d = {}
-        for obj in self.obj_list:
-            if obj in data.keys():
-                d[obj] = self.get_data(data[obj], obj)
-        return d
-
-    def get_data(self, data, obj):
-        if data is None:
-            return None
-        if self.from_file:
-            # Data from a `.csv` file
-            data = self.read_datafile(data)
-            if any(i.size == 0 for i in data[0]):
-                utils.raise_value_err(
-                    "No input data (see `columns['x']`) can be extracted "
-                    "from file '{}'.".format(os.path.normpath(data))
-                )
-            if any(i.size == 0 for i in data[1]):
-                if obj != 'res':
-                    utils.raise_value_err(
-                        "No target data (see `columns['y']`) can be extracted "
-                        "from file '{}'.".format(os.path.normpath(data))
+            dset = {}
+            for obj in self.obj_list:
+                if obj in data.keys():
+                    dset[obj] = super(MultiObjData, self).get_data(
+                        data=data[obj],
+                        identifier=identifier,
+                        columns=self.columns[identifier][obj],
+                        preproc_fn=self.preproc_fn[identifier][obj]
                     )
-            return data
-        else:
-            # Data from lists of `numpy.array`
-            if isinstance(data, (list,tuple)):
-                self.check_data_consistency(data)
-                if obj == 'res' and len(data) == 1:
-                    x = data[0]
-                    y = np.zeros((utils.get_cardinality(x),0))
-                    data = [x, y]
-                return tuple(data)
-            else:
-                utils.raise_value_err(
-                    "Data passed into `{}` has to be a list or "
-                    "a tuple of arrays: [x, y]".format(self.name)
-                )
+            return dset
 
     # Util functions
     ###########################################################################
@@ -149,8 +79,10 @@ class MultiObjData(Data):
         def print_fn(dset, identifier, verbose):
             num_pts = {obj: dset.n_samples[obj] for obj in dset.data}
             if verbose:
-                utils.print_submain("Number of {} pts:".format(identifier))
+                utils._print(f"Number of {identifier} pts:", lev=1)
                 for k, v in num_pts.items():
-                    utils.print_submain("  - '%s': %8d" % (k, v))
+                    utils._print(
+                        "  - '%s':" + ' '*(10-len(k)) + " %8d" % (k, v), lev=1
+                    )
 
         super(MultiObjData, self).get_num_pts(identifier, verbose, print_fn)

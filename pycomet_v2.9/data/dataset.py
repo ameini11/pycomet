@@ -36,7 +36,6 @@ class DataSet(Data):
             columns=columns,
             preproc_fn=preproc_fn
         )
-
         # Training/Validation data
         if self.training:
             if 'valid' in self.data_src and self.data_src['valid'] is not None:
@@ -58,8 +57,8 @@ class DataSet(Data):
             num_pts = utils.get_cardinality(dset)
             if verbose:
                 text = f"Number of {identifier} pts:"
-                utils.print_submain(
-                    text + ' '*(30-len(text)) + "%10d" % num_pts
+                utils._print(
+                    text + ' '*(30-len(text)) + "%10d" % num_pts, lev=1
                 )
 
         super(DataSet, self).get_num_pts(identifier, verbose, print_fn)

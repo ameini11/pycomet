@@ -14,7 +14,8 @@ class MultiObjSequence(tf.keras.utils.Sequence):
     def __init__(
         self,
         data={},
-        obj_list=[],
+        objectives=[],
+        obj_opt_targets=[],
         batch_size=32,
         shuffle=True
     ):
@@ -24,17 +25,18 @@ class MultiObjSequence(tf.keras.utils.Sequence):
 
         # Objective functions identifiers
         # Example with 'ODE' data: ['ics','pts','res']
-        self.obj_list = list(obj_list)
+        self.objectives = list(objectives)
+        self.obj_opt_targets = list(obj_opt_targets)
 
         # Checking 'batch_size'
         if not isinstance(batch_size, (dict, int)):
             utils.raise_value_err(
                 f"'batch_size' passed into `{self.name}` has to be a `int` "
                 "or `dict`. If `dict`, the keys have to be the same as the "
-                "objective functions identifiers (see 'obj_list')."
+                "objective functions identifiers (see 'objectives')."
             )
         if isinstance(batch_size, int):
-            self.batch_size = {obj: batch_size for obj in self.obj_list}
+            self.batch_size = {obj: batch_size for obj in self.objectives}
         else:
             self.batch_size = batch_size
 
@@ -42,14 +44,14 @@ class MultiObjSequence(tf.keras.utils.Sequence):
         if not isinstance(data, dict):
             utils.raise_value_err(
                 f"'data' passed into `{self.name}` has to be a `dict` with "
-                "objective functions identifiers (see 'obj_list') as keys."
+                "objective functions identifiers (see 'objectives') as keys."
             )
         else:
             self.data, self.n_samples = {}, {}
-            for obj in list(obj_list):
+            for obj in list(objectives):
                 if obj not in data or data[obj] is None:
                     # Deleting the corresponding `key` entry
-                    self.obj_list.remove(obj)
+                    self.objectives.remove(obj)
                     if obj in self.batch_size:
                         self.batch_size.pop(obj)
                 else:
@@ -86,7 +88,7 @@ class MultiObjSequence(tf.keras.utils.Sequence):
         self,
         model
     ):
-        for obj in self.obj_list:
+        for obj in self.objectives:
             # Get true and pred values
             y = self.data[obj][1]
             y_pred = model.multi_obj_pred(
@@ -106,15 +108,15 @@ class MultiObjSequence(tf.keras.utils.Sequence):
             y_pred_dim = utils.get_struct_shape(y_pred, axis=1)
             # Check if true and pred dimensions are the same
             if y_dim != y_pred_dim:
-                if obj == 'res':
+                if obj in self.obj_opt_targets:
                     self.data[obj][1] = tf.nest.map_structure(
                         lambda d: np.zeros((self.n_samples[obj], d)),
                         y_pred_dim
                     )
                 else:
                     utils.raise_value_err(
-                        "'{}' data passed into `{}` are inconsistent with the "
-                        "network output dimensions.".format(obj, self.name)
+                        f"'{obj}' data passed into `{self.name}` are "
+                        "inconsistent with the network output dimensions."
                     )
         # Update shapes
         self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
@@ -125,16 +127,20 @@ class MultiObjSequence(tf.keras.utils.Sequence):
         trainable=False,
         rank=2
     ):
-        for obj in self.obj_list:
+        for obj in self.objectives:
             # Get initializers
-            init_fn = initializer[obj] if initializer else np.ones
+            init_fun = initializer[obj] if initializer else np.ones
             # Define shape
             if rank == 1:
-                fn = lambda x: init_fn(shape=(x.shape[0],1), dtype=backend.floatx())
+                fun = lambda x: init_fun(
+                    shape=(x.shape[0],1), dtype=backend.floatx()
+                )
             else:
-                fn = lambda x: init_fn(shape=x.shape, dtype=backend.floatx())
+                fun = lambda x: init_fun(
+                    shape=x.shape, dtype=backend.floatx()
+                )
             # Construct weights
-            sample_weight = tf.nest.map_structure(fn, self.data[obj][1])
+            sample_weight = tf.nest.map_structure(fun, self.data[obj][1])
             # Make them tf.Variable if trainable
             if trainable:
                 sample_weight =  tf.nest.map_structure(

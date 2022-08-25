@@ -67,8 +67,20 @@ class Data(object):
             list_of_dicts = [
                 ('data_src', self.data_src), ('columns', self.columns)
             ]
+            # Check array preprocessing functions
             if self.preproc_fn is not None:
-                list_of_dicts += [('preproc_fn', self.preproc_fn)]
+                if isinstance(self.preproc_fn, callable):
+                    num_elem = len(tf.nest.flatten(self.data_src))
+                    self.preproc_fn = tf.nest.pack_sequence_as(
+                        self.data_src, [self.preproc_fn] * num_elem
+                    )
+                elif isinstance(self.preproc_fn, dict):
+                    list_of_dicts += [('preproc_fn', self.preproc_fn)]
+                else:
+                    utils._raise_value_err(
+                        f"'preproc_fn' passed into '{self.name}' has to "
+                        "be a dictonary or a callable function."
+                    )
             utils.check_dicts_consistency(list_of_dicts)
 
         # Testing data --------------------------------------------------------
@@ -78,7 +90,10 @@ class Data(object):
                 self.test = {}
                 for file in os.listdir(test):
                     self.test[Path(file).stem] = self.get_data(
-                        os.path.join(test, file), 'test'
+                        data=os.path.join(test, file),
+                        identifier='test',
+                        columns=self.columns['test'],
+                        preproc_fn=self.preproc_fn['test']
                     )
             elif isinstance(test, (list,tuple,dict)):
                 self.test = tf.nest.map_structure(lambda x: np.array(x), test)
@@ -102,12 +117,10 @@ class Data(object):
 
     # Handling Data
     ###########################################################################
-    def get_data(self, data, identifier):
+    def get_data(self, data, identifier, columns=None, preproc_fn=None):
         if data is not None:
             if self.from_file:
-                return self.read_datafile(
-                    data, self.columns[identifier], self.preproc_fn[identifier]
-                )
+                return self.read_datafile(data, columns, preproc_fn)
             else:
                 # Data from lists of `numpy.ndarray`
                 if isinstance(data, (list,tuple)):
@@ -119,8 +132,7 @@ class Data(object):
                         "to be a list or a tuple of arrays: [x, y]"
                     )
 
-    # Reading data from file
-    ###########################################################################
+    # Reading data from file --------------------------------------------------
     def read_datafile(self, file, columns, preproc_fn=None):
         utils.check_file_extension(file, '.csv')
         # Read '.csv' file
@@ -136,14 +148,8 @@ class Data(object):
                     f"'{i}' has not been provided in `columns` dictionary."
                 )
             if i in columns.keys():
-                data.append(self.read_dataframe(df, columns[i]))
+                data.append(utils.extract_columns_from_array(df, columns[i]))
         return tuple(data)
-
-    def read_dataframe(self, df, col):
-        if any(isinstance(c, (list,tuple)) for c in col):
-            return [np.take(df, c, axis=1) for c in col]
-        else:
-            return np.take(df, col, axis=1)
 
     # Checking data - network consistency
     ###########################################################################
