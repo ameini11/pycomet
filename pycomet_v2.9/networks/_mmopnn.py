@@ -60,7 +60,7 @@ class MMOpNN(Net):
 
         ### OpNNs Initialization ----------------------------------------------
         if len(names) <= 1:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "The number of `names` passed into `{}` has to be "
                 "grater than 1 (multiple DeepONets).".format(self.name))
         else:
@@ -96,7 +96,7 @@ class MMOpNN(Net):
         # Apply I/O Transformation
         if self.opnn_inp_trans:
             if not isinstance(self.opnn_inp_trans, dict):
-                utils.raise_value_err(
+                utils._raise_value_err(
                     "`opnn_inp_trans` passed into `{}` has to be a `dict` in "
                     "which a specific input transform function is defined "
                     "for each DeepONet: {'name': fun}".format(self.name)
@@ -105,7 +105,7 @@ class MMOpNN(Net):
                 self.opnns[name].inp_trans = fun
         if self.opnn_out_trans:
             if not isinstance(self.opnn_out_trans, dict):
-                utils.raise_value_err(
+                utils._raise_value_err(
                     "`opnn_out_trans` passed into `{}` has to be a `dict` in "
                     "which a specific output transform function is defined "
                     "for each DeepONet: {'name': fun}".format(self.name)
@@ -115,7 +115,7 @@ class MMOpNN(Net):
 
         ### Final Scaling -----------------------------------------------------
         if end_scale not in {None, "bias", "dense"}:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "Invalid `end_scale` argument passed into `{}`. Available "
                 "choices: {{None|'bias'|'dense'}}.".format(self.name)
             )
@@ -180,7 +180,7 @@ class MMOpNN(Net):
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
         if self.inp_trans is not None:

@@ -170,7 +170,7 @@ class Model(object):
                 f"Restoring network from the following provided paths: {path}"
             )
         else:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "In `model.compile` you should pass as `load_net` argument "
                 "one of these 4 options:\n"
                 "   >> 0: making new network;\n"

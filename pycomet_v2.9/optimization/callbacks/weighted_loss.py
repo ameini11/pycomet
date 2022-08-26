@@ -74,7 +74,7 @@ class BaseWeightsAdapter(cb.Callback):
         elif isinstance(self.multi_obj_loss_weights, dict):
             pass
         else:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "`multi_obj_loss_weights` passed into `{}` "
                 "has to be a list or a dictionary:\n"
                 "  - 'ics': weight for initial condition pts loss;\n"
@@ -481,7 +481,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #                 obj: limits for obj in self.model.objectives['train']
 #             }
 #         if not isinstance(self.limits, dict):
-#             utils.raise_value_err(
+#             utils._raise_value_err(
 #                 "`limits` in `{}` has to be a `dict` of [min, max] value "
 #                 "list for each objecitve function.".format(self.name)
 #             )
@@ -492,7 +492,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #         # Define the self-adaptation mask function
 #         if q is not None:
 #             if any([q_i <= 0. for q_i in q]):
-#                 utils.raise_value_err(
+#                 utils._raise_value_err(
 #                     "`q` coefficents for the mask function in `{}` have "
 #                     "to be positive.".format(self.name)
 #                 )

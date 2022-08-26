@@ -153,7 +153,7 @@ class NeqCtrlNN(Net):
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
         if self.inp_trans is not None:
@@ -275,7 +275,7 @@ class MMOpNNCtrl(Net):
             ])
         else:
             if len(names) <= 1:
-                utils.raise_value_err(
+                utils._raise_value_err(
                     "The number of `names` passed into `{}` has to be "
                     "grater than 1 (multiple DeepONets).".format(self.name))
             else:

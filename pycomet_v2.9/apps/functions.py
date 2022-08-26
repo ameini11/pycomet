@@ -196,7 +196,7 @@ def _data(
             )
             data_args.update(dict(ode_func=physicalMdl.ode))
         else:
-            utils.raise_value_err(
+            utils._raise_value_err(
                 "For physics-informed models, 'ODE' data type has to be "
                 f"chosen. Modify your '{wdir}/inputs/data.py' file."
             )
