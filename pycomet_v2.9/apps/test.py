@@ -21,8 +21,8 @@ import argparse
 import tensorflow as tf
 
 from tqdm import tqdm
+from pycomet mport utils
 from pycomet import config as cfg
-from pycomet.utilities import utils
 from pycomet.apps import functions as fun
 
 
@@ -33,7 +33,7 @@ def get_parser(subparsers):
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Test a ML-based approximator.",
-        epilog=cfg.EPILOG
+        epilog=utils._EPILOG
     )
     parser.add_argument('-j', '--threads',
         type=int,
@@ -67,7 +67,7 @@ def get_parser(subparsers):
 
 # Main
 ###############################################################################
-@utils.app_decorator()
+@utils.app_dec()
 def main(args):
 
     # Inizialization
@@ -76,7 +76,7 @@ def main(args):
         args.verbose = 1
     os.chdir(args.dir)
     # Environment
-    utils.environment()
+    utils._environment()
 
     # Add modules -------------------------------------------------------------
     sys.path.append(args.dir)

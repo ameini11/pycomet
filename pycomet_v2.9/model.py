@@ -12,6 +12,7 @@ from pycomet.utilities.training import losses as losses_module
 from pycomet.utilities.training import metrics as metrics_module
 from pycomet.utilities.training.optimizers import get_train_opt
 from pycomet import operations as ops
+from pycomet import config as cfg
 from pycomet import postproc
 from pycomet import utils
 
@@ -30,9 +31,9 @@ class Model(object):
         save_path=None,
         save_format='h5'
     ):
+        self.name = name
         self.data = data
         self.net  = net
-        self.name = name
 
         # Attributes for handling multi-objective loss
         self.multi_obj_loss_attrs = (
@@ -157,34 +158,34 @@ class Model(object):
         path = None
         if load_net == 0:
             utils._print("Making a new network", lev=1)
-        elif load_net in (1,2):
-            if load_net == 1:
-                utils._print(
-                    f"Restoring network from saved file '{path}'", lev=1
-                )
-                path = os.path.abspath(self.save_path)
-            elif load_net == 2:
-                last_ckpt = max(
-                    os.listdir(self.dir['ckpt']),
-                    key=lambda x: int(x.split('_')[1].split('.')[0])
-                )
-                if last_ckpt:
-                    utils._print(
-                        f"Restoring network from checkpoint '{path}'", lev=1
-                    )
-                    path = os.path.abspath(self.dir['ckpt'] + "/" + last_ckpt)
-                else:
-                    utils._print(
-                        "No checkpoints available: making a new network", lev=1
-                    )
-        elif load_net == 3:
+        elif load_net == 1:
             utils._print(
-                f"Restoring network from the following provided paths: {path}",
-                lev=1
+                f"Restoring network from saved file '{path}'", lev=1
             )
+            path = os.path.abspath(self.save_path)
+        elif load_net == 2:
+            last_ckpt = max(
+                os.listdir(self.dir['ckpt']),
+                key=lambda x: int(x.split('_')[1].split('.')[0])
+            )
+            if last_ckpt:
+                utils._print(
+                    f"Restoring network from checkpoint '{path}'", lev=1
+                )
+                path = os.path.abspath(self.dir['ckpt'] + "/" + last_ckpt)
+            else:
+                utils._print(
+                    "No checkpoints available: making a new network", lev=1
+                )
+        elif load_net == 3:
             path = tf.nest.map_structure(
                 os.path.abspath, tf.nest.flatten(weights_to_load)
             )
+            utils._print(
+                "Restoring network from the following provided paths:", lev=1
+            )
+            for p in path:
+                utils._print(f">> '{p}'", lev=1)
         else:
             utils._raise_value_err(
                 "In `model.compile` you should pass as `load_net` argument "
@@ -223,7 +224,11 @@ class Model(object):
         axis=None,
         reduction='auto',
         metrics=None,
-        loss_weights=None
+        loss_weights=None,
+        weighted_metrics=None,
+        run_eagerly=None,
+        steps_per_execution=None,
+        jit_compile=cfg._TF['setup']['XLA']
     ):
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
@@ -243,7 +248,11 @@ class Model(object):
             optimizer=self.optimizer,
             loss=self.loss,
             metrics=self.metrics,
-            loss_weights=self.loss_weights
+            loss_weights=self.loss_weights,
+            weighted_metrics=weighted_metrics,
+            run_eagerly=run_eagerly,
+            steps_per_execution=steps_per_execution,
+            jit_compile=jit_compile
         )
 
     def get_loss_weights(self, weights=None):
@@ -280,7 +289,7 @@ class Model(object):
             self.data.train
         )
 
-        self.net.fit(
+        history = self.net.fit(
             x=x,
             y=y,
             batch_size=self.data.batch_size['train'],
@@ -293,7 +302,7 @@ class Model(object):
         )
 
         # Save `history.history` in a file
-        df = pd.DataFrame.from_dict(self.net.history.history)
+        df = pd.DataFrame.from_dict(history.history)
         df.to_csv(path_or_buf=self.dir['train']+'/history.csv', index=False)
 
     # Predicting phase
@@ -369,7 +378,9 @@ class Model(object):
     # Saving Model
     ###########################################################################
     @utils.timing
-    def save(self):
+    def save(
+        self
+    ):
         utils._print("Saving model ...")
         utils.close_all_hdf5()
         # Save weights

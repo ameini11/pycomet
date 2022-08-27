@@ -19,14 +19,7 @@ class Plotter(cb.Callback):
         self,
         test_data=None,
         train_dir=None,
-        output_ops=None,
-        var_names=None,
-        time_idx=-1,
-        fig_name=None,
-        labels=None,
-        scales=None,
-        limit_y=False,
-        log_scale=False,
+        figures=[],
         freq=100
     ):
         super(Plotter, self).__init__()
@@ -42,18 +35,8 @@ class Plotter(cb.Callback):
             if not os.path.exists(v):
                 os.makedirs(v)
 
-        self.output_ops = output_ops
-
-        self.var_names = var_names
-        self.labels = labels
-        self.time_idx = time_idx
-
-        self.scales = scales
-        self.log_scale = log_scale
-        self.limit_y = limit_y
-        
+        self.figures = tf.nest.flatten(figures)
         self.freq = freq
-        self.fig_name = fig_name
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch != 0 and epoch % self.freq == 0:
@@ -67,29 +50,35 @@ class Plotter(cb.Callback):
         utils._print(" - Plotting training quantities ...", lev=1)
         history = pd.DataFrame.from_dict(self.model.history.history)
         path = self.dir['train']
-        # Learning rate
-        postproc.training.plot_lr(self.train_dir+'/lr.csv', path)
-        # Losses
-        if self.model.multi_obj_loss:
-            postproc.training.plot_composite_loss(
-                history, path, scale=scale
-            )
-            if any([ c.endswith('weight') for c in history.columns ]):
-                postproc.training.plot_loss_weights(
-                    history, path
+        # Learning Rate
+        postproc.training.plot_lr(
+            history=self.train_dir+'/lr.csv', path=path
+        )
+        for scale in tf.nest.flatten(scales):
+            # Losses
+            if self.net.multi_obj_loss:
+                postproc.training.plot_composite_loss(
+                    history, path, scale=scale
                 )
-        else:
-            postproc.training.plot_loss(history, path, scale=scale)
-        # Metrics
-        if self.model.compiled_metrics:
-            for metric in self.model.compiled_metrics.metrics:
-                if metric.name in history:
-                    postproc.training.plot_metric(
-                        history,
-                        path,
-                        metric.name,
-                        scale=scale
-                    )
+            else:
+                postproc.training.plot_loss(
+                    history, path, scale=scale
+                )
+            # Metrics
+            if self.net.compiled_metrics is not None:
+                for metric in self.net.compiled_metrics.metrics:
+                    if metric.name in history:
+                        postproc.training.plot_metric(
+                            history,
+                            path,
+                            metric.name,
+                            scale=scale
+                        )
+        # Weights
+        if self.net.multi_obj_loss and any(
+            [c.endswith('weight') for c in history.columns]
+        ):
+            postproc.training.plot_loss_weights(history, path)
 
     def testing(self):
         utils._print(" - Plotting test cases ...", lev=1)
@@ -100,43 +89,24 @@ class Plotter(cb.Callback):
             path = self.dir['test'] + f'/{name}'
             if not os.path.exists(path):
                 os.makedirs(path)
-            # Manipulate model inputs
-            if isinstance(x, (list,tuple)):
-                x = x[self.time_idx] # Time input
-            else:
-                x = x[:,self.time_idx]
-            # Manipulate model outputs
-            if self.output_ops:
-                y, y_pred = list(map(self.output_ops, [y, y_pred]))
-            # Plot true vs. pred values for each single model output
-            if isinstance(y, (list,tuple)):
-                for j in range(len(y)):
-                    kwargs = dict(
-                        path=path,
-                        x=x,
-                        y=y[j],
-                        y_pred=y_pred[j],
-                        var_names=self.var_names[j],
-                        fig_name=self.fig_name[j] if self.fig_name else None,
-                        labels=self.labels,
-                        scales=self.scales
-                    )
-                    self.testing_plot_fn(kwargs)
-            else:
-                kwargs = dict(
-                    path=path,
-                    x=x,
-                    y=y,
-                    y_pred=y_pred,
-                    var_names=self.var_names,
-                    fig_name=self.fig_name,
-                    labels=self.labels,
-                    scales=self.scales
+            # Loop over figures
+            for figure in self.figures:
+                # Extract data
+                _x, _y, _y_pred = tf.nest.map_structure(
+                    ops.extract_data, [x, y, y_pred], figure['indeces']
                 )
-                self.testing_plot_fn(kwargs)
-
-    def testing_plot_fn(self, kwargs):
-        postproc.testing.plot_test(**kwargs)
-        if self.log_scale:
-            kwargs['scales'] = ['log','log']
-            postproc.testing.plot_test(**kwargs)
+                # Manipulate y-axis values
+                if 'output_ops' in figure::
+                    _y, _y_pred = list(
+                        map(figure['output_ops'], [_y, _y_pred])
+                    )
+                # Arguments for the plotting function
+                plot_kwargs = dict(path=path, x=_x, y=_y, y_pred=_y_pred)
+                for k in (
+                    'fig_name', 'var_names', 'labels', 'scales', 'title', \
+                    'xlim', 'ylim', 'save', 'fig_ax', 'max_num_var'
+                ):
+                    if k in figure:
+                        plot_kwargs.update({k: figure[k]})
+                # Plotting
+                postproc.testing.plot_test(**plot_kwargs)

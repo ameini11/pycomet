@@ -37,7 +37,6 @@ def _environment():
         cfg._HEADERS['main'] + "Environment setup" + \
         "\n" + "-" * cfg._DISPLAY_LEN + \
         "\n  TensorFlow version:     {}".format(tf.__version__) + \
-        "\n  Eager execution:        {}".format(tf.executing_eagerly()) + \
         "\n  Num. of GPUs available: {}".format(
             len(tf.config.list_physical_devices('GPU'))
         ) + \

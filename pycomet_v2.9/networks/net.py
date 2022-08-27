@@ -75,7 +75,7 @@ class Net(tf.keras.Model):
         weighted_metrics=None,
         run_eagerly=None,
         steps_per_execution=None,
-        jit_compile=cfg._TF['setup']['XLA'],
+        jit_compile=None,
         **kwargs
     ):
         if self.multi_obj_loss:
