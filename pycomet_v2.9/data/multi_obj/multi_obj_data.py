@@ -33,10 +33,7 @@ class MultiObjData(Data):
             preproc_fn=preproc_fn
         )
         # Attributes for handling multi-objective loss ------------------------
-        # Setting a multi-objective loss function
         self.multi_obj_loss = True
-        # Setting an adaptive multi-objective loss weights balancing
-        self.weighted_loss = None
 
         # Objectives ----------------------------------------------------------
         # Multi-objective functions identifiers (`list`)

@@ -1,15 +1,14 @@
 import numpy as np
-import matplotlib as mpl
 
-from matplotlib import pyplot as plt
-
-COLORS = mpl.rcParams['axes.prop_cycle'].by_key()['color']
+from pycomet import utils
+matplotlib, plt = utils.import_matplotlib()
+COLORS = matplotlib.rcParams['axes.prop_cycle'].by_key()['color']
 
 
 def plot_test(
-    path,
-    x,
-    y,
+    path=None,
+    x=None,
+    y=None,
     y_pred=None,
     var_names=None,
     fig_name=None,
@@ -116,9 +115,8 @@ def plot_test(
     # Save figure -------------------------------------------------------------
     if save:
         # Save figure
-        name = y_scale if fig_name == None else fig_name + '_' + y_scale
-        fig_path = path + '/' + name + '.pdf'
-        fig.savefig(fig_path)
+        name = f'output_{y_scale}' if fig_name == None else fig_name
+        fig.savefig(path + '/' + name + '.pdf')
         
     if fig_ax is not None:
         return fig, ax

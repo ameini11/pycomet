@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from matplotlib import pyplot as plt
+from pycomet import utils
+matplotlib, plt = utils.import_matplotlib()
 
 
 # Plotting Training Quantities
@@ -38,70 +39,6 @@ def plot_loss(
     plt.title(title + ' History')
     fig.savefig(path + '/' + fig_name + '.pdf')
     plt.close()
-
-# def plot_loss(
-#     history=None,
-#     path=None,
-#     scale='log',
-#     title='Loss',
-#     var=['loss','val_loss'],
-#     fig_name='loss',
-#     label=['Training', 'Validation'],
-#     smoothed=True,
-#     weight=0.9
-# ):
-#     """Loss History plotting."""
-#     fig = plt.figure()
-
-#     plt.yscale(scale)
-
-#     if smoothed:
-#         for i, var_i in enumerate(var):
-#             if var_i in history:
-#                 plt.plot(
-#                     history[var_i],
-#                     lw=0.5,
-#                     alpha=0.4
-#                 )
-#                 plt.plot(
-#                     smooth(history[var_i].to_numpy(), weight),
-#                     lw=1,
-#                     label=label[i],
-#                     color=plt.gca().lines[-1].get_color()
-#                 )
-#                 h = history[var_i].to_numpy()
-#                 h = np.array_split(h, np.ceil(len(h)/cv))
-#                 _mean, _std = [], []
-#                 for h_i in h:
-#                     _mean.append(np.tile(np.mean(h_i), len(h_i)))
-#                     _std.append(np.tile(np.std(h_i), len(h_i)))
-#                 _mean, _std = np.concatenate(_mean), np.concatenate(_std)
-#                 plt.plot(
-#                     _mean,
-#                     lw=2,
-#                     label=label[i]
-#                 )
-#                 plt.fill_between(
-#                     np.arange(len(_mean)),
-#                     _mean - _std,
-#                     _mean + _std,
-#                     alpha=0.2,
-#                     color=plt.gca().lines[-1].get_color(),
-#                 )
-#     else:
-#         for i, var_i in enumerate(var):
-#             if var_i in history:
-#                 plt.plot(
-#                     history[var_i],
-#                     lw=1,
-#                     label=label[i]
-#                 )
-
-#     plt.xlabel('Epoch')
-#     plt.legend()
-#     plt.title(title + ' History')
-#     fig.savefig(path + '/' + fig_name + '.pdf')
-#     plt.close()
 
 def plot_composite_loss(
     history,
@@ -197,27 +134,5 @@ def plot_lr(history, path):
 
 # Util Functions
 ###########################################################################
-def limits(y):
-    y = y.to_numpy()
-    y_min, y_max = np.amin(y[-100:-1,:]), np.amax(y)
-    if np.log10(y_max)-np.log10(y_min) > 2:
-        value = np.power(10, np.log10(y_min)+2)
-        delta = np.absolute(y - value)
-        index = np.unravel_index(delta.argmin(), delta.shape)
-        return y_min*0.9, y[index]
-    else:
-        return y_min*0.9, y_max*1.1
-
-def smooth(scalars, weight):
-    weight = np.clip(weight, 0., 1.)
-    last = scalars[0]
-    smoothed = list()
-    for point in scalars:
-        smoothed_val = last * weight + (1 - weight) * point
-        smoothed.append(smoothed_val)
-        last = smoothed_val
-
-    return smoothed
-
 def moving_average(x, w=20):
     return np.convolve(x, np.ones(w), 'valid') / w

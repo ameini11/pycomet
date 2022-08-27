@@ -149,7 +149,7 @@ class Data(object):
                     f"'{i}' has not been provided in `columns` dictionary."
                 )
             if i in columns.keys():
-                data.append(utils.extract_columns_from_array(df, columns[i]))
+                data.append(utils.extract_data_from_array(df, columns[i]))
         return tuple(data)
 
     # Checking data - network consistency

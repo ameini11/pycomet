@@ -24,7 +24,7 @@ from pycomet.utilities import utils
 from pycomet.apps import functions as fun
 
 FOLDERS = [
-    'data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots'
+    'data', 'training', 'saving', 'postproc', '__pycache__', 'plots'
 ]
 
 

@@ -6,7 +6,7 @@ import tensorflow as tf
 import tensorflow.keras.callbacks as cb
 
 from tensorflow.python.util.tf_export import keras_export
-from pycomet import postprocessing
+from pycomet import postproc
 from pycomet import utils
 from tqdm import tqdm
 
@@ -68,23 +68,23 @@ class Plotter(cb.Callback):
         history = pd.DataFrame.from_dict(self.model.history.history)
         path = self.dir['train']
         # Learning rate
-        postprocessing.training.plot_lr(self.train_dir+'/lr.csv', path)
+        postproc.training.plot_lr(self.train_dir+'/lr.csv', path)
         # Losses
         if self.model.multi_obj_loss:
-            postprocessing.training.plot_composite_loss(
+            postproc.training.plot_composite_loss(
                 history, path, scale=scale
             )
             if any([ c.endswith('weight') for c in history.columns ]):
-                postprocessing.training.plot_loss_weights(
+                postproc.training.plot_loss_weights(
                     history, path
                 )
         else:
-            postprocessing.training.plot_loss(history, path, scale=scale)
+            postproc.training.plot_loss(history, path, scale=scale)
         # Metrics
         if self.model.compiled_metrics:
             for metric in self.model.compiled_metrics.metrics:
                 if metric.name in history:
-                    postprocessing.training.plot_metric(
+                    postproc.training.plot_metric(
                         history,
                         path,
                         metric.name,
@@ -136,7 +136,7 @@ class Plotter(cb.Callback):
                 self.testing_plot_fn(kwargs)
 
     def testing_plot_fn(self, kwargs):
-        postprocessing.testing.plot_test(**kwargs)
+        postproc.testing.plot_test(**kwargs)
         if self.log_scale:
             kwargs['scales'] = ['log','log']
-            postprocessing.testing.plot_test(**kwargs)
+            postproc.testing.plot_test(**kwargs)

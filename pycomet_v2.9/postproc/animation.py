@@ -30,7 +30,7 @@
 
 #         # Define paths
 #         self.save_dir = path+"/saving/"
-#         self.post_dir = path+"/postprocessing/"
+#         self.post_dir = path+"/postproc/"
 #         self.train_dir = path+"/training/"
 #         self.ckpt_dir = self.train_dir+"ckpt/"
 #         self.TB_dir = self.train_dir+"logs/"

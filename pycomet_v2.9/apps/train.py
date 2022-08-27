@@ -159,5 +159,5 @@ def main(args):
                 data=d,
                 plotting=flags['plot'],
                 path=model.dir['post'] + f'/testing/{name}',
-                **inputs.postprocessing.plot_style
+                **inputs.postproc.plot_style
             )

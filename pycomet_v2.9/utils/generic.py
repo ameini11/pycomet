@@ -5,6 +5,8 @@ import signal
 import numpy as np
 import tensorflow as tf
 
+from pycomet import config as cfg
+
 
 def kill_process():
     """Send terminating signal to job `pid`."""
@@ -30,3 +32,9 @@ def set_random_seed(seed=None):
 def set_num_threads(n):
     tf.config.threading.set_inter_op_parallelism_threads(n)
     tf.config.threading.set_intra_op_parallelism_threads(n)
+
+def import_matplotlib():
+    import matplotlib
+    matplotlib.style.use(cfg._MPL['style'])
+    from matplotlib import pyplot
+    return matplotlib, pyplot

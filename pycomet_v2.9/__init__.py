@@ -41,7 +41,7 @@ from pycomet import model
 from pycomet import networks
 from pycomet import operations
 from pycomet import optimization
-from pycomet import postprocessing
+from pycomet import postproc
 from pycomet import utils
 
 __all__ = [
@@ -52,6 +52,6 @@ __all__ = [
     "networks",
     "operations",
     "optimization",
-    "postprocessing",
+    "postproc",
     "utils"
 ]
