@@ -5,3 +5,7 @@ __all__ = [
     "MultiObjData",
     "ODE"
 ]
+
+__physics_informed__ = [
+    "ODE"
+]

@@ -13,7 +13,7 @@ class ODE(Data):
     def __init__(
         self,
         dim,
-        ode=None,
+        xde=None,
         data_src={},
         validation_split=None,
         training=True,
@@ -85,7 +85,7 @@ class ODE(Data):
                 if self.valid is not None else None
 
         # ODE properties
-        self.ode = ode
+        self.xde = xde
         self.grads = Gradients()
         self.obj_pred_fn['res'] = self.residual
 
@@ -107,7 +107,7 @@ class ODE(Data):
         outputs = model(inputs=inputs, training=training)
 
         # Evaluate residual
-        res = self.ode(x=inputs, y=outputs, grads=self.grads)
+        res = self.xde(x=inputs, y=outputs, grads=self.grads)
         self.grads.clear()
 
         return res

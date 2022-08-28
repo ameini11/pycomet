@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 
 from pycomet import config as cfg
+from pathlib import Path
 
 
 def kill_process():
@@ -38,3 +39,11 @@ def import_matplotlib():
     matplotlib.style.use(cfg._MPL['style'])
     from matplotlib import pyplot
     return matplotlib, pyplot
+
+def generate_init_mod_file(path=''):
+    path = os.path.abspath(path)
+    module = Path(path).stem
+    file = open(path + '/__init__.py', 'w')
+    for p in os.listdir(path):
+        file.write(f'from {module}.{Path(p).stem} import *\n')
+    file.close()

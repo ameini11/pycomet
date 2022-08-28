@@ -87,7 +87,6 @@ def main(args):
 
     # Exit --------------------------------------------------------------------
     utils._print(
-        f"The working directory '{os.path.normpath(args.dir)}' "
-        "is already cleaned.",
+        f"The working directory '{os.path.normpath(args.dir)}' is cleaned.",
         start=''
     )
