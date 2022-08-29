@@ -34,7 +34,6 @@ class DataGenerator(object):
         *args,
         **kwargs
     ):
-        self.header = '[PyCOMET - Data Gen]: '
         self.data_dir = "./data/"
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
@@ -53,17 +52,17 @@ class DataGenerator(object):
         for k in train_pts:
             if self.valid_pts[k] == 0 and self.train_pts[k] != 0:
                 self.valid_pts[k] = 1
-        self.distribution = distribution        # Training pts distribution
 
         # Testing scenarios
+        self.testing = testing
         self.test_cases = test_cases            # Number of testing cases
         self.test_training = test_training      # Test training case [Bool]
-        self.t0, self.t_end = time_limits       # Time limits for testing
 
         # Input Space Variables -----------------------------------------------
+        self.t0, self.t_end = time_limits
         self.inp_space = np.vstack(list(inp_space.values())).T
 
-        # Check damping ratio -------------------------------------------------
+        # Model parameters ----------------------------------------------------
         self.psi = params['c'] / (2.*np.sqrt(params['m'] * params['k']))
         if not 0. <= self.psi <= 1.:
             utils._raise_value_err(
@@ -78,16 +77,21 @@ class DataGenerator(object):
         self.data_label_out = ['x [m]', 'v [m/s]']
         self.data_label = self.data_label_inp + self.data_label_out
 
-# Input space (limit values)
-input_space = {
-    'x': [-5., 5.],     # Position [m]
-    'v': [-5., 5.],     # Velocity [m/s]
-}
+    def get_data_src(
+        self
+    ):
+        ics = self.compute_ics()
+        data = self.training_data(ics[0])
+        data['test'] = None
+        if self.testing and self.test_cases > 0:
+            data['test'] = self.testing_data(ics[1], ics_train=ics[0])
+        return data
 
-    # Initial Conditions
+    # Initial conditions
     ###########################################################################
-    def compute_ics(self):
-
+    def compute_ics(
+        self
+    ):
         dim = self.inp_space.shape[1]
         samples = self.scenarios * 2 + self.test_cases
 
@@ -108,64 +112,8 @@ input_space = {
         else:
             return [ics]
 
-    # Training/Validation Data
+    # Analytical solution
     ###########################################################################
-    def training_data(
-        self,
-        ics
-    ):
-        data = {'train': [], 'valid': []}
-        for i, ic in enumerate(tqdm(ics)):
-            d_pts = self.train_pts if (i % 2) == 0 else self.valid_pts
-            d_type = 'train' if (i % 2) == 0 else 'valid'
-            data[d_type].append(self.get_data(ic, pts))
-
-        data = tf.nest.map_structure(np.vstack, )
-
-        data = {}
-        for i, data_i in enumerate(data_list):
-            # Define data type
-            data_type = 'train' if (i % 2) == 0 else 'valid'
-            data = self.stack_data(data, data_i, data_type)
-
-        # Save data in a `.csv` file
-        for data_type in data:
-            for data_id in data[data_type]:
-                if data[data_type][data_id] is None:
-                    continue
-                path = self.data_dir + data_type + "/"
-                if not os.path.exists(path):
-                    os.makedirs(path)
-                _data = np.hstack(self.unpack_data(data[data_type][data_id]))
-                pd.DataFrame(
-                    _data, columns=self.data_label[:_data.shape[1]]
-                ).to_csv(
-                    path+data_id+".csv", index=False, float_format='{:e}'.format
-                )
-            
-        return data['train'], data['valid']
-
-    def get_data(self, ic, pts):
-        data = {}
-        for k, n in pts.items():
-            if n == 0 or n is None:
-                data[k] = None
-            else:
-                if k == 'ics':
-                    u, t = ic.reshape((1,-1)), np.zeros((1,1))
-                    data[k] = [[u, t], u]
-                else:
-                    u = np.tile(ic, (n,1))
-                    t = self.sample_time(n)
-                    if k == 'pts':
-                        y = self.solution(ic, t)
-                        data[k] = [[u, t], y]
-                    else:
-                        data[k] = [[u, t]]
-        return data
-
-
-
     def solution(self, ic, t):
         # Initial conditions
         x0, v0 = ic
@@ -185,12 +133,37 @@ input_space = {
         v = -self.psi*self.w_natural*x + self.w_damped * A * f_exp * f_cos
         return np.hstack((x, v))
 
+    # Training/Validation data
+    ###########################################################################
+    def training_data(
+        self,
+        ics
+    ):
+        data = {'train': {}, 'valid': {}}
+        for i, ic in enumerate(tqdm(ics)):
+            # Generate data
+            data_pts = self.train_pts if (i % 2) == 0 else self.valid_pts
+            data_i = self.get_data(ic, data_pts)
+            # Collect data
+            data_type = 'train' if (i % 2) == 0 else 'valid'
+            data = self.stack_data(data, data_i, data_type)
+        # Save data in a `.csv` file
+        for data_type in data:
+            for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
+                path = self.data_dir + data_type + "/"
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                _data = np.hstack(tf.nest.flatten(data[data_type][data_id]))
+                pd.DataFrame(
+                    _data, columns=self.data_label[:_data.shape[1]]
+                ).to_csv(
+                    path+data_id+".csv", index=0, float_format='{:e}'.format
+                )
+        return data
 
-
-    def get_data(self, ic, index):
-        # Define data type
-        pts = self.train_pts if (index % 2) == 0 else self.valid_pts
-        # Sample data
+    def get_data(self, ic, pts):
         data = {}
         for k, n in pts.items():
             if n == 0 or n is None:
@@ -198,55 +171,6 @@ input_space = {
             else:
                 if k == 'ics':
                     u, t = ic, np.zeros((1,1))
-                    data[k] = [[u, t], u]
-                else:
-                    u = np.tile(ic, (n,1))
-                    t = self.sampling(0, t.shape[0]-1, t, tree, n)
-                    if k == 'pts':
-                        y = self.solution(ic, t)
-                        data[k] = [[u, t], y]
-                    else:
-                        data[k] = [[u, t]]
-        return data
-
-
-
-
-    def unpack_data(self, data):
-        _data = []
-        for xy in data:
-            if isinstance(xy, (list,tuple)):
-                _data.extend(xy)
-            else:
-                _data.append(xy)
-        return _data
-
-    def single_train_scenario(self, i, ic_i):
-        # Solving the ODE
-        sol = self.ODE_sol.solve(ic_i)
-        t_i, y_i = sol[0], sol[1]
-        # Define data type
-        pts = self.train_pts if (i % 2) == 0 else self.valid_pts
-        # Sample data
-        data_i = self.get_data(ic_i, t_i, y_i, pts)
-        return data_i
-
-    def extract_data_scenario(self, ic, t, y):
-        m = np.shape(idx)[0]
-        u, t = np.tile(ic, (m,1)), t[idx]
-        if y is None:
-            return [[u, t]]
-        else:
-            return [[u, t], y[idx]]
-
-    def get_data(self, ic, t, y, pts):
-        data = {}
-        for k, n in pts.items():
-            if n == 0 or n is None:
-                data[k] = None
-            else:
-                if k == 'ics':
-                    u, t = ic.reshape((1,-1)), np.zeros((1,1))
                     data[k] = [[u, t], u]
                 else:
                     u = np.tile(ic, (n,1))
@@ -265,90 +189,52 @@ input_space = {
             for data_id in data[data_type]:
                 if data[data_type][data_id] is None:
                     continue
-                for i, xy in enumerate(data[data_type][data_id]):
-                    xy_new = data_new[data_id][i]
-                    if isinstance(xy, (list,tuple)):
-                        xy = list(map(lambda x,y: np.vstack((x,y)), xy, xy_new))
-                    else:
-                        xy = np.vstack((xy,xy_new))
-                    data[data_type][data_id][i] = xy
+                data[data_type][data_id] = tf.nest.map_structure(
+                    lambda x,y : np.vstack((x,y)),
+                    data[data_type][data_id],
+                    data_new[data_id]
+                )
         return data
 
-    # Testing Data
+    # Testing data
     ###########################################################################
     def testing_data(
         self,
-        ic_test,
-        ic_train=None,
-        header=None
+        ics_test,
+        ics_train=None,
+        header=None,
+        test_pts=100
     ):
-
-        if isinstance(ic_test, str):
-            ic_test = pd.read_csv(ic_test, sep=',', header=header).values
+        if isinstance(ics_test, str):
+            ics_test = pd.read_csv(ics_test, sep=',', header=header).to_numpy()
         else:
             # Print input space
-            path = self.data_dir+"test/"
+            path = self.data_dir + '/test/'
             if not os.path.exists(path):
                 os.makedirs(path)
-
             # Test underfitting
-            if self.test_training and ic_train is not None:
+            if self.test_training and ics_train is not None:
                 assert self.scenarios >= self.test_cases
-                # idx = np.random.choice(
-                #     ic_train.shape[0], size=self.test_cases, replace=False
-                # )
-                _, idx = self.stratified_sampling(
-                    np.arange(ic_train.shape[0]), self.test_cases
-                )
-                ic_test = np.vstack((ic_test, ic_train[idx]))
-
+                idx = self.stratified_sampling(
+                    np.arange(ics_train.shape[0]), self.test_cases
+                )[1]
+                ics_test = np.vstack((ics_test, ics_train[idx]))
             # Print ics
-            pd.DataFrame(ic_test, columns=self.data_label_inp[:-1]).to_csv(
-                path+"ics.csv", index=False, float_format='{:e}'.format
+            pd.DataFrame(
+                ics_test, columns=self.data_label_inp[:-1]
+            ).to_csv(
+                path+'/ics.csv', index=0, float_format='{:e}'.format
             )
-
         # Generate data
-        data_test = jl.Parallel(n_jobs=-1)(
-            jl.delayed(self.single_test_scenario)(i, ic_i) \
-                for i, ic_i in enumerate(tqdm(ic_test))
-        )
-        return data_test
+        data = {}
+        for i, ic in enumerate(tqdm(ics_test)):
+            u = np.tile(ic, (test_pts,1))
+            t = np.linspace(self.t0, self.t_end, test_pts)
+            y = self.solution(ic, t)
+            data['case_' + str(i+1).zfill(3)] = [[u, y], y]
+        return data
 
-    def single_test_scenario(self, i, ic_i):
-
-        # Solving the ODE
-        sol = self.ODE_sol.solve(ic_i)
-        t_i, y_i = sol[0], sol[1]
-
-        # Extract data values
-        tree = KDTree(np.c_[t_i.ravel()])
-        d, ii = tree.query([[self.t0],[self.t_end]], k=1)
-        t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
-        u_i = np.tile(ic_i, (t_i.shape[0],1))
-
-        # Collect data values
-        data_i = [[u_i, t_i], y_i]
-
-        return data_i
-
-    def single_test_scenario(self, i, ic_i):
-
-        # Solving the ODE
-        sol = self.ODE_sol.solve(ic_i)
-        t_i, y_i = sol[0], sol[1]
-
-        # Extract data values
-        tree = KDTree(np.c_[t_i.ravel()])
-        d, ii = tree.query([[self.t0],[self.t_end]], k=1)
-        t_i, y_i = t_i[ii[0]:ii[1]], y_i[ii[0]:ii[1]]
-        u_i = np.tile(ic_i, (t_i.shape[0],1))
-
-        # Collect data values
-        data_i = [[u_i, t_i], y_i]
-
-        return data_i
-
-    # Util Functions
+    # Util functions
     ###########################################################################
     def sample_time(self, pts):
         t = np.linspace(self.t0, self.t_end, pts+1)[1:]
