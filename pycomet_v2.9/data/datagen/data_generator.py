@@ -10,7 +10,7 @@ class DataGenerator(metaclass=abc.ABCMeta):
         *args,
         **kwargs
     ):
-        pass
+        self.data_src = {'train': None, 'valid': None, 'test': None}
 
     # Source of data
     ###########################################################################
@@ -28,4 +28,4 @@ class DataGenerator(metaclass=abc.ABCMeta):
                 - 'valid' (optional)
                 - 'test' (optional)
         """
-        return {'train': None, 'valid': None, 'test': None}
+        return self.data_src

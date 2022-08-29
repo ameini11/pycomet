@@ -1,23 +1,14 @@
-import re
 import os
-import sys
-import itertools
-
 import numpy as np
 import pandas as pd
-import joblib as jl
+import pycomet as pcm
 import tensorflow as tf
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
-from sklearn.utils import shuffle
-from scipy.spatial import KDTree
 from pyDOE import lhs
 
-from physics.ode_solver import ODESolver
 
-
-class DataGenerator(object):
+class DataGenerator(pcm.DataGenerator):
 
     # Initialization
     ###########################################################################
@@ -25,15 +16,17 @@ class DataGenerator(object):
         self,
         train_pts,
         validation_split,
-        distribution,
         test_cases,
+        testing,
         test_training,
-        time_limit,
-        input_space,
+        time_limits,
+        inp_space,
         params,
         *args,
         **kwargs
     ):
+        super(DataGenerator, self).__init__()
+
         self.data_dir = "./data/"
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
@@ -42,7 +35,7 @@ class DataGenerator(object):
         # Training/Validation pts
         self.scenarios = train_pts['ics']
         self.valid_pts = {
-            k: round(validation_split*train_pts[k]) if k != 'ics' \
+            k: round(validation_split * train_pts[k]) if k != 'ics' \
                 else self.scenarios for k in train_pts
         }
         self.train_pts = {
@@ -81,11 +74,10 @@ class DataGenerator(object):
         self
     ):
         ics = self.compute_ics()
-        data = self.training_data(ics[0])
-        data['test'] = None
+        self.data_src.update(self.training_data(ics[0]))
         if self.testing and self.test_cases > 0:
-            data['test'] = self.testing_data(ics[1], ics_train=ics[0])
-        return data
+            self.data_src['test'] = self.testing_data(ics[1], ics_train=ics[0])
+        return self.data_src
 
     # Initial conditions
     ###########################################################################

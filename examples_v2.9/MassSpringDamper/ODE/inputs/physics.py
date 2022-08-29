@@ -6,7 +6,11 @@
 
 # Physical model
 # =============================================================================
-params = [1., 3., 0.5]  # m, k, c
+params = {
+    'm': 1.,
+    'k': 3.,
+    'c': .5
+}
 
 # Input space (limit values)
 input_space = {

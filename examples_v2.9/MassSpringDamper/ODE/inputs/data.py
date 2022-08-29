@@ -4,6 +4,9 @@
 # --------------------------------------------------------------------------- #
 
 
+import tensorflow as tf
+
+
 # Data properties
 # =============================================================================
 data_type = 'ODE'
@@ -25,13 +28,14 @@ data_src = {
         'pts': './data/valid/pts.csv',
         'res': './data/valid/res.csv'
     },
-    'test': './data/test/ics.csv'
+    'test': './data/test/'
 }
 
 columns = {
     'x': [[0,2],[2,3]],
     'y': [3,5]
 }
+columns = tf.nest.map_structure(lambda _: columns, data_src)
 
 header = 0
 

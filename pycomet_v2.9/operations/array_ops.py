@@ -67,3 +67,5 @@ def extract_data(container, indices=None, axis=1):
                 "Container not valid. Valid options: "
                 "[`np.ndarray`, `tf.Tensor`] or `list`/`tuple` of them."
             )
+    else:
+        return container

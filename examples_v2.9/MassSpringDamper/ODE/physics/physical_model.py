@@ -1,8 +1,9 @@
 import numpy as np
+import pycomet as pcm
 import tensorflow as tf
 
 
-class PhysicalModel(object):
+class PhysicalModel(pcm.PhysicalModel):
 
     # Initialization
     ###########################################################################
@@ -15,7 +16,7 @@ class PhysicalModel(object):
 
     # ODEs Residual
     ###########################################################################
-    def xde(self, ic, t, grads):
+    def xde(self, x, y, grads):
         """Evaluates the residual error of a ODEs system given the Initial
         Conditions, the time vector and the n-order derivatives of the model 
         outputs w.r.t. the time input.
@@ -37,7 +38,7 @@ class PhysicalModel(object):
             with `var` the number of variables of the ODEs system.
         """
         # Extract gradients
-        y, dy_dt = grads
+        dy_dt = grads(y, x[1], i=[0,1], j=[0], order=1)
 
         # Compute residuals
         res = dy_dt - tf.matmul(y, self.K, transpose_b=True)
@@ -47,10 +48,6 @@ class PhysicalModel(object):
     # Build Matrices
     ###########################################################################
     def get_matrices(self, params):
-
-        m, k, c = params
-        K = np.array([[0, 1.],[-k/m, -c/m]], dtype=np.float64)
-
-        return K
-
-
+        a1 = -params['k']/params['m']
+        a2 = -params['c']/params['m']
+        return np.array([[0, 1.],[a1, a2]], dtype=np.float64)

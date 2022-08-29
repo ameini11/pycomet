@@ -59,7 +59,7 @@ callbacks = {
     }, 
 
     'plotter': {
-        **inp_post.plot_style,
+        'figures': inputs.figures,
         'freq': 50
     },
 

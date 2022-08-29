@@ -5,10 +5,6 @@
 
 
 import inputs
-import tensorflow as tf
-
-from tensorflow.python.keras import layers as tf_layers
-from pycomet.utilities.model import layers as pcm_layers
 
 
 # Architecture properties
@@ -25,7 +21,8 @@ common = {
     },
     'dropout_rate': 0,
     'batch_norm': None,
-    'weight_norm': False
+    'weight_norm': False,
+    'trainable': True
 }
 
 lays_propty = {
@@ -42,29 +39,26 @@ lays_propty = {
     },
 
     'prenet': {
-        'block': 'PreNetBlock',
-        'layer_size': [inp_gen.dim['inp'][0], 8, 8, 8, 2],
+        'block_type': 'PreNetBlock',
+        'layer_size': [inputs.dim['inp'][0], 8, 8, 8, 2],
         'activation': ['sigmoid']*3 + ['linear'],
         'out_xform': None,
         'transformation': 'projective',
         'num_coordinates': 1,
-        'trainable': True,
         **common
     },
 
     'branch': [{
-        'block': 'FFBlock',
-        'layer_size': [inp_gen.dim['inp'][0], 16, 16, 2],
+        'block_type': 'FFBlock',
+        'layer_size': [inputs.dim['inp'][0], 16, 16, 2],
         'activation': ['sigmoid']*2 + ['linear'],
-        'trainable': True,
         **common
     }]*2,
 
     'trunk': {
-        'block': 'FFBlock',
-        'layer_size': [inp_gen.dim['inp'][1], 16, 16, 2],
+        'block_type': 'FFBlock',
+        'layer_size': [inputs.dim['inp'][1], 16, 16, 2],
         'activation': ['sigmoid']*2 + ['linear'],
-        'trainable': True,
         **common
     },
 
