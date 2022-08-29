@@ -4,12 +4,7 @@ matplotlib
 netron
 numpy
 pandas
-pyDOE
-scikit-learn
-scipy
-seaborn
-setuptools
-tensorflow_gpu==2.4.1
-tensorflow_addons==0.12.1
+tensorflow-gpu==2.9.1
+tensorflow-addons==0.17.1
 threadpoolctl
 tqdm

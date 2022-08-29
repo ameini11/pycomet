@@ -144,6 +144,6 @@ def _postproc(
             model.predict(
                 data=d,
                 plotting=inputs_mod.flags['plot'],
-                path=f'{model.dir['post']}/testing/{name}',
+                path=model.dir['post'] + f'/testing/{name}',
                 figures=inputs_mod.figures
             )

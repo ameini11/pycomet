@@ -10,9 +10,7 @@
 
 
 import os
-import pycomet
 
-from numpy import 
 
 # Global ----------------------------------------------------------------------
 _NUM_THREADS = 4

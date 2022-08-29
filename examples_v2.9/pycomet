@@ -3,7 +3,7 @@
 import re
 import os
 import sys
-sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PyCOMET/pycomet.2.7/'))
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PyCOMET/pycomet_v2.9/'))
 from pycomet.__main__ import main
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])

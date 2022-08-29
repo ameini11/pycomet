@@ -93,7 +93,7 @@ def squeeze_list(iterable):
     if len(iterable) == 1:
         return iterable[-1]
     else:
-        else iterable
+        return iterable
 
 class H5DataSet:
     def __init__(self, path, no_group=False):

@@ -359,7 +359,7 @@ class Model(object):
                     ops.extract_data, [x, y, y_pred], figure['indeces']
                 )
                 # Manipulate y-axis values
-                if 'output_ops' in figure::
+                if 'output_ops' in figure:
                     _y, _y_pred = list(
                         map(figure['output_ops'], [_y, _y_pred])
                     )

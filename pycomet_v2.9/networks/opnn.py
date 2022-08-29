@@ -133,7 +133,7 @@ class OpNN(Net):
                         f"recognized. Values available: ('bias', 'dense')"
                     )
 
-    def init_output_lay(self, identifier, self.lays_propty):
+    def init_output_lay(self, identifier):
         # Initializing default properties
         _propty = {
             'xform': None
