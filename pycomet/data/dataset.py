@@ -58,7 +58,7 @@ class DataSet(Data):
             num_pts = ops.get_cardinality(dset)
             if verbose:
                 text = f"Number of {identifier} pts:"
-                utils._print(
+                utils.print(
                     text + ' '*(30-len(text)) + "%10d" % num_pts, lev=1
                 )
 

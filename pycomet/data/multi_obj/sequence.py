@@ -31,7 +31,7 @@ class MultiObjSequence(tf.keras.utils.Sequence):
 
         # Checking 'batch_size'
         if not isinstance(batch_size, (dict, int)):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"'batch_size' passed into `{self.name}` has to be a `int` "
                 "or `dict`. If `dict`, the keys have to be the same as the "
                 "objective functions identifiers (see 'objectives')."
@@ -43,7 +43,7 @@ class MultiObjSequence(tf.keras.utils.Sequence):
 
         # Checking 'data'
         if not isinstance(data, dict):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"'data' passed into `{self.name}` has to be a `dict` with "
                 "objective functions identifiers (see 'objectives') as keys."
             )
@@ -58,7 +58,7 @@ class MultiObjSequence(tf.keras.utils.Sequence):
                 else:
                     if not isinstance(data[obj], (list,tuple)):
                         # Check data type: [x, y, sample_weight]
-                        utils._raise_value_err(
+                        utils.raise_value_err(
                             "Values passed into 'data' dictionary in "
                             f"`{self.name}` must be a `list`/`tuple` of "
                             "array: [x, y, sample_weight]."
@@ -115,7 +115,7 @@ class MultiObjSequence(tf.keras.utils.Sequence):
                         y_pred_dim
                     )
                 else:
-                    utils._raise_value_err(
+                    utils.raise_value_err(
                         f"'{obj}' data passed into `{self.name}` are "
                         "inconsistent with the network output dimensions."
                     )

@@ -11,7 +11,7 @@ def make_dict(keys, values):
     """Convert two lists or two variables into a dictionary."""
     if isinstance(keys, (list, tuple)):
         if len(keys) != len(values):
-            utils._raise_value_err("Keys and values have different length.")
+            utils.raise_value_err("Keys and values have different length.")
         return dict(zip(keys, values))
     return {keys: values}
 
@@ -44,7 +44,7 @@ def check_file_extension(file, extension):
     file = os.path.abspath(file)
     if os.path.isfile(file):
         if os.path.splitext(file)[-1] != extension:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"The file '{file}' has to be a '{extension}' one."
             )
 
@@ -56,7 +56,7 @@ def get_key_from_value(d, v):
     for key, value in d.items():
         if v == value:
             return key
-    utils._raise_value_err(
+    utils.raise_value_err(
         f"A key for value `{v}` doesn't exist in the dictionary."
     )
 
@@ -82,7 +82,7 @@ def check_dicts_consistency(self, list_of_dicts=[], idx_ref_dict=0):
         else:
             for k in keys[idx_ref_dict]:
                 if k not in keys[i]:
-                    utils._raise_value_err(
+                    utils.raise_value_err(
                         f"A structure discrepancy between '{name}' and "
                         f"'{list_of_dicts[idx_ref_dict][0]}' dictionaries "
                         "has been found."

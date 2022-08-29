@@ -32,7 +32,7 @@ def get_parser(subparsers):
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Test a machine-learning-based model.",
-        epilog=utils._EPILOG
+        epilog=utils.EPILOG
     )
     parser.add_argument('-j', '--threads',
         type=int,
@@ -75,7 +75,7 @@ def main(args):
         args.verbose = 1
     os.chdir(args.dir)
     # Environment
-    utils._environment()
+    utils.environment()
 
     # Add modules -------------------------------------------------------------
     sys.path.append(args.dir)
@@ -87,7 +87,7 @@ def main(args):
     for k in ('train', 'save'):
         inputs.flags[k] = 0
     if inputs.flags['load'] not in (1, 2, 3):
-        utils._raise_value_err(
+        utils.raise_value_err(
             "The network has to be restored from a saved or a checkpointed "
             "one. Modified the 'load' entry in the 'flags' input variable."
         )
@@ -95,7 +95,7 @@ def main(args):
     # Data
     ###########################################################################
     if not inputs.from_file:
-        utils._raise_value_err(
+        utils.raise_value_err(
             "The test cases have to be retrieved from a list "
             "of `.csv` files. Check 'from_file' input variable."
         )

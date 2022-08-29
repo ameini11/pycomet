@@ -150,7 +150,7 @@ class TimeScaleNN(Net):
         neq_mask=None
     ):
         # Inputs manipulation
-        x, T, rho = self._manipulate_input(x)
+        x, T, rho = self._manipulateinput(x)
         # Kernel - MMOpNNs
         if training or neq_mask is None:
             y = [opnn(x, training=training) for opnn in self.opnns]
@@ -162,7 +162,7 @@ class TimeScaleNN(Net):
         y = self.equilibrium([y, T, rho])
         return y
 
-    def _manipulate_input(self, x):
+    def _manipulateinput(self, x):
         # Extract inputs
         ic, t = x
         # Extract physical inputs
@@ -294,7 +294,7 @@ class Equilibrium(tf_layers.Layer):
         if isinstance(inputs, (list, tuple)):
             x, T, rho = inputs
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The inputs of the `{}` layer have to be a `list` "
                 "or a `tuple`: [x, T]".format(self.name))
 

@@ -35,7 +35,7 @@ def unpack_x_y_sample_weight_index(data):
     elif len(data) == 4:
         return (data[0], data[1], data[2], data[3])
     else:
-        utils._raise_value_err(
+        utils.raise_value_err(
             "Data is expected to be in format `x`, `(x,)`, "
             "`(x, y)`, `(x, y, sample_weight)`, or "
             f"`(x, y, sample_weight, sample_index)`, found: {data}"
@@ -53,7 +53,7 @@ def extract_data_from_array(array, indices=None, axis=1):
 def extract_data(container, indices=None, axis=1):
     if indices is not None:
         if not isinstance(indices, (dict, int)):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "Indices not valid. It has to be a `int` or a "
                 "`dict` with keys-values as integers."
             )
@@ -63,7 +63,7 @@ def extract_data(container, indices=None, axis=1):
         if isinstance(container, (np.ndarray, tf.Tensor)):
             return extract_data_from_array(container, indices, axis)
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "Container not valid. Valid options: "
                 "[`np.ndarray`, `tf.Tensor`] or `list`/`tuple` of them."
             )

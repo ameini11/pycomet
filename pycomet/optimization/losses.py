@@ -15,7 +15,7 @@ def get(
 ):
     # Check `axis` variable
     if axis not in {0, -1, None}:
-        utils._raise_value_err(
+        utils.raise_value_err(
             "`axis` for loss function is not interpretable. Valid "
             "options are: {0, -1, None}."
         )
@@ -82,7 +82,7 @@ def get_loss_fn(identifier=None, axis=0, reduction='auto'):
     elif identifier is None:
         return None
     else:
-        utils._raise_value_err(
+        utils.raise_value_err(
             f"Could not interpret loss function identifier: `{identifier}`."
         )
 

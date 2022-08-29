@@ -27,7 +27,7 @@ class OpNN(Net):
         )
         # Input dimensionality ------------------------------------------------
         if not isinstance(self.inp_dim, (list, tuple)):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"`dim['inp']` passed into `{self.name}` has to be a "
                 "`list` or a `tuple`of length 2: [u_dim, y_dim]"
             )
@@ -49,7 +49,7 @@ class OpNN(Net):
     def init_layers(self):
         for identifier in self.lays_name:
             if identifier == 'input':
-                return self.init_input_lay(identifier)
+                return self.initinput_lay(identifier)
             elif identifier in ('prenet', 'branch', 'trunk'):
                 return self.init_block_lay(identifier)
             elif identifier == 'end_scale':
@@ -57,7 +57,7 @@ class OpNN(Net):
             elif identifier == 'output':
                 return self.init_output_lay(identifier)
 
-    def init_input_lay(self, identifier):
+    def initinput_lay(self, identifier):
         # Initializing default properties
         _propty = {
             'branch': {
@@ -74,7 +74,7 @@ class OpNN(Net):
             propty = self.lays_propty[identifier]
             if not isinstance(propty, dict) \
                 or any(k not in ('branch', 'trunk') for k in propty.keys()):
-                utils._raise_value_err(
+                utils.raise_value_err(
                     f"Layer '{identifier}' in 'lays_propty' input has to be a "
                     f"`dict` with keys: ('branch', 'trunk')"
                 )
@@ -83,13 +83,13 @@ class OpNN(Net):
                 for k, v in v_subnet.items():
                     if k in ('index', 'xform'):
                         if k == 'index' and v > 1:
-                            utils._raise_value_err(
+                            utils.raise_value_err(
                                 f"Key 'index' in layer '{identifier}' "
                                 "has to be 0 or 1."
                             )
                         _propty[k_subnet][k] = v
             if _propty['branch']['index'] == _propty['trunk']['index']:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     f"Key 'index' in layer '{identifier}' has to be "
                     "different between the subnets."
                 )
@@ -128,7 +128,7 @@ class OpNN(Net):
                         name=identifier
                     )
                 else:
-                    utils._raise_value_err(
+                    utils.raise_value_err(
                         f"Value for key 'type' in layer '{identifier}' not "
                         f"recognized. Values available: ('bias', 'dense')"
                     )
@@ -160,7 +160,7 @@ class OpNN(Net):
     ###########################################################################
     def call(self, x, training=False):
         # Inputs manipulation
-        x = self._manipulate_input(x)
+        x = self._manipulateinput(x)
         # Kernel - OpNN
         G_u, G_y = self._eval_kernel(x, training)
         # Outputs manipulation
@@ -168,9 +168,9 @@ class OpNN(Net):
         y = self._manipulate_output(y)
         return y
 
-    def _manipulate_input(self, x):
+    def _manipulateinput(self, x):
         if not isinstance(x, (list, tuple)):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
         x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}

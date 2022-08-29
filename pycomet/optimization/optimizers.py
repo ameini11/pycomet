@@ -4,7 +4,7 @@ from tensorflow.keras import optimizers as tf_opt
 
 def get_train_opt(optimizer, lr=None, decay=None):
     if lr is None:
-        utils._raise_value_err(f"No learning rate for '{optimizer}'.")
+        utils.raise_value_err(f"No learning rate for '{optimizer}'.")
     lr = get_learning_rate(lr, decay)
     return get_optimizer(optimizer, lr)
 

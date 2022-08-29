@@ -5,7 +5,7 @@ from pycomet.operations.gradients import Gradients
 # from pycomet import config as cfg
 
 
-class ODE(Data):
+class ODE(MultiObjData):
     '''ODE solver.'''
 
     # Initialization

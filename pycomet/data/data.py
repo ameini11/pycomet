@@ -43,12 +43,12 @@ class Data(object):
         if not isinstance(self.data_src, dict) or any([
             k not in ('train', 'valid', 'test') for k in self.data_src.keys()
         ]):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "'data_src' has to be a 'dict' with keys "
                 "['train', 'valid', 'test']."
             )
         if 'train' not in self.data_src or self.data_src['train'] is None:
-            utils._raise_value_err("No 'train' data passed into 'data_src'.")
+            utils.raise_value_err("No 'train' data passed into 'data_src'.")
 
         # Batch sizes ---------------------------------------------------------
         self.batch_size = {
@@ -78,7 +78,7 @@ class Data(object):
                 elif isinstance(self.preproc_fn, dict):
                     list_of_dicts += [('preproc_fn', self.preproc_fn)]
                 else:
-                    utils._raise_value_err(
+                    utils.raise_value_err(
                         f"'preproc_fn' passed into '{self.name}' has to "
                         "be a dictonary or a callable function."
                     )
@@ -104,7 +104,7 @@ class Data(object):
                             for i, dset in enumerate(self.test)
                     }
             else:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     f"Input 'data_src['test']' passed into `{self.name}` has "
                     "to be a `list`/`tuple`/`dict` of arrays or a `str` "
                     "pointing at the folder containting all the test cases "
@@ -128,7 +128,7 @@ class Data(object):
                     self.check_data_consistency(data)
                     return tuple(data)
                 else:
-                    utils._raise_value_err(
+                    utils.raise_value_err(
                         f"'{identifier}' data passed into `{self.name}` has "
                         "to be a list or a tuple of arrays: [x, y]"
                     )
@@ -145,7 +145,7 @@ class Data(object):
         data = []
         for i in ('x', 'y', 'sample_weight'):
             if i in ('x', 'y') and i not in columns.keys():
-                utils._raise_value_err(
+                utils.raise_value_err(
                     f"'{i}' has not been provided in `columns` dictionary."
                 )
             if i in columns.keys():
@@ -160,7 +160,7 @@ class Data(object):
         for i, io in enumerate(data_dim):
             if i <= 2 and data_dim[i]:
                 if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
-                    utils._raise_value_err(
+                    utils.raise_value_err(
                         "Data and network '{}' dimensions not "
                         "consistent: check `dim` or data shape.".format(io)
                     )
@@ -172,7 +172,7 @@ class Data(object):
             if all([k in batch_size.keys() for k in ('train', 'valid')]):
                 self.batch_size = batch_size
             else:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     "`batch_size` dictionary passed into `{}` has to have "
                     "['train', 'valid'] as keys.".format(self.name)
                 )
@@ -180,7 +180,7 @@ class Data(object):
             for k in self.batch_size.keys():
                 self.batch_size[k] = batch_size
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "`batch_size` passed into `{}` has to be a "
                 "`int` or a `dict`".format(self.name)
             )
@@ -193,4 +193,4 @@ class Data(object):
             print_fn(dset, identifier, verbose)
         else:
             if verbose:
-                utils._print(text=f"No {identifier} pts available.", lev=1)
+                utils.print(text=f"No {identifier} pts available.", lev=1)

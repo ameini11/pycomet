@@ -7,10 +7,10 @@ import tensorflow.python.keras.callbacks as cb
 
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.keras import backend
-from pycomet.utilities.callbacks import callbacks as callbacks_module
-from pycomet.utilities.training import losses as losses_module
-from pycomet.utilities.training import metrics as metrics_module
-from pycomet.utilities.training.optimizers import get_train_opt
+from pycomet.optimization.callbacks import callbacks as callbacks_module
+from pycomet.optimization import losses as losses_module
+from pycomet.optimization import metrics as metrics_module
+from pycomet.optimization.optimizers import get_train_opt
 from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import postproc
@@ -128,7 +128,7 @@ class Model(object):
                     file_name = self.dir['save'] + self.name + '_struct.h5'
                     self.graph.save(file_name, save_format='h5')
                     # Visualize model
-                    utils._print("", end="", lev=1)
+                    utils.print("", end="", lev=1)
                     netron.start(file_name)
                     _netron_started = True
                 except:
@@ -137,12 +137,12 @@ class Model(object):
                 tf.keras.utils.plot_model(
                     self.graph, self.dir['train'] + "/" + self.name + ".png"
                 )
-            asw = utils._input("Is the model structure correct? [y/n] ", lev=1)
+            asw = utils.input("Is the model structure correct? [y/n] ", lev=1)
             if not asw.lower().startswith('y'):
-                utils._print("All the processes will be stopped.\n", lev=1)
+                utils.print("All the processes will be stopped.\n", lev=1)
                 utils.kill_process()
             if visualize_graph and _netron_started:
-                utils._print("", end="", lev=1)
+                utils.print("", end="", lev=1)
                 netron.stop()
         # Loading network weights
         self.make_or_restore(load_net, forced_loading, weights_to_load)
@@ -157,9 +157,9 @@ class Model(object):
         no saved model/checkpoint available."""
         path = None
         if load_net == 0:
-            utils._print("Making a new network", lev=1)
+            utils.print("Making a new network", lev=1)
         elif load_net == 1:
-            utils._print(
+            utils.print(
                 f"Restoring network from saved file '{path}'", lev=1
             )
             path = os.path.abspath(self.save_path)
@@ -169,25 +169,25 @@ class Model(object):
                 key=lambda x: int(x.split('_')[1].split('.')[0])
             )
             if last_ckpt:
-                utils._print(
+                utils.print(
                     f"Restoring network from checkpoint '{path}'", lev=1
                 )
                 path = os.path.abspath(self.dir['ckpt'] + "/" + last_ckpt)
             else:
-                utils._print(
+                utils.print(
                     "No checkpoints available: making a new network", lev=1
                 )
         elif load_net == 3:
             path = tf.nest.map_structure(
                 os.path.abspath, tf.nest.flatten(weights_to_load)
             )
-            utils._print(
+            utils.print(
                 "Restoring network from the following provided paths:", lev=1
             )
             for p in path:
-                utils._print(f">> '{p}'", lev=1)
+                utils.print(f">> '{p}'", lev=1)
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "In `model.compile` you should pass as `load_net` argument "
                 "one of these 4 options:\n"
                 "   >> 0: making new network;\n"
@@ -274,10 +274,10 @@ class Model(object):
         callbacks=None,
         verbose=1
     ):
-        utils._print("Training the model ...")
+        utils.print("Training the model ...")
 
         # Define callbacks
-        utils._print("Initializing callbacks", lev=1)
+        utils.print("Initializing callbacks", lev=1)
         callbacks = callbacks_module.get_cb_list(self, callbacks)
 
         # Define training/valididation points
@@ -381,7 +381,7 @@ class Model(object):
     def save(
         self
     ):
-        utils._print("Saving model ...")
+        utils.print("Saving model ...")
         utils.close_all_hdf5()
         # Save weights
         self.net.save_weights(
@@ -402,7 +402,7 @@ class Model(object):
         path=None,
         scales=['log']
     ):
-        utils._print("Postprocessing training quantities ...")
+        utils.print("Postprocessing training quantities ...")
 
         history = self.get_history(history)
         if path is None:
@@ -451,4 +451,4 @@ class Model(object):
         elif isinstance(history, cb.Callback):
             return pd.DataFrame.from_dict(history.history)
         else:
-            utils._raise_value_err("'history' input variable is not valid.")
+            utils.raise_value_err("'history' input variable is not valid.")

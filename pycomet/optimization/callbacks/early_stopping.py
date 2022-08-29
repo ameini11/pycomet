@@ -2,7 +2,7 @@ import time
 import tensorflow.python.keras.callbacks as cb
 
 from tensorflow.python.util.tf_export import keras_export
-from pycomet.utilities import utils
+from pycomet import utils
 
 
 @keras_export('keras.callbacks.Timer')

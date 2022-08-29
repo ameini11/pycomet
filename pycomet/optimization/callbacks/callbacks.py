@@ -1,10 +1,10 @@
 import tensorflow.python.keras.callbacks as cb
 
-from pycomet.utilities.callbacks import early_stopping
-from pycomet.utilities.callbacks import learning_rate
-from pycomet.utilities.callbacks import plotting
-from pycomet.utilities.callbacks import variable
-from pycomet.utilities.callbacks import weighted_loss
+from pycomet.optimization.callbacks import early_stopping
+from pycomet.optimization.callbacks import learning_rate
+from pycomet.optimization.callbacks import plotting
+from pycomet.optimization.callbacks import variable
+from pycomet.optimization.callbacks import weighted_loss
 from pycomet import utils
 
 
@@ -58,6 +58,6 @@ def get_callback(model, identifier, kwargs):
     elif callable(identifier):
         return identifier
     else:
-        utils._raise_value_err(
+        utils.raise_value_err(
             f"Could not interpret callback identifier: '{identifier}'."
         )

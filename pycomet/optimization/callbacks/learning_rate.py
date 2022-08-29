@@ -17,7 +17,7 @@ class LRPiecewiseConstantDecay(cb.Callback):
         super(LRPiecewiseConstantDecay, self).__init__()
 
         if len(boundaries) != len(values) - 1:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "In `{}` callback, the length of `boundaries` should "
                 "be 1 less than the length of `values`.".format(self.__name__)
             )
@@ -27,7 +27,7 @@ class LRPiecewiseConstantDecay(cb.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, "lr"):
-            utils._raise_value_err("Optimizer must have a `lr` attribute.")
+            utils.raise_value_err("Optimizer must have a `lr` attribute.")
         greater = self.boundaries < epoch
         if True in greater:
             idx = np.where(greater)[0][-1]
@@ -35,7 +35,7 @@ class LRPiecewiseConstantDecay(cb.Callback):
             new_lr = self.values[self.idx]
             backend.set_value(self.model.optimizer.lr, new_lr)
             if self.verbose > 0:
-                utils._print(
+                utils.print(
                     "Epoch %05d: LRPiecewiseConstantDecay reducing "
                     "learning rate to %s." % (epoch + 1, new_lr), lev=0
                 )
@@ -110,7 +110,7 @@ class ReduceLROnPlateau(cb.ReduceLROnPlateau):
         if self.is_lr_scheduler and not hasattr(
             self.model.optimizer.lr, 'initial_learning_rate'
         ):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "'ReduceLROnPlateau' callback can be used together "
                 "with a learning rate scheduler only if the latter has "
                 "'initial_learning_rate' as attribute."

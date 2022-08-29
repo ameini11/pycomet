@@ -46,14 +46,14 @@ class TrainableActivationFun(tf_layers.Layer):
     def build(self, input_shape):
         dtype = tf.as_dtype(self.dtype or backend.floatx())
         if not (dtype.is_floating or dtype.is_complex):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "Unable to build `TrainableActivationFun` layer with "
                 f"non-floating point dtype {dtype}."
             )
         input_shape = tf.TensorShape(input_shape)
         last_dim = tf.compat.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The last dimension of the inputs to `TrainableActivationFun` "
                 "should be defined. Found `None`."
             )
@@ -171,7 +171,7 @@ class Scaling(tf_layers.Layer):
         input_shape = tf.TensorShape(input_shape)
         last_dim = tf.compat.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The last dimension of the inputs to "
                 f"`{self.name}` should be defined. Found `None`."
             )
@@ -282,7 +282,7 @@ class Normalization(tf_layers.Normalization):
 
     # Handling mean and variance ----------------------------------------------
     def compute_mu_sigma(self):
-        utils._print(
+        utils.print(
             f"Computing mean and variance of layer '{self.name}'", lev=1
         )
         data = self.read_datafile(self.data_files)
@@ -369,7 +369,7 @@ class Log(tf_layers.Layer):
         input_shape = tf.TensorShape(input_shape)
         last_dim = tf.compat.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The last dimension of the inputs to "
                 "`Log` should be defined. Found `None`."
             )
@@ -436,14 +436,14 @@ class Bias(tf_layers.Layer):
     def build(self, input_shape):
         dtype = tf.as_dtype(self.dtype or backend.floatx())
         if not (dtype.is_floating or dtype.is_complex):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "Unable to build `Bias` layer with "
                 f"non-floating point dtype {dtype}."
             )
         input_shape = tf.TensorShape(input_shape)
         last_dim = tf.compat.dimension_value(input_shape[-1])
         if last_dim is None:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The last dimension of the inputs to "
                 "`Bias` should be defined. Found `None`."
             )

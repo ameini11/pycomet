@@ -54,12 +54,12 @@ class FineTuningRegularizer(tf_reg.L1L2):
         if self.weights_path is not None:
             self.weights_path = os.path.abspath(str(weights_path))
             if not h5py.is_hdf5(self.weights_path):
-                utils._raise_value_err(
+                utils.raise_value_err(
                     "The 'weights_path' argument of `FineTuningRegularizer` "
                     f"has to be an hdf5 file. Check `{self.weights_path}`"
                 )
         else:
-            utils._warning(
+            utils.warning(
                 "`FineTuningRegularizer` is not given any starting point "
                 "weights (see `weights_path`)."
             )

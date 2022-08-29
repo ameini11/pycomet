@@ -22,7 +22,7 @@ def _data(
 ):
     # Get data class ----------------------------------------------------------
     data_cls = utils.get_class(pycomet.data, inputs_mod.data_type)
-    utils._print(f"Initializing '{inputs_mod.data_type}' data ...")
+    utils.print(f"Initializing '{inputs_mod.data_type}' data ...")
     data_args = utils.get_args_values(
         args=utils.get_args(data_cls.__init__), modules=inputs_mod
     )
@@ -31,11 +31,11 @@ def _data(
     if inputs.from_file:
         data_src = inputs_mod.data_src
     else:
-        utils._print("Generating data ...")
+        utils.print("Generating data ...")
         try:
             from datagen.data_generator import DataGenerator
         except:
-            utils._raise_module_not_found_error(
+            utils.raise_module_not_found_error(
                 "To compute user-generated data define a `DataGenerator` "
                 f"object in '{wdir}/datagen/data_generator.py' file."
             )
@@ -49,11 +49,11 @@ def _data(
 
     # Add information from physics --------------------------------------------
     if getattr(inputs_mod, 'physics_informed', False):
-        utils._print("Initializing physical model ...")
+        utils.print("Initializing physical model ...")
         try:
             from physics.physical_model import PhysicalModel
         except:
-            utils._raise_module_not_found_error(
+            utils.raise_module_not_found_error(
                 "The model is physics-informed, but no "
                 "`PhysicalModel` object has been found in "
                 f"'{wdir}/physics/physical_model.py' file."
@@ -65,7 +65,7 @@ def _data(
             physical_mdl = PhysicalModel(**physical_mdl_args)
             data_args.update(dict(xde=physical_mdl.xde))
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "For physics-informed models, the following data types "
                 f"are available: {pycomet.data.__physics_informed__}"
             )
@@ -82,7 +82,7 @@ def _network(
 ):
     # Initialize network ------------------------------------------------------
     net_cls = utils.get_class(pycomet.networks, inputs_mod.architecture)
-    utils._print(f"Initializing '{inputs_mod.architecture}' network ...")
+    utils.print(f"Initializing '{inputs_mod.architecture}' network ...")
     net_args = utils.get_args_values(
         args=utils.get_args(net_cls.__init__), modules=inputs_mod
     )
@@ -99,7 +99,7 @@ def _model(
     model = pycomet.model.Model(data=data, net=net, name=inputs_mod.model_name)
 
     # Build model -------------------------------------------------------------
-    utils._print(f"Building '{inputs_mod.architecture}' network ...")
+    utils.print(f"Building '{inputs_mod.architecture}' network ...")
     model.build(
         load_net=inputs_mod.flags['load'],
         visualize_graph=graph,
@@ -108,7 +108,7 @@ def _model(
 
     # Compile model -----------------------------------------------------------
     if inputs_mod.flags['train'] > 0:
-        utils._print(f"Compiling '{inputs_mod.architecture}' network ...")
+        utils.print(f"Compiling '{inputs_mod.architecture}' network ...")
         compile_args = utils.get_args_values(
             args=utils.get_args(model.compile),
             modules=inputs_mod
@@ -139,7 +139,7 @@ def _postproc(
 
     # Testing phase -----------------------------------------------------------
     if inputs_mod.flags['test'] > 0 and data.test is not None:
-        utils._print("Postprocessing testing cases ...")
+        utils.print("Postprocessing testing cases ...")
         for name, d in tqdm(data.test.items()):
             model.predict(
                 data=d,

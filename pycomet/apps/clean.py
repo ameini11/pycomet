@@ -35,7 +35,7 @@ def get_parser(subparsers):
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Clean the working directory.',
-        epilog=utils._EPILOG
+        epilog=utils.EPILOG
     )
     parser.add_argument('-d', '--dir',
         type=str,
@@ -64,7 +64,7 @@ def rmdirs(dirs):
 def main(args):
 
     # Remove directories ------------------------------------------------------
-    utils._print("Looking for folders to remove ...", start='')
+    utils.print("Looking for folders to remove ...", start='')
     exists = False
     
     for fld in FOLDERS:
@@ -86,7 +86,7 @@ def main(args):
                 rmdirs(dirs)
 
     # Exit --------------------------------------------------------------------
-    utils._print(
+    utils.print(
         f"The working directory '{os.path.normpath(args.dir)}' is cleaned.",
         start=''
     )

@@ -26,7 +26,7 @@ apps_mod = [
 
 def main():
 
-    utils._pkg_header()
+    utils.pkg_header()
 
     cwd = os.getcwd()
 
@@ -34,7 +34,7 @@ def main():
     ap = argparse.ArgumentParser(
         prog=cfg._NAME.lower(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=cfg._EPILOG
+        epilog=cfg.EPILOG
     )
     
     # Adding subparsers

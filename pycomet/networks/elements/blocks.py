@@ -39,7 +39,7 @@ class MultiLayerBlock(tf_layers.Layer):
         # Hyperparameters Initialization --------------------------------------
         self.units = units
         if batch_norm not in {None, "before", "after"}:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "Invalid `batch_norm` argument passed into "
                 "`{}`. Available choices: {{None|'before'|"
                 "'after'}}.".format(self.name)
@@ -148,7 +148,7 @@ class FFBlock(tf_layers.Layer):
         if not all(
             [isinstance(k, (list, tuple)) for k in (activation, layer_size)]
         ) or len(activation) != len(layer_size)-1:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"`activation` and `layer_size` inputs passed to {self.name} "
                 "block have to be a `list`/`tuple` of lengths: "
                 "len(activation) = len(layer_size)-1"
@@ -239,7 +239,7 @@ class ResPIBlock(FFBlock):
         # Hyperparameters Initialization --------------------------------------
         for i in range(1, len(self.layer_size)-2):
             if self.layer_size[i] != self.layer_size[i+1]:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     "The number of units of each hidden layer "
                     f"must be the same in `{self.name}`."
                 )
@@ -334,7 +334,7 @@ class PreNetBlock(FFBlock):
             self.out_dim = (self.n_coords + 1) ** 2
             self.i, self.j = self.n_coords+1, self.n_coords
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"The types of transformation available are: {self.xform_list}"
             )
 
@@ -359,7 +359,7 @@ class PreNetBlock(FFBlock):
         # Inputs manipulation -------------------------------------------------
         # Check inputs format
         if not isinstance(x, (list, tuple)):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"The inputs of the `{self.name}` net have to be "
                 "a `list` or a `tuple`: [x1, x2]"
             )

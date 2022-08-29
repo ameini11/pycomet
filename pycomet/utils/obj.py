@@ -38,11 +38,11 @@ def get_class(module, name=None, kwargs=None):
         if 'name' in kwargs.keys():
             name = kwargs.pop('name')
         else:
-            utils._raise_value_err("Class name not provided.")
+            utils.raise_value_err("Class name not provided.")
     for name_i, cls_i in inspect.getmembers(module, inspect.isclass):
         if name_i == name:
             return cls_i(**kwargs) if kwargs is not None else cls_i
-    utils._raise_value_err(
+    utils.raise_value_err(
         "Class `{}` not found in module `{}`.".format(name, module.__name__)
     )
 

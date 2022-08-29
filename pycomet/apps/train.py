@@ -33,7 +33,7 @@ def get_parser(subparsers):
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="Train a machine-learning-based model.",
-        epilog=utils._EPILOG
+        epilog=utils.EPILOG
     )
     parser.add_argument('-j', '--threads',
         type=int,
@@ -76,7 +76,7 @@ def main(args):
         args.verbose = 1
     os.chdir(args.dir)
     # Environment
-    utils._environment()
+    utils.environment()
 
     # Add modules -------------------------------------------------------------
     sys.path.append(args.dir)

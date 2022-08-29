@@ -4,8 +4,8 @@ from tensorflow.python.keras.engine import compile_utils
 from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.keras.engine import base_layer
 from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.keras.utils import traceback_utils
 from tensorflow.python.keras import metrics as metrics_mod
+from tensorflow.python.util import traceback_utils
 from tensorflow.python.keras import backend
 from pycomet.networks.elements import blocks
 from pycomet import operations as ops
@@ -31,7 +31,7 @@ class Net(tf.keras.Model):
         )
 
         if not isinstance(dim, dict):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"`dim` passed into `{self.name}` network has "
                 "to be a `dict` of length 2:\n"
                 "  - 'inp': `int` (or `list` of `int`);\n"
@@ -101,7 +101,7 @@ class Net(tf.keras.Model):
                 )
             # Build metrics container
             if metrics is not None:
-                utils._warning(
+                utils.warning(
                     "Metrics evaluation is not available "
                     "with multi-objective loss function."
                 )
@@ -113,7 +113,7 @@ class Net(tf.keras.Model):
             self._is_compiled = True
             self.loss = loss or {}
             if (self._run_eagerly or self.dynamic) and jit_compile:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     'You cannot enable `run_eagerly` and `jit_compile` '
                     'at the same time.'
                 )
@@ -134,7 +134,7 @@ class Net(tf.keras.Model):
 
     def check_arg(self, arg, definition):
         if arg is not None and not isinstance(arg, dict):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"`{nameof(arg)}` passed into `compile` has to be a `dict` "
                 "with objective functions identifiers as keys."
             )
@@ -271,20 +271,20 @@ class Net(tf.keras.Model):
     def check_layers(self, layers={}, not_opt=[]):
         # Check input layers format
         if not isinstance(layers, dict):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"`layers` input passed into `{self.name}` has to be a `dict`."
             )
         # Check valid layers
         for k in layers.keys():
             if k not in self.lays_name:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     f"Layer '{k}' in `layers` input not recognized. "
                     f"Layers available: {self.lays_name}"
                 )
         # Check not optional layers
         for k in not_opt:
             if k not in layers.keys():
-                utils._raise_value_err(
+                utils.raise_value_err(
                     f"'{k}' layer have to be provided in `lays_propty` "
                     f"input passed into `{self.name}`."
                 )

@@ -141,7 +141,7 @@ class NeqCtrlNN(Net):
         tol=None
     ):
         # Inputs manipulation
-        x = self._manipulate_input(x)
+        x = self._manipulateinput(x)
         # Kernel - MMOpNNs
         if training or tol is None:
             y = [self.mmopnns[n](x, training=training) for n in self.names]
@@ -149,11 +149,11 @@ class NeqCtrlNN(Net):
             y = self._adaptive_call(x, tol)
         return y
 
-    def _manipulate_input(self, x):
+    def _manipulateinput(self, x):
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
         if self.inp_trans is not None:
@@ -275,7 +275,7 @@ class MMOpNNCtrl(Net):
             ])
         else:
             if len(names) <= 1:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     "The number of `names` passed into `{}` has to be "
                     "grater than 1 (multiple DeepONets).".format(self.name))
             else:

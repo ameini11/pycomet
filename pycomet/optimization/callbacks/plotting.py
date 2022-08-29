@@ -40,14 +40,14 @@ class Plotter(cb.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch != 0 and epoch % self.freq == 0:
-            utils._print(">> `Plotter` callback:", lev=0)
+            utils.print(">> `Plotter` callback:", lev=0)
             self.training()
             if self.test_data is not None:
                 self.testing()
             print("")
 
     def training(self, scale='log'):
-        utils._print(" - Plotting training quantities ...", lev=1)
+        utils.print(" - Plotting training quantities ...", lev=1)
         history = pd.DataFrame.from_dict(self.model.history.history)
         path = self.dir['train']
         # Learning Rate
@@ -81,7 +81,7 @@ class Plotter(cb.Callback):
             postproc.training.plot_loss_weights(history, path)
 
     def testing(self):
-        utils._print(" - Plotting test cases ...", lev=1)
+        utils.print(" - Plotting test cases ...", lev=1)
         for name, (x, y) in tqdm(copy.deepcopy(self.test_data).items()):
             # Get pred values
             y_pred = self.model.predict(x)

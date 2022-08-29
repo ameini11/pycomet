@@ -36,8 +36,8 @@ def set_num_threads(n):
 
 def import_matplotlib():
     import matplotlib
-    matplotlib.style.use(cfg._MPL['style'])
     from matplotlib import pyplot
+    pyplot.style.use(cfg._MPL['style'])
     return matplotlib, pyplot
 
 def generate_init_mod_file(path=''):

@@ -52,7 +52,7 @@ class IsoThermChemReacNN(Net):
         self.groups_graph = groups_graph
         self.TS = utils.compute_dict_depth(self.groups_graph)
         if len(names) != self.TS+1:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The number of `names` passed into `{}` "
                 "has to be equal to the number of timescales "
                 "in `groups_graph.".format(self.name))
@@ -152,7 +152,7 @@ class IsoThermChemReacNN(Net):
         neq_mask=None
     ):
         # Inputs manipulation
-        x = self._manipulate_input(x)
+        x = self._manipulateinput(x)
         # Kernel - Timescales NN
         if training or neq_mask is None:
             y = [ ts(x, training=training) for ts in self.timescales ]
@@ -167,11 +167,11 @@ class IsoThermChemReacNN(Net):
         y = self._manipulate_output(y)
         return y
 
-    def _manipulate_input(self, x):
+    def _manipulateinput(self, x):
         if isinstance(x, (list, tuple)):
             x = {k: x[i] for i, k in enumerate(self.sub_nets)}
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
                 "or a `tuple`: [u, y]".format(self.name))
         # Inputs transformation
@@ -247,7 +247,7 @@ class IsoThermChemReacNN(Net):
             if isinstance(graph, (list, tuple, set)):
                 return list(graph)
             else:
-                utils._raise_value_err(
+                utils.raise_value_err(
                     "The last level of the groups graph has to be a list."
                 )
 

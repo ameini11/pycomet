@@ -37,12 +37,12 @@ class Gradient(object):
         )
         i = self.i if len(i) == 0 else i
         if any([not 0 <= k < self.dim_y for k in i]):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"Index value i={i} is not valid for output tensor."
             )
         j = self.j if len(j) == 0 else j
         if any([not 0 <= k < self.dim_x for k in j]):
-            utils._raise_value_err(
+            utils.raise_value_err(
                 f"Index value j={j} is not valid for input tensor."
             )
         key = (i, order)

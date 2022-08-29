@@ -25,6 +25,6 @@ def get(identifier):
             identifier = identifier()
         return identifier
     else:
-        utils._raise_value_err(
+        utils.raise_value_err(
             "Could not interpret initializer identifier: " + str(identifier)
         )

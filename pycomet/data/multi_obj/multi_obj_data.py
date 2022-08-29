@@ -76,9 +76,9 @@ class MultiObjData(Data):
         def print_fn(dset, identifier, verbose):
             num_pts = {obj: dset.n_samples[obj] for obj in dset.data}
             if verbose:
-                utils._print(f"Number of {identifier} pts:", lev=1)
+                utils.print(f"Number of {identifier} pts:", lev=1)
                 for k, v in num_pts.items():
-                    utils._print(
+                    utils.print(
                         "  - '%s':" + ' '*(10-len(k)) + " %8d" % (k, v), lev=1
                     )
 

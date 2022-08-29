@@ -32,7 +32,7 @@ class BaseWeightsAdapter(cb.Callback):
         self.name = utils.get_class_name(self)
         self.multi_obj_loss_weights = multi_obj_loss_weights
         self.freq = int(np.clip(freq, 1, None))
-        self._print = True
+        self.print = True
 
         # Define data container
         self.data_container = data_container
@@ -42,7 +42,7 @@ class BaseWeightsAdapter(cb.Callback):
 
     # Callback methods --------------------------------------------------------
     def on_train_begin(self, logs={}):
-        utils._print(
+        utils.print(
             "The `{}` callback is used to balance "
             "the multi-objective loss.".format(self.name), lev=1
         )
@@ -50,7 +50,7 @@ class BaseWeightsAdapter(cb.Callback):
         self.model.weighted_loss = self
 
     def on_epoch_end(self, epoch, logs={}):
-        if self.multi_obj_loss_weights is not None and self._print:
+        if self.multi_obj_loss_weights is not None and self.print:
             self.print_weights(epoch, logs)
 
     # Handling weights methods ------------------------------------------------
@@ -74,7 +74,7 @@ class BaseWeightsAdapter(cb.Callback):
         elif isinstance(self.multi_obj_loss_weights, dict):
             pass
         else:
-            utils._raise_value_err(
+            utils.raise_value_err(
                 "`multi_obj_loss_weights` passed into `{}` "
                 "has to be a list or a dictionary:\n"
                 "  - 'ics': weight for initial condition pts loss;\n"
@@ -121,12 +121,12 @@ class BaseWeightsAdapter(cb.Callback):
                 "are `inf` or `nan`.".format(self.name)
             )
             if self.multi_obj_loss_weights is not None:
-                utils._print(
+                utils.print(
                     "Here the `multi_obj_loss_weights` values:", lev=1
                 )
                 for k, v in self.multi_obj_loss_weights.items():
-                    utils._print("  - '{}': {}".format(k,v), lev=1)
-                utils._print("The training will be stopped.", lev=1)
+                    utils.print("  - '{}': {}".format(k,v), lev=1)
+                utils.print("The training will be stopped.", lev=1)
                 self.model.stop_training = True
 
     # Gradient descent methods ------------------------------------------------
@@ -165,7 +165,7 @@ class ConstantWeightsAdapter(BaseWeightsAdapter):
             log_dir=log_dir,
             **kwargs
         )
-        self._print = False
+        self.print = False
 
     # Callback methods --------------------------------------------------------
     def on_train_begin(self, logs={}):
@@ -413,10 +413,10 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #         return self.eval_diag_ntk(pred, tape)
 
 #     def eval_diag_ntk(self, pred, tape):
-#         utils._print("From `NTKWeightsAdapter` callback:", lev=1)
+#         utils.print("From `NTKWeightsAdapter` callback:", lev=1)
 #         ntk = {}
 #         for data_id, pred_i in pred.items():
-#             utils._print(
+#             utils.print(
 #                 "  - Evaluating NTK matrix for `{data_id}` data points", lev=1
 #             )
 #             ta = tf.TensorArray(
@@ -481,7 +481,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #                 obj: limits for obj in self.model.objectives['train']
 #             }
 #         if not isinstance(self.limits, dict):
-#             utils._raise_value_err(
+#             utils.raise_value_err(
 #                 "`limits` in `{}` has to be a `dict` of [min, max] value "
 #                 "list for each objecitve function.".format(self.name)
 #             )
@@ -492,7 +492,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #         # Define the self-adaptation mask function
 #         if q is not None:
 #             if any([q_i <= 0. for q_i in q]):
-#                 utils._raise_value_err(
+#                 utils.raise_value_err(
 #                     "`q` coefficents for the mask function in `{}` have "
 #                     "to be positive.".format(self.name)
 #                 )
