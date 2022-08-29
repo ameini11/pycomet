@@ -1,9 +1,9 @@
-#!/home/geek/Applications/ANACONDA/anaconda3/envs/tf_gpu/bin/python
+#!/home/zanardi/APPLICATIONS/ANACONDA/anaconda3/envs/tf_v2.9/bin/python
 # -*- coding: utf-8 -*-
 import re
 import os
 import sys
-sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PyCOMET/pycomet_v2.9/'))
+sys.path.append(os.path.normpath(os.environ['WORKSPACE_PATH'] + '/ML/PyCOMET/pycomet/'))
 from pycomet.__main__ import main
 if __name__ == '__main__':
     sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])

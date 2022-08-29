@@ -1,9 +1,9 @@
 from pycomet.data.data import Data
-from pycomet.data.datagen import *
 from pycomet.data.dataset import DataSet
-from pycomet.data.multi_obj import *
+from pycomet.data.ode import ODE
 
 __all__ = [
     "Data",
-    "DataSet"
+    "DataSet",
+    "ODE",
 ]

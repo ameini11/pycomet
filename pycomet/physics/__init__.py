@@ -1,7 +1,5 @@
-from pycomet.physics import general
-from pycomet.physics import thermochemistry
+from pycomet.physics.physical_model import PhysicalModel
 
 __all__ = [
-    "general",
-    "thermochemistry"
+    "PhysicalModel"
 ]
