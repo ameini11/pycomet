@@ -1,10 +1,11 @@
 import tensorflow as tf
 
+from pycomet.utilities.model import blocks
 from pycomet.networks.net import Net
-from pycomet import config as cfg
+from pycomet.utilities import utils
 
 
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='FFNN')
+@tf.keras.utils.register_keras_serializable(package='PyCOMET', name='FFNN')
 class FFNN(Net):
     """Feed-Forward neural network."""
 
@@ -27,7 +28,7 @@ class FFNN(Net):
         self.lays_propty = self.check_layers(
             layers=lays_propty, not_opt=['hidden_block']
         )
-        # Initializing layers
+        # Initializing
         self.init_layers()
 
     # Layers initialization
@@ -37,9 +38,7 @@ class FFNN(Net):
             if identifier in ('input', 'output'):
                 self.init_inout_lay(identifier)
             elif identifier == 'hidden_block':
-                self.active_lays[identifier] = self.get_block(
-                    propty=self.lays_propty[identifier]
-                )
+                self.init_block_lay(identifier)
 
     def init_inout_lay(self, identifier):
         # Initializing default properties
@@ -54,6 +53,16 @@ class FFNN(Net):
                     _propty[k] = v
         self.active_lays[identifier] = _propty
 
+    def init_block_lay(self, identifier):
+        # Initializing properties
+        propty = self.lays_propty[identifier]
+        # Initializing block
+        blk = 'FFBlock' if 'block_type' not in propty else propty['block_type']
+        blk = blk if callable(blk) else utils.get_class(blocks, blk)
+        if 'block_type' in propty:
+            propty.pop('block_type')
+        self.active_lays[identifier] = blk(**propty)
+
     # Configuration update
     ###########################################################################
     def get_config(self):
@@ -63,6 +72,10 @@ class FFNN(Net):
         }
         base_config = super(FFNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
 
     # Calling
     ###########################################################################

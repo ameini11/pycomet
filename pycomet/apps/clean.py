@@ -19,12 +19,12 @@ import glob
 import shutil
 import argparse
 
-from pycomet import utils
 from pycomet import config as cfg
+from pycomet.utilities import utils
 from pycomet.apps import functions as fun
 
 FOLDERS = [
-    'data', 'training', 'saving', 'postproc', '__pycache__', 'plots'
+    'data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots'
 ]
 
 
@@ -35,7 +35,7 @@ def get_parser(subparsers):
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description='Clean the working directory.',
-        epilog=utils.EPILOG
+        epilog=cfg.EPILOG
     )
     parser.add_argument('-d', '--dir',
         type=str,
@@ -60,11 +60,11 @@ def rmdirs(dirs):
 
 # Main
 ###############################################################################
-@utils.app_dec()
+@utils.app_decorator()
 def main(args):
 
     # Remove directories ------------------------------------------------------
-    utils.print("Looking for folders to remove ...", start='')
+    utils.print_main("Looking for folders to remove ...", start='')
     exists = False
     
     for fld in FOLDERS:
@@ -86,7 +86,12 @@ def main(args):
                 rmdirs(dirs)
 
     # Exit --------------------------------------------------------------------
-    utils.print(
-        f"The working directory '{os.path.normpath(args.dir)}' is cleaned.",
-        start=''
-    )
+    if not exists:
+        exit_str = "The working directory '{}' is already cleaned.".format(
+                os.path.normpath(args.dir)+'/'
+            )
+    else:
+        exit_str = "The working directory '{}' has been cleaned.".format(
+                os.path.normpath(args.dir)+'/'
+            )
+    utils.print_main(exit_str, start='')

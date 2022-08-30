@@ -2,7 +2,7 @@
 #                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
 #                    Physics-informed machine learning for                    #
-#                 scientific computing and operator discovery                 #
+#                scientific computations and operator discovery               #
 #                                                                             #
 # *************************************************************************** #
 
@@ -13,9 +13,8 @@ import os
 import argparse
 import threadpoolctl
 
-from pycomet.utils import decorators
+from pycomet.utilities import utils
 from pycomet import config as cfg
-from pycomet import utils
 from pycomet import apps
 apps_mod = [
 	__import__(
@@ -24,15 +23,14 @@ apps_mod = [
 ]
 
 
+@utils.main_decorator
 def main():
-
-    utils.pkg_header()
 
     cwd = os.getcwd()
 
     # Initializing argument parser
     ap = argparse.ArgumentParser(
-        prog=cfg._NAME.lower(),
+        prog='pycomet',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=cfg.EPILOG
     )
@@ -51,7 +49,7 @@ def main():
 
     # Setting seed
     if hasattr(args, 'seed'):
-        utils.set_random_seed(args.seed)
+        utils.set_seeds(args.seed)
 
     # Setting seed
     if hasattr(args, 'dir'):

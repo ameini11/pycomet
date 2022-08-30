@@ -1,7 +1,6 @@
 from tensorflow.python.keras.engine import data_adapter
-from pycomet import operations as ops
 from pycomet.data.data import Data
-from pycomet import utils
+from pycomet.utilities import utils
 
 
 class DataSet(Data):
@@ -17,49 +16,50 @@ class DataSet(Data):
     def __init__(
         self,
         dim,
-        data_src={},
-        validation_split=None,
         training=True,
+        train_data=None,
+        valid_data=None,
+        test_data=None,
+        validation_split=None,
         batch_size=None,
         from_file=False,
-        header=0,
         columns=None,
+        header=0,
         preproc_fn=None
     ):
         super(DataSet, self).__init__(
             dim=dim,
-            data_src=data_src,
-            validation_split=validation_split,
             training=training,
+            test_data=test_data,
             batch_size=batch_size,
             from_file=from_file,
-            header=header,
             columns=columns,
+            header=header,
             preproc_fn=preproc_fn
         )
+
         # Training/Validation data
         if self.training:
-            if 'valid' in self.data_src and self.data_src['valid'] is not None:
-                for k in ('train', 'valid'):
-                    setattr(self, k, self.get_data(self.data_src[k], k))
-            elif self.validation_split:
+            if valid_data:
+                self.train = self.get_data(train_data, 'training')
+                self.valid = self.get_data(valid_data, 'validation')
+            elif validation_split:
                 self.train, self.valid = data_adapter.train_validation_split(
-                    self.get_data(self.data_src['train'], 'train'),
-                    self.validation_split
+                    self.get_data(train_data, 'training'), validation_split
                 )
             else:
-                self.train = self.get_data(self.data_src['train'], 'train')
+                self.train = self.get_data(train_data, 'training')
 
     # Handling Data
     ###########################################################################
     def get_num_pts(self, identifier='training', verbose=1):
 
         def print_fn(dset, identifier, verbose):
-            num_pts = ops.get_cardinality(dset)
+            num_pts = utils.get_cardinality(dset)
             if verbose:
                 text = f"Number of {identifier} pts:"
-                utils.print(
-                    text + ' '*(30-len(text)) + "%10d" % num_pts, lev=1
+                utils.print_submain(
+                    text + ' '*(30-len(text)) + "%10d" % num_pts
                 )
 
         super(DataSet, self).get_num_pts(identifier, verbose, print_fn)

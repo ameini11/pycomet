@@ -22,7 +22,8 @@ import importlib
 import tensorflow as tf
 
 from tqdm import tqdm
-from pycomet import utils
+from pycomet import config as cfg
+from pycomet.utilities import utils
 from pycomet.apps import functions as fun
 
 
@@ -32,8 +33,8 @@ def get_parser(subparsers):
     parser = subparsers.add_parser(
         name=NAME,
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Train a machine-learning-based model.",
-        epilog=utils.EPILOG
+        description="Build a ML-based approximator for ODEs.",
+        epilog=cfg.EPILOG
     )
     parser.add_argument('-j', '--threads',
         type=int,
@@ -67,7 +68,7 @@ def get_parser(subparsers):
 
 # Main
 ###############################################################################
-@utils.app_dec()
+@utils.app_decorator()
 def main(args):
 
     # Inizialization
@@ -81,26 +82,64 @@ def main(args):
     # Add modules -------------------------------------------------------------
     sys.path.append(args.dir)
     # Input module
-    utils.generate_init_mod_file(path=args.dir + '/inputs/')
     import inputs
+    from inputs.general import flags
 
     # Data
     ###########################################################################
+    # Generate Data -----------------------------------------------------------
+    if inputs.data.from_file:
+        utils.print_main("Extracting data points from file ...")
+        train_data = inputs.data.file['train']
+        valid_data = inputs.data.file['valid']
+        test_data = None
+        if flags['test'] > 0 and inputs.data.test_cases > 0:
+            test_data = inputs.data.file['test']
+    else:
+        utils.print_main("Generating initial conditions ...")
+        # Physics-related module
+        from physics.data_generator import DataGenerator
+
+        dataGen_args = utils.get_args_values(
+            args=utils.get_args(DataGenerator.__init__),
+            modules=[inputs.data, inputs.general]
+        )
+        dataGen = DataGenerator(
+            **dataGen_args
+        )
+        dataGen.data_dir = args.dir + "/data/"
+        if not os.path.exists(dataGen.data_dir):
+            os.makedirs(dataGen.data_dir)
+
+        ic = dataGen.initial_cond()
+        utils.print_main("Generating training/validation pts ...")
+        train_data, valid_data = dataGen.training_data(ic[0])
+        test_data = None
+        if flags['test'] > 0 and inputs.data.test_cases > 0:
+            utils.print_main('Generating testing pts ...')
+            test_data = dataGen.testing_data(ic[1], ic_train=ic[0])
+
+    # Data Class --------------------------------------------------------------
     data = fun._data(
-        inputs_mod=inputs,
+        flags=flags,
+        input_mod=inputs,
+        train_data=train_data,
+        valid_data=valid_data,
+        test_data=test_data,
         wdir=args.dir
     )
 
     # Network 
     ###########################################################################
     net = fun._net(
-        inputs_mod=inputs
+        input_mod=inputs
     )
 
     # Model 
     ###########################################################################
     model = fun._model(
-        inputs_mod=inputs,
+        flags=flags,
+        input_mod=inputs,
         net=net,
         data=data,
         graph=args.graph,
@@ -109,8 +148,16 @@ def main(args):
 
     # Postprocessing
     ###########################################################################
-    fun._postproc(
-        inputs_mod=inputs,
-        data=data,
-        model=model
-    )
+    # Training phase ----------------------------------------------------------
+    model.visualize_training(history=model.dir['train']+'/history.csv')
+
+    # Testing phase -----------------------------------------------------------
+    if flags['test'] > 0 and data.test is not None:
+        utils.print_main("Postprocessing physical quantities ...")
+        for name, d in tqdm(data.test.items()):
+            model.predict(
+                data=d,
+                plotting=flags['plot'],
+                path=model.dir['post'] + f'/testing/{name}',
+                **inputs.postprocessing.plot_style
+            )
