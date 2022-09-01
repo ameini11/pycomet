@@ -42,16 +42,13 @@ class Gradient(object):
         if self.order == 0:
             dydx = y
         else:
-            if self.dim_x == 1:
-                dydx = [self.compute_grad(y, x, order=self.order)]
-            else:
-                dydx = [
-                    self.compute_grad(
-                        tf.gather(y, k, axis=1), x, order=self.order
-                    ) for k in self.j
-                ]
-                dydx = [tf.split(g, self.dim_x, axis=1) for g in dydx]
-                dydx = [tf.concat(x, 1) for x in list(zip(*dydx))]
+            dydx = [
+                self.compute_grad(
+                    tf.gather(y, k, axis=1), x, order=self.order
+                ) for k in self.j
+            ]
+            dydx = [tf.split(g, self.dim_x, axis=1) for g in dydx]
+            dydx = [tf.concat(x, 1) for x in list(zip(*dydx))]
         dydx = [tf.gather(g, self.j, axis=1) for g in dydx]
         return utils.squeeze_list([dydx[k] for k in self.i])
 

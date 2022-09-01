@@ -14,8 +14,8 @@ params = {
 
 # Input space (limit values)
 inp_space = {
-    'x': [5., 5.],     # Position [m]
-    'v': [-5., -5.],     # Velocity [m/s]
+    'x': [-5., 5.],     # Position [m]
+    'v': [-5., 5.],     # Velocity [m/s]
 }
 
 # Time limits
