@@ -52,14 +52,14 @@ class TimeScaleNN(Net):
         self.ts_fast_conn = ts_fast_conn
 
         # Outputs
-        if not isinstance(self.out_dim, (list,tuple)):
-            self.out_dim = [self.out_dim]
+        if not isinstance(self.outputs_dim, (list,tuple)):
+            self.outputs_dim = [self.outputs_dim]
 
         # OpNNs
         self.opnn_dim = [{
-            "inp": self.inp_dim,
-            "out": self.out_dim[i]
-        } for i in range(len(self.out_dim))]
+            "inp": self.inputs_dim,
+            "out": self.outputs_dim[i]
+        } for i in range(len(self.outputs_dim))]
 
         ### Input Transformation Layers ---------------------------------------
         self.temperature_limits = temperature_limits
@@ -103,14 +103,14 @@ class TimeScaleNN(Net):
                 cross_encoder_layer_size=self.cross_encoder_layer_size,
                 augmented=self.augmented,
                 name='opnn_' + str(i)
-            ) for i in range(len(self.out_dim))
+            ) for i in range(len(self.outputs_dim))
         ]
 
         ### Equilibrium Layer -------------------------------------------------
         self.reaction = reaction
         self.species = species
         self.equilibrium = layers.Equilibrium(
-            self.out_dim, self.species, reaction=self.reaction
+            self.outputs_dim, self.species, reaction=self.reaction
         )
 
     # Configuration update
@@ -152,7 +152,7 @@ class TimeScaleNN(Net):
 
         # Extract physical inputs
         T, rho, Y = tf.split(
-            ic, num_or_size_splits=[1,1,self.inp_dim[0]-2], axis=1
+            ic, num_or_size_splits=[1,1,self.inputs_dim[0]-2], axis=1
         )
 
         # Normalize temperature

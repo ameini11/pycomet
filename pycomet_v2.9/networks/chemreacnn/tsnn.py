@@ -54,14 +54,14 @@ class TimeScaleNN(Net):
         self.ts_fast_conn = ts_fast_conn
 
         # Outputs
-        if not isinstance(self.out_dim, (list,tuple)):
-            self.out_dim = [self.out_dim]
+        if not isinstance(self.outputs_dim, (list,tuple)):
+            self.outputs_dim = [self.outputs_dim]
 
         # OpNNs
         self.opnn_dim = [{
-            "inp": self.inp_dim,
-            "out": self.out_dim[i]
-        } for i in range(len(self.out_dim))]
+            "inp": self.inputs_dim,
+            "out": self.outputs_dim[i]
+        } for i in range(len(self.outputs_dim))]
 
         ### Input Transformation Layers ---------------------------------------
         self.temperature_limits = temperature_limits
@@ -103,14 +103,14 @@ class TimeScaleNN(Net):
                 shifter=self.shifter,
                 augmented=self.augmented,
                 name='opnn_' + str(i)
-            ) for i in range(len(self.out_dim))
+            ) for i in range(len(self.outputs_dim))
         ]
 
         ### Equilibrium Layer -------------------------------------------------
         self.reaction = reaction
         self.species = species
         self.equilibrium = layers.Equilibrium(
-            self.out_dim, self.species, reaction=self.reaction
+            self.outputs_dim, self.species, reaction=self.reaction
         )
 
     # Configuration update
@@ -167,7 +167,7 @@ class TimeScaleNN(Net):
         ic, t = x
         # Extract physical inputs
         T, rho, Y = tf.split(
-            ic, num_or_size_splits=[1,1,self.inp_dim[0]-2], axis=1
+            ic, num_or_size_splits=[1,1,self.inputs_dim[0]-2], axis=1
         )
         # Normalize temperature
         T_norm = self.temperature_norm_lay(T)
@@ -198,7 +198,7 @@ class TimeScaleNN(Net):
         neq_mask = tf.split(neq_mask, neq_mask.shape[1], axis=1)
         for i, mask_i in enumerate(neq_mask):
             # Create a dummy `zeros` tensor
-            y_i = tf.zeros((n, self.out_dim[i]), dtype=K.floatx())
+            y_i = tf.zeros((n, self.outputs_dim[i]), dtype=K.floatx())
             # If any values of `mask_i` is `True`, evaluate the specific
             # data points
             if any(mask_i):
@@ -233,7 +233,7 @@ class Equilibrium(tf_layers.Layer):
     ###########################################################################
     def __init__(
         self,
-        out_dim,
+        outputs_dim,
         species,
         reaction=None,
         name='equilibrium',
@@ -246,7 +246,7 @@ class Equilibrium(tf_layers.Layer):
             **kwargs
         )
 
-        self.out_dim = out_dim
+        self.outputs_dim = outputs_dim
         self.reaction = reaction
 
         # Species -------------------------------------------------------------
@@ -277,7 +277,7 @@ class Equilibrium(tf_layers.Layer):
     ###########################################################################
     def get_config(self):
         config = {
-            'out_dim': self.out_dim,
+            'outputs_dim': self.outputs_dim,
             'reaction': self.reaction,
             'species': self.species
         }
@@ -299,7 +299,7 @@ class Equilibrium(tf_layers.Layer):
                 "or a `tuple`: [x, T]".format(self.name))
 
         if self.reaction is None:
-            y = tf.split(x, num_or_size_splits=self.out_dim, axis=1)
+            y = tf.split(x, num_or_size_splits=self.outputs_dim, axis=1)
             y = [ tf_layers.Softmax(axis=-1)(y_i) for y_i in y ]
         else:
             # Partition functions
@@ -311,12 +311,12 @@ class Equilibrium(tf_layers.Layer):
                 Q = tf_layers.Concatenate()(Q) if len(Q) > 1 else Q[-1]
             # Simil-Softmax layer
             y = tf_layers.Multiply()([tf.math.exp(x), Q])
-            y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
+            y = tf.split(y, num_or_size_splits=self.outputs_dim, axis=1)
             y = [ y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y ]
             # y = tf_layers.Multiply()(
             #     [tf.math.exp(-x), Q / tf.reduce_sum(Q, axis=-1, keepdims=True)]
             # )
-            # y = tf.split(y, num_or_size_splits=self.out_dim, axis=1)
+            # y = tf.split(y, num_or_size_splits=self.outputs_dim, axis=1)
 
         return y if len(y) > 1 else y[-1]
 

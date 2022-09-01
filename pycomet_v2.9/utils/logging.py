@@ -9,9 +9,11 @@ EPILOG = '\n' + '='*cfg._DISPLAY_LEN + '\n '
 _TABS = np.arange(5)*min(cfg._TAB, 2)
 
 # Printing --------------------------------------------------------------------
-def print_fn(text, start='\n', lev=0, verbose=True):
+def print_fn(text, start='\n', lev=0, verbose=True, end='\n'):
     if verbose:
-        print(start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text)
+        if lev > 0:
+            start=''
+        print(start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text, end=end)
 
 def input_fn(text, start='', lev=0):
     return input(start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text)
@@ -37,14 +39,14 @@ def environment():
     print(
         cfg._HEADERS['main'] + "Environment setup" + \
         "\n" + "-" * cfg._DISPLAY_LEN + \
-        "\n  TensorFlow version:     {}".format(tf.__version__) + \
-        "\n  Num. of GPUs available: {}".format(
+        "\n > TensorFlow version:      {}".format(tf.__version__) + \
+        "\n > Num. of GPUs available:  {}".format(
             len(tf.config.list_physical_devices('GPU'))
         ) + \
-        "\n  Num. of CPUs available: {}".format(
+        "\n > Num. of CPUs available:  {}".format(
             len(tf.config.list_physical_devices('CPU'))
         ) + \
-        "\n  Num. of threads:        {}\n".format(num_threads) + \
+        "\n > Num. of threads:         {}\n".format(num_threads) + \
         "-"*cfg._DISPLAY_LEN
     )
 

@@ -24,7 +24,7 @@ from pycomet import config as cfg
 from pycomet.apps import functions as fun
 
 FOLDERS = [
-    'data', 'training', 'saving', 'postproc', '__pycache__', 'plots'
+    'data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots'
 ]
 
 
@@ -75,7 +75,7 @@ def main(args):
         if len(dirs) > 0:
             exists = True
             if args.verbose and fld in {'data', 'saving'}:
-                asw = utils.input_fn_submain(
+                asw = utils.input_fn(
                     ">> Do you want to delete the '{}' folder? [y/n] ".format(
                         fld
                     )

@@ -1,14 +1,16 @@
+import keras
 import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
 from pycomet import operations as ops
 from tensorflow.python.keras import backend
+from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.utils.MultiObjSequence')
-class MultiObjSequence(tf.keras.utils.Sequence):
+class MultiObjSequence(keras.utils.Sequence):
 
     # Initialization
     ###########################################################################
@@ -64,12 +66,11 @@ class MultiObjSequence(tf.keras.utils.Sequence):
                             "array: [x, y, sample_weight]."
                         )
                     else:
-                        self.data[obj] = list(data[obj])
+                        self.data[obj] = list(ops.unpack_list(data[obj], 3))
                         self.n_samples[obj] = ops.get_cardinality(data[obj])
-        self.data = tf.nest.map_structure(np.array, self.data)
-
-        # Data dimensions
-        self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
+        self.data = tf.nest.map_structure(
+            lambda x: np.array(x) if x is not None else None, self.data
+        )
 
         # Number of batches for each objective data
         self.steps = tf.nest.map_structure(
@@ -78,6 +79,10 @@ class MultiObjSequence(tf.keras.utils.Sequence):
 
         self.shuffle = shuffle
         self.keep_indeces = False
+
+    @property
+    def shapes(self):
+        return tf.nest.map_structure(np.shape, self.data)
 
     # Building
     ###########################################################################
@@ -93,17 +98,17 @@ class MultiObjSequence(tf.keras.utils.Sequence):
             # Get true and pred values
             y = self.data[obj][1]
             y_pred = model.multi_obj_pred(
-                tf.nest.map_structure(
+                x=tf.nest.map_structure(
                     lambda d: tf.random.normal((1, d), dtype=backend.floatx()),
-                    model.input_dim
+                    model.inputs_dim
                 ),
-                objective=obj
+                objective=obj,
+                training=False
             )
-            y_true, y_pred = list(map(
-                lambda x: list(x) if isinstance(x, tuple) else x, [y, y_pred]
+            y, y_pred = list(map(
+                lambda x: utils.squeeze_list(tuple(tf.nest.flatten(x))),
+                [y, y_pred]
             ))
-            if isinstance(y_pred, tuple):
-                y_pred = list(y_pred)
             # Get true and pred feature dimensions
             y_dim = ops.get_struct_shape(y, axis=1)
             y_pred_dim = ops.get_struct_shape(y_pred, axis=1)
@@ -119,8 +124,7 @@ class MultiObjSequence(tf.keras.utils.Sequence):
                         f"'{obj}' data passed into `{self.name}` are "
                         "inconsistent with the network output dimensions."
                     )
-        # Update shapes
-        self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
+        self.data = ops.remove_elem_from_struct(data=self.data, elem=None)
 
     def init_sample_weight(
         self,
@@ -130,30 +134,25 @@ class MultiObjSequence(tf.keras.utils.Sequence):
     ):
         for obj in self.objectives:
             # Get initializers
-            init_fun = initializer[obj] if initializer else np.ones
+            init_fn = initializer[obj] if initializer else np.ones
             # Define shape
             if rank == 1:
-                fun = lambda x: init_fun(
+                fn = lambda x: init_fn(
                     shape=(x.shape[0],1), dtype=backend.floatx()
                 )
             else:
-                fun = lambda x: init_fun(
+                fn = lambda x: init_fn(
                     shape=x.shape, dtype=backend.floatx()
                 )
             # Construct weights
-            sample_weight = tf.nest.map_structure(fun, self.data[obj][1])
+            sample_weight = tf.nest.map_structure(fn, self.data[obj][1])
             # Make them tf.Variable if trainable
             if trainable:
                 sample_weight =  tf.nest.map_structure(
                     lambda w: tf.Variable(w), sample_weight
                 )
             # Add sample weights to the data set
-            if len(self.data[obj]) <= 2:
-                self.data[obj].append(sample_weight)
-            else:
-                self.data[obj][2] = sample_weight
-        # Update shapes
-        self.shapes = tf.nest.map_structure(lambda z: z.shape, self.data)
+            self.data[obj][2] = sample_weight
 
     # Sequencing
     ###########################################################################
@@ -187,7 +186,7 @@ class MultiObjSequence(tf.keras.utils.Sequence):
     def shuffle_data(self, obj, dset):
         indeces = np.random.permutation(self.n_samples[obj])
         dset = tf.nest.map_structure(
-            lambda z: tf.gather(z, indeces).numpy(), dset
+            lambda z: np.take(z, indeces, axis=0), dset
         )
         if self.keep_indeces:
             dset.append(indeces.reshape((-1,1)))

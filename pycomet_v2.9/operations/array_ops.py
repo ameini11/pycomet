@@ -15,37 +15,32 @@ def get_cardinality(x):
 
 def get_struct_shape(structure=None, axis=None):
     if structure is not None:
-        if axis:
+        if axis is not None:
             fn = lambda x: x.shape[axis] if x is not None else None
         else:
             fn = lambda x: x.shape if x is not None else None
         return tf.nest.map_structure(fn, structure)
 
-def unpack_x_y_sample_weight_index(data):
-    if isinstance(data, list):
-        data = tuple(data)
-    if not isinstance(data, tuple):
-        return (data, None, None, None)
-    elif len(data) == 1:
-        return (data[0], None, None, None)
-    elif len(data) == 2:
-        return (data[0], data[1], None, None)
-    elif len(data) == 3:
-        return (data[0], data[1], data[2], None)
-    elif len(data) == 4:
-        return (data[0], data[1], data[2], data[3])
+def unpack_list(data, n_elem=3):
+    if isinstance(data, (tuple)):
+        data = list(data)
+    if not isinstance(data, list):
+        return ([data] + [None]*(n_elem-1))
+    elif len(data) <= n_elem:
+        return (data + [None]*(n_elem-len(data)))
     else:
         utils.raise_value_err(
-            "Data is expected to be in format `x`, `(x,)`, "
-            "`(x, y)`, `(x, y, sample_weight)`, or "
-            f"`(x, y, sample_weight, sample_index)`, found: {data}"
+            "The number of elements in the container "
+            "has to be less or equal than 'n_elem'."
         )
 
 def extract_data_from_array(array, indices=None, axis=1):
     if indices is None:
         return array
     else:
-        if any(isinstance(c, (list,tuple)) for c in indices):
+        if not isinstance(indices, (list,tuple)):
+            indices = [indices]
+        if any([isinstance(c, (list,tuple)) for c in indices]):
             return [np.take(array, c, axis=axis) for c in indices]
         else:
             return np.take(array, indices, axis=axis)
@@ -69,3 +64,16 @@ def extract_data(container, indices=None, axis=1):
             )
     else:
         return container
+
+def remove_elem_from_struct(data, elem=None):
+    if isinstance(data, dict):
+        return {
+            k: remove_elem_from_struct(v, elem) for k, v in data.items() \
+                if k is not None and v is not None
+        }
+    elif isinstance(data, (list, tuple, set)):
+        return type(data)([
+            remove_elem_from_struct(i, elem) for i in data if i is not None
+        ])
+    else:
+        return data

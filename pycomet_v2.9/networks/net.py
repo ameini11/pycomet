@@ -1,12 +1,11 @@
 import tensorflow as tf
 
 from tensorflow.python.keras.engine import compile_utils
-from tensorflow.python.keras.engine import data_adapter
-from tensorflow.python.keras.engine import base_layer
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.keras import metrics as metrics_mod
 from tensorflow.python.util import traceback_utils
 from tensorflow.python.keras import backend
+from keras.engine import base_layer
 from pycomet.networks.elements import blocks
 from pycomet import operations as ops
 from pycomet import config as cfg
@@ -39,8 +38,8 @@ class Net(tf.keras.Model):
                 "It represents the dimensions of the I/O feature space."
             )
 
-        self.inp_dim = dim["inp"]
-        self.out_dim = dim["out"]
+        self.inputs_dim = dim["inp"]
+        self.outputs_dim = dim["out"]
         
         self.active_lays = {}
 
@@ -54,8 +53,8 @@ class Net(tf.keras.Model):
     ###########################################################################
     def get_config(self):
         config = {
-            'inp_dim': self.inp_dim,
-            'out_dim': self.out_dim,
+            'inputs_dim': self.inputs_dim,
+            'outputs_dim': self.outputs_dim,
             'multi_obj_loss': self.multi_obj_loss,
             'objectives': self.objectives,
             'obj_pred_fn': self.obj_pred_fn
@@ -132,7 +131,7 @@ class Net(tf.keras.Model):
                 **kwargs
             )
 
-    def check_arg(self, arg, definition):
+    def check_arg(self, arg):
         if arg is not None and not isinstance(arg, dict):
             utils.raise_value_err(
                 f"`{nameof(arg)}` passed into `compile` has to be a `dict` "
@@ -163,8 +162,7 @@ class Net(tf.keras.Model):
 
     def multi_obj_train_step(self, data):
         # Unpack data
-        x, y, sample_weight, sample_index = \
-            ops.unpack_x_y_sample_weight_index(data)
+        x, y, sample_weight, sample_index = ops.unpack_list(data, n_elem=4)
         # Manipulate sample weights
         if self.weighted_loss:
             sample_weight = self.weighted_loss.on_grad_step_begin(
@@ -219,7 +217,7 @@ class Net(tf.keras.Model):
 
     def multi_obj_test_step(self, data):
         # Unpack data
-        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(data)
+        x, y, sample_weight = ops.unpack_list(data, n_elem=3)
         # Evaluate each objective function loss
         losses = self.compute_losses(x, y, sample_weight, training=False)
         # Collect metrics to return
@@ -234,7 +232,7 @@ class Net(tf.keras.Model):
         return metrics
 
     # Predicting Step ---------------------------------------------------------
-    def multi_obj_pred(self, x=None, objective=None, training=False):
+    def multi_obj_pred(self, x=None, objective=None, training=True):
         if x is None:
             x = self.inputs
         # Evaluate predictions for the specific objective function

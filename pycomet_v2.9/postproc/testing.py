@@ -120,3 +120,5 @@ def plot_test(
         
     if fig_ax is not None:
         return fig, ax
+
+    plt.close()

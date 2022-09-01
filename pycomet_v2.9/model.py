@@ -5,7 +5,6 @@ import pandas as pd
 import tensorflow as tf
 import tensorflow.python.keras.callbacks as cb
 
-from tensorflow.python.keras.engine import data_adapter
 from tensorflow.python.keras import backend
 from pycomet.optimization.callbacks import callbacks as callbacks_module
 from pycomet.optimization import losses as losses_module
@@ -85,28 +84,27 @@ class Model(object):
         if self.data is not None and self.data.multi_obj_loss is not None:
             for attr in self.multi_obj_loss_attrs:
                 setattr(self.net, attr, getattr(self.data, attr))
+            self.data.net = self.net
 
         # Build the network ---------------------------------------------------
         input_shape = tf.nest.map_structure(
             lambda i: tf.TensorShape([None, i]),
-            tf.nest.flatten(self.net.inp_dim)
+            tf.nest.flatten(self.net.inputs_dim)
         )
         if not self.net.built:
             self.net.build(utils.squeeze_list(input_shape))
         # I/O characterization
         self.net.inputs = utils.squeeze_list([
-            backend.placeholder(
-                shape=s, dtype=backend.floatx()
-            ) for s in input_shape
+            tf.keras.Input((i,)) for i in tf.nest.flatten(self.net.inputs_dim)
         ])
         self.net.outputs = self.net.call(self.net.inputs)
-        # I/O features space dimensions
         for attr in ('inputs', 'outputs'):
-            setattr(
-                self.net,
-                attr + '_dim',
-                ops.get_struct_shape(getattr(self.net, attr), axis=1)
-            )
+            dim = ops.get_struct_shape(getattr(self.net, attr), axis=1)
+            if dim != getattr(self.net, attr + '_dim'):
+                utils.raise_value_err(
+                    "Found an I/O network's dimensions inconsistency. "
+                    "Check 'dim' input variable."
+                )
         # Network graph
         self.graph = tf.keras.Model(
             inputs=self.net.inputs, outputs=self.net.outputs, name=self.name
@@ -137,7 +135,9 @@ class Model(object):
                 tf.keras.utils.plot_model(
                     self.graph, self.dir['train'] + "/" + self.name + ".png"
                 )
-            asw = utils.input_fn("Is the model structure correct? [y/n] ", lev=1)
+            asw = utils.input_fn(
+                "Is the model structure correct? [y/n] ", lev=1
+            )
             if not asw.lower().startswith('y'):
                 utils.print_fn("All the processes will be stopped.\n", lev=1)
                 utils.kill_process()
@@ -226,7 +226,7 @@ class Model(object):
         metrics=None,
         loss_weights=None,
         weighted_metrics=None,
-        run_eagerly=None,
+        run_eagerly=False,
         steps_per_execution=None,
         jit_compile=cfg._TF['setup']['XLA']
     ):
@@ -285,9 +285,7 @@ class Model(object):
             self.data.get_num_pts(identifier, verbose)
 
         # Fit the model
-        x, y, sample_weight = data_adapter.unpack_x_y_sample_weight(
-            self.data.train
-        )
+        x, y, sample_weight = ops.unpack_list(self.data.train, n_elem=3)
 
         history = self.net.fit(
             x=x,
@@ -341,8 +339,8 @@ class Model(object):
             Numpy array(s) of predictions.
         """
         # Get true and pred values
-        x, y, _ = data_adapter.unpack_x_y_sample_weight(data)
-        y_pred = self.net.predict(x)
+        x, y = ops.unpack_list(data, n_elem=2)
+        y_pred = self.net.predict(x, verbose=0)
         # Plotting figures
         if plotting:
             # Define `testing` directory
@@ -355,9 +353,11 @@ class Model(object):
                 figures = [figures]
             for figure in figures:
                 # Extract data
-                _x, _y, _y_pred = tf.nest.map_structure(
-                    ops.extract_data, [x, y, y_pred], figure['indeces']
-                )
+                _x, _y, _y_pred = list(map(
+                    lambda x,i: ops.extract_data(x,i,1),
+                    [x, y, y_pred],
+                    figure['indices']
+                ))
                 # Manipulate y-axis values
                 if 'output_ops' in figure:
                     _y, _y_pred = list(
@@ -402,8 +402,6 @@ class Model(object):
         path=None,
         scales=['log']
     ):
-        utils.print_fn("Postprocessing training quantities ...")
-
         history = self.get_history(history)
         if path is None:
             path = self.dir['post']+'/training'

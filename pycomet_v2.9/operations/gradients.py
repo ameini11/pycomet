@@ -8,55 +8,71 @@ class Gradients(object):
 
     def __init__(self):
         self.grads = {}
+        self.built = []
 
-    def __call__(self, y, x, i, j, order=1):
-        key = (y.ref(), x.ref())
+    def __call__(self, y, x, j=[], i=[], order=1, key=None):
+        if key is None:
+            utils.raise_value_err(
+                'Set a key (one for each different call) to identify '
+                'the specific gradient computation.'
+            )
+        if key not in self.built:
+            self.build(y, x, j, i, order, key)
+        return self.grads[key](y, x)
+
+    def build(self, y, x, j, i, order, key):
         if key not in self.grads:
-            self.grads[key] = Gradient(y, x)
-        return self.grads[key](i, j, order)
-
-    def clear():
-        self.grads = {}
+            self.grads[key] = Gradient(y, x, j, i, order)
+        self.built.append(key)
 
 
 class Gradient(object):
 
-    def __init__(self, y, x):
-        self.y, self.x = y, x
+    def __init__(self, y, x, j, i, order):
+        # Tensor dimensions
         self.dim_y, self.dim_x = tf.nest.map_structure(
-            lambda x: x.shape[1], [self.y, self.x]
+            lambda x: x.shape[1], [y, x]
         )
-        self.i, self.j = tf.nest.map_structure(
-            lambda x: tuple(np.arange(x)), [self.dim_y, self.dim_x]
-        )
-        self.g = {}
+        # Gradient indices
+        self.build_indices(j, i)
+        # Gradient order
+        self.order = order
 
-    def __call__(self, i=[], j=[], order=1):
-        i, j = tf.nest.map_structure(
-            lambda x: tuple(tf.nest.flatten(x)), [i, j]
-        )
-        i = self.i if len(i) == 0 else i
-        if any([not 0 <= k < self.dim_y for k in i]):
-            utils.raise_value_err(
-                f"Index value i={i} is not valid for output tensor."
-            )
-        j = self.j if len(j) == 0 else j
-        if any([not 0 <= k < self.dim_x for k in j]):
-            utils.raise_value_err(
-                f"Index value j={j} is not valid for input tensor."
-            )
-        key = (i, order)
-        if key not in self.g:
-            if order == 0:
-                self.g[key] = y
+    def __call__(self, y, x):
+        if self.order == 0:
+            dydx = y
+        else:
+            if self.dim_x == 1:
+                dydx = [self.compute_grad(y, x, order=self.order)]
             else:
-                y = tf.gather(self.y, i, axis=1)
-                self.g[key] = self.eval_grad(y, self.x, order=order)
-        return tf.gather(self.g[key], j, axis=1)
+                dydx = [
+                    self.compute_grad(
+                        tf.gather(y, k, axis=1), x, order=self.order
+                    ) for k in self.j
+                ]
+                dydx = [tf.split(g, self.dim_x, axis=1) for g in dydx]
+                dydx = [tf.concat(x, 1) for x in list(zip(*dydx))]
+        dydx = [tf.gather(g, self.j, axis=1) for g in dydx]
+        return utils.squeeze_list([dydx[k] for k in self.i])
 
-    def eval_grad(self, y, x, order):
+    def build_indices(self, j, i):
+        j, i = list(map(lambda x: tuple(tf.nest.flatten(x)), [j, i]))
+        # Output indices
+        self.j = tuple(np.arange(self.dim_y)) if len(j) == 0 else j
+        if any([not 0 <= k < self.dim_y for k in self.j]):
+            utils.raise_value_err(
+                f"Index value j={self.j} is not valid for output tensor."
+            )
+        # Input indices
+        self.i = tuple(np.arange(self.dim_x)) if len(i) == 0 else i
+        if any([not 0 <= k < self.dim_x for k in self.i]):
+            utils.raise_value_err(
+                f"Index value i={self.i} is not valid for input tensor."
+            )
+
+    def compute_grad(self, y, x, order):
         if order == 0:
             return y
         else:
             dydx = tf.gradients(y, x)[-1]
-            return self.eval_grad(dydx, x, order=order-1)
+            return self.compute_grad(dydx, x, order=order-1)

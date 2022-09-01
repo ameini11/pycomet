@@ -125,7 +125,7 @@ class MMOpNN(Net):
             self.end_scale_lay = layers.Bias(name='end_scale')
         elif self.end_scale == 'dense':
             self.end_scale_lay = tf_layers.Dense(
-                units=self.out_dim,
+                units=self.outputs_dim,
                 kernel_initializer=self.kernel_initializer,
                 name='end_scale'
             )
@@ -193,15 +193,15 @@ class MMOpNN(Net):
 
     def _manipulate_output(self, y):
         # Concatenate if single output or if final scaling is applied
-        if not isinstance(self.out_dim, (list,tuple)) \
+        if not isinstance(self.outputs_dim, (list,tuple)) \
             or self.end_scale is not None:
             y = tf_layers.Concatenate()(y)
         # Final scaling
         if self.end_scale is not None:
             y = self.end_scale_lay(y)
         # Split if multiple output
-        if isinstance(self.out_dim, (list,tuple)) and tf.is_tensor(y):
-            y = tf.split(y, self.out_dim, axis=1)
+        if isinstance(self.outputs_dim, (list,tuple)) and tf.is_tensor(y):
+            y = tf.split(y, self.outputs_dim, axis=1)
         # Output transformation
         if self.out_trans is not None:
             y = self.out_trans(y)

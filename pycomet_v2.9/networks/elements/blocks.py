@@ -1,7 +1,7 @@
 import tensorflow as tf
-import tensorflow_addons.layers as tfa_layers
-import tensorflow.python.keras.layers as tf_layers
 
+from keras import layers as tf_layers
+from tensorflow_addons import layers as tfa_layers
 from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.elements import activations
 from pycomet.networks.elements import initializers
@@ -156,7 +156,7 @@ class FFBlock(tf_layers.Layer):
 
         # Layers Initialization -----------------------------------------------
         # Hidden Layers
-        names = [f'hidden{i}' for i in range(len(self.layer_size)-2)]
+        names = [f'hidden_{i}' for i in range(len(self.layer_size)-2)]
         names = names + ['output']
         self.multi_lays = [
             MultiLayerBlock(
@@ -323,15 +323,15 @@ class PreNetBlock(FFBlock):
         # Initialize transformation
         self.xform = transformation
         if self.xform == 'translation':
-            self.out_dim = self.n_coords
+            self.outputs_dim = self.n_coords
             self.i, self.j = self.n_coords, 0
         elif self.xform in ('euclidean', 'similarity', 'affine'):
-            self.out_dim = self.n_coords * (self.n_coords + 1)
+            self.outputs_dim = self.n_coords * (self.n_coords + 1)
             # if self.transformation == 'similarity' and self.n_coords > 1:
-            #     out_dim = out_dim + 1
+            #     outputs_dim = outputs_dim + 1
             self.i, self.j = self.n_coords, self.n_coords
         elif self.xform == 'projective':
-            self.out_dim = (self.n_coords + 1) ** 2
+            self.outputs_dim = (self.n_coords + 1) ** 2
             self.i, self.j = self.n_coords+1, self.n_coords
         else:
             utils.raise_value_err(
@@ -342,7 +342,7 @@ class PreNetBlock(FFBlock):
         self.out_xform = out_xform
 
         super(PreNetBlock, self).__init__(
-            layer_size=list(layer_size)[:-1] + [self.out_dim],
+            layer_size=list(layer_size)[:-1] + [self.outputs_dim],
             activation=activation,
             kernel_initializer=kernel_initializer,
             regularizer=regularizer,

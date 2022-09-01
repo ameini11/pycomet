@@ -2,13 +2,13 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-import tensorflow.keras.layers as tf_layers
 
 from tensorflow.python.keras import backend
 from tensorflow.python.keras import activations
 from tensorflow.python.keras import constraints
 from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
+from keras import layers as tf_layers
 from pycomet import config as cfg
 from pycomet import utils
 
@@ -420,11 +420,10 @@ class Bias(tf_layers.Layer):
         regularizer=None,
         constraint=None,
         activity_regularizer=None,
-        name='bias',
         **kwargs
     ):
         super(Bias, self).__init__(
-            activity_regularizer=activity_regularizer, name=name, **kwargs
+            activity_regularizer=activity_regularizer, **kwargs
         )
         self.activation = activations.get(activation)
         self.initializer = initializers.get(initializer)

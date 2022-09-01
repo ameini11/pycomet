@@ -56,14 +56,14 @@ class DataGenerator(pcm.data.DataGenerator):
         self.inp_space = np.vstack(list(inp_space.values())).T
 
         # Model parameters ----------------------------------------------------
-        self.psi = params['c'] / (2.*np.sqrt(params['m'] * params['k']))
-        if not 0. <= self.psi <= 1.:
+        self.xi = params['c'] / (2.*np.sqrt(params['m'] * params['k']))
+        if not 0. <= self.xi <= 1.:
             utils._raise_value_err(
-                'The damping ratio "psi" has to be between 0 and 1. '
+                'The damping ratio "xi" has to be between 0 and 1. '
                 'Modify the parameters of the physical model.'
             )
-        self.w_natural = np.sqrt(params['k'] * params['m'])
-        self.w_damped = self.w_natural * np.sqrt(1. - self.psi**2)
+        self.w_natural = np.sqrt(params['k'] / params['m'])
+        self.w_damped = self.w_natural * np.sqrt(1. - self.xi**2)
 
         # Labeling Data -------------------------------------------------------
         self.data_label_inp = ['x [m]', 'v [m/s]', 't [s]']
@@ -110,19 +110,16 @@ class DataGenerator(pcm.data.DataGenerator):
         # Initial conditions
         x0, v0 = ic
         # Coefficients
-        A = np.sqrt(
-            (self.w_damped**2*x0**2 + (v0+self.psi*self.w_natural*x0)**2) \
-            / self.w_damped**2
-        )
-        phi = np.arctan(self.w_damped*x0 / (v0+self.psi*self.w_natural*x0))
+        phi = np.arctan(self.w_damped*x0 / (v0+self.xi*self.w_natural*x0))
+        A = x0 / np.sin(phi)
         # Factors
-        f_exp = np.exp(-self.psi*self.w_natural*t)
+        f_exp = np.exp(-self.xi*self.w_natural*t)
         f_sin = np.sin(self.w_damped * t + phi)
         f_cos = np.cos(self.w_damped * t + phi)
         # Position
         x = A * f_exp * f_sin
         # Velocity
-        v = -self.psi*self.w_natural*x + self.w_damped * A * f_exp * f_cos
+        v = -self.xi*self.w_natural*x + self.w_damped * A * f_exp * f_cos
         return np.hstack((x, v))
 
     # Training/Validation data

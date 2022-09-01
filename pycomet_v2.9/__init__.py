@@ -22,9 +22,11 @@ os.environ.update(_TF['env'])
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 # Setting backend
-from tensorflow.python.keras import backend
-backend.set_floatx(_TF['setup']['FLOATX'])
-backend.set_epsilon(_TF['setup']['EPSILON'])
+from tensorflow.python.keras import backend as be_py
+from tensorflow.keras import backend as be_ke
+for k in (be_py, be_ke):
+    k.set_floatx(_TF['setup']['FLOATX'])
+    k.set_epsilon(_TF['setup']['EPSILON'])
 
 # PyCOMET ---------------------------------------------------------------------
 __author__  = "Ivan Zanardi"

@@ -52,6 +52,8 @@ class MultiObjData(Data):
         # Attributes for physics-informed loss --------------------------------
         self.physics_informed = physics_informed
 
+        self.net = None
+
     # Handling Data
     ###########################################################################
     def get_data(self, data, identifier):
@@ -81,7 +83,7 @@ class MultiObjData(Data):
                 utils.print_fn(f"Number of {identifier} pts:", lev=1)
                 for k, v in num_pts.items():
                     utils.print_fn(
-                        "  - '%s':" + ' '*(10-len(k)) + " %8d" % (k, v), lev=1
+                        "- '%s':" % k + " "*(5-len(k)) + " %8d" % v, lev=2
                     )
 
         super(MultiObjData, self).get_num_pts(identifier, verbose, print_fn)

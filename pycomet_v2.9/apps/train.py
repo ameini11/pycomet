@@ -15,13 +15,8 @@
 NAME = 'train'
 
 import os
-import sys
-import pycomet
 import argparse
-import importlib
-import tensorflow as tf
 
-from tqdm import tqdm
 from pycomet import utils
 from pycomet.apps import functions as fun
 
@@ -37,7 +32,7 @@ def get_parser(subparsers):
     )
     parser.add_argument('-j', '--threads',
         type=int,
-        default=16,
+        default=4,
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
@@ -78,10 +73,10 @@ def main(args):
     # Environment
     utils.environment()
 
-    # Add modules -------------------------------------------------------------
-    sys.path.append(args.dir)
+    # Add input module --------------------------------------------------------
     # Input module
     utils.generate_init_mod_file(path=args.dir + '/inputs/')
+    utils.load_mod_from_path('inputs', args.dir + '/inputs/__init__.py')
     import inputs
 
     # Data

@@ -9,7 +9,7 @@ from pycomet import utils
 
 def dir_path(path):
     path = os.path.abspath(path)
-    if os.path.exists(path + '/inputs'):
+    if os.path.exists(path + '/inputs/'):
         return path
     else:
         raise argparse.ArgumentTypeError(
@@ -32,6 +32,8 @@ def _data(
     else:
         utils.print_fn("Generating data with 'DataGenerator' ...")
         try:
+            utils.generate_init_mod_file(path=wdir + '/datagen/')
+            utils.load_mod_from_path('datagen', wdir + '/datagen/__init__.py')
             from datagen.data_generator import DataGenerator
         except:
             utils.raise_module_not_found_error(
@@ -39,10 +41,12 @@ def _data(
                 f"object in '{wdir}/datagen/data_generator.py' file."
             )
         datagen_args = utils.get_fun_args_values(
-            args=utils.get_fun_args(DataGenerator.__init__), modules=inputs_mod
+            args=utils.get_fun_args(DataGenerator.__init__),
+            modules=inputs_mod
         )
         data_src_args = utils.get_fun_args_values(
-            args=utils.get_fun_args(DataGenerator.get_data_src), modules=inputs_mod
+            args=utils.get_fun_args(DataGenerator.get_data_src),
+            modules=inputs_mod
         )
         data_src = DataGenerator(**datagen_args).get_data_src(**data_src_args)
     data_args['data_src'] = data_src
@@ -51,6 +55,8 @@ def _data(
     if getattr(inputs_mod, 'physics_informed', False):
         utils.print_fn("Initializing physical model ...")
         try:
+            utils.generate_init_mod_file(path=wdir + '/physics/')
+            utils.load_mod_from_path('physics', wdir + '/physics/__init__.py')
             from physics.physical_model import PhysicalModel
         except:
             utils.raise_module_not_found_error(
@@ -60,7 +66,8 @@ def _data(
             )
         if inputs_mod.data_type in pycomet.data.physics_informed:
             physical_mdl_args = utils.get_fun_args_values(
-                args=utils.get_fun_args(PhysicalModel.__init__), modules=inputs_mod
+                args=utils.get_fun_args(PhysicalModel.__init__),
+                modules=inputs_mod
             )
             physical_mdl = PhysicalModel(**physical_mdl_args)
             data_args.update(dict(xde=physical_mdl.xde))
@@ -135,11 +142,12 @@ def _postproc(
     model
 ):
     # Training phase ----------------------------------------------------------
+    utils.print_fn("Postprocessing training quantities ...")
     model.visualize_training(history=model.dir['train']+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
     if inputs_mod.flags['test'] > 0 and data.test is not None:
-        utils.print_fn("Postprocessing testing cases ...")
+        utils.print_fn("Postprocessing testing cases ...", start='')
         for name, d in tqdm(data.test.items()):
             model.predict(
                 data=d,

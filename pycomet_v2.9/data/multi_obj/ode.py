@@ -1,8 +1,10 @@
+import tensorflow as tf
+
 from tensorflow.python.keras.engine import data_adapter
 from pycomet.data.multi_obj.multi_obj_data import MultiObjData
 from pycomet.data.multi_obj.sequence import MultiObjSequence
 from pycomet.operations.gradients import Gradients
-# from pycomet import config as cfg
+from pycomet import config as cfg
 
 
 class ODE(MultiObjData):
@@ -83,6 +85,9 @@ class ODE(MultiObjData):
             self.objectives['train'] = self.train.objectives
             self.objectives['valid'] = self.valid.objectives \
                 if self.valid is not None else None
+            # Defining multi-objective functions identifiers
+            for k in self.batch_size.keys():
+                self.batch_size[k] = None
 
         # ODE properties
         self.xde = xde
@@ -100,14 +105,13 @@ class ODE(MultiObjData):
 
     # Handling Residual Loss
     ###########################################################################
-    # @tf.function(jit_compile=cfg._TF['setup']['XLA'])
-    def residual(inputs, model, training=True):
+    @tf.function(jit_compile=True)
+    def residual(self, inputs, training=True):
 
         # Evaluate model outputs
-        outputs = model(inputs=inputs, training=training)
+        outputs = self.net(inputs, training=training)
 
         # Evaluate residual
         res = self.xde(x=inputs, y=outputs, grads=self.grads)
-        self.grads.clear()
 
         return res

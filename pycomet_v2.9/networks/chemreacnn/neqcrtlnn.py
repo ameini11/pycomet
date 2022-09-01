@@ -56,8 +56,8 @@ class NeqCtrlNN(Net):
         # MMOpNNs
         self.mmopnn_dim = {
             name: {
-                "inp": self.inp_dim,
-                "out": tf.nest.flatten(self.out_dim)[i]
+                "inp": self.inputs_dim,
+                "out": tf.nest.flatten(self.outputs_dim)[i]
             } for i, name in enumerate(self.names)
         }
 
@@ -178,7 +178,7 @@ class NeqCtrlNN(Net):
                 # Second and higher Timescales
                 if i != self.num_mmopnns-1 and all(y[-1] <= tol):
                     y.append(
-                        tf.zeros((n, mmopnn.out_dim), dtype=K.floatx())
+                        tf.zeros((n, mmopnn.outputs_dim), dtype=K.floatx())
                     )
                 else:
                     y_i = []
@@ -191,7 +191,7 @@ class NeqCtrlNN(Net):
                         # Create a dummy `zeros` tensor with the j-th OpNN
                         # dimensions
                         y_ij = tf.zeros(
-                            (n, mmopnn.opnns[name].out_dim),
+                            (n, mmopnn.opnns[name].outputs_dim),
                             dtype=K.floatx()
                         )
                         # If any values from previuos timescale is greater

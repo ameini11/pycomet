@@ -1,5 +1,5 @@
 import tensorflow as tf
-import tensorflow.python.keras.layers as tf_layers
+import tensorflow.keras.layers as tf_layers
 
 from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.net import Net
@@ -26,7 +26,7 @@ class OpNN(Net):
             **kwargs
         )
         # Input dimensionality ------------------------------------------------
-        if not isinstance(self.inp_dim, (list, tuple)):
+        if not isinstance(self.inputs_dim, (list, tuple)):
             utils.raise_value_err(
                 f"`dim['inp']` passed into `{self.name}` has to be a "
                 "`list` or a `tuple`of length 2: [u_dim, y_dim]"
@@ -101,10 +101,12 @@ class OpNN(Net):
             propty = self.lays_propty[identifier]
             propty = propty if isinstance(propty, (list,tuple)) else [propty]
             # Initializing layer
-            self.active_lays[identifier] = [
-                self.get_block(propty=p, name=f'{identifier}_{i}') \
-                    for i, p in enumerate(propty)
-            ]
+            self.active_lays[identifier] = []
+            for i, p in enumerate(propty):
+                name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
+                self.active_lays[identifier].append(
+                    self.get_block(propty=p, name=name)
+                )
 
     def init_end_scale_lay(self, identifier):
         if identifier in self.lays_propty.keys():
@@ -124,7 +126,7 @@ class OpNN(Net):
                 elif typ == 'dense':
                     self.active_lays[identifier] = tf_layers.Dense(
                         **propty,
-                        units=self.out_dim,
+                        units=self.outputs_dim,
                         name=identifier
                     )
                 else:
@@ -160,7 +162,7 @@ class OpNN(Net):
     ###########################################################################
     def call(self, x, training=False):
         # Inputs manipulation
-        x = self._manipulateinput(x)
+        x = self._manipulate_input(x)
         # Kernel - OpNN
         G_u, G_y = self._eval_kernel(x, training)
         # Outputs manipulation
@@ -168,7 +170,7 @@ class OpNN(Net):
         y = self._manipulate_output(y)
         return y
 
-    def _manipulateinput(self, x):
+    def _manipulate_input(self, x):
         if not isinstance(x, (list, tuple)):
             utils.raise_value_err(
                 "The inputs of the `{}` net have to be a `list` "
@@ -197,16 +199,17 @@ class OpNN(Net):
         return G_u, G_y
 
     def _dot_product(self, G_u, G_y):
-        if self.out_dim > 1:
+        if self.outputs_dim > 1:
             if self.n_branches > self.n_trunks:
                 G_y = [G_y[-1]] * self.n_branches
             elif self.n_branches < self.n_trunks:
                 G_u = [G_u[-1]] * self.n_trunks
             elif self.n_branches == self.n_trunks == 1:
-                G_u = tf.split(G_u[-1], self.out_dim, axis=1)
-                G_y = tf.split(G_y[-1], self.out_dim, axis=1)
+                G_u = tf.split(G_u[-1], self.outputs_dim, axis=1)
+                G_y = tf.split(G_y[-1], self.outputs_dim, axis=1)
         return [
-            tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) for i in range(self.out_dim)
+            tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) \
+                for i in range(self.outputs_dim)
         ]
 
     def _manipulate_output(self, y):

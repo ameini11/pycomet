@@ -16,7 +16,6 @@ physics_informed = True
 # Data source -----------------------------------------------------------------
 from_file = False
 
-# *** From file
 data_src = {
     'train': {
         'ics': './data/train/ics.csv',
