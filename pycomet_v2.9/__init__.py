@@ -55,6 +55,7 @@ __all__ = [
     "networks",
     "operations",
     "optimization",
+    "physics",
     "postproc",
     "utils"
 ]
