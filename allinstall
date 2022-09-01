@@ -6,7 +6,7 @@ set -e
 usage() {
 cat << EOF
 
-usage: ./install [-h] [-a ACTION]
+usage: ./allinstall [-h] [-a ACTION] [-e CONDA_ENV]
 
 PyCOMET installation file
 

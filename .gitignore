@@ -7,7 +7,4 @@ dist/
 .DS_Store
 .ipynb_checkpoints
 
-postprocess
-trained*
-sts_cg_park*
 TODO*

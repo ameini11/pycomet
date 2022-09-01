@@ -2,7 +2,7 @@
 #                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
 #                    Physics-informed machine learning for                    #
-#                scientific computations and operator discovery               #
+#                 scientific computing and operator discovery                 #
 #                                                                             #
 # *************************************************************************** #
 
@@ -13,8 +13,9 @@ import os
 import argparse
 import threadpoolctl
 
-from pycomet.utilities import utils
+from pycomet.utils import decorators
 from pycomet import config as cfg
+from pycomet import utils
 from pycomet import apps
 apps_mod = [
 	__import__(
@@ -23,16 +24,17 @@ apps_mod = [
 ]
 
 
-@utils.main_decorator
 def main():
+
+    utils.pkg_header()
 
     cwd = os.getcwd()
 
     # Initializing argument parser
     ap = argparse.ArgumentParser(
-        prog='pycomet',
+        prog=cfg._NAME.lower(),
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=cfg.EPILOG
+        epilog=utils.EPILOG
     )
     
     # Adding subparsers
@@ -44,20 +46,21 @@ def main():
 
     # Setting number of threads
     if hasattr(args, 'threads'):
-        cfg.NUM_THREADS = args.threads
-    utils.set_num_threads(cfg.NUM_THREADS)
+        cfg._NUM_THREADS = args.threads
+    utils.set_num_threads(cfg._NUM_THREADS)
 
     # Setting seed
     if hasattr(args, 'seed'):
-        utils.set_seeds(args.seed)
+        utils.set_random_seed(args.seed)
 
     # Setting seed
     if hasattr(args, 'dir'):
         args.dir = os.path.abspath(args.dir)
 
     # Running process
-    threadpoolctl_args = dict(limits=cfg.NUM_THREADS, user_api="blas")
-    with threadpoolctl.threadpool_limits(**threadpoolctl_args):
-        args.process(name=args.command, args=args)
+    # threadpoolctl_args = dict(limits=cfg._NUM_THREADS, user_api="blas")
+    # with threadpoolctl.threadpool_limits(**threadpoolctl_args):
+    #     args.process(name=args.command, args=args)
+    args.process(name=args.command, args=args)
 
     os.chdir(cwd)

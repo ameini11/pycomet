@@ -2,7 +2,7 @@
 #                                   PyCOMET                                   #
 # --------------------------------------------------------------------------- #
 #                    Physics-informed machine learning for                    #
-#                scientific computations and operator discovery               #
+#                 scientific computing and operator discovery                 #
 #                                                                             #
 # *************************************************************************** #
 
@@ -10,53 +10,46 @@
 
 
 import os
-import pycomet
 
+
+# Global ----------------------------------------------------------------------
+_NUM_THREADS = 4
 
 # PyCOMET ---------------------------------------------------------------------
-HEADERS = {
-    'main':    '[PyCOMET]: ',
-    'warning': '[PyCOMET]:   WARNING! ',
-    'err':     'from PyCOMET\n>>> '
+_NAME = 'PyCOMET'
+
+_HEADERS = {
+    'main':    '['+_NAME+']: ',
+    'warning': '['+_NAME+']:   WARNING! ',
+    'err':     'from '+_NAME+'\n>>> '
 }
 
-NUM_THREADS = 4
+_TAB = 2
 
 # TensorFlow ------------------------------------------------------------------
-tf_setup = {
-    'EPSILON':              1.e-15,
-    'DTYPE':                'float64'
+_TF = {
+    'setup': {
+        'EPSILON': 1.e-15,
+        'FLOATX': 'float64',
+        'XLA': False
+    },
+    'env': {
+        'TF_CPP_MIN_LOG_LEVEL': '3',
+        # 'TF_XLA_FLAGS': f'--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit ' + \
+        #     f'{os.path.dirname(pycomet.__file__)}/__main__.py'
+    }
 }
 
-tf_env = {
-    'TF_CPP_MIN_LOG_LEVEL': '3',
-    'TF_XLA_FLAGS':         f'--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit ' \
-       f'{os.path.dirname(pycomet.__file__)}/__main__.py'
+# Matplotlib ------------------------------------------------------------------
+_MPL = {
+    'style': 'default'
+    # 'style': paths.Workspace + '/Research/styles/matplotlib/paper_1column_venturi.mplstyle'
 }
-
-# Database --------------------------------------------------------------------
-__DTB__ = '/home/zanardi/WORKSPACE/NeqPlasma/HyperNet/database'
 
 # Standard output -------------------------------------------------------------
-DISPLAY_LEN = 98
+_DISPLAY_LEN = 98
 
-def compose(text='', start='', between=' '):
-    end = ''.join(reversed(start))
-    l = len(text)
-    return start + between*int((DISPLAY_LEN-len(start)*2-l)/2) \
-        + text + between*int((DISPLAY_LEN-len(start)*2-l)/2) + end
-
-PKG_HEADER = "\n" + compose(start='# ', between='*') + \
-    "\n" + compose(text='PyCOMET ', start='# ') + \
-    "\n" + compose(start='# ', between='-') + \
-    "\n" + compose(
-        text='Physics-informed machine learning for ', start='# '
-    ) + \
-    "\n" + compose(
-        text='scientific computations and operator discovery',
-        start='# '
-    ) + \
-    "\n" + compose(start='# ') + \
-    "\n" + compose(start='# ', between='*')
-
-EPILOG = '\n' + '='*DISPLAY_LEN + '\n '
+_DESCR_LINES = (
+    'Physics-informed machine learning for',
+    'scientific computing and operator discovery'
+)
