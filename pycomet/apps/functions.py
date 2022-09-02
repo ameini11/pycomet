@@ -7,7 +7,33 @@ from tqdm import tqdm
 from pycomet import utils
 
 
-def dir_path(path):
+# Public
+###############################################################################
+def load_model(
+    inputs_mod
+):
+    # Check flags -------------------------------------------------------------
+    for k in ('train', 'save'):
+        inputs_mod.flags[k] = 0
+    if inputs_mod.flags['load'] not in (1, 2, 3):
+        utils.raise_value_err(
+            "The network has to be restored from a saved or a checkpointed "
+            "one. Modified the 'load' entry in the 'flags' input variable."
+        )
+    # Network -----------------------------------------------------------------
+    net = fun._network(
+        inputs_mod=inputs_mod
+    )
+    # Model -------------------------------------------------------------------
+    model = fun._model(
+        inputs_mod=inputs_mod,
+        net=net
+    )
+    return model
+
+# Private
+###############################################################################
+def _dir_path(path):
     path = os.path.abspath(path)
     if os.path.exists(path + '/inputs/'):
         return path
@@ -141,13 +167,14 @@ def _postproc(
     data,
     model
 ):
+    utils.print_fn("Postprocessing ...")
     # Training phase ----------------------------------------------------------
-    utils.print_fn("Postprocessing training quantities ...")
+    utils.print_fn("Training quantities", lev=1)
     model.visualize_training(history=model.dir['train']+'/history.csv')
 
     # Testing phase -----------------------------------------------------------
     if inputs_mod.flags['test'] > 0 and data.test is not None:
-        utils.print_fn("Postprocessing testing cases ...", start='')
+        utils.print_fn("Testing cases", lev=1)
         for name, d in tqdm(data.test.items()):
             model.predict(
                 data=d,

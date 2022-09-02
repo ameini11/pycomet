@@ -61,44 +61,50 @@ class Data(object):
         # Extra attributes if data extracted from file ------------------------
         self.from_file = from_file
         self.header = header
-        self.columns = columns
-        self.preproc_fn = preproc_fn
         if self.from_file:
-            if any([k in self.columns for k in ('x', 'y', 'sample_weight')]):
+            if columns is None:
+                utils.raise_value_err(
+                    f"'columns' passed into '{self.name}' has to be a "
+                    "dictionary (structured as 'data_src') with last-level "
+                    "keys ['x', 'y', 'sample_weight']."
+                )
+            elif any([k in columns for k in ('x', 'y', 'sample_weight')]):
                 self.columns = tf.nest.map_structure(
-                    lambda _: self.columns, self.data_src
+                    lambda _: columns, self.data_src
+                )
+            else:
+                self.columns = columns
+            # Check array preprocessing functions
+            if preproc_fn is None or isinstance(preproc_fn, callable):
+                self.preproc_fn = tf.nest.map_structure(
+                    lambda _: preproc_fn, self.data_src
+                )
+            elif isinstance(preproc_fn, dict):
+                self.preproc_fn = preproc_fn
+            else:
+                utils.raise_value_err(
+                    f"'preproc_fn' passed into '{self.name}' has to "
+                    "be a dictionary or a callable function."
                 )
             # Check consistency between dictionaries
             list_of_dicts = [
-                ('data_src', self.data_src), ('columns', self.columns)
+                ('data_src', self.data_src),
+                ('columns', self.columns),
+                ('preproc_fn', self.preproc_fn)
             ]
-            # Check array preprocessing functions
-            if self.preproc_fn is not None:
-                if isinstance(self.preproc_fn, callable):
-                    num_elem = len(tf.nest.flatten(self.data_src))
-                    self.preproc_fn = tf.nest.pack_sequence_as(
-                        self.data_src, [self.preproc_fn] * num_elem
-                    )
-                elif isinstance(self.preproc_fn, dict):
-                    list_of_dicts += [('preproc_fn', self.preproc_fn)]
-                else:
-                    utils.raise_value_err(
-                        f"'preproc_fn' passed into '{self.name}' has to "
-                        "be a dictonary or a callable function."
-                    )
             utils.check_dicts_consistency(list_of_dicts)
+        else:
+            self.columns = columns
+            self.preproc_fn = preproc_fn
 
         # Testing data --------------------------------------------------------
         if 'test' in self.data_src:
             test = self.data_src['test']
-            if isinstance(test, str) and os.path.isdir(test):
+            if self.from_file and os.path.isdir(test):
                 self.test = {}
                 for file in os.listdir(test):
-                    self.test[Path(file).stem] = self.get_data(
-                        data=os.path.join(test, file),
-                        identifier='test',
-                        columns=self.columns['test'],
-                        preproc_fn=self.preproc_fn['test']
+                    self.test[Path(file).stem] = self.get_data_from_src(
+                        data=os.path.join(test, file), identifier='test'
                     )
             elif isinstance(test, (list,tuple,dict)):
                 self.test = tf.nest.map_structure(lambda x: np.array(x), test)
@@ -122,7 +128,15 @@ class Data(object):
 
     # Handling Data
     ###########################################################################
-    def get_data(self, data, identifier, columns=None, preproc_fn=None):
+    def get_data_from_src(self, data, identifier):
+        kwargs = {}
+        for k in ('columns', 'preproc_fn'):
+            attr = getattr(self, k)
+            if data is not None and attr is not None:
+                kwargs[k] = attr[identifier]
+        return self.extract_data(data=data, **kwargs)
+
+    def extract_data(self, data, columns=None, preproc_fn=None):
         if data is not None:
             if self.from_file:
                 return self.read_datafile(data, columns, preproc_fn)
@@ -133,8 +147,8 @@ class Data(object):
                     return tuple(data)
                 else:
                     utils.raise_value_err(
-                        f"'{identifier}' data passed into `{self.name}` has "
-                        "to be a list or a tuple of arrays: [x, y]"
+                        f"Data passed into `{self.name}` has to be a list "
+                        "or a tuple of arrays: ('x', 'y', 'sample_weight')"
                     )
 
     # Reading data from file --------------------------------------------------
@@ -143,7 +157,7 @@ class Data(object):
         # Read '.csv' file
         df = pd.read_csv(file, sep=',', header=self.header)
         df = df.to_numpy(dtype=backend.floatx())
-        if preproc_fn is not None and callable(preproc_fn):
+        if callable(preproc_fn):
             df = preproc_fn(df)
         # Collect data from file
         data = []
@@ -153,7 +167,7 @@ class Data(object):
                     f"'{i}' has not been provided in `columns` dictionary."
                 )
             if i in columns.keys():
-                data.append(utils.extract_data_from_array(df, columns[i]))
+                data.append(ops.extract_data_from_array(df, columns[i]))
         return tuple(data)
 
     # Checking data - network consistency

@@ -52,6 +52,7 @@ class ODE(MultiObjData):
             obj_opt_targets=obj_opt_targets,
             physics_informed=physics_informed
         )
+        
         # Training/Validation data
         if self.training:
             if 'valid' in self.data_src and self.data_src['valid'] is not None:

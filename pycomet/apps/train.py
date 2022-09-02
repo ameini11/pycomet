@@ -36,7 +36,7 @@ def get_parser(subparsers):
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',
-        type=fun.dir_path,
+        type=fun._dir_path,
         default="./",
         help='path to the working directory (with `inputs` folder)'
     )

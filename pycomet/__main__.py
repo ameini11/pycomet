@@ -58,9 +58,9 @@ def main():
         args.dir = os.path.abspath(args.dir)
 
     # Running process
-    # threadpoolctl_args = dict(limits=cfg._NUM_THREADS, user_api="blas")
-    # with threadpoolctl.threadpool_limits(**threadpoolctl_args):
-    #     args.process(name=args.command, args=args)
-    args.process(name=args.command, args=args)
+    threadpoolctl_args = dict(limits=cfg._NUM_THREADS, user_api="blas")
+    with threadpoolctl.threadpool_limits(**threadpoolctl_args):
+        args.process(name=args.command, args=args)
+    # args.process(name=args.command, args=args)
 
     os.chdir(cwd)

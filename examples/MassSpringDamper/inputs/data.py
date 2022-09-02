@@ -14,7 +14,7 @@ data_type = 'ODE'
 physics_informed = True
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
 
 data_src = {
     'train': {
@@ -31,8 +31,8 @@ data_src = {
 }
 
 columns = {
-    'x': [[0,2],[2,3]],
-    'y': [3,5]
+    'x': [[0,1],[2]],
+    'y': [3,4]
 }
 columns = tf.nest.map_structure(lambda _: columns, data_src)
 

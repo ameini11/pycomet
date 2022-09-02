@@ -6,16 +6,16 @@
 # Instructions
 # >> run this script with docker root privileges
 # >> define the following variables:
-parent=tensorflow/tensorflow	# Parent image on top of which the new one is created
-tag=latest-gpu					# Tag of the parent image
+parent=tensorflow/tensorflow    # Parent image on top of which the new one is created
+tag=latest-gpu                  # Tag of the parent image
 # =========================================================================== #
 
-img_name=tf-pycomet
+img_name=pycomet
 
 # Check if the image already exists -------------------------------------------
 if [[ "$(docker images -q $img_name:latest 2> /dev/null)" != "" ]]; then
         img=`docker images -q $img_name:latest`
-	docker image rm -f $img
+    docker image rm -f $img
 fi
 
 # Create the Dockerfile -------------------------------------------------------
@@ -38,10 +38,10 @@ EOF
 
 # Build the new image ---------------------------------------------------------
 docker build \
-	-t ${img_name} \
-	-f ../Dockerfile \
-	--cgroup-parent ${parent} \
-	./
+    -t ${img_name} \
+    -f ../Dockerfile \
+    --cgroup-parent ${parent} \
+    ./
 
 # Remove the Dockerfile -------------------------------------------------------
 rm -rf ../Dockerfile

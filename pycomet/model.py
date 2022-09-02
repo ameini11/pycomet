@@ -54,7 +54,7 @@ class Model(object):
         self.path = path
         self.dir = {
             'save': self.path + "/saving/",
-            'post': self.path + "/postprocessing/",
+            'post': self.path + "/postproc/",
             'train': self.path + "/training/",
             'ckpt': self.path + "/training/ckpt/",
             'logs': self.path + "/training/logs/"

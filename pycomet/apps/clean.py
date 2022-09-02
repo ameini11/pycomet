@@ -23,9 +23,7 @@ from pycomet import utils
 from pycomet import config as cfg
 from pycomet.apps import functions as fun
 
-FOLDERS = [
-    'data', 'training', 'saving', 'postprocessing', '__pycache__', 'plots'
-]
+FOLDERS = ['data', 'training', 'saving', 'postproc', '__pycache__']
 
 
 # Parse arguments

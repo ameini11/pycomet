@@ -51,26 +51,26 @@ class MultiObjData(Data):
 
         # Attributes for physics-informed loss --------------------------------
         self.physics_informed = physics_informed
-
+        # Network
         self.net = None
 
     # Handling Data
     ###########################################################################
-    def get_data(self, data, identifier):
+    def get_data_from_src(self, data, identifier):
         if identifier == 'test':
-            return super(MultiObjData, self).get_data(data, identifier)
+            return super(MultiObjData, self).get_data_from_src(
+                data=data, identifier=identifier
+            )
         else:
             dset = {}
             for obj in self.obj_list:
                 if obj in data.keys():
                     kwargs = {}
-                    for k in ('columns','preproc_fn'):
+                    for k in ('columns', 'preproc_fn'):
                         attr = getattr(self, k)
-                        if attr is not None:
-                            kwargs[k] = attr
-                    dset[obj] = super(MultiObjData, self).get_data(
-                        data=data[obj], identifier=identifier, **kwargs
-                    )
+                        if data[obj] is not None and attr is not None:
+                            kwargs[k] = attr[identifier][obj]
+                    dset[obj] = self.extract_data(data=data[obj], **kwargs)
             return dset
 
     # Util functions
