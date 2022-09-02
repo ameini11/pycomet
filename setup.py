@@ -51,7 +51,7 @@ keywords = [
     "Neural Operators",
     "Scientific computing",
     "Differential equations",
-    "PDE/ODE solver"
+    "IDE/ODE/PDE solver"
 ]
 
 setup(

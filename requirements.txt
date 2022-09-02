@@ -6,8 +6,6 @@ numpy
 pandas
 pyDOE
 scikit-learn
-scipy
-seaborn
 setuptools
 tensorflow-gpu==2.9.1
 tensorflow-addons==0.17.1
