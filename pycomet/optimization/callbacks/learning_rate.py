@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
-import tensorflow.python.keras.callbacks as cb
 
 from tensorflow.keras import optimizers as tf_opt
 from tensorflow.python.keras import backend
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.keras import callbacks as cb
 from pycomet import utils
 
 
@@ -18,8 +18,8 @@ class LRPiecewiseConstantDecay(cb.Callback):
 
         if len(boundaries) != len(values) - 1:
             utils.raise_value_err(
-                "In `{}` callback, the length of `boundaries` should "
-                "be 1 less than the length of `values`.".format(self.__name__)
+                f"In `{self.__name__}` callback, the length of "
+                "`boundaries` should be 1 less than the length of `values`."
             )
         self.boundaries = np.array(boundaries)
         self.values = np.array(values)
@@ -42,48 +42,39 @@ class LRPiecewiseConstantDecay(cb.Callback):
 
 
 @keras_export('keras.callbacks.LearningRateTracker')
-class LearningRateTracker(cb.Callback):
-    """Learning rate tracker."""
+class LearningRateTracker(cb.CSVLogger):
 
     def __init__(
         self,
-        file=None,
         log_dir=None,
+        filename='',
         verbose=1
     ):
-        super(LearningRateTracker, self).__init__()
+        super(LearningRateTracker, self).__init__(filename)
 
         self.log_dir = log_dir
         if self.log_dir is not None:
             self.log_lr = tf.summary.create_file_writer(
-                log_dir + '/scalars/lr'
+                self.log_dir + '/scalars/lr'
             )
-
-        self.file = None if file is None else open(file, "w", buffering=1)
-        if self.file is not None:
-            self.file.write("lr\n")
 
         self.verbose = verbose
 
     def on_epoch_begin(self, epoch, logs=None):
-        logs = logs or {}
-        lr = float(backend.get_value(self.model.optimizer._decayed_lr(tf.float32)))
-        if 'learning_rate' not in logs:
-            logs['learning_rate'] = lr
+        logs = {'lr': float(backend.get_value(
+            self.model.optimizer._decayed_lr(tf.float32)
+        ))}
         if self.log_dir is not None:
             with self.log_lr.as_default():
                 tf.summary.scalar(
-                    name='epoch_learning_rate', data=lr, step=epoch
+                    name='epoch_learning_rate', data=logs['lr'], step=epoch
                 )
-        if self.file is not None:
-            self.file.write('%.6e\n' % lr)
-            self.file.flush()
+        super(LearningRateTracker, self).on_epoch_end(epoch, logs)
         if self.verbose > 0:
-            print("Learning rate value = %.4e" % lr)
+            print("Learning rate value = %.4e" % logs['lr'])
 
-    def on_train_end(self, logs=None):
-        if self.file is not None:
-            self.file.close()
+    def on_epoch_end(self, epoch, logs=None):
+        pass
 
 
 @keras_export('keras.callbacks.ReduceLROnPlateau')

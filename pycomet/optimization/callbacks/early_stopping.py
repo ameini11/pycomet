@@ -16,7 +16,7 @@ class Timer(cb.Callback):
     ):
         super(Timer, self).__init__()
 
-        self.threshold = available_time * 60  # convert to seconds
+        self.threshold = available_time # seconds
         self.t_start = None
 
     def on_train_begin(self, logs=None):
@@ -26,7 +26,7 @@ class Timer(cb.Callback):
     def on_epoch_end(self, epoch, logs=None):
         if (time.time() - self.t_start) > self.threshold:
             time_used = (time.time() - self.t_start) / 60
-            utils.print_fn_main(
+            print(
                 "Stop training as time used up:"
                 "- Time used: {:.1f} mins"
                 "- Epoch used: {}".format(time_used, epoch)

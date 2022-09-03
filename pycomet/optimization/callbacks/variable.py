@@ -1,59 +1,51 @@
-import sys
-import tensorflow.python.keras.callbacks as cb
-
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.python.keras import callbacks as cb
 from pycomet import utils
 
 
-@keras_export('keras.callbacks.VariableValue')
-class VariableValue(cb.Callback):
+@keras_export('keras.callbacks.VariablesTracker')
+class VariablesTracker(cb.CSVLogger):
 
-    def __init__(self, var_list, period=1, filepath=None):
-        super(VariableValue, self).__init__()
+    def __init__(
+        self,
+        var_names=[],
+        log_dir=None,
+        filename=''
+    ):
+        super(VariablesTracker, self).__init__(filename)
 
-        self.var_list = var_list
-        self.names = [
-            weight.name for layer in self.model.layers \
-                for weight in layer.weights
-        ]
-        self.idx = [self.names.index(i) for i in self.var_list]
+        self.var_names = tf.nest.flatten(var_names)
 
-        self.period = period
-        self.precision = precision
+        self.log_dir = log_dir
+        if self.log_dir is not None:
+            self.log_var = tf.summary.create_file_writer(
+                self.log_dir + '/scalars/tracked_variables'
+            )
 
-        self.file = sys.stdout if filepath is None \
-            else open(filepath+'/var_values.csv', "w", buffering=1)
-        if self.file is not sys.stdout:
-            self.file.write("#epoch",*self.var_list, sep=',', end='\n')
-
-        self.values = None
-        self.epochs_since_last = 0
+        self.tracked_var = []
 
     def on_train_begin(self, logs=None):
-        self.values = [list(self.model.get_weights())[i] for i in self.idx]
-        if self.file is not sys.stdout:
-            self.file.write("0",*self.values, sep=',',end='\n')
-            self.file.flush()
-        print("Variables values at epoch %05d:\n" % 0)
-        for i, name in enumerate(self.var_list):
-            print("  -", name, "=", self.values[i])
-
-    def on_train_end(self, logs=None):
-        if self.file is not sys.stdout:
-            self.file.close()
+        names = [var.name for var in self.model.extra_trainable_variables]
+        for name in self.var_names:
+            if name not in names:
+                utils.warning(
+                    f"Not found 'tf.Variable' with name {name} in "
+                    "'model.extra_trainable_variables': it can't be tracked."
+                )
+                self.var_names.remove(name)
+            else:
+                for var in self.model.extra_trainable_variables:
+                    if var.name == name:
+                        self.tracked_var.append(var)
+                        break
+        super(VariablesTracker, self).on_train_begin(logs)
 
     def on_epoch_end(self, epoch, logs=None):
-        self.epochs_since_last += 1
-        if self.epochs_since_last >= self.period:
-            self.epochs_since_last = 0
-            self.values = [list(self.model.get_weights())[i] for i in self.idx]
-            if self.file is not sys.stdout:
-                self.file.write(epoch,*self.values, sep=',',end='\n')
-                self.file.flush()
-            print("Variables values at epoch %05d:\n" % epoch)
-            for i, name in enumerate(self.var_list):
-                print("  -", name, "=", self.values[i])
-
-    def get_value(self):
-        """Return the variable values."""
-        return self.values
+        logs = {}
+        if len(self.tracked_var) > 0:
+            logs = {var.name: var.value() for var in self.tracked_var}
+        if self.log_dir is not None:
+            with self.log_var.as_default():
+                for k, v in logs:
+                    tf.summary.scalar(name=k, data=v, step=epoch)
+        super(VariablesTracker, self).on_epoch_end(epoch, logs)

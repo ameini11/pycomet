@@ -1,6 +1,6 @@
 from tensorflow.python.keras.engine import data_adapter
-from pycomet import operations as ops
 from pycomet.data.data import Data
+from pycomet import operations as ops
 from pycomet import utils
 
 

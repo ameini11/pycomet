@@ -49,7 +49,7 @@ class OpNN(Net):
     def init_layers(self):
         for identifier in self.lays_name:
             if identifier == 'input':
-                self.initinput_lay(identifier)
+                self.init_input_lay(identifier)
             elif identifier in ('prenet', 'branch', 'trunk'):
                 self.init_block_lay(identifier)
             elif identifier == 'end_scale':
@@ -57,7 +57,7 @@ class OpNN(Net):
             elif identifier == 'output':
                 self.init_output_lay(identifier)
 
-    def initinput_lay(self, identifier):
+    def init_input_lay(self, identifier):
         # Initializing default properties
         _propty = {
             'branch': {

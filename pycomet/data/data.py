@@ -33,6 +33,9 @@ class Data(object):
         self.built = False
         self.multi_obj_loss = False
 
+        self.data_gen = None
+        self.physical_mdl = None
+
         # Data ----------------------------------------------------------------
         self.data_src = data_src
         self.train = None
@@ -136,6 +139,7 @@ class Data(object):
                 kwargs[k] = attr[identifier]
         return self.extract_data(data=data, **kwargs)
 
+    # Extract data from container
     def extract_data(self, data, columns=None, preproc_fn=None):
         if data is not None:
             if self.from_file:
@@ -151,7 +155,7 @@ class Data(object):
                         "or a tuple of arrays: ('x', 'y', 'sample_weight')"
                     )
 
-    # Reading data from file --------------------------------------------------
+    # Reading data from file
     def read_datafile(self, file, columns, preproc_fn=None):
         utils.check_file_extension(file, '.csv')
         # Read '.csv' file

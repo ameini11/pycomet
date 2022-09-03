@@ -53,6 +53,7 @@ def _data(
     )
 
     # Get data sources --------------------------------------------------------
+    data_gen = None
     if inputs_mod.from_file:
         data_src = inputs_mod.data_src
     else:
@@ -74,10 +75,12 @@ def _data(
             args=utils.get_fun_args(DataGenerator.get_data_src),
             modules=inputs_mod
         )
-        data_src = DataGenerator(**datagen_args).get_data_src(**data_src_args)
+        data_gen = DataGenerator(**datagen_args)
+        data_src = data_gen.get_data_src(**data_src_args)
     data_args['data_src'] = data_src
 
     # Add information from physics --------------------------------------------
+    physical_mdl = None
     if getattr(inputs_mod, 'physics_informed', False):
         utils.print_fn("Initializing physical model ...")
         try:
@@ -105,11 +108,14 @@ def _data(
 
     # Initialize class --------------------------------------------------------
     utils.print_fn(f"Initializing '{inputs_mod.data_type}' data ...")
-    return data_cls(
+    data = data_cls(
         training=inputs_mod.flags['train'],
         **data_args
     )
-
+    data.data_gen = data_gen
+    data.physical_mdl = physical_mdl
+    return data
+    
 def _network(
     inputs_mod
 ):

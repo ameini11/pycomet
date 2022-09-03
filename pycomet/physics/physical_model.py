@@ -11,7 +11,8 @@ class PhysicalModel(metaclass=abc.ABCMeta):
         *args,
         **kwargs
     ):
-        pass
+        # Collect all the extra trainable variables for inverse problem
+        self.extra_trainable_variables = []
 
     # XDEs Residual
     ###########################################################################

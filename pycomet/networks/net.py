@@ -43,6 +43,8 @@ class Net(tf.keras.Model):
         
         self.active_lays = {}
 
+        self.external_trainable_variables = []
+
         # Extra attributes for handling multi-objective loss
         self.multi_obj_loss = False
         self.objectives = None
@@ -75,8 +77,22 @@ class Net(tf.keras.Model):
         run_eagerly=None,
         steps_per_execution=None,
         jit_compile=None,
+        extra_trainable_variables=None,
         **kwargs
     ):
+        if extra_trainable_variables is not None:
+            self.extra_trainable_variables = extra_trainable_variables
+        self.extra_trainable_variables = tf.nest.flatten(
+            self.extra_trainable_variables
+        )
+        if any([
+            not isinstance(v, tf.Variable) \
+                for v in self.extra_trainable_variables
+        ]):
+            utils.raise_value_err(
+                "All the 'extra_trainable_variables' "
+                "have to be a 'tf.Variable'."
+            )
         if self.multi_obj_loss:
             # Check loss functions and weights
             for arg in (loss, loss_weights):
@@ -186,7 +202,10 @@ class Net(tf.keras.Model):
             if reg_loss is not None:
                 loss = loss + reg_loss
         # Update model parameters
-        self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
+        trainable_variables = (
+            self.extra_trainable_variables + self.trainable_variables
+        )
+        self.optimizer.minimize(loss, trainable_variables, tape=tape)
         # Update sample weights
         if self.weighted_loss:
             self.weighted_loss.on_grad_step_end(

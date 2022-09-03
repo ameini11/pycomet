@@ -57,14 +57,18 @@ class ODE(MultiObjData):
         if self.training:
             if 'valid' in self.data_src and self.data_src['valid'] is not None:
                 for k in ('train', 'valid'):
-                    setattr(self, k, self.get_data(self.data_src[k], k))
+                    setattr(
+                        self, k, self.get_data_from_src(self.data_src[k], k)
+                    )
             elif self.validation_split:
                 self.train, self.valid = data_adapter.train_validation_split(
                     self.get_data(self.data_src['train'], 'train'),
                     self.validation_split
                 )
             else:
-                self.train = self.get_data(self.data_src['train'], 'train')
+                self.train = self.get_data_from_src(
+                    self.data_src['train'], 'train'
+                )
                 self.valid = None
 
             # Creating multi-objective data sequences 
