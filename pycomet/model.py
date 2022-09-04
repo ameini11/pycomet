@@ -243,13 +243,6 @@ class Model(object):
         if metrics is not None:
             self.metrics = [metrics_module.get(m) for m in metrics]
 
-        # Extra trainable physical variables
-        extra_trainable_variables = None
-        if self.data.physical_mdl is not None:
-            extra_trainable_variables = getattr(
-                self.data.physical_mdl, 'extra_trainable_variables', []
-            )
-
         # Compiling
         self.net.compile(
             optimizer=self.optimizer,
@@ -259,8 +252,7 @@ class Model(object):
             weighted_metrics=weighted_metrics,
             run_eagerly=run_eagerly,
             steps_per_execution=steps_per_execution,
-            jit_compile=jit_compile,
-            extra_trainable_variables=extra_trainable_variables
+            jit_compile=jit_compile
         )
 
     def get_loss_weights(self, weights=None):
@@ -332,10 +324,10 @@ class Model(object):
             figures: Dictionary (or a list of dictionaries) of keyword 
                 arguments. The arguments are:
                 - 'fig_name': Figure name.
-                - 'indeces': Tuple of the following form:
-                    - x indeces: mapping to get x-axis values from 'data'.
-                    - y indeces: mapping to get true y-axis values from 'data'.
-                    - y_pred indeces: mapping to get predicted y-axis values.
+                - 'indices': Tuple of the following form:
+                    - x indices: mapping to get x-axis values from 'data'.
+                    - y indices: mapping to get true y-axis values from 'data'.
+                    - y_pred indices: mapping to get predicted y-axis values.
                     If any is `None`, no data are taken.
                 - 'output_ops': Callable function to manipulate both y and 
                     y_pred (not required).

@@ -1,9 +1,11 @@
+import numpy as np
 import tensorflow as tf
 
-from tensorflow.python.keras.engine import data_adapter
+from tensorflow.python.keras.engine.data_adapter import train_validation_split
 from pycomet.data.multi_obj.multi_obj_data import MultiObjData
 from pycomet.data.multi_obj.sequence import MultiObjSequence
 from pycomet.operations.gradients import Gradients
+from pycomet import operations as ops
 from pycomet import config as cfg
 
 
@@ -61,10 +63,13 @@ class ODE(MultiObjData):
                         self, k, self.get_data_from_src(self.data_src[k], k)
                     )
             elif self.validation_split:
-                self.train, self.valid = data_adapter.train_validation_split(
-                    self.get_data(self.data_src['train'], 'train'),
-                    self.validation_split
-                )
+                dset = self.get_data_from_src(self.data_src['train'], 'train')
+                dset = ops.shuffle_struct_data(dset)
+                self.train, self.valid = {}, {}
+                for obj, data in dset.items():
+                    self.train[obj], self.valid[obj] = train_validation_split(
+                        data, self.validation_split
+                    )
             else:
                 self.train = self.get_data_from_src(
                     self.data_src['train'], 'train'

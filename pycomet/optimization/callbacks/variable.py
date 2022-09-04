@@ -1,5 +1,8 @@
+import tensorflow as tf
+
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.keras import callbacks as cb
+from pycomet import operations as ops
 from pycomet import utils
 
 
@@ -21,31 +24,31 @@ class VariablesTracker(cb.CSVLogger):
             self.log_var = tf.summary.create_file_writer(
                 self.log_dir + '/scalars/tracked_variables'
             )
-
-        self.tracked_var = []
+        self.tracked_variables = {}
 
     def on_train_begin(self, logs=None):
-        names = [var.name for var in self.model.extra_trainable_variables]
+        print(self.model.trainable_variables)
+        variables = {
+            var.name.split(':')[0]: var \
+                for var in self.model.trainable_variables
+        }
         for name in self.var_names:
-            if name not in names:
+            if name not in variables.keys():
                 utils.warning(
                     f"Not found 'tf.Variable' with name {name} in "
-                    "'model.extra_trainable_variables': it can't be tracked."
+                    "'model.trainable_variables': it can't be tracked."
                 )
                 self.var_names.remove(name)
             else:
-                for var in self.model.extra_trainable_variables:
-                    if var.name == name:
-                        self.tracked_var.append(var)
-                        break
+                self.tracked_variables[name] = variables[name]
         super(VariablesTracker, self).on_train_begin(logs)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = {}
-        if len(self.tracked_var) > 0:
-            logs = {var.name: var.value() for var in self.tracked_var}
+        if len(self.tracked_variables) > 0:
+            logs = {name: var.numpy() for name, var in self.tracked_variables}
         if self.log_dir is not None:
             with self.log_var.as_default():
-                for k, v in logs:
-                    tf.summary.scalar(name=k, data=v, step=epoch)
+                for name, value in logs.items():
+                    tf.summary.scalar(name=name, data=value, step=epoch)
         super(VariablesTracker, self).on_epoch_end(epoch, logs)

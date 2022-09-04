@@ -195,15 +195,15 @@ class IsoThermChemReacNN(Net):
             y = [ tf_layers.Concatenate()(y_i) \
                 if isinstance(y_i, (list,tuple)) else y_i for y_i in y ]
             # Loop over timescales
-            for ts, indeces in self.ts_ts_conn.items():
-                if indeces:
+            for ts, indices in self.ts_ts_conn.items():
+                if indices:
                     # Split the slower timescale
                     y_slow = tf.split(
                         y[ts], num_or_size_splits=y[ts].shape[1], axis=1
                     )
-                    # Gather the faster timescale by indeces
+                    # Gather the faster timescale by indices
                     y_fast = [ tf.gather(y[ts+1], idx, axis=1) \
-                        for idx in indeces ]
+                        for idx in indices ]
                     if len(y_slow) != len(y_fast):
                         y_slow = y_slow[:len(y_fast)]
                     # Multiply slower and faster timescales

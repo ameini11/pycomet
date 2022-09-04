@@ -69,7 +69,7 @@ class OpNN(Net):
                 'xform': None
             }
         }
-        if identifier in self.lays_propty.keys():
+        if self.lays_propty[identifier] is not None:
             # Checking properties format
             propty = self.lays_propty[identifier]
             if not isinstance(propty, dict) \
@@ -96,7 +96,7 @@ class OpNN(Net):
         self.active_lays[identifier] = _propty
 
     def init_block_lay(self, identifier):
-        if identifier in self.lays_propty.keys():
+        if self.lays_propty[identifier] is not None:
             # Initializing properties
             propty = self.lays_propty[identifier]
             propty = propty if isinstance(propty, (list,tuple)) else [propty]
@@ -109,7 +109,7 @@ class OpNN(Net):
                 )
 
     def init_end_scale_lay(self, identifier):
-        if identifier in self.lays_propty.keys():
+        if self.lays_propty[identifier] is not None:
             # Initializing default properties
             _propty = {
                 'type': 'bias'
@@ -140,7 +140,7 @@ class OpNN(Net):
         _propty = {
             'xform': None
         }
-        if identifier in self.lays_propty.keys():
+        if self.lays_propty[identifier] is not None:
             # Initializing layer
             propty = self.lays_propty[identifier]
             for k, v in propty.items():

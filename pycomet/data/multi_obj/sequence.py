@@ -78,7 +78,7 @@ class MultiObjSequence(keras.utils.Sequence):
         )
 
         self.shuffle = shuffle
-        self.keep_indeces = False
+        self.keep_indices = False
 
     @property
     def shapes(self):
@@ -184,12 +184,12 @@ class MultiObjSequence(keras.utils.Sequence):
         self.sequence = utils.zip_dict_of_lists(batches)
 
     def shuffle_data(self, obj, dset):
-        indeces = np.random.permutation(self.n_samples[obj])
+        indices = np.random.permutation(self.n_samples[obj])
         dset = tf.nest.map_structure(
-            lambda z: np.take(z, indeces, axis=0), dset
+            lambda z: np.take(z, indices, axis=0), dset
         )
-        if self.keep_indeces:
-            dset.append(indeces.reshape((-1,1)))
+        if self.keep_indices:
+            dset.append(indices.reshape((-1,1)))
         return dset
 
     def batch_data(self, obj, dset):
@@ -198,7 +198,7 @@ class MultiObjSequence(keras.utils.Sequence):
             lambda z: np.array_split(z, self.steps[obj])*repeat, dset
         )
         for i, z in enumerate(dset):
-            if self.keep_indeces and i == len(dset)-1:
+            if self.keep_indices and i == len(dset)-1:
                 break
             else:
                 if isinstance(self.shapes[obj][i], list):

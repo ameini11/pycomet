@@ -46,7 +46,7 @@ def get_callback(model, identifier, kwargs):
         elif identifier == "timer":
             return early_stopping.Timer(**kwargs)
         elif identifier == "variable":
-            return learning_rate.VariablesTracker(
+            return variable.VariablesTracker(
                 filename=model.dir['train']+'/variables.csv',
                 log_dir=model.dir['logs'],
                 **kwargs

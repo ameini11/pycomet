@@ -161,10 +161,10 @@ class TimeScaleNN(Net):
         # Add mass fractions (micro-bins to macro-bins)
         if self.ts_fast_conn != None:
             Y_ = []
-            for indeces in self.ts_fast_conn:
+            for indices in self.ts_fast_conn:
                 Y_.append(
                     tf.math.reduce_sum(
-                        tf.gather(Y, indeces, axis=1), axis=1, keepdims=True
+                        tf.gather(Y, indices, axis=1), axis=1, keepdims=True
                     )
                 )
             Y = tf_layers.Concatenate()(Y_) if len(Y_) > 1 else Y_[-1]

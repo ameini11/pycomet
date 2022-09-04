@@ -245,13 +245,13 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
     def sample_dataset(self):
         for obj, dset in self.data_container.data.items():
             n_samples = self.data_container.n_samples[obj]
-            indeces = np.random.permutation(n_samples)
+            indices = np.random.permutation(n_samples)
             if n_samples > self.max_samples:
-                indeces = np.random.choice(
-                    indeces, self.max_samples, replace=False
+                indices = np.random.choice(
+                    indices, self.max_samples, replace=False
                 )
             self.dataset[obj] = tf.nest.map_structure(
-                lambda z: tf.convert_to_tensor(z[indeces], dtype=backend.floatx()),
+                lambda z: tf.convert_to_tensor(z[indices], dtype=backend.floatx()),
                 dset
             )
 
@@ -531,7 +531,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #             self.initializer, self.trainable, self.rank
 #         )
 #         # Shuffle/Batch data
-#         self.data_container.keep_indeces = True
+#         self.data_container.keep_indices = True
 #         self.data_container.on_epoch_end()
 
 #     # Gradient descent methods ------------------------------------------------
