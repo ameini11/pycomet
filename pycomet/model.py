@@ -242,6 +242,13 @@ class Model(object):
         # Initializing metrics
         if metrics is not None:
             self.metrics = [metrics_module.get(m) for m in metrics]
+            
+        # Extra trainable physical variables
+        extra_trainable_variables = None
+        if self.data.physical_mdl is not None:
+            extra_trainable_variables = getattr(
+                self.data.physical_mdl, 'extra_trainable_variables', []
+            )
 
         # Compiling
         self.net.compile(
@@ -252,7 +259,8 @@ class Model(object):
             weighted_metrics=weighted_metrics,
             run_eagerly=run_eagerly,
             steps_per_execution=steps_per_execution,
-            jit_compile=jit_compile
+            jit_compile=jit_compile,
+            extra_trainable_variables=extra_trainable_variables
         )
 
     def get_loss_weights(self, weights=None):

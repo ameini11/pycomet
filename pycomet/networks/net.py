@@ -75,8 +75,21 @@ class Net(tf.keras.Model):
         run_eagerly=None,
         steps_per_execution=None,
         jit_compile=None,
+        extra_trainable_variables=None,
         **kwargs
     ):
+        if extra_trainable_variables is not None:
+            self.extra_trainable_variables = tf.nest.flatten(
+                extra_trainable_variables
+            )
+            if any([
+                not isinstance(v, tf.Variable) \
+                    for v in self.extra_trainable_variables
+            ]):
+                utils.raise_value_err(
+                    "All the 'extra_trainable_variables' "
+                    "have to be a 'tf.Variable'."
+                )
         if self.multi_obj_loss:
             # Check loss functions and weights
             for arg in (loss, loss_weights):

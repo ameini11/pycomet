@@ -46,6 +46,7 @@ from pycomet import optimization
 from pycomet import physics
 from pycomet import postproc
 from pycomet import utils
+from pycomet.apps import load_model
 
 __all__ = [
     "apps",

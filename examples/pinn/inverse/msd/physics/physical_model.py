@@ -14,16 +14,7 @@ class PhysicalModel(pcm.physics.PhysicalModel):
         params
     ):
         super(PhysicalModel, self).__init__()
-        
-        # # Extra trainable variables
-        # self.C = tf.Variable(
-        #     initial_value=0., trainable=True, name='C', dtype=backend.floatx()
-        # )
-        # # self.K = params['k']/params['m']
-        # self.K = tf.Variable(
-        #     initial_value=0., trainable=True, name='K', dtype=backend.floatx()
-        # )
-
+        # Extra trainable variables
         for k in ('C', 'K'):
             setattr(
                 self, k, tf.Variable(
@@ -33,7 +24,6 @@ class PhysicalModel(pcm.physics.PhysicalModel):
                     dtype=backend.floatx()
                 )
             )
-
         self.extra_trainable_variables = [self.C, self.K]
 
     # ODEs Residual

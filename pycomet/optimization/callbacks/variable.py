@@ -27,7 +27,6 @@ class VariablesTracker(cb.CSVLogger):
         self.tracked_variables = {}
 
     def on_train_begin(self, logs=None):
-        print(self.model.trainable_variables)
         variables = {
             var.name.split(':')[0]: var \
                 for var in self.model.trainable_variables
@@ -46,7 +45,7 @@ class VariablesTracker(cb.CSVLogger):
     def on_epoch_end(self, epoch, logs=None):
         logs = {}
         if len(self.tracked_variables) > 0:
-            logs = {name: var.numpy() for name, var in self.tracked_variables}
+            logs = {k: v.numpy() for k, v in self.tracked_variables.items()}
         if self.log_dir is not None:
             with self.log_var.as_default():
                 for name, value in logs.items():
