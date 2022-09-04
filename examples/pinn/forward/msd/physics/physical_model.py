@@ -13,8 +13,10 @@ class PhysicalModel(pcm.physics.PhysicalModel):
     ):
         super(PhysicalModel, self).__init__()
         
-        # ODE matrices
-        self.K = self.get_matrices(params)
+        # ODE coefficients matrix
+        K = params['k']/params['m']
+        C = params['c']/params['m']
+        self.mat = np.array([[0, 1.],[-K, -C]])
 
     # ODEs Residual
     ###########################################################################
@@ -23,13 +25,6 @@ class PhysicalModel(pcm.physics.PhysicalModel):
         dydt = grads(y, x, j=[0,1], i=[0], order=1, key='dydt')
 
         # Compute residuals
-        res = dydt - tf.matmul(y, self.K, transpose_b=True)
+        res = dydt - tf.matmul(y, self.mat, transpose_b=True)
 
         return res
-
-    # Build Matrices
-    ###########################################################################
-    def get_matrices(self, params):
-        K = params['k']/params['m']
-        C = params['c']/params['m']
-        return np.array([[0, 1.],[-K, -C]])

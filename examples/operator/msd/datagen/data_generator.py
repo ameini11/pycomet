@@ -4,7 +4,6 @@ import pandas as pd
 import pycomet as pcm
 import tensorflow as tf
 
-from tqdm import tqdm
 from pyDOE import lhs
 
 
