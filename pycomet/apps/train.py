@@ -72,12 +72,8 @@ def main(args):
     os.chdir(args.dir)
     # Environment
     utils.environment()
-
-    # Add input module --------------------------------------------------------
     # Input module
-    utils.generate_init_mod_file(path=args.dir + '/inputs/')
-    utils.load_mod_from_path('inputs', args.dir + '/inputs/__init__.py')
-    import inputs
+    inputs = fun.import_inputs(args.dir)
 
     # Data
     ###########################################################################

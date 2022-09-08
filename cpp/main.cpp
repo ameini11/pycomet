@@ -27,8 +27,3 @@ Status runStatus = model_bundle.GetSession()->Run(          // Inference
     {},
     &outputs
 );
-
-
-
-
-

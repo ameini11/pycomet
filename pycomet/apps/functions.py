@@ -9,6 +9,13 @@ from pycomet import utils
 
 # Public
 ###############################################################################
+def import_inputs(
+    path
+):
+    tf.keras.backend.clear_session()
+    utils.generate_init_mod_file(path=path + '/inputs/')
+    return utils.load_mod_from_path('inputs', path + '/inputs/__init__.py')
+
 def load_model(
     inputs_mod
 ):

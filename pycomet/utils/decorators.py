@@ -4,7 +4,6 @@ import datetime
 
 from functools import wraps
 from pycomet import utils
-from pycomet import config as cfg
 
 
 def timing(fun):

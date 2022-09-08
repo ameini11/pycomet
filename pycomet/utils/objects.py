@@ -4,7 +4,15 @@ import importlib
 import tensorflow as tf
 
 from pycomet import utils
+from pycomet import config as cfg
 
+
+# Packages --------------------------------------------------------------------
+def import_matplotlib():
+    import matplotlib
+    from matplotlib import pyplot
+    pyplot.style.use(cfg._MPL['style'])
+    return matplotlib, pyplot
 
 # Modules ---------------------------------------------------------------------
 def reload_mod(mod_names=[]):

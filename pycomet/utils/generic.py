@@ -35,12 +35,6 @@ def set_num_threads(n):
     tf.config.threading.set_inter_op_parallelism_threads(n)
     tf.config.threading.set_intra_op_parallelism_threads(n)
 
-def import_matplotlib():
-    import matplotlib
-    from matplotlib import pyplot
-    pyplot.style.use(cfg._MPL['style'])
-    return matplotlib, pyplot
-
 def generate_init_mod_file(path=''):
     path = os.path.abspath(path)
     module = Path(path).stem
