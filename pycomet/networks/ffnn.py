@@ -22,10 +22,27 @@ class FFNN(Net):
             *args,
             **kwargs
         )
+        # Default layers
+        self.default_lays_propty = {
+            'input': {
+                'lay_id': None,
+                'kwargs': {
+                    'xform': None
+                }
+            },
+            'output': {
+                'lay_id': None,
+                'kwargs': {
+                    'xform': None
+                }
+            },
+        }
         # Layers
         self.lays_name = ('input', 'hidden_block', 'output')
         self.lays_propty = self.check_layers(
-            layers=lays_propty, not_opt=['hidden_block']
+            layers=lays_propty,
+            not_opt=['hidden_block'],
+            default=self.default_lays_propty
         )
         # Initializing layers
         self.init_layers()
@@ -42,17 +59,12 @@ class FFNN(Net):
                 )
 
     def init_inout_lay(self, identifier):
-        # Initializing default properties
-        _propty = {
-            'xform': None
-        }
-        if self.lays_propty[identifier] is not None:
-            # Initializing layer
-            propty = self.lays_propty[identifier]
-            for k, v in propty.items():
-                if k in ('xform',):
-                    _propty[k] = v
-        self.active_lays[identifier] = _propty
+        # Initializing layer
+        propty = {}
+        for k, v in self.lays_propty[identifier]['kwargs'].items():
+            if k in ('xform',):
+                propty[k] = v
+        self.active_lays[identifier] = propty
 
     # Configuration update
     ###########################################################################

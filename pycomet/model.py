@@ -65,9 +65,7 @@ class Model(object):
 
         # Define saving format
         self.save_format = save_format
-        self.save_path = self.dir['save'] + name
-        if self.save_format == 'h5':
-            self.save_path += '.h5'
+        self.save_path = self.dir['save'] + self.name
 
     # Building Model
     ###########################################################################
@@ -123,7 +121,7 @@ class Model(object):
                 # Save initialized model
                 _netron_started = False
                 try:
-                    file_name = self.dir['save'] + self.name + '_struct.h5'
+                    file_name = self.save_path + '_struct.h5'
                     self.graph.save(file_name, save_format='h5')
                     # Visualize model
                     utils.print_fn("", end="", lev=1)
@@ -159,10 +157,10 @@ class Model(object):
         if load_net == 0:
             utils.print_fn("Making a new network", lev=1)
         elif load_net == 1:
+            path = os.path.abspath(self.save_path + self.save_format)
             utils.print_fn(
                 f"Restoring network from saved file '{path}'", lev=1
             )
-            path = os.path.abspath(self.save_path)
         elif load_net == 2:
             last_ckpt = max(
                 os.listdir(self.dir['ckpt']),
@@ -195,6 +193,7 @@ class Model(object):
                 "   >> 2: restoring network from last checkpoint;\n"
                 "   >> 3: restoring network from a list of paths pointing to "
                 "hdf5 files defined in 'weights_to_load' input variable."
+                "   >> 4: restoring network from TensorFlow SavedModel format."
             )    
         if path is not None:
             path = tf.nest.flatten(path)
@@ -391,12 +390,23 @@ class Model(object):
     ):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
+        # Save full model
+        self.net.save(
+            self.save_path,
+            overwrite=True,
+            include_optimizer=False,
+            save_format='tf',
+            signatures=None,
+            options=None,
+            save_traces=False
+        )
         # Save weights
         self.net.save_weights(
-            self.save_path, overwrite=True, save_format=self.save_format
+            self.save_path+'.h5',
+            overwrite=True
         )
-        # Save just weights (for `regularizers.FineTuningRegularizer')
-        file_name = self.dir['save'] + self.name + '_weights.h5'
+        # Save just pure weights (for `regularizers.FineTuningRegularizer')
+        file_name = self.save_path + '_weights.h5'
         dset = h5py.File(file_name,'w')
         for weight in self.net.weights:
             dset.create_dataset(weight.name, data=weight.numpy())

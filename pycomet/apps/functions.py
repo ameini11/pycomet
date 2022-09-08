@@ -12,7 +12,6 @@ from pycomet import utils
 def import_inputs(
     path
 ):
-    tf.keras.backend.clear_session()
     utils.generate_init_mod_file(path=path + '/inputs/')
     return utils.load_mod_from_path('inputs', path + '/inputs/__init__.py')
 
@@ -127,12 +126,18 @@ def _network(
     inputs_mod
 ):
     # Initialize network ------------------------------------------------------
-    net_cls = utils.get_class(pycomet.networks, inputs_mod.architecture)
     utils.print_fn(f"Initializing '{inputs_mod.architecture}' network ...")
-    net_args = utils.get_fun_args_values(
-        args=utils.get_fun_args(net_cls.__init__), modules=inputs_mod
-    )
-    return net_cls(**net_args)
+    net_cls = utils.get_class(pycomet.networks, inputs_mod.architecture)
+    if inputs_mod.flags['load'] == 4:
+        return tf.keras.models.load_model(
+            filepath='./saving/' + inputs_mod.model_name,
+            custom_objects={inputs_mod.architecture: net_cls}
+        )
+    else:
+        net_args = utils.get_fun_args_values(
+            args=utils.get_fun_args(net_cls.__init__), modules=inputs_mod
+        )
+        return net_cls(**net_args)
 
 def _model(
     inputs_mod,
@@ -142,18 +147,23 @@ def _model(
     verbose=0
 ):
     # Initialize model --------------------------------------------------------
-    model = pycomet.model.Model(data=data, net=net, name=inputs_mod.model_name)
+    model = pycomet.model.Model(
+        data=data,
+        net=net,
+        name=inputs_mod.model_name
+    )
 
     # Build model -------------------------------------------------------------
     utils.print_fn(f"Building '{inputs_mod.architecture}' network ...")
-    model.build(
-        load_net=inputs_mod.flags['load'],
-        visualize_graph=graph,
-        verbose=verbose
-    )
+    if inputs_mod.flags['load'] != 4:
+        model.build(
+            load_net=inputs_mod.flags['load'],
+            visualize_graph=graph,
+            verbose=verbose
+        )
 
     # Compile model -----------------------------------------------------------
-    if inputs_mod.flags['train'] > 0:
+    if inputs_mod.flags['train'] > 0 and not model.net._is_compiled:
         utils.print_fn(f"Compiling '{inputs_mod.architecture}' network ...")
         compile_args = utils.get_fun_args_values(
             args=utils.get_fun_args(model.compile),
