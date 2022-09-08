@@ -18,9 +18,9 @@ from pycomet import config as cfg
 from pycomet import utils
 from pycomet import apps
 apps_mod = [
-	__import__(
-		f'pycomet.apps.{app}', globals(), locals(), [app], 0
-	) for app in apps.__all__
+    __import__(
+        f'pycomet.apps.{app}', globals(), locals(), [app], 0
+    ) for app in apps.__all__
 ]
 
 
