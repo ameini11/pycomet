@@ -21,6 +21,8 @@ from pycomet.config import _TF
 os.environ.update(_TF['env'])
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
+import absl.logging
+absl.logging.set_verbosity(absl.logging.ERROR)
 # Setting backend
 from tensorflow.python.keras import backend as be_py
 from tensorflow.keras import backend as be_ke

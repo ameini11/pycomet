@@ -390,12 +390,13 @@ class Model(object):
     ###########################################################################
     @utils.timing
     def save(
-        self
+        self,
+        lite=True
     ):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
-        # Save full model
         try:
+            # Save model in 'SavedModel' format
             self.net.save(
                 self.save_path,
                 overwrite=True,
@@ -403,13 +404,37 @@ class Model(object):
                 save_format='tf',
                 signatures=None,
                 options=None,
-                save_traces=False
+                save_traces=True
             )
         except:
-            utils.print_fn(
+            utils.warning(
                 "Unable to save the full model in TensorFlow " \
-                "`SavedModel` format. Check custom layers/models", lev=1
+                "`SavedModel` format. Check custom layers/models"
             )
+        if lite:
+            if cfg._TF['setup']['FLOATX'] == 'float64':
+                utils.warning(
+                    "Unable to save the full model in TFLite format because "
+                    "TFLite operations do not target double floating-point "
+                    "(float64) inference: recast the entire model or change "
+                    "'_TF{'setup'}{'FLOATX'}' variable in pycomet/config.py."
+                )
+            else:
+                try:
+                    # 'TFLite' format
+                    converter = tf.lite.TFLiteConverter.from_saved_model(
+                        self.save_path
+                    )
+                    converter.target_spec.supported_ops = [
+                        tf.lite.OpsSet.TFLITE_BUILTINS,
+                        tf.lite.OpsSet.SELECT_TF_OPS
+                    ]
+                    tflite_model = converter.convert()
+                    open(self.save_path+'.tflite', "wb").write(tflite_model)
+                except:
+                    utils.warning(
+                        "Unable to save the full model in TFLite format."
+                    )
         # Save weights
         self.net.save_weights(
             self.save_path+'.h5',

@@ -30,7 +30,7 @@ _TAB = 2
 _TF = {
     'setup': {
         'EPSILON': 1.e-15,
-        'FLOATX': 'float64',
+        'FLOATX': 'float32',
         'XLA': False
     },
     'env': {
