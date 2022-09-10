@@ -6,6 +6,7 @@ from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.elements import activations
 from pycomet.networks.elements import initializers
 from pycomet.networks.elements import regularizers
+from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import utils
 
@@ -99,12 +100,12 @@ class MultiLayerBlock(tf_layers.Layer):
     def get_config(self):
         config = {
             'units': self.units,
-            'batch_norm': self.batch_norm,
             'activation': self.activation,
             'use_bias': self.use_bias,
             'kernel_initializer': self.kernel_initializer,
             'regularizer': self.regularizer,
             'weight_norm': self.weight_norm,
+            'batch_norm': self.batch_norm,
             'dropout_kwargs': self.dropout_kwargs
         }
         base_config = super(MultiLayerBlock, self).get_config()
@@ -309,30 +310,30 @@ class PreNetBlock(FFBlock):
         weight_norm=False,
         out_xform=None,
         transformation='affine',
-        num_coordinates=1,
+        num_coords=1,
         **kwargs
     ):
         # Initialize math transformation --------------------------------------
         # Number of coordinates of the system to transform
         # See `x2` in function `call`
-        self.n_coords = num_coordinates
+        self.num_coords = num_coords
         # Available transformations
         self.xform_list = (
             'translation', 'euclidean', 'similarity', 'affine', 'projective'
         )
         # Initialize transformation
-        self.xform = transformation
-        if self.xform == 'translation':
-            self.outputs_dim = self.n_coords
-            self.i, self.j = self.n_coords, 0
-        elif self.xform in ('euclidean', 'similarity', 'affine'):
-            self.outputs_dim = self.n_coords * (self.n_coords + 1)
-            # if self.transformation == 'similarity' and self.n_coords > 1:
+        self.transformation = transformation
+        if self.transformation == 'translation':
+            self.outputs_dim = self.num_coords
+            self.i, self.j = self.num_coords, 0
+        elif self.transformation in ('euclidean', 'similarity', 'affine'):
+            self.outputs_dim = self.num_coords * (self.num_coords + 1)
+            # if self.transformation == 'similarity' and self.num_coords > 1:
             #     outputs_dim = outputs_dim + 1
-            self.i, self.j = self.n_coords, self.n_coords
-        elif self.xform == 'projective':
-            self.outputs_dim = (self.n_coords + 1) ** 2
-            self.i, self.j = self.n_coords+1, self.n_coords
+            self.i, self.j = self.num_coords, self.num_coords
+        elif self.transformation == 'projective':
+            self.outputs_dim = (self.num_coords + 1) ** 2
+            self.i, self.j = self.num_coords+1, self.num_coords
         else:
             utils.raise_value_err(
                 f"The types of transformation available are: {self.xform_list}"
@@ -363,7 +364,7 @@ class PreNetBlock(FFBlock):
                 "a `list` or a `tuple`: [x1, x2]"
             )
         # Unpack inputs
-        x1, x2 = x
+        x1, x2 = ops.unpack_list(x, n_elem=2)
 
         # Kernel --------------------------------------------------------------
         y = super(PreNetBlock, self).call(x1, training=training)
@@ -387,10 +388,9 @@ class PreNetBlock(FFBlock):
     ###########################################################################
     def get_config(self):
         config = {
-            'n_coords': self.n_coords,
-            'xform_list': self.xform_list,
-            'xform': self.xform,
-            'out_xform': self.out_xform
+            'num_coords': self.num_coords,
+            'out_xform': self.out_xform,
+            'transformation': self.transformation
         }
         base_config = super(PreNetBlock, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

@@ -1,6 +1,8 @@
 import os
 import numpy as np
+import pandas as pd
 import pycomet as pcm
+import tensorflow as tf
 
 
 class DataGenerator(pcm.data.DataGenerator):
@@ -18,6 +20,10 @@ class DataGenerator(pcm.data.DataGenerator):
         **kwargs
     ):
         super(DataGenerator, self).__init__()
+
+        self.data_dir = "./data/"
+        if not os.path.exists(self.data_dir):
+            os.makedirs(self.data_dir)
 
         # Data Quantities -----------------------------------------------------
         self.train_pts = train_pts
@@ -38,6 +44,9 @@ class DataGenerator(pcm.data.DataGenerator):
         self.w_natural = np.sqrt(params['k'] / params['m'])
         self.w_damped = self.w_natural * np.sqrt(1. - self.xi**2)
 
+        # Labeling Data -------------------------------------------------------
+        self.data_label = ['t [s]','x [m]', 'v [m/s]']
+
     def get_data_src(
         self
     ):
@@ -49,6 +58,17 @@ class DataGenerator(pcm.data.DataGenerator):
         t = np.linspace(self.t0, self.t_end, self.test_pts).reshape(-1,1)
         y = self.solution(self.init_cond, t)
         self.data_src['test'] = {'case_0': [t, y]}
+        # Save testing data in a `.csv` file
+        path = f'{self.data_dir}/test/'
+        if not os.path.exists(path):
+            os.makedirs(path)
+        for name, array in self.data_src['test'].items():
+            array = np.hstack(tf.nest.flatten(array))
+            pd.DataFrame(
+                array, columns=self.data_label
+            ).to_csv(
+                f'{path}/{name}.csv', index=0, float_format='{:e}'.format
+            )
         return self.data_src
 
     # Analytical solution

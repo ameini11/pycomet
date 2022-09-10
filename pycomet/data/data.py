@@ -50,7 +50,9 @@ class Data(object):
                 "'data_src' has to be a 'dict' with keys "
                 "['train', 'valid', 'test']."
             )
-        if 'train' not in self.data_src or self.data_src['train'] is None:
+        if training and (
+            'train' not in self.data_src or self.data_src['train'] is None
+        ):
             utils.raise_value_err("No 'train' data passed into 'data_src'.")
 
         # Batch sizes ---------------------------------------------------------

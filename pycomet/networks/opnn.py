@@ -33,11 +33,35 @@ class OpNN(Net):
             )
 
         # Layers --------------------------------------------------------------
+        # Default layers
+        self.default_lays_propty = {
+            'input': {
+                'branch': {
+                    'index': 0,
+                    'xform': None
+                },
+                'trunk': {
+                    'index': 1,
+                    'xform': None
+                }
+            },
+            'output': {
+                'xform': None
+            },
+            'end_scale': {
+                'lay_id': None,
+                'kwargs': {}
+            }
+        }
+        # Layers names
         self.lays_name = (
             'input', 'prenet', 'branch', 'trunk', 'end_scale', 'output'
         )
+        # Layers properties
         self.lays_propty = self.check_layers(
-            layers=lays_propty, not_opt=['branch', 'trunk']
+            layers=lays_propty,
+            not_opt=('branch', 'trunk'),
+            default=self.default_lays_propty
         )
         # Initializing
         self.init_layers()
@@ -47,113 +71,86 @@ class OpNN(Net):
     # Layers initialization
     ###########################################################################
     def init_layers(self):
-        for identifier in self.lays_name:
+        for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
-                self.init_input_lay(identifier)
+                self.init_input_lay(identifier, propty)
             elif identifier in ('prenet', 'branch', 'trunk'):
-                self.init_block_lay(identifier)
+                self.init_block_lay(identifier, propty)
             elif identifier == 'end_scale':
-                self.init_end_scale_lay(identifier)
+                self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                self.init_output_lay(identifier)
+                self.init_output_lay(identifier, propty)
 
-    def init_input_lay(self, identifier):
-        # Initializing default properties
-        _propty = {
-            'branch': {
-                'index': 0,
-                'xform': None
-            },
-            'trunk': {
-                'index': 1,
-                'xform': None
-            }
-        }
-        if self.lays_propty[identifier] is not None:
-            # Checking properties format
-            propty = self.lays_propty[identifier]
-            if not isinstance(propty, dict) \
-                or any(k not in ('branch', 'trunk') for k in propty.keys()):
-                utils.raise_value_err(
-                    f"Layer '{identifier}' in 'lays_propty' input has to be a "
-                    f"`dict` with keys: ('branch', 'trunk')"
-                )
-            # Initializing layer
-            for k_subnet, v_subnet in propty.items():
-                for k, v in v_subnet.items():
-                    if k in ('index', 'xform'):
-                        if k == 'index' and v > 1:
-                            utils.raise_value_err(
-                                f"Key 'index' in layer '{identifier}' "
-                                "has to be 0 or 1."
-                            )
-                        _propty[k_subnet][k] = v
-            if _propty['branch']['index'] == _propty['trunk']['index']:
-                utils.raise_value_err(
-                    f"Key 'index' in layer '{identifier}' has to be "
-                    "different between the subnets."
-                )
+    def init_input_lay(self, identifier, propty):
+        # Checking properties format
+        cond1 = isinstance(propty, dict)
+        cond2 = any([k not in ('branch', 'trunk') for k in propty.keys()])
+        if not cond1 or cond2:
+            utils.raise_value_err(
+                f"Layer '{identifier}' in 'lays_propty' input has to be a "
+                f"`dict` with keys: ('branch', 'trunk')"
+            )
+        # Initializing layer properties
+        _propty = {}
+        for i, (k_subnet, v_subnet) in enumerate(propty.items()):
+            _propty[k_subnet] = {}
+            for k in ('index', 'xform'):
+                if k in v_subnet:
+                    _propty[k_subnet][k] = v_subnet[k]
+                elif k == 'index':
+                    _propty[k_subnet][k] = i
+                elif k == 'xform':
+                    _propty[k_subnet][k] = None
+        if _propty['branch']['index'] == _propty['trunk']['index']:
+            utils.raise_value_err(
+                f"Key 'index' in layer '{identifier}' has to be "
+                "different between the subnets."
+            )
         self.active_lays[identifier] = _propty
 
-    def init_block_lay(self, identifier):
-        if self.lays_propty[identifier] is not None:
-            # Initializing properties
-            propty = self.lays_propty[identifier]
-            propty = propty if isinstance(propty, (list,tuple)) else [propty]
-            # Initializing layer
-            self.active_lays[identifier] = []
-            for i, p in enumerate(propty):
-                name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
-                self.active_lays[identifier].append(
-                    self.get_block(propty=p, name=name)
-                )
+    def init_block_lay(self, identifier, propty):
+        propty = propty if isinstance(propty, (list,tuple)) else [propty]
+        self.active_lays[identifier] = []
+        for i, p in enumerate(propty):
+            name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
+            self.active_lays[identifier].append(
+                self.get_block(propty=p, name=name)
+            )
 
-    def init_end_scale_lay(self, identifier):
-        if self.lays_propty[identifier] is not None:
-            # Initializing default properties
-            _propty = {
-                'type': 'bias'
-            }
-            # Initializing layer
-            propty = self.lays_propty[identifier]
-            if 'type' in propty.keys():
-                typ = propty.pop('type')
-                if typ == 'bias':
-                    self.active_lays[identifier] = pcm_layers.Bias(
-                        **propty,
-                        name=identifier
-                    )
-                elif typ == 'dense':
-                    self.active_lays[identifier] = tf_layers.Dense(
-                        **propty,
-                        units=self.outputs_dim,
-                        name=identifier
-                    )
-                else:
-                    utils.raise_value_err(
-                        f"Value for key 'type' in layer '{identifier}' not "
-                        f"recognized. Values available: ('bias', 'dense')"
-                    )
+    def init_end_scale_lay(self, identifier, propty):
+        if propty['lay_id'] == 'bias':
+            self.active_lays[identifier] = pcm_layers.Bias(
+                **propty['kwargs'],
+                name=identifier
+            )
+        elif propty['lay_id'] == 'dense':
+            self.active_lays[identifier] = tf_layers.Dense(
+                **propty['kwargs'],
+                units=self.outputs_dim,
+                name=identifier
+            )
+        elif propty['lay_id'] is None:
+            self.active_lays[identifier] = None
+        else:
+            utils.raise_value_err(
+                f"Value for key 'type' in layer '{identifier}' not "
+                f"recognized. Values available: ('bias', 'dense')"
+            )
 
-    def init_output_lay(self, identifier):
-        # Initializing default properties
-        _propty = {
-            'xform': None
-        }
-        if self.lays_propty[identifier] is not None:
-            # Initializing layer
-            propty = self.lays_propty[identifier]
-            for k, v in propty.items():
-                if k in ('xform',):
-                    _propty[k] = v
+    def init_output_lay(self, identifier, propty):
+        _propty = {}
+        for k in ('xform',):
+            if k in propty:
+                _propty[k] = propty[k]
+            else:
+                _propty[k] = None
         self.active_lays[identifier] = _propty
 
     # Configuration update
     ###########################################################################
     def get_config(self):
         config = {
-            'lays_propty': self.lays_propty,
-            'lays_name': self.lays_name
+            'lays_propty': self.lays_propty
         }
         base_config = super(OpNN, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -173,8 +170,9 @@ class OpNN(Net):
     def _manipulate_input(self, x):
         if not isinstance(x, (list, tuple)):
             utils.raise_value_err(
-                "The inputs of the `{}` net have to be a `list` "
-                "or a `tuple`: [u, y]".format(self.name))
+                f"The inputs of the `{self.name}` net have "
+                "to be a a `list` or a `tuple`: [u, y]"
+            )
         x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}
         for k, v in self.active_lays['input'].items():
             if v['xform'] is not None:
@@ -216,7 +214,7 @@ class OpNN(Net):
         # Concatenation
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
         # End scaling
-        if 'end_scale' in self.active_lays.keys():
+        if self.active_lays['end_scale'] is not None:
             y = self.active_lays['end_scale'](y)
         # Transformation
         if self.active_lays['output']['xform'] is not None:

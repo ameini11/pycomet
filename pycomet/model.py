@@ -113,9 +113,13 @@ class Model(object):
             self.data.build(self.net)
 
         # Visualize network graph ---------------------------------------------
-        self.graph.summary()
+        self.graph.summary(line_length=cfg._DISPLAY_LEN)
         with open(self.dir['save'] + 'model_summary.txt', 'w') as f:
-            self.graph.summary(print_fn=lambda x: f.write(x + '\n'))
+            self.graph.summary(
+                line_length=cfg._DISPLAY_LEN,
+                expand_nested=True,
+                print_fn=lambda x: f.write(x + '\n')
+            )
         if verbose:
             if visualize_graph:
                 # Save initialized model
@@ -391,15 +395,21 @@ class Model(object):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
         # Save full model
-        self.net.save(
-            self.save_path,
-            overwrite=True,
-            include_optimizer=False,
-            save_format='tf',
-            signatures=None,
-            options=None,
-            save_traces=False
-        )
+        try:
+            self.net.save(
+                self.save_path,
+                overwrite=True,
+                include_optimizer=False,
+                save_format='tf',
+                signatures=None,
+                options=None,
+                save_traces=False
+            )
+        except:
+            utils.print_fn(
+                "Unable to save the full model in TensorFlow " \
+                "`SavedModel` format. Check custom layers/models", lev=1
+            )
         # Save weights
         self.net.save_weights(
             self.save_path+'.h5',

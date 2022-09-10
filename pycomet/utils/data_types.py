@@ -63,7 +63,7 @@ def get_key_from_value(d, v):
 def get_keys(d):
     result = []
     for key, value in d.items():
-        if type(value) is dict:
+        if isinstance(value, dict):
             new_keys = get_keys(value)
             result.append(key)
             for innerkey in new_keys:

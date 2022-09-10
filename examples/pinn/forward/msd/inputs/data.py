@@ -4,6 +4,9 @@
 # --------------------------------------------------------------------------- #
 
 
+import tensorflow as tf
+
+
 # Data properties
 # =============================================================================
 data_type = 'ODE'
@@ -11,7 +14,17 @@ data_type = 'ODE'
 physics_informed = True
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
+
+data_src = {
+    'test': './data/test/'
+}
+
+columns = {
+    'x': [0],
+    'y': [1,2]
+}
+columns = tf.nest.map_structure(lambda _: columns, data_src)
 
 # Batching --------------------------------------------------------------------
 batch_size = {

@@ -66,10 +66,11 @@ class MultiObjData(Data):
             for obj in self.obj_list:
                 if obj in data.keys():
                     kwargs = {}
-                    for k in ('columns', 'preproc_fn'):
-                        attr = getattr(self, k)
-                        if data[obj] is not None and attr is not None:
-                            kwargs[k] = attr[identifier][obj]
+                    if self.from_file:
+                        for k in ('columns', 'preproc_fn'):
+                            attr = getattr(self, k)
+                            if data[obj] is not None and attr is not None:
+                                kwargs[k] = attr[identifier][obj]
                     dset[obj] = self.extract_data(data=data[obj], **kwargs)
             return dset
 

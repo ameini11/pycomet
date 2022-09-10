@@ -40,6 +40,7 @@ class FineTuningRegularizer(tf_reg.L1L2):
         self,
         l1=0.,
         l2=0.,
+        model_name=None,
         weights_path=None,
         *args,
         **kwargs
@@ -50,7 +51,10 @@ class FineTuningRegularizer(tf_reg.L1L2):
             *args,
             **kwargs
         )
-        self.weights_path = weights_path
+        if weights_path is None and model_name is not None:
+            self.weights_path = f'./saving/{model_name}.h5'
+        else:
+            self.weights_path = weights_path
         if self.weights_path is not None:
             self.weights_path = os.path.abspath(str(weights_path))
             if not h5py.is_hdf5(self.weights_path):
@@ -84,4 +88,4 @@ class FineTuningRegularizer(tf_reg.L1L2):
     def __call__(self, x):
         if self.sp_weights is not None and x.name in self.sp_weights:
             x = x - self.sp_weights[x.name]
-        return super(FineTuningRegularizer, self)(x)
+        return super(FineTuningRegularizer, self).__call__(x)

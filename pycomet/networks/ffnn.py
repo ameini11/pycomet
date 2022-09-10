@@ -25,23 +25,18 @@ class FFNN(Net):
         # Default layers
         self.default_lays_propty = {
             'input': {
-                'lay_id': None,
-                'kwargs': {
-                    'xform': None
-                }
+                'xform': None
             },
             'output': {
-                'lay_id': None,
-                'kwargs': {
-                    'xform': None
-                }
+                'xform': None
             },
         }
-        # Layers
+        # Layers names
         self.lays_name = ('input', 'hidden_block', 'output')
+        # Layers properties
         self.lays_propty = self.check_layers(
             layers=lays_propty,
-            not_opt=['hidden_block'],
+            not_opt=('hidden_block',),
             default=self.default_lays_propty
         )
         # Initializing layers
@@ -50,27 +45,23 @@ class FFNN(Net):
     # Layers initialization
     ###########################################################################
     def init_layers(self):
-        for identifier in self.lays_name:
+        for identifier, propty in self.lays_propty.items():
             if identifier in ('input', 'output'):
-                self.init_inout_lay(identifier)
+                self.init_inout_lay(identifier, propty)
             elif identifier == 'hidden_block':
-                self.active_lays[identifier] = self.get_block(
-                    propty=self.lays_propty[identifier]
-                )
+                self.active_lays[identifier] = self.get_block(propty=propty)
 
-    def init_inout_lay(self, identifier):
-        # Initializing layer
-        propty = {}
-        for k, v in self.lays_propty[identifier]['kwargs'].items():
+    def init_inout_lay(self, identifier, propty):
+        _propty = {}
+        for k, v in propty.items():
             if k in ('xform',):
-                propty[k] = v
-        self.active_lays[identifier] = propty
+                _propty[k] = v
+        self.active_lays[identifier] = _propty
 
     # Configuration update
     ###########################################################################
     def get_config(self):
         config = {
-            'lays_name': self.lays_name,
             'lays_propty': self.lays_propty
         }
         base_config = super(FFNN, self).get_config()

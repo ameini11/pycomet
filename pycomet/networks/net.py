@@ -38,8 +38,9 @@ class Net(tf.keras.Model):
                 "It represents the dimensions of the I/O feature space."
             )
 
-        self.inputs_dim = dim["inp"]
-        self.outputs_dim = dim["out"]
+        self.dim = dim
+        self.inputs_dim = self.dim["inp"]
+        self.outputs_dim = self.dim["out"]
         
         self.active_lays = {}
 
@@ -53,12 +54,7 @@ class Net(tf.keras.Model):
     ###########################################################################
     def get_config(self):
         config = {
-            'inputs_dim': self.inputs_dim,
-            'outputs_dim': self.outputs_dim,
-            'multi_obj_loss': self.multi_obj_loss,
-            'objectives': self.objectives,
-            'obj_pred_fn': self.obj_pred_fn,
-            'weighted_loss': self.weighted_loss
+            'dim': self.dim
         }
         base_config = super(Net, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -280,41 +276,6 @@ class Net(tf.keras.Model):
 
     # Handling layers
     ###########################################################################
-    # def check_layers(self, layers={}, not_opt=[]):
-    #     # Check input layers format
-    #     if not isinstance(layers, dict):
-    #         utils.raise_value_err(
-    #             f"`layers` input passed into `{self.name}` has to be a `dict`."
-    #         )
-    #     # Check valid layers
-    #     for k in layers.keys():
-    #         if k not in self.lays_name:
-    #             utils.raise_value_err(
-    #                 f"Layer '{k}' in `layers` input not recognized. "
-    #                 f"Layers available: {self.lays_name}"
-    #             )
-    #     # Check not optional layers
-    #     for k in not_opt:
-    #         if k not in layers.keys():
-    #             utils.raise_value_err(
-    #                 f"'{k}' layer have to be provided in `lays_propty` "
-    #                 f"input passed into `{self.name}`."
-    #             )
-    #     # Add missing optional layers
-    #     for k in self.lays_name:
-    #         if k not in layers.keys():
-    #             layers[k] = None
-    #     return layers
-
-    # def get_block(self, propty={}, name=None):
-    #     blk = 'FFBlock' if 'block_type' not in propty else propty['block_type']
-    #     blk = blk if callable(blk) else utils.get_class(blocks, blk)
-    #     if 'block_type' in propty:
-    #         propty.pop('block_type')
-    #     if name is not None:
-    #         propty.update({'name': name})
-    #     return blk(**propty)
-
     def check_layers(self, layers={}, not_opt=[], default={}):
         # Check input layers format
         if not isinstance(layers, dict):

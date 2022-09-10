@@ -221,17 +221,28 @@ class LinearNormalization(Scaling):
         mx=1.,
         **kwargs
     ):
-        if mx != mn:
-            slope = 1. / (mx-mn)
-            offset = - mn * slope
+        self.mn, self.mx = mn, mx
+        if self.mx != self.mn:
+            slope = 1. / (self.mx-self.mn)
+            offset = - self.mn * slope
         else:
-            slope = 1. / mx
+            slope = 1. / self.mx
             offset = 0.
         super(LinearNormalization, self).__init__(
             slope=slope,
             offset=offset,
             **kwargs
         )
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'mn': self.mn,
+            'mx': self.mx
+        }
+        base_config = super(LinearNormalization, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 # =========================================================================== #
@@ -267,18 +278,14 @@ class Normalization(tf_layers.Normalization):
         self.preproc_fn = preproc_fn
         self.save_dir = save_dir
 
-    # Building
-    ###########################################################################
-    def build(self, input_shape):
+        self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
         if self.input_mean is None and self.input_variance is None:
-            self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
-            if self.mu_sigma_file is not None and os.path.exists(self.mu_sigma_file):
+            if os.path.exists(self.mu_sigma_file):
                 self.read_mu_sigma(file=self.mu_sigma_file)
             elif os.path.exists(self.saved_file):
                 self.read_mu_sigma(file=self.saved_file)
             elif self.data_files is not None:
                 self.compute_mu_sigma()
-        super(Normalization, self).build(input_shape)
 
     # Handling mean and variance ----------------------------------------------
     def compute_mu_sigma(self):

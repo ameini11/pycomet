@@ -21,7 +21,7 @@ def load_model(
     # Check flags -------------------------------------------------------------
     for k in ('train', 'save'):
         inputs_mod.flags[k] = 0
-    if inputs_mod.flags['load'] not in (1, 2, 3):
+    if inputs_mod.flags['load'] == 0:
         utils.raise_value_err(
             "The network has to be restored from a saved or a checkpointed "
             "one. Modified the 'load' entry in the 'flags' input variable."
@@ -129,9 +129,12 @@ def _network(
     utils.print_fn(f"Initializing '{inputs_mod.architecture}' network ...")
     net_cls = utils.get_class(pycomet.networks, inputs_mod.architecture)
     if inputs_mod.flags['load'] == 4:
+        filepath = getattr(inputs_mod, 'saved_model', None)
+        if filepath is None:
+            filepath = './saving/' + inputs_mod.model_name
         return tf.keras.models.load_model(
-            filepath='./saving/' + inputs_mod.model_name,
-            custom_objects={inputs_mod.architecture: net_cls}
+            filepath=filepath,
+            # custom_objects={inputs_mod.architecture: net_cls}
         )
     else:
         net_args = utils.get_fun_args_values(
@@ -154,8 +157,8 @@ def _model(
     )
 
     # Build model -------------------------------------------------------------
-    utils.print_fn(f"Building '{inputs_mod.architecture}' network ...")
     if inputs_mod.flags['load'] != 4:
+        utils.print_fn(f"Building '{inputs_mod.architecture}' network ...")
         model.build(
             load_net=inputs_mod.flags['load'],
             visualize_graph=graph,

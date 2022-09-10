@@ -16,6 +16,11 @@ class Gradients(object):
                 'Set a key (one for each different call) to identify '
                 'the specific gradient computation.'
             )
+        if not any([isinstance(z, (tf.Tensor,np.ndarray)) for z in [y, x]]):
+            utils.raise_value_err(
+                "'y' and 'x' must be tf.Tensor/np.ndarray "
+                "when computing gradients."
+            )
         if key not in self.built:
             self.build(y, x, j, i, order, key)
         return self.grads[key](y, x)

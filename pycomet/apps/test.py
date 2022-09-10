@@ -78,7 +78,7 @@ def main(args):
     # Check flags -------------------------------------------------------------
     for k in ('train', 'save'):
         inputs.flags[k] = 0
-    if inputs.flags['load'] not in (1, 2, 3):
+    if inputs.flags['load'] == 0:
         utils.raise_value_err(
             "The network has to be restored from a saved or a checkpointed "
             "one. Modified the 'load' entry in the 'flags' input variable."

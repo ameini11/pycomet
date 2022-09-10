@@ -22,7 +22,7 @@ class PhysicalModel(pcm.physics.PhysicalModel):
     ###########################################################################
     def xde(self, x, y, grads):
         # Compute gradients
-        dydt = grads(y, x, j=[0,1], i=[0], order=1, key='dydt')
+        dydt = grads(y, x[1], j=[0,1], i=[0], order=1, key='dydt')
 
         # Compute residuals
         res = dydt - tf.matmul(y, self.mat, transpose_b=True)
