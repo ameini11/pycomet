@@ -6,7 +6,7 @@
 
 # Model/architecture properties
 # =============================================================================
-model_name = 'MassSpringDamper_OpNN'
+model_name = 'msd_flexopnn'
 
 dim = {
     "inp": [2, 1],  # Branch-Trunk input dimensionality

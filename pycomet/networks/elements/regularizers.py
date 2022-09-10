@@ -52,7 +52,7 @@ class FineTuningRegularizer(tf_reg.L1L2):
             **kwargs
         )
         if weights_path is None and model_name is not None:
-            self.weights_path = f'./saving/{model_name}.h5'
+            self.weights_path = f'./saving/{model_name}/model_weights.h5'
         else:
             self.weights_path = weights_path
         if self.weights_path is not None:

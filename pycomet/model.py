@@ -66,6 +66,8 @@ class Model(object):
         # Define saving format
         self.save_format = save_format
         self.save_path = self.dir['save'] + self.name
+        if not os.path.exists(self.save_path):
+            os.makedirs(self.save_path)
 
     # Building Model
     ###########################################################################
@@ -114,7 +116,7 @@ class Model(object):
 
         # Visualize network graph ---------------------------------------------
         self.graph.summary(line_length=cfg._DISPLAY_LEN)
-        with open(self.dir['save'] + 'model_summary.txt', 'w') as f:
+        with open(self.save_path + '/summary.txt', 'w') as f:
             self.graph.summary(
                 line_length=cfg._DISPLAY_LEN,
                 expand_nested=True,
@@ -125,7 +127,7 @@ class Model(object):
                 # Save initialized model
                 _netron_started = False
                 try:
-                    file_name = self.save_path + '_struct.h5'
+                    file_name = self.save_path + '/model_struct.h5'
                     self.graph.save(file_name, save_format='h5')
                     # Visualize model
                     utils.print_fn("", end="", lev=1)
@@ -398,7 +400,7 @@ class Model(object):
         try:
             # Save model in 'SavedModel' format
             self.net.save(
-                self.save_path,
+                self.save_path + '/SavedModel',
                 overwrite=True,
                 include_optimizer=False,
                 save_format='tf',
@@ -423,25 +425,27 @@ class Model(object):
                 try:
                     # 'TFLite' format
                     converter = tf.lite.TFLiteConverter.from_saved_model(
-                        self.save_path
+                        self.save_path + '/SavedModel'
                     )
                     converter.target_spec.supported_ops = [
                         tf.lite.OpsSet.TFLITE_BUILTINS,
                         tf.lite.OpsSet.SELECT_TF_OPS
                     ]
                     tflite_model = converter.convert()
-                    open(self.save_path+'.tflite', "wb").write(tflite_model)
+                    open(
+                        self.save_path + '/model.tflite', "wb"
+                    ).write(tflite_model)
                 except:
                     utils.warning(
                         "Unable to save the full model in TFLite format."
                     )
         # Save weights
         self.net.save_weights(
-            self.save_path+'.h5',
+            self.save_path+'/model.h5',
             overwrite=True
         )
         # Save just pure weights (for `regularizers.FineTuningRegularizer')
-        file_name = self.save_path + '_weights.h5'
+        file_name = self.save_path + '/model_weights.h5'
         dset = h5py.File(file_name,'w')
         for weight in self.net.weights:
             dset.create_dataset(weight.name, data=weight.numpy())
