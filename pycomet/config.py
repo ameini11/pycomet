@@ -47,7 +47,7 @@ _MPL = {
 }
 
 # Standard output -------------------------------------------------------------
-_DISPLAY_LEN = 98
+_DISPLAY_LEN = 80
 
 _DESCR_LINES = (
     'Physics-informed machine learning for',

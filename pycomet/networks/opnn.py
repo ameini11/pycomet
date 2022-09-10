@@ -16,7 +16,8 @@ class OpNN(Net):
     def __init__(
         self,
         dim,
-        lays_propty,
+        lays_name=None,
+        lays_propty=None,
         *args,
         **kwargs
     ):
@@ -54,9 +55,11 @@ class OpNN(Net):
             }
         }
         # Layers names
-        self.lays_name = (
-            'input', 'prenet', 'branch', 'trunk', 'end_scale', 'output'
-        )
+        self.lays_name = lays_name
+        if self.lays_name is None:
+            self.lays_name = (
+                'input', 'branch', 'trunk', 'end_scale', 'output'
+            )
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=lays_propty,
@@ -74,7 +77,7 @@ class OpNN(Net):
         for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
                 self.init_input_lay(identifier, propty)
-            elif identifier in ('prenet', 'branch', 'trunk'):
+            elif identifier in ('branch', 'trunk'):
                 self.init_block_lay(identifier, propty)
             elif identifier == 'end_scale':
                 self.init_end_scale_lay(identifier, propty)
@@ -150,6 +153,7 @@ class OpNN(Net):
     ###########################################################################
     def get_config(self):
         config = {
+            'lays_name': self.lays_name,
             'lays_propty': self.lays_propty
         }
         base_config = super(OpNN, self).get_config()
@@ -180,11 +184,6 @@ class OpNN(Net):
         return x
 
     def _eval_kernel(self, x, training):
-        # PreNet
-        if 'prenet' in self.active_lays.keys():
-            x["trunk"] = self.active_lays['prenet'][-1](
-                x=[x["branch"], x["trunk"]], training=training
-            )
         # Branch/Trunk
         G_u = [
             br(x["branch"], training=training) \
@@ -201,7 +200,7 @@ class OpNN(Net):
             if self.n_branches > self.n_trunks:
                 G_y = [G_y[-1]] * self.n_branches
             elif self.n_branches < self.n_trunks:
-                G_u = [G_u[-1]] * self.n_trunks
+                G_u = [G_u[-1]] * self.n_branches
             elif self.n_branches == self.n_trunks == 1:
                 G_u = tf.split(G_u[-1], self.outputs_dim, axis=1)
                 G_y = tf.split(G_y[-1], self.outputs_dim, axis=1)

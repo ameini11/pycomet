@@ -9,7 +9,7 @@ from inputs.general import dim
 
 # Architecture properties
 # =============================================================================
-architecture = 'OpNN'
+architecture = 'FlexOpNN'
 
 # Layers ----------------------------------------------------------------------
 common = {
@@ -57,7 +57,7 @@ lays_propty = {
             'activation': ['sigmoid']*2 + ['linear'],
             **common
         }
-    }]*2,
+    } for _ in range(2)],
 
     'trunk': {
         'lay_id': 'FFBlock',
@@ -68,9 +68,9 @@ lays_propty = {
         }
     },
 
-    'end_scale': {
-        'lay_id': 'bias',
-        'kwargs': {}
-    }
+    # 'end_scale': {
+    #     'lay_id': 'bias',
+    #     'kwargs': {}
+    # }
 
 }

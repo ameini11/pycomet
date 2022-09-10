@@ -272,6 +272,7 @@ class ResPIBlock(FFBlock):
         y = self.multi_lays[0](y, training=training)
         for i in range(1, len(self.layer_size) - 2):
             z = self.multi_lays[i](y, training=training)
+            z = z / tf.math.reduce_sum(z, axis=-1, keepdims=True)
             y = (1. - z) * u + z * v
         # Output layer
         y = self.multi_lays[-1](y, training=training)
