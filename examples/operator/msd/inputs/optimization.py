@@ -9,7 +9,7 @@ from inputs.postproc import figures
 
 # Training
 # =============================================================================
-epochs = 2
+epochs = 100
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------

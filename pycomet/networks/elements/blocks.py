@@ -272,7 +272,6 @@ class ResPIBlock(FFBlock):
         y = self.multi_lays[0](y, training=training)
         for i in range(1, len(self.layer_size) - 2):
             z = self.multi_lays[i](y, training=training)
-            z = z / tf.math.reduce_sum(z, axis=-1, keepdims=True)
             y = (1. - z) * u + z * v
         # Output layer
         y = self.multi_lays[-1](y, training=training)
@@ -395,3 +394,54 @@ class PreNetBlock(FFBlock):
         }
         base_config = super(PreNetBlock, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
+# CrossEncoderBlock Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(
+    package=cfg._NAME, name='CrossEncoderBlock'
+)
+class CrossEncoderBlock(FFBlock):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        layer_size=None,
+        activation=['linear'],
+        kernel_initializer=None,
+        regularizer=None,
+        dropout_kwargs=dict(rate=0.),
+        batch_norm=None,
+        weight_norm=False,
+        **kwargs
+    ):
+        super(CrossEncoderBlock, self).__init__(
+            layer_size=layer_size,
+            activation=activation,
+            kernel_initializer=kernel_initializer,
+            regularizer=regularizer,
+            dropout_kwargs=dropout_kwargs,
+            batch_norm=batch_norm,
+            weight_norm=weight_norm,
+            **kwargs
+        )
+        for i in range(1, len(self.layer_size)-2):
+            if self.layer_size[i] != self.layer_size[i+1]:
+                utils.raise_value_err(
+                    "The number of neurons of each hidden "
+                    f"layer must be the same in `{self.name}`."
+                )
+
+    # Calling
+    ###########################################################################
+    def call(self, x, training=False, u=None, v=None):
+        # Hidden layers
+        y = self.multi_lays[0](x, training=training)
+        for i in range(1, len(self.layer_size) - 2):
+            z = self.multi_lays[i](y, training=training)
+            y = (1. - z) * u + z * v
+        # Output layer
+        y = self.multi_lays[-1](y, training=training)
+        return y

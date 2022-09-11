@@ -280,13 +280,14 @@ class Net(tf.keras.Model):
         # Check input layers format
         if not isinstance(layers, dict):
             utils.raise_value_err(
-                f"`layers` input passed into `{self.name}` has to be a `dict`."
+                "`lays_propty` input passed into "
+                f"`{self.name}` has to be a `dict`."
             )
         # Check valid layers
         for k in layers.keys():
             if k not in self.lays_name:
                 utils.raise_value_err(
-                    f"Layer '{k}' in `layers` input not recognized. "
+                    f"Layer '{k}' in `lays_propty` input not recognized. "
                     f"Layers available: {self.lays_name}"
                 )
         # Check not optional layers
