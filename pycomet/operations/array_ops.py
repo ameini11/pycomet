@@ -50,14 +50,37 @@ def unpack_list(data, n_elem=3):
 
 def extract_data_from_array(array, indices=None, axis=1):
     if indices is None:
+        if isinstance(array, pd.DataFrame):
+            array = array.to_numpy()
         return array
     else:
         if not isinstance(indices, (list,tuple)):
             indices = [indices]
         if any([isinstance(c, (list,tuple)) for c in indices]):
-            return [np.take(array, c, axis=axis) for c in indices]
+            return [_extract(array, c, axis=axis) for c in indices]
         else:
-            return np.take(array, indices, axis=axis)
+            return _extract(array, indices, axis=axis)
+
+def _extract(array, indices=[], axis=1):
+    indices = tf.nest.flatten(indices)
+    if isinstance(array, pd.DataFrame):
+        if all([isinstance(c, str) for c in indices])
+            return array[indices].to_numpy()
+        else:
+            return np.take(array.to_numpy(), indices, axis=axis)
+    else:
+        return np.take(array, indices, axis=axis)
+
+# def extract_data_from_array(array, indices=None, axis=1):
+#     if indices is None:
+#         return array
+#     else:
+#         if not isinstance(indices, (list,tuple)):
+#             indices = [indices]
+#         if any([isinstance(c, (list,tuple)) for c in indices]):
+#             return [np.take(array, c, axis=axis) for c in indices]
+#         else:
+#             return np.take(array, indices, axis=axis)
 
 def extract_data(container, indices=None, axis=1):
     if indices is not None:

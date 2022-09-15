@@ -162,9 +162,11 @@ class Data(object):
         utils.check_file_extension(file, '.csv')
         # Read '.csv' file
         df = pd.read_csv(file, sep=',', header=self.header)
-        df = df.to_numpy(dtype=backend.floatx())
         if callable(preproc_fn):
-            df = preproc_fn(df)
+            df = pd.DataFrame(
+                data=preproc_fn(df.to_numpy(dtype=backend.floatx())),
+                columns=df.columns
+            )
         # Collect data from file
         data = []
         for i in ('x', 'y', 'sample_weight'):
@@ -175,6 +177,25 @@ class Data(object):
             if i in columns.keys():
                 data.append(ops.extract_data_from_array(df, columns[i]))
         return tuple(data)
+
+    # # Reading data from file
+    # def read_datafile(self, file, columns, preproc_fn=None):
+    #     utils.check_file_extension(file, '.csv')
+    #     # Read '.csv' file
+    #     df = pd.read_csv(file, sep=',', header=self.header)
+    #     df = df.to_numpy(dtype=backend.floatx())
+    #     if callable(preproc_fn):
+    #         df = preproc_fn(df)
+    #     # Collect data from file
+    #     data = []
+    #     for i in ('x', 'y', 'sample_weight'):
+    #         if i in ('x', 'y') and i not in columns.keys():
+    #             utils.raise_value_err(
+    #                 f"'{i}' has not been provided in `columns` dictionary."
+    #             )
+    #         if i in columns.keys():
+    #             data.append(ops.extract_data_from_array(df, columns[i]))
+    #     return tuple(data)
 
     # Checking data - network consistency
     ###########################################################################
