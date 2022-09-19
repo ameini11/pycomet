@@ -38,34 +38,48 @@ class FlexOpNN(OpNN):
     # Layers initialization
     ###########################################################################
     def init_layers(self):
+        lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
-                self.init_input_lay(identifier, propty)
-            elif identifier in ('prenet', 'branch', 'trunk'):
-                self.init_block_lay(identifier, propty)
+                lays[identifier] = self.init_input_lay(identifier, propty)
+            elif identifier in ('branch', 'trunk'):
+                lays[identifier] = self.init_block_lay(identifier, propty)
+            elif identifier == 'prenet':
+                lays[identifier] = {
+                    'from': propty['from'],
+                    'to': propty['to'],
+                    'block': self.get_block(
+                        propty={
+                            'lay_id': 'PreNetBlock',
+                            'kwargs': propty['kwargs']
+                        },
+                        name=identifier
+                    )
+                }
             elif identifier == 'end_scale':
-                self.init_end_scale_lay(identifier, propty)
+                lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                self.init_output_lay(identifier, propty)
+                lays[identifier] = self.init_output_lay(identifier, propty)
+        return lays
 
     def init_block_lay(self, identifier, propty):
+        lay = []
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
-        self.active_lays[identifier] = []
         for i, p in enumerate(propty):
             name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
             if identifier == 'branch':
                 p['kwargs']['layer_size'][-1] += 2
-            self.active_lays[identifier].append(
-                self.get_block(propty=p, name=name)
-            )
+            lay.append(self.get_block(propty=p, name=name))
+        return lay
 
     # Calling
     ###########################################################################
     def _eval_kernel(self, x, training):
         # PreNet
         if 'prenet' in self.active_lays.keys():
-            x["trunk"] = self.active_lays['prenet'][-1](
-                x=[x["branch"], x["trunk"]], training=training
+            lay = self.active_lays['prenet']
+            x[lay['to']] = lay['block'](
+                x=[x[lay['from']], x[lay['to']]], training=training
             )
         return super(FlexOpNN, self)._eval_kernel(x, training)
 

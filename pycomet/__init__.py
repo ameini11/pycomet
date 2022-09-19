@@ -41,6 +41,7 @@ __version__ = "0.1"
 from pycomet import apps
 from pycomet import config
 from pycomet import data
+from pycomet import math
 from pycomet import model
 from pycomet import networks
 from pycomet import operations
@@ -54,6 +55,7 @@ __all__ = [
     "apps",
     "config",
     "data",
+    "math",
     "model",
     "networks",
     "operations",

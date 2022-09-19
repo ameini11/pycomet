@@ -13,12 +13,15 @@ class FFNN(Net):
     def __init__(
         self,
         dim,
-        lays_propty,
+        lays_name=None,
+        lays_propty=None,
         *args,
         **kwargs
     ):
         super(FFNN, self).__init__(
             dim=dim,
+            lays_name=lays_name,
+            lays_propty=lays_propty,
             *args,
             **kwargs
         )
@@ -32,40 +35,34 @@ class FFNN(Net):
             },
         }
         # Layers names
-        self.lays_name = ('input', 'hidden_block', 'output')
+        if self.lays_name is None:
+            self.lays_name = ('input', 'hidden_block', 'output')
         # Layers properties
         self.lays_propty = self.check_layers(
-            layers=lays_propty,
+            layers=self.lays_propty,
             not_opt=('hidden_block',),
             default=self.default_lays_propty
         )
         # Initializing layers
-        self.init_layers()
+        self.active_lays = self.init_layers()
 
     # Layers initialization
     ###########################################################################
     def init_layers(self):
+        lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier in ('input', 'output'):
-                self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(identifier, propty)
             elif identifier == 'hidden_block':
-                self.active_lays[identifier] = self.get_block(propty=propty)
+                lays[identifier] = self.get_block(propty=propty)
+        return lays
 
     def init_inout_lay(self, identifier, propty):
         _propty = {}
         for k, v in propty.items():
             if k in ('xform',):
                 _propty[k] = v
-        self.active_lays[identifier] = _propty
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'lays_propty': self.lays_propty
-        }
-        base_config = super(FFNN, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return _propty
 
     # Calling
     ###########################################################################

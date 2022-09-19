@@ -21,6 +21,8 @@ class Net(tf.keras.Model):
     def __init__( 
         self,
         dim,
+        lays_name=None,
+        lays_propty=None,
         *args,
         **kwargs
     ):
@@ -28,7 +30,6 @@ class Net(tf.keras.Model):
             *args,
             **kwargs
         )
-
         if not isinstance(dim, dict):
             utils.raise_value_err(
                 f"`dim` passed into `{self.name}` network has "
@@ -37,11 +38,14 @@ class Net(tf.keras.Model):
                 "  - 'out': `int` (or `list` of `int`).\n"
                 "It represents the dimensions of the I/O feature space."
             )
-
+        # Dimensions
         self.dim = dim
         self.inputs_dim = self.dim["inp"]
         self.outputs_dim = self.dim["out"]
         
+        # Layers
+        self.lays_name = lays_name
+        self.lays_propty = lays_propty
         self.active_lays = {}
 
         # Extra attributes for handling multi-objective loss
@@ -54,7 +58,9 @@ class Net(tf.keras.Model):
     ###########################################################################
     def get_config(self):
         config = {
-            'dim': self.dim
+            'dim': self.dim,
+            'lays_name': self.lays_name,
+            'lays_propty': self.lays_propty
         }
         base_config = super(Net, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -299,7 +305,7 @@ class Net(tf.keras.Model):
                 )
         # Add missing optional layers with default values
         for k in self.lays_name:
-            if k not in layers.keys():
+            if k not in layers.keys() and k in default.keys():
                 layers[k] = default[k]
         return layers
 

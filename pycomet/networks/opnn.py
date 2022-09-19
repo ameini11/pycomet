@@ -23,6 +23,8 @@ class OpNN(Net):
     ):
         super(OpNN, self).__init__(
             dim=dim,
+            lays_name=lays_name,
+            lays_propty=lays_propty,
             *args,
             **kwargs
         )
@@ -55,43 +57,42 @@ class OpNN(Net):
             }
         }
         # Layers names
-        self.lays_name = lays_name
         if self.lays_name is None:
             self.lays_name = (
                 'input', 'branch', 'trunk', 'end_scale', 'output'
             )
         # Layers properties
         self.lays_propty = self.check_layers(
-            layers=lays_propty,
+            layers=self.lays_propty,
             not_opt=('branch', 'trunk'),
             default=self.default_lays_propty
         )
         # Initializing
-        self.init_layers()
+        self.active_lays = self.init_layers()
         self.n_branches = len(self.active_lays['branch'])
         self.n_trunks = len(self.active_lays['trunk'])
 
     # Layers initialization
     ###########################################################################
     def init_layers(self):
+        lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
-                self.init_input_lay(identifier, propty)
+                lays[identifier] = self.init_input_lay(identifier, propty)
             elif identifier in ('branch', 'trunk'):
-                self.init_block_lay(identifier, propty)
+                lays[identifier] = self.init_block_lay(identifier, propty)
             elif identifier == 'end_scale':
-                self.init_end_scale_lay(identifier, propty)
+                lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                self.init_output_lay(identifier, propty)
+                lays[identifier] = self.init_output_lay(identifier, propty)
+        return lays
 
     def init_input_lay(self, identifier, propty):
         # Checking properties format
-        cond1 = isinstance(propty, dict)
-        cond2 = any([k not in ('branch', 'trunk') for k in propty.keys()])
-        if not cond1 or cond2:
+        if not isinstance(propty, dict):
             utils.raise_value_err(
-                f"Layer '{identifier}' in 'lays_propty' input has to be a "
-                f"`dict` with keys: ('branch', 'trunk')"
+                f"Layer '{identifier}' in 'lays_propty' input has "
+                f"to be a `dict` with names of the inputs as keys."
             )
         # Initializing layer properties
         _propty = {}
@@ -104,36 +105,31 @@ class OpNN(Net):
                     _propty[k_subnet][k] = i
                 elif k == 'xform':
                     _propty[k_subnet][k] = None
-        if _propty['branch']['index'] == _propty['trunk']['index']:
+        indices = [_propty[k]['index'] for k in _propty.keys()]
+        if len(np.unique(indices)) != len(indices):
             utils.raise_value_err(
-                f"Key 'index' in layer '{identifier}' has to be "
-                "different between the subnets."
+                f"Key 'index' in layer '{identifier}' has "
+                "to be different between each subnet."
             )
-        self.active_lays[identifier] = _propty
+        return _propty
 
     def init_block_lay(self, identifier, propty):
+        lay = []
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
-        self.active_lays[identifier] = []
         for i, p in enumerate(propty):
             name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
-            self.active_lays[identifier].append(
-                self.get_block(propty=p, name=name)
-            )
+            lay.append(self.get_block(propty=p, name=name))
+        return lay
 
     def init_end_scale_lay(self, identifier, propty):
         if propty['lay_id'] == 'bias':
-            self.active_lays[identifier] = pcm_layers.Bias(
-                **propty['kwargs'],
-                name=identifier
-            )
+            return pcm_layers.Bias(**propty['kwargs'], name=identifier)
         elif propty['lay_id'] == 'dense':
-            self.active_lays[identifier] = tf_layers.Dense(
-                **propty['kwargs'],
-                units=self.outputs_dim,
-                name=identifier
+            return tf_layers.Dense(
+                **propty['kwargs'], units=self.outputs_dim, name=identifier
             )
         elif propty['lay_id'] is None:
-            self.active_lays[identifier] = None
+            return None
         else:
             utils.raise_value_err(
                 f"Value for key 'type' in layer '{identifier}' not "
@@ -147,17 +143,7 @@ class OpNN(Net):
                 _propty[k] = propty[k]
             else:
                 _propty[k] = None
-        self.active_lays[identifier] = _propty
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'lays_name': self.lays_name,
-            'lays_propty': self.lays_propty
-        }
-        base_config = super(OpNN, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        return _propty
 
     # Calling
     ###########################################################################
@@ -174,8 +160,8 @@ class OpNN(Net):
     def _manipulate_input(self, x):
         if not isinstance(x, (list, tuple)):
             utils.raise_value_err(
-                f"The inputs of the `{self.name}` net have "
-                "to be a a `list` or a `tuple`: [u, y]"
+                f"The inputs of the `{self.name}` net "
+                "have to be a a `list` or a `tuple`."
             )
         x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}
         for k, v in self.active_lays['input'].items():

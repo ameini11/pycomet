@@ -39,19 +39,18 @@ class AugOpNN(OpNN):
             propty = self.lays_propty[block]
             if isinstance(propty, (list, tuple)):
                 propty = propty[-1]
-            self.init_uv(identifier, propty)
+            self.active_lays[identifier] = self.init_uv(identifier, propty)
 
     # Layers initialization
     ###########################################################################
     def init_block_lay(self, identifier, propty):
+        lay = []
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
-        self.active_lays[identifier] = []
         for i, p in enumerate(propty):
             name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
             p['lay_id'] = 'CrossEncoderBlock'
-            self.active_lays[identifier].append(
-                self.get_block(propty=p, name=name)
-            )
+            lay.append(self.get_block(propty=p, name=name))
+        return lay
 
     def check_layer_size(self):
         sizes = []
@@ -74,7 +73,7 @@ class AugOpNN(OpNN):
         kwargs['units'] = propty['kwargs']['layer_size'][1]
         kwargs['activation'] = propty['kwargs']['activation'][0]
         kwargs['name'] = identifier
-        self.active_lays[identifier] = blocks.MultiLayerBlock(**kwargs)
+        return blocks.MultiLayerBlock(**kwargs)
 
     # Calling
     ###########################################################################
