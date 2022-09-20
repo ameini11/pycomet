@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras.layers as tf_layers
 
@@ -153,7 +154,7 @@ class OpNN(Net):
         # Kernel - OpNN
         G_u, G_y = self._eval_kernel(x, training)
         # Outputs manipulation
-        y = self._dot_product(G_u, G_y)
+        y = self._tensor_product(G_u, G_y)
         y = self._manipulate_output(y)
         return y
 
@@ -181,7 +182,7 @@ class OpNN(Net):
         ]
         return G_u, G_y
 
-    def _dot_product(self, G_u, G_y):
+    def _tensor_product(self, G_u, G_y):
         if self.outputs_dim > 1:
             if self.n_branches > self.n_trunks:
                 G_y = [G_y[-1]] * self.n_branches
@@ -197,7 +198,8 @@ class OpNN(Net):
 
     def _manipulate_output(self, y):
         # Concatenation
-        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        if isinstance(y, (list,tuple)):
+            y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
         # End scaling
         if self.active_lays['end_scale'] is not None:
             y = self.active_lays['end_scale'](y)

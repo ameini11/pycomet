@@ -6,10 +6,10 @@
 
 # Model/architecture properties
 # =============================================================================
-model_name = 'msd_flexopnn'
+model_name = 'msd_mionet'
 
 dim = {
-    "inp": [2, 1],  # Branch-Trunk input dimensionality
+    "inp": [2, 2, 1],  # Branch-Trunk input dimensionality
     "out": 2        # Output dimensionality
 }
 

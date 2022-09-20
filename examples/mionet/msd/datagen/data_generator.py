@@ -18,9 +18,7 @@ class DataGenerator(pcm.data.DataGenerator):
         test_cases,
         testing,
         test_training,
-        time_limits,
-        inp_space,
-        params,
+        spaces,
         *args,
         **kwargs
     ):
@@ -32,16 +30,16 @@ class DataGenerator(pcm.data.DataGenerator):
 
         # Data Quantities -----------------------------------------------------
         # Training/Validation pts
-        self.scenarios = train_pts['ics']
+        self.scenarios = train_pts['ics'] * train_pts['params']
         self.valid_pts = {
             k: round(validation_split * train_pts[k]) if k != 'ics' \
-                else self.scenarios for k in train_pts
+                else self.scenarios for k in ('ics', 'pts', 'res')
         }
         self.train_pts = {
             k: train_pts[k] - self.valid_pts[k] if k != 'ics' \
-                else self.scenarios for k in train_pts
+                else self.scenarios for k in ('ics', 'pts', 'res')
         }
-        for k in train_pts:
+        for k in ('ics', 'pts', 'res'):
             if self.valid_pts[k] == 0 and self.train_pts[k] != 0:
                 self.valid_pts[k] = 1
 
@@ -51,36 +49,30 @@ class DataGenerator(pcm.data.DataGenerator):
         self.test_training = test_training      # Test training case [Bool]
 
         # Input Space Variables -----------------------------------------------
-        self.t0, self.t_end = time_limits
-        self.inp_space = np.vstack(list(inp_space.values())).T
-
-        # Model parameters ----------------------------------------------------
-        self.xi = params['c'] / (2.*np.sqrt(params['m'] * params['k']))
-        if not 0. <= self.xi <= 1.:
-            utils._raise_value_err(
-                'The damping ratio "xi" has to be between 0 and 1. '
-                'Modify the parameters of the physical model.'
-            )
-        self.w_natural = np.sqrt(params['k'] / params['m'])
-        self.w_damped = self.w_natural * np.sqrt(1. - self.xi**2)
+        self.t0, self.t_end = spaces['time']
+        self.inp_space = np.vstack(
+            list(spaces['params'].values()) + list(spaces['ics'].values())
+        ).T
 
         # Labeling Data -------------------------------------------------------
-        self.data_label_inp = ['x [m]', 'v [m/s]', 't [s]']
+        self.data_label_inp = ['K', 'C', 'x [m]', 'v [m/s]', 't [s]']
         self.data_label_out = ['x [m]', 'v [m/s]']
         self.data_label = self.data_label_inp + self.data_label_out
 
     def get_data_src(
         self
     ):
-        ics = self.compute_ics()
-        self.data_src.update(self.training_data(ics[0]))
+        inp_space = self.compute_inp_space()
+        self.data_src.update(self.training_data(inp_space[0]))
         if self.testing and self.test_cases > 0:
-            self.data_src['test'] = self.testing_data(ics[1], ics_train=ics[0])
+            self.data_src['test'] = self.testing_data(
+                inp_space[1], inp_space_train=inp_space[0]
+            )
         return self.data_src
 
-    # Initial conditions
+    # Initial conditions/Parameters
     ###########################################################################
-    def compute_ics(
+    def compute_inp_space(
         self
     ):
         dim = self.inp_space.shape[1]
@@ -92,46 +84,59 @@ class DataGenerator(pcm.data.DataGenerator):
 
         # Sorting w.r.t. the projection norm
         proj = np.dot(x_norm, np.ones((dim,1))).squeeze()
-        ics = x[proj.argsort()]
+        inp_space = x[proj.argsort()]
 
         # Returning initial conditions ----------------------------------------
         if self.test_cases > 0:
             idx_train, idx_test = self.stratified_sampling(
                 np.arange(samples), self.test_cases
             )
-            return [ics[idx_train], ics[idx_test]]
+            return [inp_space[idx_train], inp_space[idx_test]]
         else:
-            return [ics]
+            return [inp_space]
 
     # Analytical solution
     ###########################################################################
-    def solution(self, ic, t):
+    def solution(self, m, k, c, ic, t):
+        # Parameters
+        xi, w_natural, w_damped = self.get_derived_params(m, k, c)
         # Initial conditions
         x0, v0 = ic
         # Coefficients
-        phi = np.arctan(self.w_damped*x0 / (v0+self.xi*self.w_natural*x0))
+        phi = np.arctan(w_damped*x0 / (v0+xi*w_natural*x0))
         A = x0 / np.sin(phi)
         # Factors
-        f_exp = np.exp(-self.xi*self.w_natural*t)
-        f_sin = np.sin(self.w_damped * t + phi)
-        f_cos = np.cos(self.w_damped * t + phi)
+        f_exp = np.exp(-xi*w_natural*t)
+        f_sin = np.sin(w_damped * t + phi)
+        f_cos = np.cos(w_damped * t + phi)
         # Position
         x = A * f_exp * f_sin
         # Velocity
-        v = -self.xi*self.w_natural*x + self.w_damped * A * f_exp * f_cos
+        v = -xi*w_natural*x + w_damped * A * f_exp * f_cos
         return np.hstack((x, v))
+
+    def get_derived_params(self, m, k, c):
+        xi = c / (2.*np.sqrt(m * k))
+        if not 0. <= xi <= 1.:
+            utils._raise_value_err(
+                'The damping ratio "xi" has to be between 0 and 1. '
+                'Modify the parameters of the physical model.'
+            )
+        w_natural = np.sqrt(k / m)
+        w_damped = w_natural * np.sqrt(1. - xi**2)
+        return xi, w_natural, w_damped
 
     # Training/Validation data
     ###########################################################################
     def training_data(
         self,
-        ics
+        inp_space
     ):
         data = {}
-        for i, ic in enumerate(ics):
+        for i, inp in enumerate(inp_space):
             # Generate data
             data_pts = self.train_pts if (i % 2) == 0 else self.valid_pts
-            data_i = self.get_data(ic, data_pts)
+            data_i = self.get_data(inp, data_pts)
             # Collect data
             data_type = 'train' if (i % 2) == 0 else 'valid'
             data = self.stack_data(data, data_i, data_type)
@@ -151,23 +156,27 @@ class DataGenerator(pcm.data.DataGenerator):
                 )
         return data
 
-    def get_data(self, ic, pts):
+    def get_data(self, inp, pts):
         data = {}
-        for k, n in pts.items():
+        # Parameters space
+        m, k, c = inp[:3]
+        p = np.array([k/m, c/m]).reshape(1,-1)
+        # ICs space
+        ic = np.take(inp, [3,4]).reshape(1,-1)
+        for key, n in pts.items():
             if n == 0 or n is None:
-                data[k] = None
+                data[key] = None
             else:
-                if k == 'ics':
-                    u, t = ic.reshape(1,-1), np.zeros((1,1))
-                    data[k] = [[u, t], u]
+                if key == 'ics':
+                    data[key] = [[p, ic, np.zeros((1,1))], ic]
                 else:
-                    u = np.tile(ic, (n,1))
                     t = self.sample_time(n).reshape(-1,1)
-                    if k == 'pts':
-                        y = self.solution(ic, t)
-                        data[k] = [[u, t], y]
+                    inputs = [np.tile(p, (n,1)), np.tile(ic, (n,1)), t]
+                    if key == 'pts':
+                        y = self.solution(m, k, c, ic.squeeze(), t)
+                        data[key] = [inputs, y]
                     else:
-                        data[k] = [[u, t]]
+                        data[key] = [inputs]
         return data
 
     def stack_data(self, data, data_new, data_type):
@@ -188,32 +197,44 @@ class DataGenerator(pcm.data.DataGenerator):
     ###########################################################################
     def testing_data(
         self,
-        ics_test,
-        ics_train=None,
+        inp_space_test,
+        inp_space_train=None,
         header=None,
         test_pts=100
     ):
-        if isinstance(ics_test, str):
-            ics_test = pd.read_csv(ics_test, sep=',', header=header).to_numpy()
+        if isinstance(inp_space_test, str):
+            inp_space_test = pd.read_csv(
+                inp_space_test, sep=',', header=header
+            ).to_numpy()
         else:
             # Print input space
             path = self.data_dir + '/test/'
             if not os.path.exists(path):
                 os.makedirs(path)
             # Test underfitting
-            if self.test_training and ics_train is not None:
+            if self.test_training and inp_space_train is not None:
                 assert self.scenarios >= self.test_cases
                 idx = self.stratified_sampling(
-                    np.arange(ics_train.shape[0]), self.test_cases
+                    np.arange(inp_space_train.shape[0]), self.test_cases
                 )[1]
-                ics_test = np.vstack((ics_test, ics_train[idx]))
+                inp_space_test = np.vstack(
+                    (inp_space_test, inp_space_train[idx])
+                )
         # Generate data
         data = {}
-        for i, ic in enumerate(ics_test):
-            u = np.tile(ic, (test_pts,1))
+        for i, inp in enumerate(inp_space_test):
+            # Parameters space
+            m, k, c = inp[:3]
+            p = np.array([k/m, c/m]).reshape(1,-1)
+            u1 = np.tile(p, (test_pts,1))
+            # ICs space
+            ic = np.take(inp, [3,4]).reshape(1,-1)
+            u2 = np.tile(ic, (test_pts,1))
+            # Time
             t = np.linspace(self.t0, self.t_end, test_pts).reshape(-1,1)
-            y = self.solution(ic, t)
-            data['case_' + str(i+1).zfill(3)] = [[u, t], y]
+            # Solution
+            y = self.solution(m, k, c, ic.squeeze(), t)
+            data['case_' + str(i+1).zfill(3)] = [[u1, u2, t], y]
         # Save data
         for k, v in data.items():
             pd.DataFrame(

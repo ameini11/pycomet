@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from pycomet import utils
@@ -64,7 +65,7 @@ def extract_data_from_array(array, indices=None, axis=1):
 def _extract(array, indices=[], axis=1):
     indices = tf.nest.flatten(indices)
     if isinstance(array, pd.DataFrame):
-        if all([isinstance(c, str) for c in indices])
+        if all([isinstance(c, str) for c in indices]):
             return array[indices].to_numpy()
         else:
             return np.take(array.to_numpy(), indices, axis=axis)

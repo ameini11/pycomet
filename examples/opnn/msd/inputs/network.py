@@ -41,7 +41,6 @@ lays_propty = {
     'prenet': {
         'from': 'branch',
         'to': 'trunk',
-        'lay_id': 'PreNetBlock',
         'kwargs': {
             'layer_size': [dim['inp'][0], 8, 8, 8, 2],
             'activation': ['sigmoid']*3 + ['linear'],

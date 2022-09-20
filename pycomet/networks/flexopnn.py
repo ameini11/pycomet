@@ -67,7 +67,7 @@ class FlexOpNN(OpNN):
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
         for i, p in enumerate(propty):
             name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
-            if identifier == 'branch':
+            if identifier.startswith('branch'):
                 p['kwargs']['layer_size'][-1] += 2
             lay.append(self.get_block(propty=p, name=name))
         return lay
@@ -83,11 +83,11 @@ class FlexOpNN(OpNN):
             )
         return super(FlexOpNN, self)._eval_kernel(x, training)
 
-    def _dot_product(self, G_u, G_y):
+    def _tensor_product(self, G_u, G_y):
         G_u, d, c = list(zip(*[
             tf.split(G_u_i, [G_u_i.shape[1]-2, 1, 1], axis=1) for G_u_i in G_u
         ]))
-        y = super(FlexOpNN, self)._dot_product(G_u, G_y)
+        y = super(FlexOpNN, self)._tensor_product(G_u, G_y)
         return [
             tf_layers.Add()([c[i], tf_layers.Multiply()([d[i], y[i]])]) \
                 for i in range(self.outputs_dim)

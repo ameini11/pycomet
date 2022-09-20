@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.keras.layers as tf_layers
 
@@ -9,9 +10,6 @@ from pycomet import utils
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MIONet')
 class MIONet(FlexOpNN):
-    """Flex Deep Operator neural network.
-    See: https://arxiv.org/pdf/2204.12670.pdf
-    """
 
     # Initialization
     ###########################################################################
@@ -30,6 +28,26 @@ class MIONet(FlexOpNN):
             *args,
             **kwargs
         )
+        self.n_branches = {
+            k: len(br) for k, br in self.active_lays['branch'].items()
+        }
+        self.n_trunks = {
+            k: len(tf) for k, tf in self.active_lays['trunk'].items()
+        }
+        # Check number of blocks available
+        n_blocks = np.array(
+            tf.nest.flatten({**self.n_branches, **self.n_trunks})
+        )
+        conds = {
+            1: np.all((n_blocks == self.outputs_dim) + (n_blocks == 1)),
+            2: self.outputs_dim == np.amax(n_blocks)
+        }
+        if not conds[1] or not conds[2]:
+            utils.raise_value_err(
+                "The number of blocks for each available kernel layer has to "
+                "be equal to 1 or the number of outputs. Check ('branch', "
+                "'trunk', 'prenet') and the model outputs dimensions."
+            )
 
     # Layers initialization
     ###########################################################################
@@ -39,7 +57,11 @@ class MIONet(FlexOpNN):
             if identifier == 'input':
                 lays[identifier] = self.init_input_lay(identifier, propty)
             elif identifier in ('branch', 'trunk'):
-                lays[identifier] = self.init_block_lay(identifier, propty)
+                lays[identifier] = {
+                    k: super(MIONet, self).init_block_lay(
+                        identifier=identifier+'_'+k, propty=p
+                    ) for k, p in propty.items()
+                }
             elif identifier == 'prenet':
                 lays[identifier] = {
                     k: {
@@ -60,14 +82,6 @@ class MIONet(FlexOpNN):
                 lays[identifier] = self.init_output_lay(identifier, propty)
         return lays
 
-    def init_block_lay(self, identifier, propty):
-        lay = {}
-        for k, p in propty.items():
-            if identifier == 'branch':
-                p['kwargs']['layer_size'][-1] += 2
-            lay[k] = self.get_block(propty=p, name=identifier+'_'+k)
-        return lay
-
     # Calling
     ###########################################################################
     def _eval_kernel(self, x, training):
@@ -78,17 +92,27 @@ class MIONet(FlexOpNN):
                 x1 = tf_layers.Concatenate()(x1) if len(x1) > 1 else x1[-1]
                 x[p['to']] = p['block'](x=[x1, x[p['to']]], training=training)
         # Branch/Trunk
-        G_u = [
-            br(x[k], training=training) \
-                for k, br in self.active_lays['branch'].items()
-        ]
-        G_y = [
-            tr(x[k], training=training) \
-                for k, tr in self.active_lays['trunk'].items()
-        ]
+        G_u = {
+            k: [br(x[k], training=training) for br in branches] \
+                for k, branches in self.active_lays['branch'].items()
+        }
+        G_y = {
+            k: [tr(x[k], training=training) for tr in trunks] \
+                for k, trunks in self.active_lays['trunk'].items()
+        }
         return G_u, G_y
 
-    def _dot_product(self, G_u, G_y):
+    def _tensor_product(self, G_u, G_y):
+        y = []
+        for i in range(self.outputs_dim):
+            G_u_i, G_y_i = [
+                [g[i] if len(g) > 1 else g[-1] for k, g in G.items()] \
+                    for G in [G_u, G_y]
+            ]
+            y.append(self._single_tensor_product(G_u_i, G_y_i))
+        return y
+
+    def _single_tensor_product(self, G_u, G_y):
         G_u, G_y = [
             tf_layers.Multiply()(x) if len(x) > 1 else x[-1] \
                 for x in [G_u, G_y]

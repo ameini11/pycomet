@@ -47,7 +47,6 @@ lays_propty = {
         'shifter': {
             'from': ['params', 'ics'],
             'to': 'time',
-            'lay_id': 'PreNetBlock',
             'kwargs': {
                 'layer_size': [sum(dim['inp'][:2]), 8, 8, 8, 2],
                 'activation': ['sigmoid']*3 + ['linear'],
@@ -62,23 +61,23 @@ lays_propty = {
 
     'branch': {
 
-        'params': {
+        'params': [{
             'lay_id': 'FFBlock',
             'kwargs': {
-                'layer_size': [dim['inp'][0], 16, 16, 2],
+                'layer_size': [dim['inp'][0], 32, 32, 4],
                 'activation': ['sigmoid']*2 + ['linear'],
                 **common
             }
-        },
+        } for _ in range(2)],
 
-        'ics': {
+        'ics': [{
             'lay_id': 'FFBlock',
             'kwargs': {
-                'layer_size': [dim['inp'][1], 16, 16, 2],
+                'layer_size': [dim['inp'][1], 32, 32, 4],
                 'activation': ['sigmoid']*2 + ['linear'],
                 **common
             }
-        }
+        } for _ in range(2)]
 
     },
 
@@ -87,17 +86,12 @@ lays_propty = {
         'time': {
             'lay_id': 'FFBlock',
             'kwargs': {
-                'layer_size': [dim['inp'][2], 16, 16, 2],
+                'layer_size': [dim['inp'][2], 32, 32, 4],
                 'activation': ['sigmoid']*2 + ['linear'],
                 **common
             }
         }
 
-    },
-
-    'end_scale': {
-        'lay_id': 'bias',
-        'kwargs': {}
     }
 
 }

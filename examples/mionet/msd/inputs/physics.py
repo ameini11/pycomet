@@ -6,17 +6,15 @@
 
 # Physical model: mass-spring-damper dynamics
 # =============================================================================
-params = {
-    'm': 1.,
-    'k': 3.,
-    'c': .5
+spaces = {
+    'params': {
+        'm': [1.,5.],
+        'k': [1.,5.],
+        'c': [.1,.9]
+    },
+    'ics': {
+        'x': [-5., 5.],     # Position [m]
+        'v': [-5., 5.],     # Velocity [m/s]
+    },
+    'time': [0., 1.e1]       # Time [s]
 }
-
-# Input space (limit values)
-inp_space = {
-    'x': [-5., 5.],     # Position [m]
-    'v': [-5., 5.],     # Velocity [m/s]
-}
-
-# Time limits
-time_limits = [0., 1.e1]
