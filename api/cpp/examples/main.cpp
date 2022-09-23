@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iterator>
 
 #include "cppflow/ops.h"
 #include "cppflow/model.h"
@@ -18,6 +19,18 @@ vector<T> flatten(vector<vector<T>> const &vec)
         flattened.insert(flattened.end(), v.begin(), v.end());
     }
     return flattened;
+}
+
+template<typename T>
+T vector2array(vector<T> const &vec)
+{
+    return *arr = &vec[0];
+}
+
+template<typename T>
+vector<T> array2vector(T const &arr)
+{
+    return vec(begin(arr), end(arr));
 }
 
 vector<float> read_csv(string filename, int skiprows, int col_s, int col_e)
@@ -81,8 +94,6 @@ int main() {
     // Read inputs from file
     auto input_1 = cppflow::tensor(read_csv(FILEIN_PATH, 0, 0, 2), {100, 2});
     auto input_2 = cppflow::tensor(read_csv(FILEIN_PATH, 0, 2, 3), {100, 1});
-
-    std::cout << "input_2: " << input_2 << std::endl;
 
     // Load the model from file
     auto model = cppflow::model(std::string(MODEL_PATH));
