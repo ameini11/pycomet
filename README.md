@@ -7,7 +7,7 @@
 PyCOMET is a deep learning library API, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyCOMET currently includes the following algorithms:
 - solving forward and inverse partial differential equations (PDEs) via neural networks;
 - approximating nonlinear operators via Neural Operators (e.g., DeepONets);
-- multi-objectives function loss optimization (data-driven and physics-informed learning) with wights.
+- multi-objectives function loss optimization (data-driven and physics-informed learning) with weights.
 
 ## Features
 
