@@ -343,7 +343,7 @@ class PreNetBlock(FFBlock):
         self.out_xform = out_xform
 
         super(PreNetBlock, self).__init__(
-            layer_size=list(layer_size)[:-1] + [self.outputs_dim],
+            layer_size=list(layer_size) + [self.outputs_dim],
             activation=activation,
             kernel_initializer=kernel_initializer,
             regularizer=regularizer,
