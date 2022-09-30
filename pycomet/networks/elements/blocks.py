@@ -168,7 +168,7 @@ class FFBlock(tf_layers.Layer):
                 weight_norm=self.weight_norm,
                 batch_norm=self.batch_norm,
                 dropout_kwargs=self.dropout_kwargs,
-                name=names[i]
+                name=self.name+'_'+names[i]
             ) for i in range(len(self.layer_size)-1)
         ]
 
@@ -313,6 +313,9 @@ class PreNetBlock(tf_layers.Layer):
         num_coords=1,
         **kwargs
     ):
+        super(PreNetBlock, self).__init__(
+            **kwargs
+        )
         # Initialize math transformation --------------------------------------
         # Number of coordinates of the system to transform
         # See `x2` in function `call`
@@ -366,8 +369,7 @@ class PreNetBlock(tf_layers.Layer):
                 regularizer=regularizer,
                 dropout_kwargs=dropout_kwargs,
                 batch_norm=batch_norm,
-                weight_norm=weight_norm,
-                **kwargs
+                weight_norm=weight_norm
             ) for i in range(self.num_blocks)
         ]
 
@@ -384,13 +386,13 @@ class PreNetBlock(tf_layers.Layer):
         # Unpack inputs
         x1, x2 = ops.unpack_list(x, n_elem=2)
         # Apply transformation ------------------------------------------------
-        y = self.transform(x1, x2)
+        y = self.transform(x1, x2, training)
         # Outputs manipulation ------------------------------------------------
         if self.out_xform is not None:
             y = self.out_xform(y)
         return y
     
-    def transform(self, x1, x2):
+    def transform(self, x1, x2, training):
         # Kernel
         y = [blk.call(x1, training=training) for blk in self.blocks]
         # Apply transformation
@@ -416,21 +418,20 @@ class PreNetBlock(tf_layers.Layer):
                     c[1]*c[2]
                 ], 1), [-1,3,3])
             else:
-                R = 1.
+                R = None
             # Scaling factor
-            S = 1. if self.transformation == 'euclidean' else y[-1]
-            H = S * R
-            # Translation vector
+            S = None if self.transformation == 'euclidean' else y[-1]
             T = y[0]
         else:
-            H, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
-            if self.j > 0:
-                H = tf.reshape(y[0], [-1,self.i,self.j])
-            else:
-                H = 1.
+            S = None
+            R, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
+            R = tf.reshape(y[0], [-1,self.i,self.j]) if self.j > 0 else None
         y = T
-        if H != 1.:
-            y = y + tf.einsum('nij,nj->ni', H, x2)
+        if R is not None:
+            yr = tf.einsum('nij,nj->ni', R, x2)
+            if S is not None:
+                yr = S * yr
+            y = y + yr
         return y
 
     # Configuration update
