@@ -81,7 +81,7 @@ class Model(object):
         visualize_graph=False
     ):
         # Update network multi-objective loss function parameters
-        if self.data is not None and self.data.multi_obj_loss is not None:
+        if self.data is not None and self.data.multi_obj_loss:
             for attr in self.multi_obj_loss_attrs:
                 setattr(self.net, attr, getattr(self.data, attr))
             self.data.net = self.net

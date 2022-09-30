@@ -9,6 +9,7 @@ from tensorflow.python.keras import constraints
 from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
 from keras import layers as tf_layers
+from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import utils
 
@@ -278,6 +279,7 @@ class Normalization(tf_layers.Normalization):
         self.preproc_fn = preproc_fn
         self.save_dir = save_dir
 
+    def build(self, input_shape):
         self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
         if self.input_mean is None and self.input_variance is None:
             if os.path.exists(self.mu_sigma_file):
@@ -286,6 +288,7 @@ class Normalization(tf_layers.Normalization):
                 self.read_mu_sigma(file=self.saved_file)
             elif self.data_files is not None:
                 self.compute_mu_sigma()
+        super(Normalization, self).build(input_shape)
 
     # Handling mean and variance ----------------------------------------------
     def compute_mu_sigma(self):
@@ -312,7 +315,7 @@ class Normalization(tf_layers.Normalization):
             df = df.to_numpy(dtype=backend.floatx())
             if callable(self.preproc_fn):
                 df = self.preproc_fn(df)
-            data.append(utils.extract_data_from_array(df, self.columns))
+            data.append(ops.extract_data_from_array(df, self.columns))
         data = tf.convert_to_tensor(np.vstack(data))
         return data
 
