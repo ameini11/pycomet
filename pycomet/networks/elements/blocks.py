@@ -293,7 +293,7 @@ class ResPIBlock(FFBlock):
 @tf.keras.utils.register_keras_serializable(
     package=cfg._NAME, name='PreNetBlock'
 )
-class PreNetBlock(FFBlock):
+class PreNetBlock(tf_layers.Layer):
     """See: https://arxiv.org/pdf/2204.12670.pdf
     """
 
@@ -323,16 +323,33 @@ class PreNetBlock(FFBlock):
         )
         # Initialize transformation
         self.transformation = transformation
+        self.num_blocks = 1
         if self.transformation == 'translation':
-            self.outputs_dim = self.num_coords
+            self.outputs_dim = [self.num_coords]
             self.i, self.j = self.num_coords, 0
-        elif self.transformation in ('euclidean', 'similarity', 'affine'):
-            self.outputs_dim = self.num_coords * (self.num_coords + 1)
-            # if self.transformation == 'similarity' and self.num_coords > 1:
-            #     outputs_dim = outputs_dim + 1
+        elif self.transformation in ('euclidean', 'similarity'):
+            if self.num_coords <= 3:
+                if self.num_coords == 1:
+                    self.num_blocks = 2
+                    self.outputs_dim = [1, 1]
+                elif self.num_coords == 2:
+                    self.num_blocks = 3
+                    self.outputs_dim = [1, 2, 1]
+                elif self.num_coords == 3:
+                    self.num_blocks = 3
+                    self.outputs_dim = [3, 3, 1]
+                if self.transformation == 'euclidean':
+                    self.num_blocks = self.num_blocks - 1
+                    self.outputs_dim = self.outputs_dim[:-1]
+                self.i, self.j = None, None
+            else:
+                self.outputs_dim = [self.num_coords * (self.num_coords + 1)]
+                self.i, self.j = self.num_coords, self.num_coords
+        elif self.transformation == 'affine':
+            self.outputs_dim = [self.num_coords * (self.num_coords + 1)]
             self.i, self.j = self.num_coords, self.num_coords
         elif self.transformation == 'projective':
-            self.outputs_dim = (self.num_coords + 1) ** 2
+            self.outputs_dim = [(self.num_coords + 1) ** 2]
             self.i, self.j = self.num_coords+1, self.num_coords
         else:
             utils.raise_value_err(
@@ -341,17 +358,18 @@ class PreNetBlock(FFBlock):
 
         # Outputs manipulation ------------------------------------------------
         self.out_xform = out_xform
-
-        super(PreNetBlock, self).__init__(
-            layer_size=list(layer_size) + [self.outputs_dim],
-            activation=activation,
-            kernel_initializer=kernel_initializer,
-            regularizer=regularizer,
-            dropout_kwargs=dropout_kwargs,
-            batch_norm=batch_norm,
-            weight_norm=weight_norm,
-            **kwargs
-        )
+        self.blocks = [
+            FFBlock(
+                layer_size=list(layer_size) + [self.outputs_dim[i]],
+                activation=activation,
+                kernel_initializer=kernel_initializer,
+                regularizer=regularizer,
+                dropout_kwargs=dropout_kwargs,
+                batch_norm=batch_norm,
+                weight_norm=weight_norm,
+                **kwargs
+            ) for i in range(self.num_blocks)
+        ]
 
     # Calling
     ###########################################################################
@@ -365,24 +383,55 @@ class PreNetBlock(FFBlock):
             )
         # Unpack inputs
         x1, x2 = ops.unpack_list(x, n_elem=2)
-
-        # Kernel --------------------------------------------------------------
-        y = super(PreNetBlock, self).call(x1, training=training)
-
         # Apply transformation ------------------------------------------------
-        y = tf.split(y, [self.i*self.j, self.i], axis=1)
-        if self.j > 0:
-            y[0] = tf.reshape(y[0], [-1,self.i,self.j])
-            z = tf.einsum('nij,nj->ni', y[0], x2)
-        else:
-            z = x2
-        z = z + y[1]
-
+        y = self.transform(x1, x2)
         # Outputs manipulation ------------------------------------------------
         if self.out_xform is not None:
-            z = self.out_xform(z)
-
-        return z
+            y = self.out_xform(y)
+        return y
+    
+    def transform(self, x1, x2):
+        # Kernel
+        y = [blk.call(x1, training=training) for blk in self.blocks]
+        # Apply transformation
+        if self.transformation in ('euclidean', 'similarity') and self.num_coords <= 3:
+            # Rotation
+            if self.num_coords == 2:
+                s, c = tf.math.sin(y[1]), tf.math.cos(y[1])
+                # Matrix
+                R = tf.reshape(tf.concat([c, -s, s, c], 1), [-1,2,2])
+            elif self.num_coords == 3:
+                s = tf.split(tf.math.sin(y[1]), 3, axis=1)
+                c = tf.split(tf.math.cos(y[1]), 3, axis=1)
+                # Matrix
+                R = tf.reshape(tf.concat([
+                    c[0]*c[1],
+                    c[0]*s[1]*s[2] - s[0]*c[2],
+                    c[0]*s[1]*c[2] + s[0]*s[2],
+                    s[0]*c[1],
+                    s[0]*s[1]*s[2] + c[0]*c[2],
+                    s[0]*s[1]*c[2] - c[0]*s[2],
+                    -s[1],
+                    c[1]*s[2],
+                    c[1]*c[2]
+                ], 1), [-1,3,3])
+            else:
+                R = 1.
+            # Scaling factor
+            S = 1. if self.transformation == 'euclidean' else y[-1]
+            H = S * R
+            # Translation vector
+            T = y[0]
+        else:
+            H, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
+            if self.j > 0:
+                H = tf.reshape(y[0], [-1,self.i,self.j])
+            else:
+                H = 1.
+        y = T
+        if H != 1.:
+            y = y + tf.einsum('nij,nj->ni', H, x2)
+        return y
 
     # Configuration update
     ###########################################################################
