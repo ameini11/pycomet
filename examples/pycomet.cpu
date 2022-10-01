@@ -1,4 +1,4 @@
-#!/home/zanardi/APPLICATIONS/ANACONDA/anaconda3/envs/pycomet/bin/python
+#!/home/zanardi/.conda/envs/pycomet.cpu/bin/python
 # -*- coding: utf-8 -*-
 import re
 import os

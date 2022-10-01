@@ -110,7 +110,11 @@ class MMOpNN(Net):
         name = nn.__name__.lower() + '_' + name
         lays_propty = propty if 'lays_propty' not in propty \
             else propty['lays_propty']
-        return nn(lays_propty=lays_propty, name=name)
+        return nn(
+            dim=propty['dim'],
+            lays_propty=propty['lays_propty'],
+            name=name
+        )
 
     def init_output_lay(self, identifier, propty):
         _propty = {}
