@@ -1,12 +1,12 @@
 import types
 import tensorflow as tf
 
-from pycomet.networks.basenet import BaseNet
+from pycomet.networks.net import Net
 from pycomet import config as cfg
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='FFNN')
-class FFNN(BaseNet):
+class FFNN(Net):
     """Feed-Forward neural network."""
 
     # Initialization
@@ -89,7 +89,7 @@ class FFNN(BaseNet):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None):
+    def call(self, x, training=False):
         # Inputs manipulation
         y = self._manipulate_inout(x=x, identifier='input', training=training)
         # Kernel

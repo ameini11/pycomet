@@ -1,16 +1,16 @@
 import types
 import numpy as np
 import tensorflow as tf
+import tensorflow.keras.layers as tf_layers
 
-from keras import layers as tf_layers
-from pycomet.networks.basenet import BaseNet
+from pycomet.networks.net import Net
 from pycomet import config as cfg
 from pycomet import networks
 from pycomet import utils
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MMOpNN')
-class MMOpNN(BaseNet):
+class MMOpNN(Net):
     """Multi-Physics Multi-Scale Deep Operator neural network."""
 
     # Initialization
@@ -150,7 +150,7 @@ class MMOpNN(BaseNet):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None):
+    def call(self, x, training=False):
         # Inputs manipulation
         y = self._manipulate_input(x)
         # Kernel - OpNNs

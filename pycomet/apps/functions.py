@@ -5,6 +5,8 @@ import tensorflow as tf
 
 from tqdm import tqdm
 from pycomet import utils
+from pycomet import networks
+from pycomet.networks import Net
 
 
 # Public
@@ -127,20 +129,17 @@ def _network(
 ):
     # Initialize network ------------------------------------------------------
     utils.print_fn(f"Initializing '{inputs_mod.architecture}' network ...")
-    net_cls = utils.get_class(pycomet.networks, inputs_mod.architecture)
+    net_cls = utils.get_class(networks, inputs_mod.architecture)
     if inputs_mod.flags['load'] == 4:
         filepath = getattr(inputs_mod, 'saved_model', None)
         if filepath is None:
             filepath = './saving/' + inputs_mod.model_name
-        return tf.keras.models.load_model(
-            filepath=filepath,
-            # custom_objects={inputs_mod.architecture: net_cls}
-        )
+        return tf.keras.models.load_model(filepath=filepath)
     else:
         net_args = utils.get_fun_args_values(
             args=utils.get_fun_args(net_cls.__init__), modules=inputs_mod
         )
-        return net_cls(**net_args)
+        return Net(architecture=inputs_mod.architecture, **net_args)
 
 def _model(
     inputs_mod,

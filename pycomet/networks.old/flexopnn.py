@@ -1,6 +1,6 @@
 import tensorflow as tf
+import tensorflow.keras.layers as tf_layers
 
-from keras import layers as tf_layers
 from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.opnn import OpNN
 from pycomet import config as cfg

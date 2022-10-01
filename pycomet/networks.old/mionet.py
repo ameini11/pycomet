@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow.keras.layers as tf_layers
 
-from keras import layers as tf_layers
 from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.flexopnn import FlexOpNN
 from pycomet import config as cfg

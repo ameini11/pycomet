@@ -6,9 +6,9 @@ from tensorflow.python.keras import metrics as metrics_mod
 from tensorflow.python.util import traceback_utils
 from tensorflow.python.keras import backend
 from keras.engine import base_layer
-from pycomet.networks.elements import blocks
 from pycomet import operations as ops
 from pycomet import config as cfg
+from pycomet import networks
 from pycomet import utils
 
 
@@ -20,33 +20,30 @@ class Net(tf.keras.Model):
     ###########################################################################
     def __init__( 
         self,
-        dim,
+        dim=None,
+        architecture=None,
         lays_name=None,
         lays_propty=None,
         *args,
         **kwargs
     ):
-        super(Net, self).__init__(
+        # Initialize network
+        self.architecture = architecture
+        network_cls = utils.get_class(networks, self.architecture)
+        super(Net, self).__init__(name=net_cls.__name__.lower())
+        self.network = network_cls(
+            dim=dim,
+            lays_name=lays_name,
+            lays_propty=lays_propty,
             *args,
             **kwargs
         )
-        if not isinstance(dim, dict):
-            utils.raise_value_err(
-                f"`dim` passed into `{self.name}` network has "
-                "to be a `dict` of length 2:\n"
-                "  - 'inp': `int` (or `list` of `int`);\n"
-                "  - 'out': `int` (or `list` of `int`).\n"
-                "It represents the dimensions of the I/O feature space."
-            )
-        # Dimensions
-        self.dim = dim
-        self.inputs_dim = self.dim["inp"]
-        self.outputs_dim = self.dim["out"]
         
-        # Layers
-        self.lays_name = lays_name
-        self.lays_propty = lays_propty
-        self.active_lays = {}
+        # Update attributes
+        for k in (
+            'dim', 'inputs_dim', 'outputs_dim', 'lays_name', 'lays_propty'
+        ):
+            setattr(self, k, getattr(self.network, k))
 
         # Extra attributes for handling multi-objective loss
         self.multi_obj_loss = False
@@ -59,12 +56,18 @@ class Net(tf.keras.Model):
     def get_config(self):
         config = {
             'dim': self.dim,
+            'architecture': self.architecture,
             'lays_name': self.lays_name,
             'lays_propty': self.lays_propty
         }
         base_config = super(Net, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None, mask=None):
+        return self.network.call(inputs, training=training, mask=mask)
+        
     # Compiling
     ###########################################################################
     @traceback_utils.filter_traceback
@@ -279,41 +282,3 @@ class Net(tf.keras.Model):
             return tf.math.add_n(
                 losses_utils.cast_losses_to_common_dtype(self.losses)
             )
-
-    # Handling layers
-    ###########################################################################
-    def check_layers(
-        self, layers={}, not_opt=[], default={}, check_valid=True
-    ):
-        # Check input layers format
-        if not isinstance(layers, dict):
-            utils.raise_value_err(
-                "`lays_propty` input passed into "
-                f"`{self.name}` has to be a `dict`."
-            )
-        # Check valid layers
-        if check_valid:
-            for k in layers.keys():
-                if k not in self.lays_name:
-                    utils.raise_value_err(
-                        f"Layer '{k}' in `lays_propty` input not recognized. "
-                        f"Layers available: {self.lays_name}"
-                    )
-        # Check not optional layers
-        for k in not_opt:
-            if k not in layers.keys():
-                utils.raise_value_err(
-                    f"'{k}' layer have to be provided in `lays_propty` input."
-                )
-        # Add missing optional layers with default values
-        for k in self.lays_name:
-            if k not in layers.keys() and k in default.keys():
-                layers[k] = default[k]
-        return layers
-
-    def get_block(self, propty={}, name=None):
-        blk = 'FFBlock' if 'lay_id' not in propty else propty['lay_id']
-        blk = blk if callable(blk) else utils.get_class(blocks, blk)
-        if name is not None:
-            propty['kwargs'].update({'name': name})
-        return blk(**propty['kwargs'])

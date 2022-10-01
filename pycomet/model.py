@@ -115,7 +115,7 @@ class Model(object):
             self.data.build(self.net)
 
         # Visualize network graph ---------------------------------------------
-        self.graph.summary(line_length=cfg._DISPLAY_LEN)
+        self.graph.summary(line_length=cfg._DISPLAY_LEN, expand_nested=True)
         with open(self.save_path + '/summary.txt', 'w') as f:
             self.graph.summary(
                 line_length=cfg._DISPLAY_LEN,
@@ -123,9 +123,9 @@ class Model(object):
                 print_fn=lambda x: f.write(x + '\n')
             )
         if verbose:
+            _netron_started = False
             if visualize_graph:
                 # Save initialized model
-                _netron_started = False
                 try:
                     file_name = self.save_path + '/model_struct.h5'
                     self.graph.save(file_name, save_format='h5')
@@ -145,7 +145,7 @@ class Model(object):
             if not asw.lower().startswith('y'):
                 utils.print_fn("All the processes will be stopped.\n", lev=1)
                 utils.kill_process()
-            if visualize_graph and _netron_started:
+            if _netron_started:
                 utils.print_fn("", end="", lev=1)
                 netron.stop()
         # Loading network weights
