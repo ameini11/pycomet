@@ -1,16 +1,16 @@
 import types
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras.layers as tf_layers
 
+from keras import layers as tf_layers
 from pycomet.networks.elements import layers as pcm_layers
-from pycomet.networks.net import Net
+from pycomet.networks.basenet import BaseNet
 from pycomet import config as cfg
 from pycomet import utils
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='OpNN')
-class OpNN(Net):
+class OpNN(BaseNet):
     """Deep Operator neural network."""
 
     # Initialization
@@ -171,7 +171,7 @@ class OpNN(Net):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=False):
+    def call(self, x, training=None, mask=None):
         # Inputs manipulation
         y = self._manipulate_input(x)
         # Kernel - OpNN
