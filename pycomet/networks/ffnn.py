@@ -59,23 +59,39 @@ class FFNN(Net):
 
     def init_inout_lay(self, identifier, propty):
         _propty = {}
-        for k, v in propty.items():
-            if k in ('xform',):
-                _propty[k] = v
+        for k in ('xform',):
+            if k in propty and propty[k] is not None:
+                if k == 'xform' :
+                    _propty[k] = {}
+                    _propty[k]['fn'] = propty[k]
+                    _propty[k]['args'] = utils.get_fun_args(propty[k])
+                    if any([k not in ('x', 'y') for k in _propty[k]['args']]):
+                        utils.raise_value_err(
+                            "The outputs transformation function, 'xform', "
+                            "accept only ('x', 'y') as function signature, "
+                            "where 'x' <- inputs and 'y' <- model ouputs."
+                        )
+                else:
+                    _propty[k] = propty[k]
+            else:
+                _propty[k] = None
         return _propty
 
     # Calling
     ###########################################################################
     def call(self, x, training=False):
         # Inputs manipulation
-        x = self._manipulate_inout(x, identifier='input')
+        y = self._manipulate_inout(x=x, identifier='input')
         # Kernel
-        y = self.active_lays['hidden_block'](x, training=training)
+        y = self.active_lays['hidden_block'](y, training=training)
         # Outputs manipulation
-        y = self._manipulate_inout(y, identifier='output')
+        y = self._manipulate_inout(x=x, y=y, identifier='output')
         return y
 
-    def _manipulate_inout(self, y, identifier):
+    def _manipulate_inout(self, x, y=None, identifier=None):
         if self.active_lays[identifier]['xform'] is not None:
-            y = self.active_lays[identifier]['xform'](y)
+            lay = self.active_lays[identifier]['xform']
+            y = lay['fn'](**{k: eval(k) for k in lay['args']})
+        elif identifier == 'input':
+            y = x
         return y

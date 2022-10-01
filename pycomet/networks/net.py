@@ -282,7 +282,9 @@ class Net(tf.keras.Model):
 
     # Handling layers
     ###########################################################################
-    def check_layers(self, layers={}, not_opt=[], default={}):
+    def check_layers(
+        self, layers={}, not_opt=[], default={}, check_valid=True
+    ):
         # Check input layers format
         if not isinstance(layers, dict):
             utils.raise_value_err(
@@ -290,12 +292,13 @@ class Net(tf.keras.Model):
                 f"`{self.name}` has to be a `dict`."
             )
         # Check valid layers
-        for k in layers.keys():
-            if k not in self.lays_name:
-                utils.raise_value_err(
-                    f"Layer '{k}' in `lays_propty` input not recognized. "
-                    f"Layers available: {self.lays_name}"
-                )
+        if check_valid:
+            for k in layers.keys():
+                if k not in self.lays_name:
+                    utils.raise_value_err(
+                        f"Layer '{k}' in `lays_propty` input not recognized. "
+                        f"Layers available: {self.lays_name}"
+                    )
         # Check not optional layers
         for k in not_opt:
             if k not in layers.keys():

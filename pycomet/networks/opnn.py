@@ -140,8 +140,19 @@ class OpNN(Net):
     def init_output_lay(self, identifier, propty):
         _propty = {}
         for k in ('xform',):
-            if k in propty:
-                _propty[k] = propty[k]
+            if k in propty and propty[k] is not None:
+                if k == 'xform' :
+                    _propty[k] = {}
+                    _propty[k]['fn'] = propty[k]
+                    _propty[k]['args'] = utils.get_fun_args(propty[k])
+                    if any([k not in ('x', 'y') for k in _propty[k]['args']]):
+                        utils.raise_value_err(
+                            "The outputs transformation function, 'xform', "
+                            "accept only ('x', 'y') as function signature, "
+                            "where 'x' <- inputs and 'y' <- model ouputs."
+                        )
+                else:
+                    _propty[k] = propty[k]
             else:
                 _propty[k] = None
         return _propty
@@ -150,12 +161,12 @@ class OpNN(Net):
     ###########################################################################
     def call(self, x, training=False):
         # Inputs manipulation
-        x = self._manipulate_input(x)
+        y = self._manipulate_input(x)
         # Kernel - OpNN
-        G_u, G_y = self._eval_kernel(x, training)
+        G_u, G_y = self._eval_kernel(y, training)
         # Outputs manipulation
         y = self._tensor_product(G_u, G_y)
-        y = self._manipulate_output(y)
+        y = self._manipulate_output(x, y)
         return y
 
     def _manipulate_input(self, x):
@@ -196,7 +207,7 @@ class OpNN(Net):
                 for i in range(self.outputs_dim)
         ]
 
-    def _manipulate_output(self, y):
+    def _manipulate_output(self, x, y):
         # Concatenation
         if isinstance(y, (list,tuple)):
             y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
@@ -205,5 +216,6 @@ class OpNN(Net):
             y = self.active_lays['end_scale'](y)
         # Transformation
         if self.active_lays['output']['xform'] is not None:
-            y = self.active_lays['output']['xform'](y)
+            lay = self.active_lays['output']['xform']
+            y = lay['fn'](**{k: eval(k) for k in lay['args']})
         return y

@@ -4,7 +4,7 @@ from pycomet.networks.ffnn import FFNN
 from pycomet.networks.flexopnn import FlexOpNN
 # from pycomet.networks.mffnn import MFFNN
 from pycomet.networks.mionet import MIONet
-# from pycomet.networks.mionn import MMOpNN
+from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.net import Net
 from pycomet.networks.opnn import OpNN
 
@@ -15,7 +15,7 @@ __all__ = [
     "FlexOpNN",
     # "MFFNN",
     "MIONet",
-    # "MMOpNN",
+    "MMOpNN",
     "Net",
     "OpNN"
 ]
