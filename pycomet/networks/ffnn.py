@@ -1,3 +1,4 @@
+import types
 import tensorflow as tf
 
 from pycomet.networks.net import Net
@@ -62,9 +63,18 @@ class FFNN(Net):
         for k in ('xform',):
             if k in propty and propty[k] is not None:
                 if k == 'xform' :
-                    _propty[k] = {}
-                    _propty[k]['fn'] = propty[k]
-                    _propty[k]['args'] = utils.get_fun_args(propty[k])
+                    if not isinstance(propty[k], tf_layers.Lambda):
+                        args = utils.get_fun_args(propty[k])
+                        fn = tf_layers.Lambda(
+                            function=utils.lambda_lay_dec(propty[k])
+                        )
+                    else:
+                        args = utils.get_fun_args(propty[k].function)
+                        propty[k].function = utils.lambda_lay_dec(
+                            propty[k].function
+                        )
+                        fn = propty[k]
+                    _propty[k] = {'fn': fn, 'args': args}
                     if any([k not in ('x', 'y') for k in _propty[k]['args']]):
                         utils.raise_value_err(
                             "The outputs transformation function, 'xform', "
@@ -81,17 +91,23 @@ class FFNN(Net):
     ###########################################################################
     def call(self, x, training=False):
         # Inputs manipulation
-        y = self._manipulate_inout(x=x, identifier='input')
+        y = self._manipulate_inout(x=x, identifier='input', training=training)
         # Kernel
         y = self.active_lays['hidden_block'](y, training=training)
         # Outputs manipulation
-        y = self._manipulate_inout(x=x, y=y, identifier='output')
+        y = self._manipulate_inout(
+            x=x, y=y, identifier='output', training=training
+        )
         return y
 
-    def _manipulate_inout(self, x, y=None, identifier=None):
+    def _manipulate_inout(self, x, y=None, identifier=None, training=False):
         if self.active_lays[identifier]['xform'] is not None:
             lay = self.active_lays[identifier]['xform']
-            y = lay['fn'](**{k: eval(k) for k in lay['args']})
+            inputs = {'x': x, 'y': y}
+            y = lay['fn'](
+                inputs={k: inputs[k] for k in lay['args']},
+                training=training
+            )
         elif identifier == 'input':
             y = x
         return y

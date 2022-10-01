@@ -1,4 +1,7 @@
+import types
+import numpy as np
 import tensorflow as tf
+import tensorflow.keras.layers as tf_layers
 
 from pycomet.networks.net import Net
 from pycomet import config as cfg
@@ -50,7 +53,7 @@ class MMOpNN(Net):
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
-            not_opt=('opnns'),
+            not_opt=('opnns',),
             default=self.default_lays_propty
         )
         # Initializing
@@ -96,10 +99,10 @@ class MMOpNN(Net):
         return _propty
 
     def init_opnns_lay(self, identifier, propty):
-        if isinstance(propty, dict):
+        if not isinstance(propty, dict):
             utils.raise_value_err(
                 "The properties for 'opnns' layer has to be provided "
-                "as a dictionary of (name, opnn.lays_propty) pairs."
+                "as a dictionary of (opnn_name, opnn_args) pairs."
             )
         return {name: self.get_opnn(opnn_lays_propty, name) \
             for name, opnn_lays_propty in propty.items()}
@@ -121,9 +124,18 @@ class MMOpNN(Net):
         for k in ('xform',):
             if k in propty and propty[k] is not None:
                 if k == 'xform' :
-                    _propty[k] = {}
-                    _propty[k]['fn'] = propty[k]
-                    _propty[k]['args'] = utils.get_fun_args(propty[k])
+                    if not isinstance(propty[k], tf_layers.Lambda):
+                        args = utils.get_fun_args(propty[k])
+                        fn = tf_layers.Lambda(
+                            function=utils.lambda_lay_dec(propty[k])
+                        )
+                    else:
+                        args = utils.get_fun_args(propty[k].function)
+                        propty[k].function = utils.lambda_lay_dec(
+                            propty[k].function
+                        )
+                        fn = propty[k]
+                    _propty[k] = {'fn': fn, 'args': args}
                     if any([k not in ('x', 'y') for k in _propty[k]['args']]):
                         utils.raise_value_err(
                             "The outputs transformation function, 'xform', "
@@ -145,9 +157,7 @@ class MMOpNN(Net):
         y = [opnn(y, training=training) \
              for opnn in self.active_lays['opnns'].values()]
         # Outputs manipulation
-        if self.active_lays['output']['xform'] is not None:
-            lay = self.active_lays['output']['xform']
-            y = lay['fn'](**{k: eval(k) for k in lay['args']})
+        y = self._manipulate_output(x, y, training)
         return y
 
     def _manipulate_input(self, x):
@@ -161,3 +171,13 @@ class MMOpNN(Net):
             if v['xform'] is not None:
                 x[k] = v['xform'](x[k])
         return x
+
+    def _manipulate_output(self, x, y, training):
+        if self.active_lays['output']['xform'] is not None:
+            lay = self.active_lays['output']['xform']
+            inputs = {'x': x, 'y': y}
+            y = lay['fn'](
+                inputs={k: inputs[k] for k in lay['args']},
+                training=training
+            )
+        return y

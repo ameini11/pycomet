@@ -303,8 +303,7 @@ class Net(tf.keras.Model):
         for k in not_opt:
             if k not in layers.keys():
                 utils.raise_value_err(
-                    f"'{k}' layer have to be provided in `lays_propty` "
-                    f"input passed into `{self.name}`."
+                    f"'{k}' layer have to be provided in `lays_propty` input."
                 )
         # Add missing optional layers with default values
         for k in self.lays_name:

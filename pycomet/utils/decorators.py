@@ -41,3 +41,15 @@ def app_dec(name=None):
             return result
         return wrapper
     return dec
+
+def lambda_lay_dec(fun):
+    @wraps(fun)
+    def wrapper(inputs, **kwargs):
+        if isinstance(inputs, dict):
+            result = fun(**inputs, **kwargs)
+        elif isinstance(inputs, (list,tuple)):
+            result = fun(*inputs, **kwargs)
+        else:
+            result = fun(inputs, **kwargs)
+        return result
+    return wrapper

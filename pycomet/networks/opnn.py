@@ -1,3 +1,4 @@
+import types
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras.layers as tf_layers
@@ -85,7 +86,9 @@ class OpNN(Net):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
+                print(identifier)
                 lays[identifier] = self.init_output_lay(identifier, propty)
+                print(lays[identifier])
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -142,9 +145,18 @@ class OpNN(Net):
         for k in ('xform',):
             if k in propty and propty[k] is not None:
                 if k == 'xform' :
-                    _propty[k] = {}
-                    _propty[k]['fn'] = propty[k]
-                    _propty[k]['args'] = utils.get_fun_args(propty[k])
+                    if not isinstance(propty[k], tf_layers.Lambda):
+                        args = utils.get_fun_args(propty[k])
+                        fn = tf_layers.Lambda(
+                            function=utils.lambda_lay_dec(propty[k])
+                        )
+                    else:
+                        args = utils.get_fun_args(propty[k].function)
+                        propty[k].function = utils.lambda_lay_dec(
+                            propty[k].function
+                        )
+                        fn = propty[k]
+                    _propty[k] = {'fn': fn, 'args': args}
                     if any([k not in ('x', 'y') for k in _propty[k]['args']]):
                         utils.raise_value_err(
                             "The outputs transformation function, 'xform', "
@@ -166,16 +178,14 @@ class OpNN(Net):
         G_u, G_y = self._eval_kernel(y, training)
         # Outputs manipulation
         y = self._tensor_product(G_u, G_y)
-        y = self._manipulate_output(x, y)
+        y = self._manipulate_output(x, y, training)
         return y
 
     def _manipulate_input(self, x):
-        if not isinstance(x, (list, tuple)):
-            utils.raise_value_err(
-                f"The inputs of the `{self.name}` net "
-                "have to be a a `list` or a `tuple`."
-            )
-        x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}
+        if isinstance(x, (list, tuple)):
+            x = {
+                k: x[v['index']] for k, v in self.active_lays['input'].items()
+            }
         for k, v in self.active_lays['input'].items():
             if v['xform'] is not None:
                 x[k] = v['xform'](x[k])
@@ -207,7 +217,7 @@ class OpNN(Net):
                 for i in range(self.outputs_dim)
         ]
 
-    def _manipulate_output(self, x, y):
+    def _manipulate_output(self, x, y, training):
         # Concatenation
         if isinstance(y, (list,tuple)):
             y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
@@ -217,5 +227,9 @@ class OpNN(Net):
         # Transformation
         if self.active_lays['output']['xform'] is not None:
             lay = self.active_lays['output']['xform']
-            y = lay['fn'](**{k: eval(k) for k in lay['args']})
+            inputs = {'x': x, 'y': y}
+            y = lay['fn'](
+                inputs={k: inputs[k] for k in lay['args']},
+                training=training
+            )
         return y
