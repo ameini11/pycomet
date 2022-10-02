@@ -425,7 +425,7 @@ class PreNetBlock(tf_layers.Layer):
         else:
             S = None
             R, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
-            R = tf.reshape(y[0], [-1,self.i,self.j]) if self.j > 0 else None
+            R = tf.reshape(R, [-1,self.i,self.j]) if self.j > 0 else None
         y = T
         if R is not None:
             yr = tf.einsum('nij,nj->ni', R, x2)
