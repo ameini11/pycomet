@@ -30,7 +30,7 @@ class Net(tf.keras.Model):
         # Initialize network
         self.architecture = architecture
         network_cls = utils.get_class(networks, self.architecture)
-        super(Net, self).__init__(name=net_cls.__name__.lower())
+        super(Net, self).__init__(name=network_cls.__name__.lower())
         self.network = network_cls(
             dim=dim,
             lays_name=lays_name,

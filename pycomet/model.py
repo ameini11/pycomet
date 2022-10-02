@@ -397,6 +397,7 @@ class Model(object):
     ):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
+        # Save model in 'SavedModel' format
         try:
             # Save model in 'SavedModel' format
             self.net.save(

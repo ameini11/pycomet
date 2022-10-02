@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from keras import layers as tf_layers
 from pycomet.networks.elements import blocks
 from pycomet import config as cfg
 from pycomet import utils
@@ -49,7 +50,7 @@ class BaseNet(tf_layers.Layer):
             'lays_name': self.lays_name,
             'lays_propty': self.lays_propty
         }
-        base_config = super(Net, self).get_config()
+        base_config = super(BaseNet, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     # Handling layers
