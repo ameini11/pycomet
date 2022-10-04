@@ -27,8 +27,7 @@ class Model(object):
         net=None,
         name='model',
         path='./',
-        save_path=None,
-        save_format='h5'
+        save_path=None
     ):
         self.name = name
         self.data = data
@@ -64,7 +63,6 @@ class Model(object):
                 os.makedirs(d)
 
         # Define saving format
-        self.save_format = save_format
         self.save_path = self.dir['save'] + self.name
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
@@ -163,14 +161,14 @@ class Model(object):
         if load_net == 0:
             utils.print_fn("Making a new network", lev=1)
         elif load_net == 1:
-            path = os.path.abspath(self.save_path + self.save_format)
+            path = os.path.abspath(self.save_path + '/model.h5')
             utils.print_fn(
                 f"Restoring network from saved file '{path}'", lev=1
             )
         elif load_net == 2:
             last_ckpt = max(
                 os.listdir(self.dir['ckpt']),
-                key=lambda x: int(x.split('_')[1].split('.')[0])
+                key=lambda x: int(x.split('.')[0]) if 'weights' in x else -1
             )
             if last_ckpt:
                 utils.print_fn(

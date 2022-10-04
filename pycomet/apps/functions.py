@@ -29,11 +29,11 @@ def load_model(
             "one. Modified the 'load' entry in the 'flags' input variable."
         )
     # Network -----------------------------------------------------------------
-    net = fun._network(
+    net = _network(
         inputs_mod=inputs_mod
     )
     # Model -------------------------------------------------------------------
-    model = fun._model(
+    model = _model(
         inputs_mod=inputs_mod,
         net=net
     )

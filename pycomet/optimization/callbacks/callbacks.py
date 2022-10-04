@@ -1,3 +1,4 @@
+import tensorflow as tf
 import tensorflow.python.keras.callbacks as cb
 
 from pycomet.optimization.callbacks import early_stopping
@@ -10,10 +11,10 @@ from pycomet import utils
 
 def get_cb_list(model, callbacks=None):
     if callbacks is not None:
-        return [
+        return tf.nest.flatten([
             get_callback(model, identifier, kwargs) for identifier, kwargs \
                 in callbacks.items() if kwargs is not None
-        ]
+        ])
 
 def get_callback(model, identifier, kwargs):
     if isinstance(identifier, str):
@@ -38,9 +39,14 @@ def get_callback(model, identifier, kwargs):
                 **kwargs
             )
         elif identifier == "model_ckpt":
-            return cb.ModelCheckpoint(
-                filepath=model.dir['ckpt']+"/weights_{epoch:06d}.h5", **kwargs
-            )
+            mc = []
+            prefix = model.dir['ckpt'] + "/{epoch:06d}."
+            for k in ('weights', 'model'):
+                kwargs['save_weights_only'] = True if k == 'weights' else False
+                suffix = f"{k}.h5" if k == 'weights' else k
+                kwargs['filepath'] = prefix + suffix
+                mc.append(cb.ModelCheckpoint(**kwargs))
+            return mc
         elif identifier == "tensorboard":
             return cb.TensorBoard(**kwargs, log_dir=model.dir['logs'])
         elif identifier == "timer":
