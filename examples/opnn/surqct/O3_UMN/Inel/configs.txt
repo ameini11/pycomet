@@ -1,6 +1,0 @@
-Model Inputs
-
-- Branch: [log_EVib, log_ERot, log_rOut, T]
-- Trunk:  [D(log_EVib), D(log_ERot), D(log_rOut), T]
-
-D = Differential quantities
