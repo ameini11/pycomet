@@ -25,19 +25,24 @@ All the components of PyCOMET are loosely coupled, and thus PyCOMET is well-stru
 
 ### Conda (preferred)
 
-To install PyCOMET simply type the following commands in your Unix shell:
-
+To install PyCOMET with Conda, first create the Conda enviroment by simply typing the following commands in your Unix shell:
 ```
 $ git clone https://github.com/ivanZanardi/pycomet.git
 $ cd pycomet
 $ conda env create -f conda/<processor>.env.yml
+$ conda activate pycomet.<processor>
 ```
-where `<processor>` is eiother `cpu` or `gpu`. You can install both enveiroment to better manage your jobs.
+where `<processor>` is either `cpu` or `gpu`.
+You can install both enveiroment to better manage your jobs.
+Then, install the pacakge by typing
+```
+$ python setup.py bdist_wheel
+$ pip install dist/*.whl
+```
 
 ### Pip
 
-To install PyCOMET simply type the following commands in your Unix shell:
-
+To install PyCOMET with Pip simply type:
 ```
 $ git clone https://github.com/ivanZanardi/pycomet.git
 $ cd pycomet
