@@ -6,12 +6,6 @@
 
 # Physical model: mass-spring-damper dynamics
 # =============================================================================
-params = {
-    'm': 1.,
-    'k': 3.,
-    'c': .5
-}
-
 # Input space (limit values)
 inp_space = {
     'x': [-5., 5.],     # Position [m]
