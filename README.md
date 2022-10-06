@@ -30,14 +30,18 @@ To install PyCOMET with Conda, first create the Conda enviroment by simply typin
 $ git clone https://github.com/ivanZanardi/pycomet.git
 $ cd pycomet
 $ conda env create -f conda/<processor>.env.yml
-$ conda activate pycomet.<processor>
 ```
 where `<processor>` is either `cpu` or `gpu`.
 You can install both enveiroment to better manage your jobs.
 Then, install the pacakge by typing
 ```
+$ conda activate pycomet.<processor>
 $ python setup.py bdist_wheel
 $ pip install dist/*.whl
+```
+Whenever you want to use PyCOMET, activate first the Conda environment:
+```
+$ conda activate pycomet.<processor>
 ```
 
 ### Pip
