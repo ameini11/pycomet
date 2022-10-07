@@ -19,5 +19,5 @@ validation_split = 0.2      # % of Validation pts
 
 # Testing data
 testing = flags['test']
-test_cases = 50             # Number of testing cases
+test_cases = 2             # Number of testing cases
 test_training = True        # Test training cases

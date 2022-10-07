@@ -6,7 +6,7 @@
 
 import tensorflow as tf
 from inputs.general import dim
-from inputs.data import data_src, columns
+from inputs.data import data_src#, columns
 from pycomet.networks.elements import layers as pcm_layers
 
 
@@ -47,7 +47,7 @@ lays_propty = {
             'xform': pcm_layers.Normalization(
                 mu_sigma_file='./saving/normalization_mu_sigma.txt',
                 data_files=list(data_src.values()),
-                columns=columns['x'][0]
+                # columns=columns['x'][0]
             )
         },
         'trunk': {
@@ -55,7 +55,7 @@ lays_propty = {
             'xform': pcm_layers.Normalization(
                 mu_sigma_file='./saving/normalization_1_mu_sigma.txt',
                 data_files=list(data_src.values()),
-                columns=columns['x'][1]
+                # columns=columns['x'][1]
             )
         },
         'T': {
@@ -63,7 +63,7 @@ lays_propty = {
             'xform': pcm_layers.Normalization(
                 mu_sigma_file='./saving/normalization_2_mu_sigma.txt',
                 data_files=list(data_src.values()),
-                columns=columns['x'][2]
+                # columns=columns['x'][2]
             )
         }
     },

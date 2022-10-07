@@ -1,12 +1,16 @@
 import os
+import shutil
 import subprocess
 import numpy as np
 import pandas as pd
+import joblib as jl
 import pycomet as pcm
 import tensorflow as tf
 
-from collections import ChainMap
+from tqdm import tqdm
 from pyDOE import lhs
+from collections import ChainMap
+from silx.io.dictdump import dicttoh5, h5todict
 
 # HyperNet
 import sys
@@ -15,7 +19,7 @@ sys.path.append('/home/zanardi/Codes/TC/HyperNet/hypernet')
 from hypernet.src.general import utils
 thermophysics = utils.get_thermophysics_mod()
 sp_th_mod = thermophysics.specie_thermo
-mix_mod   = thermophysics.reaction_thermo.mixture
+mix_mod = thermophysics.reaction_thermo.mixture
 
 
 class DataGenerator(pcm.data.DataGenerator):
@@ -32,6 +36,7 @@ class DataGenerator(pcm.data.DataGenerator):
         time_limits,
         inp_space,
         specie_thermo,
+        process,
         num_threads=20,
         *args,
         **kwargs
@@ -72,7 +77,7 @@ class DataGenerator(pcm.data.DataGenerator):
         # Physics -------------------------------------------------------------
         # Specie thermodynamics
         self.sp_th = {
-            specie_thermo['specie']['name']: sp_th_mod.specie_thermo.SpecieThermo(
+            sp_th['specie']['name']: sp_th_mod.specie_thermo.SpecieThermo(
                 index=index,
                 process=process,
                 **sp_th
@@ -86,10 +91,7 @@ class DataGenerator(pcm.data.DataGenerator):
         self.box_header = ['t', 'X_O', 'X_O2', 'Th', 'Tv', 'rho', 'p', 'n', 'E']
         self.data_lbl_inp = ['Y_O2', 'rho', 'Th', 'E', 't']
         self.data_lbl_out = ['Y_O2', 'Y_O', 'Th', 'Tv']
-        self.data_lbl = self.data_label_inp + self.data_label_out
-
-        # Loading PLATO -------------------------------------------------------
-        subprocess.run("module load plato", shell=True)
+        self.data_lbl = self.data_lbl_inp + self.data_lbl_out
 
     def get_data_src(
         self
@@ -97,9 +99,7 @@ class DataGenerator(pcm.data.DataGenerator):
         samples = self.sample_inp_space()
         self.data_src.update(self.training_data(samples[0]))
         if self.testing and self.test_cases > 0:
-            self.data_src['test'] = self.testing_data(
-                samples[1], samples_train=samples[0]
-            )
+            self.data_src['test'] = self.testing_data(samples[1], samples[0])
         return self.data_src
 
     # Input space samples
@@ -121,7 +121,7 @@ class DataGenerator(pcm.data.DataGenerator):
         # Returning initial conditions ----------------------------------------
         if self.test_cases > 0:
             idx_train, idx_test = self.stratified_sampling(
-                np.arange(samples), self.test_cases
+                np.arange(n_samples), self.test_cases
             )
             return [samples[idx_train], samples[idx_test]]
         else:
@@ -138,10 +138,10 @@ class DataGenerator(pcm.data.DataGenerator):
             s.update(T)
         self.mix.update(X, var='X')
         # Compute initial solution for PLATO: [X_O, X_O2, Th, Tv, rho, n]
-        rho, n = self.mix._rho(p, T), self.mix._n(p, T)
+        rho, n = self.mix._rho(p, T).numpy(), self.mix._n(p, T).numpy()
         init_sol = np.hstack([np.flip(X, 1), T, rho, n])
-        # Compute input initial conditions for DNN: [Y_O, rho, Th, e]
-        YO2, e = self.sp_th['O'].specie.Y, self.mix._he()
+        # Compute input initial conditions for DNN: [Y_O2, rho, Th, e]
+        YO2, e = self.sp_th['O2'].specie.Y, self.mix._he()
         ics = np.hstack([YO2, rho, Th, e])
         return init_sol, ics
 
@@ -151,7 +151,7 @@ class DataGenerator(pcm.data.DataGenerator):
         self, path, case_num, ic
     ):
         # Create run folder
-        case_id = str(int(case_num)).zfill(6)
+        case_id = str(int(case_num+1)).zfill(6)
         case_path = shutil.copytree(
             path + f'/run.bkp', path + f'/run.{case_id}', dirs_exist_ok=True
         )  
@@ -160,7 +160,12 @@ class DataGenerator(pcm.data.DataGenerator):
         with open("init_sol.dat", "a") as file:
             np.savetxt(file, ic.reshape(1,-1))
         # Run 0D simulation
-        subprocess.run("box input 1", shell=True)
+        subprocess.run(
+            "box input 1",
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT
+        )
         # Read solution
         sol = {case_id: np.loadtxt("output_box/box.dat")}
         # Delete run folder
@@ -168,6 +173,13 @@ class DataGenerator(pcm.data.DataGenerator):
         shutil.rmtree(case_path)
         # Return solution
         return sol
+    
+    def get_output_sol(self, df):
+        X = df[['X_O2', 'X_O']].to_numpy()
+        T = df[['Th', 'Tv']].to_numpy()
+        self.mix.update(X, var='X')
+        Y = np.hstack([self.sp_th[k].specie.Y.numpy() for k in ['O2','O']])
+        return [Y, T]
 
     # Training/Validation data
     ###########################################################################
@@ -176,75 +188,87 @@ class DataGenerator(pcm.data.DataGenerator):
         inp_space_samples
     ):
         # Computing -----------------------------------------------------------
-        init_sol, ics = self.manipulate_inp_space_samples(inp_space_samples)
-        data = ChainMap(
-            jl.Parallel(n_jobs=self.num_threads)(
-                jl.delayed(self.compute_solution)(self.runs_dir, i, isol) \
-                    for i, isol in enumerate(tqdm(init_sol))
+        if not os.path.exists(self.runs_dir + '/data/cases.hdf5'):
+            init_sol, ics = self.manipulate_inp_space_samples(inp_space_samples)
+            cases = dict(ChainMap(*[self.compute_solution(self.runs_dir, i, isol) \
+                for i, isol in enumerate(tqdm(init_sol, ncols=80))]))
+            # data = dict(ChainMap(*
+            #     jl.Parallel(n_jobs=self.num_threads)(
+            #         jl.delayed(self.compute_solution)(self.runs_dir, i, isol) \
+            #             for i, isol in enumerate(tqdm(init_sol, ncols=80))
+            #     )
+            # ))
+            # Saving --------------------------------------------------------------
+            os.makedirs(self.runs_dir + '/data/', exist_ok=True)
+            # Save input space samples
+            pd.DataFrame(inp_space_samples, columns=self.inp_space_lbl).to_csv(
+                self.runs_dir + '/data/inp_space.csv',
+                index=False,
+                float_format='{:e}'.format
             )
-        )
-        # Saving --------------------------------------------------------------
-        os.makedirs(self.runs_dir + '/training/', exist_ok=True)
-        # Save input space samples
-        pd.DataFrame(inp_space_samples, columns=self.inp_space_lbl).to_csv(
-            self.runs_dir + '/training/inp_space.csv',
-            index=False,
-            float_format='{:e}'.format
-        )
-        # Save input initial conditions for DNN
-        pd.DataFrame(ics, columns=self.data_lbl_inp[:-1]).to_csv(
-            self.runs_dir + '/training/ics.csv',
-            index=False,
-            float_format='{:e}'.format
-        )
-        # Save 0D data
-        dicttoh5(
-            treedict=data,
-            h5file=self.runs_dir + '/training/runs.hdf5',
-            overwrite_data=True,
-            create_dataset_args={'compression': "gzip"}
-        )
+            # Save input initial conditions for DNN
+            pd.DataFrame(ics, columns=self.data_lbl_inp[:-1]).to_csv(
+                self.runs_dir + '/data/ics.csv',
+                index=False,
+                float_format='{:e}'.format
+            )
+            # Save 0D data
+            dicttoh5(
+                treedict=cases,
+                h5file=self.runs_dir + '/data/runs.hdf5',
+                overwrite_data=True,
+                create_dataset_args={'compression': "gzip"}
+            )
+        else:
+            cases = h5todict(self.runs_dir + '/data/cases.hdf5')
+            ics = pd.read_csv(self.runs_dir + '/data/ics.csv').to_numpy()
         # Sampling ------------------------------------------------------------
         # Sample 0D data
-        # data = {}
-        # for i, ic in enumerate(ics):
-        #     # Generate data
-        #     data_pts = self.train_pts if (i % 2) == 0 else self.valid_pts
-        #     data_i = self.get_data(ic, data_pts)
-        #     # Collect data
-        #     data_type = 'train' if (i % 2) == 0 else 'valid'
-        #     data = self.stack_data(data, data_i, data_type)
-        # # Save data in a `.csv` file
-        # for data_type in data:
-        #     for data_id in data[data_type]:
-        #         if data[data_type][data_id] is None:
-        #             continue
-        #         path = self.data_dir + data_type + "/"
-        #         if not os.path.exists(path):
-        #             os.makedirs(path)
-        #         _data = np.hstack(tf.nest.flatten(data[data_type][data_id]))
-        #         pd.DataFrame(
-        #             _data, columns=self.data_label[:_data.shape[1]]
-        #         ).to_csv(
-        #             path+data_id+".csv", index=0, float_format='{:e}'.format
-        #         )
-        data = {'train': None, 'valid': None}
+        data = {}
+        for i, case in cases.items():
+            i = int(i)
+            case = pd.DataFrame(case, columns=self.box_header)
+            # Sample single case
+            data_pts = self.train_pts if (i % 2) == 0 else self.valid_pts
+            data_i = self.sample_data(ics[i], case, data_pts)
+            # Stack data
+            data_type = 'train' if (i % 2) == 0 else 'valid'
+            data = self.stack_data(data, data_i, data_type)
+        # Save data in a `.csv` file
+        for data_type in data:
+            for data_id in data[data_type]:
+                if data[data_type][data_id] is None:
+                    continue
+                path = self.data_dir + data_type + "/"
+                if not os.path.exists(path):
+                    os.makedirs(path)
+                _data = np.hstack(tf.nest.flatten(data[data_type][data_id]))
+                pd.DataFrame(
+                    _data, columns=self.data_label[:_data.shape[1]]
+                ).to_csv(
+                    path+data_id+".csv", index=0, float_format='{:e}'.format
+                )
         return data
 
-    def get_data(self, ic, pts):
+    def sample_data(self, ic, df, pts):
         data = {}
+        ic = ic.reshape(1,-1)
+        t_vec = df['t'].to_numpy().reshape(-1,1)
+        out_sol = self.get_output_sol(df)
         for k, n in pts.items():
             if n == 0 or n is None:
                 data[k] = None
             else:
                 if k == 'ics':
-                    u, t = ic.reshape(1,-1), np.zeros((1,1))
-                    data[k] = [[u, t], u]
+                    u, t = ic, np.zeros((1,1))
+                    y = tf.nest.map_structure(lambda x: x[0:1], out_sol)
+                    data[k] = [[u, t], y]
                 else:
+                    idx = self.get_indices(x=t_vec, QoI=out_sol, n_pts=n)
+                    t = t_vec[idx]
                     u = np.tile(ic, (n,1))
-                    t = self.sample_time(n).reshape(-1,1)
                     if k == 'pts':
-                        y = self.solution(ic, t)
+                        y = tf.nest.map_structure(lambda x: x[idx], out_sol)
                         data[k] = [[u, t], y]
                     else:
                         data[k] = [[u, t]]
@@ -263,13 +287,6 @@ class DataGenerator(pcm.data.DataGenerator):
                     data_new[data_id]
                 )
         return data
-    
-    def get_output_data(self, df):
-        X = df[['X_O2', 'X_O']].to_numpy()
-        T = df[['Th', 'Tv']].to_numpy()
-        self.mix.update(X, var='X')
-        Y = np.hstack([self.sp_th[k].specie.Y.numpy() for k in ['O2','O']])
-        return [Y, T]
 
     # Testing data
     ###########################################################################
@@ -280,7 +297,7 @@ class DataGenerator(pcm.data.DataGenerator):
     ):
         path = self.data_dir + '/test/'
         os.makedirs(path, exist_ok=True)
-        # Test underfitting ---------------------------------------------------
+        # Test underfitting -----------------------------------------------
         if self.test_training and inp_space_samples_train is not None:
             assert self.scenarios >= self.test_cases
             idx = self.stratified_sampling(
@@ -290,42 +307,122 @@ class DataGenerator(pcm.data.DataGenerator):
             inp_space_samples_test = np.vstack((
                 inp_space_samples_test, inp_space_samples_train[idx]
             ))
-        # Computing -----------------------------------------------------------
+        # Computing -------------------------------------------------------
         init_sol, ics = self.manipulate_inp_space_samples(
             inp_space_samples_test
         )
-        data = ChainMap(
-            jl.Parallel(n_jobs=self.num_threads)(
-                jl.delayed(self.compute_solution)(self.runs_dir, i, isol) \
-                    for i, isol in enumerate(tqdm(init_sol))
-            )
-        )
-        # Saving --------------------------------------------------------------
-        data = {}
+        data = dict(ChainMap(*[
+            self.compute_solution(self.runs_dir, i, isol) \
+                for i, isol in enumerate(tqdm(init_sol, ncols=80))
+        ]))
+        # data = dict(ChainMap(*
+        #     jl.Parallel(n_jobs=self.num_threads)(
+        #         jl.delayed(self.compute_solution)(self.runs_dir, i, isol) \
+        #             for i, isol in enumerate(tqdm(init_sol, ncols=80))
+        #     )
+        # ))
+        # Saving ----------------------------------------------------------
+        cases = {}
         for i, ic in enumerate(ics):
             df = pd.DataFrame(
-                data[str(int(i)).zfill(6)], columns=self.box_header
+                data[str(int(i+1)).zfill(6)], columns=self.box_header
             )
             u = np.tile(ic, (df.shape[0],1))
             t = df['t'].to_numpy().reshape(-1,1)
-            y = self.get_output_data(df)
-            data['case.' + str(i+1).zfill(3)] = [[u, t], y]
-        # Save data
-        for k, v in data.items():
+            y = self.get_output_sol(df)
+            cases['case.' + str(i+1).zfill(3)] = [[u, t], y]
+        for k, v in cases.items():
             pd.DataFrame(
-                np.hstack(tf.nest.flatten(v)), columns=self.data_label
+                np.hstack(tf.nest.flatten(v)), columns=self.data_lbl
             ).to_csv(
                 path + k + ".csv", index=0, float_format='{:e}'.format
             )
-        return data
+        return cases
 
-    # Util functions
+    # Sampling methods
     ###########################################################################
-    def sample_time(self, pts):
-        t = np.linspace(self.t0, self.t_end, pts+1)[1:]
-        h = (t[1]-t[0])*0.9
-        deltas = (np.random.rand(pts)-0.5) * h
-        return t + deltas
+    def get_indices(self, x, y, n_pts):
+        tree = KDTree(np.c_[x.ravel()])
+        
+        indices = np.arange(len(x))
+        i = {k: np.roll(indices, -1*int(k)) for k in ('-1','+1')}
+        
+        xlog = np.log10(x + 1.e-15)
+        dydx = tf.nest.map_structure(
+            lambda z: (z[i['+1']]-z[i['-1']])/(xlog[i['+1']]-xlog[i['-1']]), y
+        )
+        
+        
+
+        # Get min and max indices ---------------------------------------------
+        idx_min, delta_min = None, 1.e-5
+        while idx_min is None:
+            try:
+                idx_min = np.where(QoI_del > delta_min)[0][ 0]  # Dynamics start-point
+            except:
+                idx_min = None
+                delta_min = delta_min * 0.99
+        idx_max = np.where(QoI_del > 1.e-13)[0][-1]  # Dynamics end-point
+
+        # Define number of pts ------------------------------------------------
+        # Split the number of pts among the 3 different regions of sampling
+        pts_dist = list(
+            map(
+                lambda i: round(list(self.train_split.values())[i]*pts), range(2)
+            )
+        )
+        pts_dist.append(pts - sum(pts_dist))
+
+        # Sampling ------------------------------------------------------------
+        idx = []
+        margin = 5
+        max_val = tree.query([ min(t[idx_max][0]*1.e2, 1.e-2) ], k=1)[1]
+
+        # Initial dynamic region
+        if margin > idx_min:
+            pts_dist[1] += pts_dist[0]
+        elif (idx_min - margin) - margin > pts_dist[1]:
+            idx.append(
+                self.sampling(margin, idx_min - margin, pts_dist[0])
+                # self.sampling(margin, idx_min - margin, t, tree, pts_dist[0])
+            )
+        else:
+            idx.append(list(range(margin, idx_min-margin)))
+            pts_dist[1] += pts_dist[0] - len(idx[-1])
+
+        # Equilibrium region
+        if max_val <= idx_max:
+            pts_dist[1] += pts_dist[2]
+        elif max_val - (idx_max + margin) >= pts_dist[2]:
+            idx.append(
+                self.sampling(idx_max + margin, max_val, pts_dist[2])
+            )
+        else:
+            idx.append(list(range(idx_max+margin, max_val)))
+            pts_dist[1] += pts_dist[2] - len(idx[-1])
+
+        # Stiff nonequilibrium region
+        idx.append(
+            self.sampling(
+                idx_min + margin, idx_max - margin, pts_dist[1]
+            )
+        )
+
+        # Merging indices -----------------------------------------------------
+        idx = np.sort(np.concatenate(idx))
+        _, counts = np.unique(idx, return_counts=True)
+        assert pts == len(counts)
+
+        return idx
+
+    def sampling(self, idx_min, idx_max, pts):
+        '''Get data by sampling t vector.'''
+        diff = idx_max - idx_min
+        if self.distribution == 'random':
+            idx = np.sort(np.random.choice(diff, pts, replace=False)) + idx_min
+        else:
+            idx = self.stratified_sampling(np.arange(diff), pts)[1] + idx_min
+        return idx
 
     def stratified_sampling(self, x, strata):
         '''Stratified sampling.'''

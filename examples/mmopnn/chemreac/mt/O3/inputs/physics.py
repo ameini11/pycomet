@@ -44,3 +44,5 @@ specie_thermo = {
         }
     }
 }
+
+process = ['adiabatic', 'isochoric']
