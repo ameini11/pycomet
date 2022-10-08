@@ -69,6 +69,8 @@ def _extract(array, indices=[], axis=1):
             return array[indices].to_numpy()
         else:
             return np.take(array.to_numpy(), indices, axis=axis)
+    elif isinstance(array, tf.Tensor):
+        return tf.gather(array, indices, axis=axis)
     else:
         return np.take(array, indices, axis=axis)
 

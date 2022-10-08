@@ -1,6 +1,6 @@
 from pycomet.networks.augopnn import AugOpNN
 from pycomet.networks.basenet import BaseNet
-# from pycomet.networks.chemreacnn import ChemReacNN
+from pycomet.networks.chemreacnn import *
 from pycomet.networks.ffnn import FFNN
 from pycomet.networks.flexopnn import FlexOpNN
 # from pycomet.networks.mffnn import MFFNN
@@ -12,7 +12,6 @@ from pycomet.networks.opnn import OpNN
 __all__ = [
     "AugOpNN",
     "BaseNet",
-    # "ChemReacNN",
     "FFNN",
     "FlexOpNN",
     # "MFFNN",

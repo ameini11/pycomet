@@ -20,6 +20,8 @@ class MMOpNN(BaseNet):
         dim,
         lays_name=None,
         lays_propty=None,
+        default_lays_propty=None,
+        not_opt_lays=None,
         *args,
         **kwargs
     ):
@@ -32,28 +34,33 @@ class MMOpNN(BaseNet):
         )
         # Layers --------------------------------------------------------------
         # Default layers
-        self.default_lays_propty = {
-            'input': {
-                'branch': {
-                    'index': 0,
-                    'xform': None
+        self.default_lays_propty = default_lays_propty
+        if self.default_lays_propty is None:
+            self.default_lays_propty = {
+                'input': {
+                    'branch': {
+                        'index': 0,
+                        'xform': None
+                    },
+                    'trunk': {
+                        'index': 1,
+                        'xform': None
+                    }
                 },
-                'trunk': {
-                    'index': 1,
+                'output': {
                     'xform': None
                 }
-            },
-            'output': {
-                'xform': None
             }
-        }
         # Layers names
         if self.lays_name is None:
             self.lays_name = ('input', 'opnns', 'output')
+        self.not_opt_lays = not_opt_lays
+        if self.not_opt_lays is None:
+            self.not_opt_lays = ('opnns',)
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
-            not_opt=('opnns',),
+            not_opt=self.not_opt_lays,
             default=self.default_lays_propty
         )
         # Initializing
