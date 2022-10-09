@@ -1,3 +1,4 @@
+import os
 import sys
 import inspect
 import importlib
@@ -13,6 +14,14 @@ def import_matplotlib():
     from matplotlib import pyplot
     pyplot.style.use(cfg._MPL['style'])
     return matplotlib, pyplot
+
+def add_package_path(packages={}):
+    for name, path in packages.items():
+        if importlib.util.find_spec(name) is None:
+            try:
+                sys.path.append(os.path.abspath(path))
+            except:
+                continue
 
 # Modules ---------------------------------------------------------------------
 def reload_mod(mod_names=[]):

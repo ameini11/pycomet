@@ -13,12 +13,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-# TensorFlow ------------------------------------------------------------------
 import os
-from pycomet.config import _TF
+from pycomet import utils
+from pycomet import config as cfg
+
+# TensorFlow ------------------------------------------------------------------
 
 # Setting verbosity level
-os.environ.update(_TF['env'])
+os.environ.update(cfg._TF['env'])
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 import absl.logging
@@ -27,8 +29,11 @@ absl.logging.set_verbosity(absl.logging.ERROR)
 from tensorflow.python.keras import backend as be_py
 from tensorflow.keras import backend as be_ke
 for k in (be_py, be_ke):
-    k.set_floatx(_TF['setup']['FLOATX'])
-    k.set_epsilon(_TF['setup']['EPSILON'])
+    k.set_floatx(cfg._TF['setup']['FLOATX'])
+    k.set_epsilon(cfg._TF['setup']['EPSILON'])
+
+# Custom packages -------------------------------------------------------------
+utils.add_package_path(cfg._CUSTOMS_PKG)
 
 # PyCOMET ---------------------------------------------------------------------
 __author__  = "Ivan Zanardi"

@@ -48,6 +48,26 @@ def unpack_list(data, n_elem=3):
             "The number of elements in the container "
             "has to be less or equal than 'n_elem'."
         )
+    
+def extract_data(container, indices=None, axis=1):
+    if indices is not None:
+        if isinstance(container, (list, tuple)):
+            if not isinstance(indices, dict):
+                utils.raise_value_err(
+                    "With container as `list`/`tuple`, the indices "
+                    "must be a `dict` with keys-values as integers."
+                )
+            k = list(indices.keys())[0]
+            return extract_data(container[k], indices[k], axis)
+        elif isinstance(container, (np.ndarray, tf.Tensor)):
+            return extract_data_from_array(container, indices, axis)
+        else:
+            utils.raise_value_err(
+                "Container not valid. Valid options: "
+                "[`np.ndarray`, `tf.Tensor`] or `list`/`tuple` of them."
+            )
+    else:
+        return container
 
 def extract_data_from_array(array, indices=None, axis=1):
     if indices is None:
@@ -84,26 +104,6 @@ def _extract(array, indices=[], axis=1):
 #             return [np.take(array, c, axis=axis) for c in indices]
 #         else:
 #             return np.take(array, indices, axis=axis)
-
-def extract_data(container, indices=None, axis=1):
-    if indices is not None:
-        if not isinstance(indices, (dict, int)):
-            utils.raise_value_err(
-                "Indices not valid. It has to be a `int` or a "
-                "`dict` with keys-values as integers."
-            )
-        if isinstance(container, (list, tuple)):
-            k = list(indices.keys())[0]
-            return extract_data(container[k], indices[k], axis)
-        if isinstance(container, (np.ndarray, tf.Tensor)):
-            return extract_data_from_array(container, indices, axis)
-        else:
-            utils.raise_value_err(
-                "Container not valid. Valid options: "
-                "[`np.ndarray`, `tf.Tensor`] or `list`/`tuple` of them."
-            )
-    else:
-        return container
 
 def remove_elem_from_struct(data, elem=None):
     if isinstance(data, dict):

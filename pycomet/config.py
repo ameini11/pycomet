@@ -40,6 +40,11 @@ _TF = {
     }
 }
 
+# Custom packages -------------------------------------------------------------
+_CUSTOMS_PKG = {
+    'hypernet': '/home/zanardi/Codes/TC/HyperNet/hypernet'
+}
+
 # Matplotlib ------------------------------------------------------------------
 _MPL = {
     'style': 'default'
