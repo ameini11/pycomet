@@ -42,13 +42,13 @@ _TF = {
 
 # Custom packages -------------------------------------------------------------
 _CUSTOMS_PKG = {
-    'hypernet': '/home/zanardi/Codes/TC/HyperNet/hypernet'
+    'hypernet': '/home/geek/Codes/TC/HyperNet/hypernet/'
 }
 
 # Matplotlib ------------------------------------------------------------------
 _MPL = {
     'style': 'default'
-    # 'style': paths.Workspace + '/Research/styles/matplotlib/paper_1column_venturi.mplstyle'
+    # 'style': '/home/zanardi/Workspace/Research/styles/matplotlib/paper_1column_venturi.mplstyle'
 }
 
 # Standard output -------------------------------------------------------------
