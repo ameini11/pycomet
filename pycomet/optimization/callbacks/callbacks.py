@@ -3,6 +3,7 @@ import tensorflow.python.keras.callbacks as cb
 
 from pycomet.optimization.callbacks import early_stopping
 from pycomet.optimization.callbacks import learning_rate
+from pycomet.optimization.callbacks import model_ckpt
 from pycomet.optimization.callbacks import plotting
 from pycomet.optimization.callbacks import variable
 from pycomet.optimization.callbacks import weighted_loss
@@ -45,7 +46,7 @@ def get_callback(model, identifier, kwargs):
                 kwargs['save_weights_only'] = True if k == 'weights' else False
                 suffix = f"{k}.h5" if k == 'weights' else k
                 kwargs['filepath'] = prefix + suffix
-                mc.append(cb.ModelCheckpoint(**kwargs))
+                mc.append(model_ckpt.ModelCheckpoint(**kwargs))
             return mc
         elif identifier == "tensorboard":
             return cb.TensorBoard(**kwargs, log_dir=model.dir['logs'])

@@ -347,7 +347,7 @@ class Log(tf_layers.Layer):
     def __init__(
         self,
         base=10.,
-        slope=1.,
+        slope=0.,
         offset=1.,
         **kwargs
     ):
@@ -383,7 +383,7 @@ class Log(tf_layers.Layer):
                 name=name,
                 dtype=backend.floatx(),
                 initializer=initializers.Constant(value=w),
-                trainable=self.trainable
+                trainable=False
             )
         self.built = True
 

@@ -396,6 +396,7 @@ class Model(object):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
         # Save model in 'SavedModel' format
+        utils.print_fn("SavedModel format", lev=1)
         try:
             # Save model in 'SavedModel' format
             self.net.save(
@@ -412,6 +413,7 @@ class Model(object):
                 "Unable to save the full model in TensorFlow " \
                 "`SavedModel` format. Check custom layers/models"
             )
+        # Save model in 'TFLite' format
         if lite:
             if cfg._TF['setup']['FLOATX'] == 'float64':
                 utils.warning(
@@ -421,6 +423,7 @@ class Model(object):
                     "'_TF{'setup'}{'FLOATX'}' variable in pycomet/config.py."
                 )
             else:
+                utils.print_fn("TFLite format", lev=1)
                 try:
                     # 'TFLite' format
                     converter = tf.lite.TFLiteConverter.from_saved_model(

@@ -90,5 +90,5 @@ class FlexOpNN(OpNN):
         y = super(FlexOpNN, self)._tensor_product(G_u, G_y)
         return [
             tf_layers.Add()([c[i], tf_layers.Multiply()([d[i], y[i]])]) \
-                for i in range(self.outputs_dim)
+                for i in range(self.max_num_blocks)
         ]

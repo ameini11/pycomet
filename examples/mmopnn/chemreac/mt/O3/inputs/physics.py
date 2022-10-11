@@ -13,9 +13,6 @@ inp_space = {
     'Tv':  [ 200.,  20000.],
     'p':   [1000., 100000.]
 }
-
-# Time limits
-time_limits = [0., 1.e-1]
         
 # Thermodynamics - HyperNet code & database
 specie_thermo = {
@@ -46,3 +43,5 @@ specie_thermo = {
 }
 
 process = ['adiabatic', 'isochoric']
+
+use_norm_energy = True

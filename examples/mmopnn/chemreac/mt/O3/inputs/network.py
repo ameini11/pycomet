@@ -4,10 +4,12 @@
 # --------------------------------------------------------------------------- #
 
 
+import numpy as np
 import tensorflow as tf
+
 from inputs.general import dim
 from inputs.data import data_src, columns
-from inputs.physics import specie_thermo, process
+# from inputs.physics import specie_thermo, process
 from pycomet.networks.elements import layers as pcm_layers
 
 
@@ -40,13 +42,15 @@ lays_propty = {
             'index': 0,
             'xform': pcm_layers.Normalization(
                 mu_sigma_file='./saving/normalization_mu_sigma.txt',
-                data_files=list(data_src.values()),
-                columns=columns['x'][0]
+                data_files=[data_src[k]['ics'] for k in ('train','valid')],
+                columns=[0,1,2,3]
             )
         },
         'trunk': {
             'index': 1,
-            'xform': pcm_layers.Log()
+            'xform': pcm_layers.Log(
+                base='e', slope=np.log(1.e-7), offset=1.e-14
+            )
         }
     },
 
@@ -97,14 +101,14 @@ lays_propty = {
         } for name in ('mass', 'temp')
     },
 
-    'output': {
-        'lay_id': 'TwoTempThermoLay',
-        'kwargs': {
-            'process': process,
-            'specie_thermo': specie_thermo,
-            'out_indices': {'Y': {0: [0,1]}, 'T': {1: [0,1]}},
-            'inp_indices': {'e': {0: -1}}
-        }
-    }
+    # 'output': {
+    #     'lay_id': 'TwoTempThermoLay',
+    #     'kwargs': {
+    #         'process': process,
+    #         'specie_thermo': specie_thermo,
+    #         'out_indices': {'Y': {0: [0,1]}, 'T': {1: [0,1]}},
+    #         'inp_indices': {'e': {0: -1}}
+    #     }
+    # }
 
 }

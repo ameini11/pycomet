@@ -10,6 +10,7 @@ from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import networks
 from pycomet import utils
+from varname import nameof
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='Net')
@@ -100,43 +101,49 @@ class Net(tf.keras.Model):
             # Check loss functions and weights
             for arg in (loss, loss_weights):
                 self.check_arg(arg)
-            # Other preliminary operations
             base_layer.keras_api_gauge.get_cell('compile').set(True)
-            from_serialized = kwargs.pop('from_serialized', False)
-            self._validate_compile(optimizer, metrics, **kwargs)
-            self._run_eagerly = run_eagerly
-            # Get optimizer
-            self.optimizer = self._get_optimizer(optimizer)
-            # Build loss containers
-            self.compiled_loss = {}
-            for obj in self.objectives['train']:
-                self.compiled_loss[obj] = compile_utils.LossesContainer(
-                    loss[obj] if loss else None,
-                    loss_weights[obj] if loss_weights else None
+            with self.distribute_strategy.scope():
+                # Other preliminary operations
+                from_serialized = kwargs.pop('from_serialized', False)
+                self._validate_compile(optimizer, metrics, **kwargs)
+                self._run_eagerly = run_eagerly
+                # Get optimizer
+                self.optimizer = self._get_optimizer(optimizer)
+                # Build loss containers
+                self.compiled_loss = {}
+                for obj in self.objectives['train']:
+                    self.compiled_loss[obj] = compile_utils.LossesContainer(
+                        loss[obj] if loss else None,
+                        loss_weights[obj] if loss_weights else None
+                    )
+                    self.compiled_loss[obj]._loss_metric = metrics_mod.Mean(
+                        name=obj + '_loss', dtype=backend.floatx()
+                    )
+                # Build metrics container
+                if metrics is not None:
+                    utils.warning(
+                        "Metrics evaluation is not available "
+                        "with multi-objective loss function."
+                    )
+                self.compiled_metrics = compile_utils.MetricsContainer(
+                    metrics=None,
+                    weighted_metrics=None,
+                    output_names=self.output_names,
+                    from_serialized=from_serialized,
                 )
-                self.compiled_loss[obj]._loss_metric = metrics_mod.Mean(
-                    name=obj + '_loss', dtype=backend.floatx()
-                )
-            # Build metrics container
-            if metrics is not None:
-                utils.warning(
-                    "Metrics evaluation is not available "
-                    "with multi-objective loss function."
-                )
-            self.compiled_metrics = None
-            # Steps per execution
-            self._configure_steps_per_execution(steps_per_execution or 1)
-            # Initializes attrs that are reset each time `compile` is called.
-            self._reset_compile_cache()
-            self._is_compiled = True
-            self.loss = loss or {}
-            if (self._run_eagerly or self.dynamic) and jit_compile:
-                utils.raise_value_err(
-                    'You cannot enable `run_eagerly` and `jit_compile` '
-                    'at the same time.'
-                )
-            else:
-                self._jit_compile = jit_compile
+                # Steps per execution
+                self._configure_steps_per_execution(steps_per_execution or 1)
+                # Initializes attrs that are reset each time `compile` is called.
+                self._reset_compile_cache()
+                self._is_compiled = True
+                self.loss = loss or {}
+                if (self._run_eagerly or self.dynamic) and jit_compile:
+                    utils.raise_value_err(
+                        'You cannot enable `run_eagerly` and `jit_compile` '
+                        'at the same time.'
+                    )
+                else:
+                    self._jit_compile = jit_compile
         else:
             return super(Net, self).compile(
                 optimizer=optimizer,
@@ -149,7 +156,7 @@ class Net(tf.keras.Model):
                 jit_compile=jit_compile,
                 **kwargs
             )
-
+        
     def check_arg(self, arg):
         if arg is not None and not isinstance(arg, dict):
             utils.raise_value_err(

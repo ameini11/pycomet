@@ -73,6 +73,7 @@ class OpNN(BaseNet):
         self.active_lays = self.init_layers()
         self.n_branches = len(self.active_lays['branch'])
         self.n_trunks = len(self.active_lays['trunk'])
+        self.max_num_blocks = max(self.n_branches, self.n_trunks)
 
     # Layers initialization
     ###########################################################################
@@ -130,7 +131,7 @@ class OpNN(BaseNet):
             return pcm_layers.Bias(**propty['kwargs'], name=identifier)
         elif propty['lay_id'] == 'dense':
             return tf_layers.Dense(
-                **propty['kwargs'], units=self.outputs_dim, name=identifier
+                **propty['kwargs'], units=self.max_num_blocks, name=identifier
             )
         elif propty['lay_id'] is None:
             return None
@@ -204,17 +205,17 @@ class OpNN(BaseNet):
         return G_u, G_y
 
     def _tensor_product(self, G_u, G_y):
-        if self.outputs_dim > 1:
+        if self.max_num_blocks > 1:
             if self.n_branches > self.n_trunks:
                 G_y = [G_y[-1]] * self.n_branches
             elif self.n_branches < self.n_trunks:
                 G_u = [G_u[-1]] * self.n_branches
             elif self.n_branches == self.n_trunks == 1:
-                G_u = tf.split(G_u[-1], self.outputs_dim, axis=1)
-                G_y = tf.split(G_y[-1], self.outputs_dim, axis=1)
+                G_u = tf.split(G_u[-1], self.max_num_blocks, axis=1)
+                G_y = tf.split(G_y[-1], self.max_num_blocks, axis=1)
         return [
             tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) \
-                for i in range(self.outputs_dim)
+                for i in range(self.max_num_blocks)
         ]
 
     def _manipulate_output(self, x, y, training):

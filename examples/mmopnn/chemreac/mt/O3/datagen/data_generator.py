@@ -14,9 +14,6 @@ from scipy.spatial import KDTree
 from silx.io.dictdump import dicttoh5, h5todict
 
 # HyperNet
-import sys
-sys.path.append('/home/zanardi/Codes/TC/HyperNet/hypernet')
-
 from hypernet.src.general import utils
 thermophysics = utils.get_thermophysics_mod()
 sp_th_mod = thermophysics.specie_thermo
@@ -34,12 +31,12 @@ class DataGenerator(pcm.data.DataGenerator):
         test_cases,
         testing,
         test_training,
-        time_limits,
         inp_space,
         specie_thermo,
         process,
         num_threads=20,
         sampling_method='source',
+        use_norm_energy=False,
         *args,
         **kwargs
     ):
@@ -76,9 +73,11 @@ class DataGenerator(pcm.data.DataGenerator):
         self.sampling_method = sampling_method
 
         # Input Space Variables -----------------------------------------------
-        self.time_limits = time_limits
         self.inp_space = np.vstack(list(inp_space.values())).T
         self.inp_space_lbl = list(inp_space.keys())
+
+        # Output Space Variables ----------------------------------------------
+        self.use_norm_energy = use_norm_energy
 
         # Physics -------------------------------------------------------------
         # Specie thermodynamics
@@ -96,7 +95,11 @@ class DataGenerator(pcm.data.DataGenerator):
         # Labeling Data -------------------------------------------------------
         self.box_header = ['t', 'X_O', 'X_O2', 'Th', 'Tv', 'rho', 'p', 'n', 'E']
         self.data_lbl_inp = ['Y_O2', 'rho', 'Th', 'E', 't']
-        self.data_lbl_out = ['Y_O2', 'Y_O', 'Th', 'Tv']
+        self.data_lbl_out = ['Y_O2', 'Y_O']
+        if self.use_norm_energy:
+            self.data_lbl_out = self.data_lbl_out + ['e_tr', 'e_v']
+        else:
+            self.data_lbl_out = self.data_lbl_out + ['Th', 'Tv']
         self.data_lbl = self.data_lbl_inp + self.data_lbl_out
 
     def get_data_src(
@@ -154,7 +157,7 @@ class DataGenerator(pcm.data.DataGenerator):
     ###########################################################################
     def compute_solutions(self, path, inp_space_samples):
         os.makedirs(path, exist_ok=True)
-        if not os.path.exists(self.runs_dir + '/data/cases.hdf5'):
+        if not os.path.exists(path + '/cases.hdf5'):
             init_sol, ics = self.manipulate_inp_space_samples(inp_space_samples)
             cases = dict(ChainMap(*[self.compute_solution(self.runs_dir, i, isol) \
                 for i, isol in enumerate(tqdm(init_sol, ncols=80))]))
@@ -186,8 +189,8 @@ class DataGenerator(pcm.data.DataGenerator):
                 create_dataset_args={'compression': "gzip"}
             )
         else:
-            cases = h5todict(path_to_runs + '/cases.hdf5')
-            ics = pd.read_csv(path_to_runs + '/ics.csv').to_numpy()
+            cases = h5todict(path + '/cases.hdf5')
+            ics = pd.read_csv(path + '/ics.csv').to_numpy()
         return ics, cases
 
     def compute_solution(
@@ -242,8 +245,21 @@ class DataGenerator(pcm.data.DataGenerator):
             ert = ert + s.thermo.e_tr*s.specie.Y
             if k == 'O2':
                 ert = ert + s.thermo.th_int.rr.e*s.specie.Y
-        # Total energy
-        return np.hstack([ert.numpy(), ev.numpy()])/(e-ef)
+        # Normalized energies
+        norm_e = tf.concat([ert, ev], axis=1)/(e-ef)
+        return norm_e.numpy()
+
+    def extract_physical_var(self, df):
+        # Extract physical variables
+        X = df[['X_O2', 'X_O']].to_numpy()
+        T = df[['Th', 'Tv']].to_numpy()
+        t = df['t'].to_numpy().reshape(-1,1)
+        # Update thermodynamics
+        self.update_thermo(X, T)
+        # Compute needed physical variables
+        Y = np.hstack([self.sp_th[k].specie.Y.numpy() for k in ['O2','O']])
+        e = self.get_norm_energies()
+        return t, Y, T, e
 
     # Training/Validation data
     ###########################################################################
@@ -252,8 +268,9 @@ class DataGenerator(pcm.data.DataGenerator):
         inp_space_samples
     ):
         # Computing -----------------------------------------------------------
-        path_to_runs = self.runs_dir + '/data/train_valid/'
-        ics, cases = self.compute_solutions(path_to_runs, inp_space_samples)
+        ics, cases = self.compute_solutions(
+            self.runs_dir+'/data/train_valid/', inp_space_samples
+        )
         # Sampling ------------------------------------------------------------
         # Sample 0D data
         data = {}
@@ -286,14 +303,9 @@ class DataGenerator(pcm.data.DataGenerator):
     def sample_data(self, ic, df, pts):
         data = {}
         # Extract physical variables
-        X = df[['X_O2', 'X_O']].to_numpy()
-        T = df[['Th', 'Tv']].to_numpy()
-        t = df['t'].to_numpy().reshape(-1,1)
-        # Update thermodynamics
-        self.update_thermo(X, T)
-        # Compute needed physical variables
-        Y = np.hstack([self.sp_th[k].specie.Y.numpy() for k in ['O2','O']])
-        e = self.get_norm_energies()
+        t, Y, T, e = self.extract_physical_var(df)
+        # Compose output data
+        y = [Y, e] if self.use_norm_energy else [Y, T]
         # Sample indices
         for k, n in pts.items():
             if n == 0 or n is None:
@@ -301,7 +313,7 @@ class DataGenerator(pcm.data.DataGenerator):
             else:
                 if k == 'ics':
                     uk, tk = ic.reshape(1,-1), np.zeros((1,1))
-                    yk = tf.nest.map_structure(lambda x: x[0:1], [Y, T])
+                    yk = tf.nest.map_structure(lambda z: z[0:1], y)
                     data[k] = [[uk, tk], yk]
                 else:
                     idx = self.sample_indices(
@@ -313,7 +325,7 @@ class DataGenerator(pcm.data.DataGenerator):
                     tk = t[idx]
                     uk = np.tile(ic, (n,1))
                     if k == 'pts':
-                        yk = tf.nest.map_structure(lambda x: x[idx], [Y, T])
+                        yk = tf.nest.map_structure(lambda z: z[idx], y)
                         data[k] = [[uk, tk], yk]
                     else:
                         data[k] = [[uk, tk]]
@@ -351,11 +363,10 @@ class DataGenerator(pcm.data.DataGenerator):
                 inp_space_samples_test, inp_space_samples_train[idx]
             ))
         # Computing -----------------------------------------------------------
-        path_to_runs = self.runs_dir + '/data/test/'
         ics, cases = self.compute_solutions(
-            path_to_runs, inp_space_samples_test
+            self.runs_dir+'/data/test/', inp_space_samples_test
         )
-        # Saving ----------------------------------------------------------
+        # Saving --------------------------------------------------------------
         path = self.data_dir + '/test/'
         os.makedirs(path, exist_ok=True)
         data = {}
@@ -364,16 +375,11 @@ class DataGenerator(pcm.data.DataGenerator):
                 cases[str(int(i+1)).zfill(6)], columns=self.box_header
             )
             # Extract physical variables
-            X = df[['X_O2', 'X_O']].to_numpy()
-            T = df[['Th', 'Tv']].to_numpy()
-            # Update thermodynamics
-            self.update_thermo(X, T)
-            # Compute needed physical variables
-            Y = np.hstack([self.sp_th[k].specie.Y.numpy() for k in ['O2','O']])
+            t, Y, T, e = self.extract_physical_var(df)
             # Compose inputs/outputs
             u = np.tile(ic, (df.shape[0],1))
             t = df['t'].to_numpy().reshape(-1,1)
-            y = [Y, T]
+            y = [Y, e] if self.use_norm_energy else [Y, T]
             data['case.' + str(i+1).zfill(3)] = [[u, t], y]
         for k, v in data.items():
             pd.DataFrame(

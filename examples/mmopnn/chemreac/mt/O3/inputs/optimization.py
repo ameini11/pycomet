@@ -6,7 +6,7 @@
 
 # Training
 # =============================================================================
-epochs = 2000
+epochs = 2 #10000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -17,9 +17,13 @@ decay = ["exponential", decay_steps, decay_rate]
 
 # Loss & Metrics
 # =============================================================================
-axis = 0
-reduction = 'auto'
-loss = 'mape'    
+axis = 0 # -1 0 None
+reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
+loss = {
+    'ics': 'malpe',
+    'pts': 'malpe',
+    'res': 'mae'
+}
 
 ## Callbacks
 # =============================================================================
