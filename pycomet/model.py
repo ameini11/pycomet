@@ -27,16 +27,11 @@ class Model(object):
         net=None,
         name='model',
         path='./',
-        save_path=None
+        save_format=['tf', 'tflite']
     ):
         self.name = name
         self.data = data
         self.net  = net
-
-        # Attributes for handling multi-objective loss
-        self.multi_obj_loss_attrs = (
-            'multi_obj_loss', 'objectives', 'obj_pred_fn'
-        )
 
         # Attributes for optimization
         self.optimizer = None
@@ -59,13 +54,12 @@ class Model(object):
             'logs': self.path + "/training/logs/"
         }
         for d in self.dir.values():
-            if not os.path.exists(d):
-                os.makedirs(d)
+            os.makedirs(d, exist_ok=True)
 
         # Define saving format
+        self.save_format = save_format
         self.save_path = self.dir['save'] + self.name
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
+        os.makedirs(self.save_path, exist_ok=True)
 
     # Building Model
     ###########################################################################
@@ -120,6 +114,8 @@ class Model(object):
                 expand_nested=True,
                 print_fn=lambda x: f.write(x + '\n')
             )
+        with open(self.save_path + '/model_config.txt', 'w') as f:
+            self.net.print_config(stream=f)
         if verbose:
             _netron_started = False
             if visualize_graph:
@@ -170,11 +166,12 @@ class Model(object):
                 os.listdir(self.dir['ckpt']),
                 key=lambda x: int(x.split('.')[0]) if 'weights' in x else -1
             )
+            print(last_ckpt)
             if last_ckpt:
+                path = os.path.abspath(self.dir['ckpt'] + "/" + last_ckpt)
                 utils.print_fn(
                     f"Restoring network from checkpoint '{path}'", lev=1
                 )
-                path = os.path.abspath(self.dir['ckpt'] + "/" + last_ckpt)
             else:
                 utils.print_fn(
                     "No checkpoints available: making a new network", lev=1

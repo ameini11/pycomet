@@ -63,6 +63,7 @@ def _data(
     # Get data sources --------------------------------------------------------
     data_gen = None
     if inputs_mod.from_file:
+        utils.print_fn("Reading data from file ...")
         data_src = inputs_mod.data_src
     else:
         utils.print_fn("Generating data with 'DataGenerator' ...")

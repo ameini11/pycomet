@@ -80,7 +80,7 @@ class Data(object):
             else:
                 self.columns = columns
             # Check array preprocessing functions
-            if preproc_fn is None or isinstance(preproc_fn, callable):
+            if preproc_fn is None or callable(preproc_fn):
                 self.preproc_fn = tf.nest.map_structure(
                     lambda _: preproc_fn, self.data_src
                 )
