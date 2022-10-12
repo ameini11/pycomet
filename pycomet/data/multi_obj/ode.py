@@ -100,12 +100,20 @@ class ODE(MultiObjData):
 
         # ODE properties
         self.xde = xde
-        self.grads = Gradients()
-        self.obj_pred_fn['res'] = self.residual
 
     # Building Data
     ###########################################################################
-    def build(self, model=None):
+    def build(self, model):
+        # Initialize gradients object
+        grads = Gradients()
+        # Compile residual function
+        self.obj_pred_fn['res'] = tf.function(
+            func=self.make_residual_fun(model, self.xde, grads),
+            autograph=True,
+            jit_compile=True,
+            reduce_retracing=True
+        )
+        # Build data structures
         if self.training:
             self.train.build(model)
             if self.valid is not None:
@@ -114,13 +122,10 @@ class ODE(MultiObjData):
 
     # Handling Residual Loss
     ###########################################################################
-    @tf.function()
-    def residual(self, inputs, training=True):
-        
-        # Evaluate model outputs
-        outputs = self.net.call(inputs, training=training)
-        
-        # Evaluate residual
-        res = self.xde(x=inputs, y=outputs, grads=self.grads)
-
-        return res
+    def make_residual_fun(self, model, xde, grads):
+        def residual(inputs, training=True):
+            # Evaluate model outputs
+            outputs = model(inputs, training=training)
+            # Evaluate residual
+            return xde(x=inputs, y=outputs, grads=grads)
+        return residual

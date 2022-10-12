@@ -51,8 +51,6 @@ class MultiObjData(Data):
 
         # Attributes for physics-informed loss --------------------------------
         self.physics_informed = physics_informed
-        # Network
-        self.net = None
 
     # Handling Data
     ###########################################################################

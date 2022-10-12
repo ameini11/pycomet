@@ -100,7 +100,7 @@ class MultiObjSequence(keras.utils.Sequence):
             y_pred = model.multi_obj_pred(
                 x=tf.nest.map_structure(
                     lambda d: tf.random.normal((1, d), dtype=backend.floatx()),
-                    model.inputs_dim
+                    model.input_dim
                 ),
                 objective=obj,
                 training=False

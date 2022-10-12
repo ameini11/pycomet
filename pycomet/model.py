@@ -95,11 +95,10 @@ class Model(object):
         if self.data is not None and self.data.multi_obj_loss:
             for attr in self.multi_obj_loss_attrs:
                 setattr(self.net, attr, getattr(self.data, attr))
-            self.data.net = self.net
 
         # Build data structures -----------------------------------------------
         if self.data is not None and not self.data.built:
-            self.data.build(self.net)
+            self.data.build(model=self.net)
 
         # Visualize network graph ---------------------------------------------
         self.visualize_graph(inputs, outputs, verbose, visualize_graph)

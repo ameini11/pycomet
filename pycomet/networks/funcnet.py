@@ -41,13 +41,26 @@ class FuncNet(Functional):
         self.weighted_loss = None
     
     @property
-    def inputs_dim(self):
+    def input_dim(self):
         return ops.get_struct_shape(self.input, axis=1)
 
     @property
-    def outputs_dim(self):
+    def output_dim(self):
         return ops.get_struct_shape(self.output, axis=1)
-    
+
+    @property
+    def input_signature(self):
+        return self.get_signature(self.input)
+
+    @property
+    def output_signature(self):
+        return self.get_signature(self.output)
+
+    def get_signature(self, x):
+        return utils.squeeze_list([
+            tf.TensorSpec(i.shape, dtype=i.dtype) for i in tf.nest.flatten(x)
+        ])
+
     # Compiling
     ###########################################################################
     @traceback_utils.filter_traceback
