@@ -1,8 +1,5 @@
-import tensorflow as tf
-
 from keras import layers as tf_layers
 from pycomet.networks import elements as nn_elem
-from pycomet import config as cfg
 from pycomet import utils
 
 
@@ -40,6 +37,48 @@ class BaseNet(object):
         self.lays_name = lays_name
         self.lays_propty = lays_propty
         self.active_lays = {}
+
+        # Default layers
+        self.default_lays_propty = {
+            'input': {
+                'xform': None
+            },
+            'output': {
+                'xform': None
+            }
+        }
+
+    # Layers initialization
+    ###########################################################################
+    def init_inout_lay(self, propty):
+        _propty = {}
+        for k in ('xform',):
+            if k in propty and propty[k] is not None:
+                _propty[k] = self.get_lay(
+                    propty=propty[k], default_lay_id='Lambda'
+                )
+            else:
+                _propty[k] = None
+        return _propty
+
+    # Calling
+    ###########################################################################
+    def __call__(self, x, training=None):
+        return self.call(x, training)
+    
+    def call(self, x, training=None):
+        return x
+        
+    def _manipulate_inout(
+        self, x=None, y=None, identifier=None, training=False
+    ):
+        lay = self.active_lays[identifier]['xform']
+        if lay is not None:
+            if 'iolambda' in lay.name.lower():
+                y = lay(x=x, y=y, training=training)
+            else:
+                y = lay(y, training=training)
+        return y
 
     # Handling layers
     ###########################################################################

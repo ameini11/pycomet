@@ -1,9 +1,7 @@
 import numpy as np
-import tensorflow as tf
 
 from pycomet.networks import elements as nn_elem
 from pycomet.networks.opnn import OpNN
-from pycomet import config as cfg
 from pycomet import utils
 
 

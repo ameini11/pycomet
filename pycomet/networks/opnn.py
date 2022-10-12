@@ -1,11 +1,8 @@
-import types
 import numpy as np
-import tensorflow as tf
 
 from keras import layers as tf_layers
 from pycomet.networks import elements as nn_elem
 from pycomet.networks.basenet import BaseNet
-from pycomet import config as cfg
 from pycomet import utils
 
 
@@ -73,6 +70,7 @@ class OpNN(BaseNet):
         self.n_branches = len(self.active_lays['branch'])
         self.n_trunks = len(self.active_lays['trunk'])
         self.max_num_blocks = max(self.n_branches, self.n_trunks)
+        self.split_args = dict(num_or_size_splits=self.max_num_blocks, axis=1)
 
     # Layers initialization
     ###########################################################################
@@ -86,7 +84,7 @@ class OpNN(BaseNet):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_output_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -139,17 +137,6 @@ class OpNN(BaseNet):
                 propty['units'] = self.max_num_blocks
             return self.get_lay(propty)
 
-    def init_output_lay(self, identifier, propty):
-        _propty = {}
-        for k in ('xform',):
-            if k in propty and propty[k] is not None:
-                _propty[k] = self.get_lay(
-                    propty=propty[k], default_lay_id='IOLambda'
-                )
-            else:
-                _propty[k] = None
-        return _propty
-
     # Calling
     ###########################################################################
     def call(self, x, training=None):
@@ -193,8 +180,8 @@ class OpNN(BaseNet):
             elif self.n_branches < self.n_trunks:
                 G_u = [G_u[-1]] * self.n_branches
             elif self.n_branches == self.n_trunks == 1:
-                G_u = tf.split(G_u[-1], self.max_num_blocks, axis=1)
-                G_y = tf.split(G_y[-1], self.max_num_blocks, axis=1)
+                G_u = nn_elem.Split(**self.split_args)(G_u[-1])
+                G_y = nn_elem.Split(**self.split_args)(G_y[-1])
         return [
             tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) \
                 for i in range(self.max_num_blocks)
@@ -208,10 +195,7 @@ class OpNN(BaseNet):
         if self.active_lays['end_scale'] is not None:
             y = self.active_lays['end_scale'](y)
         # Transformation
-        out_lay = self.active_lays['output']['xform']
-        if out_lay is not None:
-            if 'iolambda' in out_lay.name.lower():
-                y = out_lay(x=x, y=y, training=training)
-            else:
-                y = out_lay(y, training=training)
-        return y
+        return super(OpNN, self)._manipulate_inout(
+            x=x, y=y, identifier='output', training=training
+        )
+            

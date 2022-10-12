@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
+from pycomet.networks import elements as nn_elem
 from pycomet.networks.flexopnn import FlexOpNN
-from pycomet import config as cfg
 from pycomet import utils
 
 
@@ -30,17 +30,17 @@ class MIONet(FlexOpNN):
             k: len(br) for k, br in self.active_lays['branch'].items()
         }
         self.n_trunks = {
-            k: len(tf) for k, tf in self.active_lays['trunk'].items()
+            k: len(tr) for k, tr in self.active_lays['trunk'].items()
         }
         # Check number of blocks available
         n_blocks = np.array(
             tf.nest.flatten({**self.n_branches, **self.n_trunks})
         )
-        conds = {
+        conditions = {
             1: np.all((n_blocks == self.outputs_dim) + (n_blocks == 1)),
             2: self.outputs_dim == np.amax(n_blocks)
         }
-        if not conds[1] or not conds[2]:
+        if not conditions[1] or not conditions[2]:
             utils.raise_value_err(
                 "The number of blocks for each available kernel layer has to "
                 "be equal to 1 or the number of outputs. Check ('branch', "
@@ -77,7 +77,7 @@ class MIONet(FlexOpNN):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_output_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
 
     # Calling
@@ -115,7 +115,9 @@ class MIONet(FlexOpNN):
             tf_layers.Multiply()(x) if len(x) > 1 else x[-1] \
                 for x in [G_u, G_y]
         ]
-        G_u, d, c = tf.split(G_u, [G_u.shape[1]-2, 1, 1], axis=1)
+        G_u, d, c = nn_elem.Split(
+            num_or_size_splits=[G_u.shape[1]-2, 1, 1], axis=1
+        )(G_u)
         y = tf_layers.Dot(axes=1)([G_u, G_y])
         y = tf_layers.Add()([c, tf_layers.Multiply()([d, y])])
         return y

@@ -1,9 +1,6 @@
-import tensorflow as tf
-
 from keras import layers as tf_layers
+from pycomet.networks import elements as nn_elem
 from pycomet.networks.opnn import OpNN
-from pycomet import config as cfg
-from pycomet import utils
 
 
 class FlexOpNN(OpNN):
@@ -57,9 +54,9 @@ class FlexOpNN(OpNN):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_output_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
-
+    
     def init_block_lay(self, identifier, propty):
         lay = []
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
@@ -85,7 +82,9 @@ class FlexOpNN(OpNN):
 
     def _tensor_product(self, G_u, G_y):
         G_u, d, c = list(zip(*[
-            tf.split(G_u_i, [G_u_i.shape[1]-2, 1, 1], axis=1) for G_u_i in G_u
+            nn_elem.Split(
+                num_or_size_splits=[G_u_i.shape[1]-2, 1, 1], axis=1
+            )(G_u_i) for G_u_i in G_u
         ]))
         y = super(FlexOpNN, self)._tensor_product(G_u, G_y)
         return [

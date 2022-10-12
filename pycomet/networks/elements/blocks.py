@@ -403,8 +403,9 @@ class PreNetBlock(tf_layers.Layer):
                 # Matrix
                 R = tf.reshape(tf.concat([c, -s, s, c], 1), [-1,2,2])
             elif self.num_coords == 3:
-                s = tf.split(tf.math.sin(y[1]), 3, axis=1)
-                c = tf.split(tf.math.cos(y[1]), 3, axis=1)
+                s, c = tf.math.sin(y[1]), tf.math.cos(y[1])
+                s = pcm_layers.Split(num_or_size_splits=3, axis=1)(s)
+                c = pcm_layers.Split(num_or_size_splits=3, axis=1)(c)
                 # Matrix
                 R = tf.reshape(tf.concat([
                     c[0]*c[1],
@@ -424,7 +425,9 @@ class PreNetBlock(tf_layers.Layer):
             T = y[0]
         else:
             S = None
-            R, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
+            R, T = pcm_layers.Split(
+                num_or_size_splits=[self.i*self.j, self.i], axis=1
+            )(y[-1])
             R = tf.reshape(R, [-1,self.i,self.j]) if self.j > 0 else None
         y = T
         if R is not None:

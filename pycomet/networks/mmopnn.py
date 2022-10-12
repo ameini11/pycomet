@@ -1,10 +1,6 @@
-import types
 import numpy as np
-import tensorflow as tf
 
-from keras import layers as tf_layers
 from pycomet.networks.basenet import BaseNet
-from pycomet import config as cfg
 from pycomet import networks
 from pycomet import utils
 
@@ -68,7 +64,7 @@ class MMOpNN(BaseNet):
             elif identifier == 'opnns':
                 lays[identifier] = self.init_opnns_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_output_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -109,25 +105,14 @@ class MMOpNN(BaseNet):
         return {name: self.get_opnn(opnn_lays_propty, name) \
             for name, opnn_lays_propty in propty.items()}
 
-    def get_opnn(self, propty={}, name=None):
-        nn = 'OpNN' if 'lay_id' not in propty else propty['lay_id']
-        nn = nn if callable(nn) else utils.get_class(networks, nn)
-        return nn(
+    def get_opnn(self, propty={}, name='0'):
+        opnn = 'OpNN' if 'lay_id' not in propty else propty['lay_id']
+        opnn = opnn if callable(opnn) else utils.get_class(networks, opnn)
+        return opnn(
             dim=propty['dim'],
             lays_propty=propty['lays_propty'],
-            name=nn.__name__.lower() + '_' + name
+            name=opnn.__name__.lower() + '_' + name
         )
-
-    def init_output_lay(self, identifier, propty):
-        _propty = {}
-        for k in ('xform',):
-            if k in propty and propty[k] is not None:
-                _propty[k] = self.get_lay(
-                    propty=propty[k], default_lay_id='IOLambda'
-                )
-            else:
-                _propty[k] = None
-        return _propty
 
     # Calling
     ###########################################################################
@@ -138,7 +123,9 @@ class MMOpNN(BaseNet):
         y = [opnn(y, training=training) \
              for opnn in self.active_lays['opnns'].values()]
         # Outputs manipulation
-        y = self._manipulate_output(x, y, training)
+        y = self._manipulate_inout(
+            x=x, y=y, identifier='output', training=training
+        )
         return y
 
     def _manipulate_input(self, x):
@@ -152,12 +139,3 @@ class MMOpNN(BaseNet):
             if v['xform'] is not None:
                 x[k] = v['xform'](x[k])
         return x
-
-    def _manipulate_output(self, x, y, training):
-        out_lay = self.active_lays['output']['xform']
-        if out_lay is not None:
-            if 'iolambda' in out_lay.name.lower():
-                y = out_lay(x=x, y=y, training=training)
-            else:
-                y = out_lay(y, training=training)
-        return y
