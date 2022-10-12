@@ -99,7 +99,8 @@ def main(args):
     # Network 
     ###########################################################################
     net = fun._network(
-        inputs_mod=inputs
+        inputs_mod=inputs,
+        wdir=args.dir
     )
 
     # Model

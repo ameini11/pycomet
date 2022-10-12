@@ -126,17 +126,18 @@ def _data(
     return data
     
 def _network(
-    inputs_mod
+    inputs_mod,
+    wdir=None
 ):
     # Initialize network ------------------------------------------------------
     utils.print_fn(f"Initializing '{inputs_mod.architecture}' network ...")
-    net_cls = utils.get_class(networks, inputs_mod.architecture)
     if inputs_mod.flags['load'] == 4:
         filepath = getattr(inputs_mod, 'saved_model', None)
         if filepath is None:
-            filepath = './saving/' + inputs_mod.model_name
+            filepath = wdir + f'/saving/{inputs_mod.model_name}/SavedModel'
         return tf.keras.models.load_model(filepath=filepath)
     else:
+        net_cls = utils.get_class(networks, inputs_mod.architecture)
         net_args = utils.get_fun_args_values(
             args=utils.get_fun_args(net_cls.__init__), modules=inputs_mod
         )

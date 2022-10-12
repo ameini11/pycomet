@@ -128,7 +128,7 @@ class Data(object):
 
     # Building Data
     ###########################################################################
-    def build(self, model):
+    def build(self, model=None):
         self.built = True
 
     # Handling Data

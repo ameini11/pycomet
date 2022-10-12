@@ -34,13 +34,20 @@ class FuncNet(Functional):
             trainable=trainable,
             **kwargs
         )
-
         # Extra attributes for handling multi-objective loss
         self.multi_obj_loss = False
         self.objectives = None
         self.obj_pred_fn = {}
         self.weighted_loss = None
-        
+    
+    @property
+    def inputs_dim(self):
+        return tf.nest.map_structure(lambda x: x[1], self.input_shape)
+
+    @property
+    def outputs_dim(self):
+        return tf.nest.map_structure(lambda x: x[1], self.output_shape)
+    
     # Compiling
     ###########################################################################
     @traceback_utils.filter_traceback

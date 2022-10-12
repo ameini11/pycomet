@@ -105,7 +105,7 @@ class ODE(MultiObjData):
 
     # Building Data
     ###########################################################################
-    def build(self, model):
+    def build(self, model=None):
         if self.training:
             self.train.build(model)
             if self.valid is not None:
