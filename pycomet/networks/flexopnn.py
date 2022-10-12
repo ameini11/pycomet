@@ -1,13 +1,11 @@
 import tensorflow as tf
 
 from keras import layers as tf_layers
-from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.opnn import OpNN
 from pycomet import config as cfg
 from pycomet import utils
 
 
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='FlexOpNN')
 class FlexOpNN(OpNN):
     """Flex Deep Operator neural network.
     See: https://arxiv.org/pdf/2204.12670.pdf
@@ -48,7 +46,7 @@ class FlexOpNN(OpNN):
                 lays[identifier] = {
                     'from': propty['from'],
                     'to': propty['to'],
-                    'block': self.get_block(
+                    'block': self.get_lay(
                         propty={
                             'lay_id': 'PreNetBlock',
                             'kwargs': propty['kwargs']
@@ -69,7 +67,9 @@ class FlexOpNN(OpNN):
             name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
             if identifier.startswith('branch'):
                 p['kwargs']['layer_size'][-1] += 2
-            lay.append(self.get_block(propty=p, name=name))
+            lay.append(
+                self.get_lay(propty=p, default_lay_id='FFBlock', name=name)
+            )
         return lay
 
     # Calling

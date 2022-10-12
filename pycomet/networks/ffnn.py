@@ -5,7 +5,6 @@ from pycomet.networks.basenet import BaseNet
 from pycomet import config as cfg
 
 
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='FFNN')
 class FFNN(BaseNet):
     """Feed-Forward neural network."""
 
@@ -28,12 +27,8 @@ class FFNN(BaseNet):
         )
         # Default layers
         self.default_lays_propty = {
-            'input': {
-                'xform': None
-            },
-            'output': {
-                'xform': None
-            },
+            'input': None,
+            'output': None
         }
         # Layers names
         if self.lays_name is None:
@@ -53,45 +48,22 @@ class FFNN(BaseNet):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier in ('input', 'output'):
-                lays[identifier] = self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.get_lay(
+                    propty=propty, default_lay_id='Lambda'
+                ) if propty is not None else None
             elif identifier == 'hidden_block':
-                lays[identifier] = self.get_block(propty=propty)
+                lays[identifier] = self.get_lay(
+                    propty=propty, default_lay_id='FFBlock'
+                )
         return lays
-
-    def init_inout_lay(self, identifier, propty):
-        _propty = {}
-        for k in ('xform',):
-            if k in propty and propty[k] is not None:
-                if k == 'xform' :
-                    if not isinstance(propty[k], tf_layers.Lambda):
-                        args = utils.get_fun_args(propty[k])
-                        fn = tf_layers.Lambda(
-                            function=utils.lambda_lay_dec(propty[k])
-                        )
-                    else:
-                        args = utils.get_fun_args(propty[k].function)
-                        propty[k].function = utils.lambda_lay_dec(
-                            propty[k].function
-                        )
-                        fn = propty[k]
-                    _propty[k] = {'fn': fn, 'args': args}
-                    if any([k not in ('x', 'y') for k in _propty[k]['args']]):
-                        utils.raise_value_err(
-                            "The outputs transformation function, 'xform', "
-                            "accept only ('x', 'y') as function signature, "
-                            "where 'x' <- inputs and 'y' <- model ouputs."
-                        )
-                else:
-                    _propty[k] = propty[k]
-            else:
-                _propty[k] = None
-        return _propty
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None):
+    def call(self, x, training=None):
         # Inputs manipulation
-        y = self._manipulate_inout(x=x, identifier='input', training=training)
+        y = self._manipulate_inout(
+            x=x, identifier='input', training=training
+        )
         # Kernel
         y = self.active_lays['hidden_block'](y, training=training)
         # Outputs manipulation
@@ -101,13 +73,15 @@ class FFNN(BaseNet):
         return y
 
     def _manipulate_inout(self, x, y=None, identifier=None, training=False):
-        if self.active_lays[identifier]['xform'] is not None:
-            lay = self.active_lays[identifier]['xform']
-            inputs = {'x': x, 'y': y}
-            y = lay['fn'](
-                inputs={k: inputs[k] for k in lay['args']},
-                training=training
-            )
-        elif identifier == 'input':
-            y = x
-        return y
+        inputs = x if identifier == 'input' else y
+        if self.active_lays[identifier] is not None:
+            if 'iolambda' in self.active_lays[identifier].name.lower():
+                return self.active_lays[identifier](
+                    x=x, y=y, training=training
+                )
+            else:
+                return self.active_lays[identifier](
+                    inputs, training=training
+                )
+        else:
+            return inputs

@@ -48,10 +48,10 @@ lays_propty = {
             'from': ['params', 'ics'],
             'to': 'time',
             'kwargs': {
-                'layer_size': [sum(dim['inp'][:2]), 8, 8, 8, 2],
+                'layer_size': [sum(dim['inp'][:2]), 8, 8, 8],
                 'activation': ['sigmoid']*3 + ['linear'],
                 'out_xform': None,
-                'transformation': 'projective',
+                'transformation': 'similarity',
                 'num_coords': 1,
                 **common
             }

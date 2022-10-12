@@ -2,13 +2,11 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
-from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.flexopnn import FlexOpNN
 from pycomet import config as cfg
 from pycomet import utils
 
 
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MIONet')
 class MIONet(FlexOpNN):
 
     # Initialization
@@ -67,7 +65,7 @@ class MIONet(FlexOpNN):
                     k: {
                         'from': tf.nest.flatten(p['from']),
                         'to': p['to'],
-                        'block': self.get_block(
+                        'block': self.get_lay(
                             propty={
                                 'lay_id': 'PreNetBlock',
                                 'kwargs': p['kwargs']

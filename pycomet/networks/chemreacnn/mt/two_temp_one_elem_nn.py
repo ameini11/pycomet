@@ -6,9 +6,6 @@ from pycomet import config as cfg
 from pycomet import utils
 
 
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='TwoTempOneElemNN'
-)
 class TwoTempOneElemNN(MMOpNN):
 
     # Initialization
@@ -28,7 +25,7 @@ class TwoTempOneElemNN(MMOpNN):
             *args,
             **kwargs
         )
-
+        
     # Layers initialization
     ###########################################################################
     def init_output_lay(self, identifier, propty):

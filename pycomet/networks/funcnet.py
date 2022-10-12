@@ -42,11 +42,11 @@ class FuncNet(Functional):
     
     @property
     def inputs_dim(self):
-        return tf.nest.map_structure(lambda x: x[1], self.input_shape)
+        return ops.get_struct_shape(self.input, axis=1)
 
     @property
     def outputs_dim(self):
-        return tf.nest.map_structure(lambda x: x[1], self.output_shape)
+        return ops.get_struct_shape(self.output, axis=1)
     
     # Compiling
     ###########################################################################

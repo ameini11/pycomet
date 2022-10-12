@@ -3,12 +3,13 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
-from pycomet.networks import elements as nn_elem
+from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.basenet import BaseNet
 from pycomet import config as cfg
 from pycomet import utils
 
 
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='OpNN')
 class OpNN(BaseNet):
     """Deep Operator neural network."""
 
@@ -86,7 +87,9 @@ class OpNN(BaseNet):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
+                print(identifier)
                 lays[identifier] = self.init_output_lay(identifier, propty)
+                print(lays[identifier])
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -102,14 +105,11 @@ class OpNN(BaseNet):
             _propty[k_subnet] = {}
             for k in ('index', 'xform'):
                 if k in v_subnet:
-                    if k == 'index':
-                        _propty[k_subnet][k] = v_subnet[k]
-                    else:
-                        _propty[k_subnet][k] = self.get_lay(
-                            propty=v_subnet[k], default_lay_id='Lambda'
-                        )
-                else:
-                    _propty[k_subnet][k] = i if k == 'index' else None
+                    _propty[k_subnet][k] = v_subnet[k]
+                elif k == 'index':
+                    _propty[k_subnet][k] = i
+                elif k == 'xform':
+                    _propty[k_subnet][k] = None
         indices = [_propty[k]['index'] for k in _propty.keys()]
         if len(np.unique(indices)) != len(indices):
             utils.raise_value_err(
@@ -123,29 +123,49 @@ class OpNN(BaseNet):
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
         for i, p in enumerate(propty):
             name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
-            lay.append(
-                self.get_lay(propty=p, default_lay_id='FFBlock', name=name)
-            )
+            lay.append(self.get_block(propty=p, name=name))
         return lay
 
     def init_end_scale_lay(self, identifier, propty):
-        if propty['lay_id'] is not None:
-            if propty['lay_id'] not in ('Bias', 'Dense'):
-                utils.raise_value_err(
-                    f"Value for key 'lay_id' in layer '{identifier}' not "
-                    f"recognized. Values available: ('Bias', 'Dense')"
-                )
-            if propty['lay_id'] == 'Dense':
-                propty['units'] = self.max_num_blocks
-            return self.get_lay(propty)
+        if propty['lay_id'] == 'bias':
+            return pcm_layers.Bias(**propty['kwargs'], name=identifier)
+        elif propty['lay_id'] == 'dense':
+            return tf_layers.Dense(
+                **propty['kwargs'], units=self.max_num_blocks, name=identifier
+            )
+        elif propty['lay_id'] is None:
+            return None
+        else:
+            utils.raise_value_err(
+                f"Value for key 'type' in layer '{identifier}' not "
+                f"recognized. Values available: ('bias', 'dense')"
+            )
 
     def init_output_lay(self, identifier, propty):
         _propty = {}
         for k in ('xform',):
             if k in propty and propty[k] is not None:
-                _propty[k] = self.get_lay(
-                    propty=propty[k], default_lay_id='IOLambda'
-                )
+                if k == 'xform' :
+                    if not isinstance(propty[k], tf_layers.Lambda):
+                        args = utils.get_fun_args(propty[k])
+                        fn = tf_layers.Lambda(
+                            function=utils.lambda_lay_dec(propty[k])
+                        )
+                    else:
+                        args = utils.get_fun_args(propty[k].function)
+                        propty[k].function = utils.lambda_lay_dec(
+                            propty[k].function
+                        )
+                        fn = propty[k]
+                    _propty[k] = {'fn': fn, 'args': args}
+                    if any([k not in ('x', 'y') for k in _propty[k]['args']]):
+                        utils.raise_value_err(
+                            "The outputs transformation function, 'xform', "
+                            "accept only ('x', 'y') as function signature, "
+                            "where 'x' <- inputs and 'y' <- model ouputs."
+                        )
+                else:
+                    _propty[k] = propty[k]
             else:
                 _propty[k] = None
         return _propty
@@ -156,19 +176,17 @@ class OpNN(BaseNet):
         # Inputs manipulation
         y = self._manipulate_input(x)
         # Kernel - OpNN
-        G_u, G_y = self._eval_kernel(y, training, mask)
+        G_u, G_y = self._eval_kernel(y, training)
         # Outputs manipulation
         y = self._tensor_product(G_u, G_y)
         y = self._manipulate_output(x, y, training)
         return y
 
     def _manipulate_input(self, x):
-        if not isinstance(x, (list, tuple)):
-            utils.raise_value_err(
-                f"The inputs of the `{self.name}` net "
-                "have to be a a `list` or a `tuple`."
-            )
-        x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}
+        if isinstance(x, (list, tuple)):
+            x = {
+                k: x[v['index']] for k, v in self.active_lays['input'].items()
+            }
         for k, v in self.active_lays['input'].items():
             if v['xform'] is not None:
                 x[k] = v['xform'](x[k])
@@ -208,10 +226,11 @@ class OpNN(BaseNet):
         if self.active_lays['end_scale'] is not None:
             y = self.active_lays['end_scale'](y)
         # Transformation
-        out_lay = self.active_lays['output']['xform']
-        if out_lay is not None:
-            if 'iolambda' in out_lay.name.lower():
-                y = out_lay(x=x, y=y, training=training)
-            else:
-                y = out_lay(y, training=training)
+        if self.active_lays['output']['xform'] is not None:
+            lay = self.active_lays['output']['xform']
+            inputs = {'x': x, 'y': y}
+            y = lay['fn'](
+                inputs={k: inputs[k] for k in lay['args']},
+                training=training
+            )
         return y

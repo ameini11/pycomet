@@ -28,7 +28,7 @@ class TwoTempOneElemNN(MMOpNN):
             *args,
             **kwargs
         )
-        
+
     # Layers initialization
     ###########################################################################
     def init_output_lay(self, identifier, propty):

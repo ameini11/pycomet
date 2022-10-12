@@ -1,15 +1,12 @@
 import numpy as np
 import tensorflow as tf
 
-from keras import layers as tf_layers
-from pycomet.networks.elements import layers as pcm_layers
-from pycomet.networks.elements import blocks
+from pycomet.networks import elements as nn_elem
 from pycomet.networks.opnn import OpNN
 from pycomet import config as cfg
 from pycomet import utils
 
 
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='AugOpNN')
 class AugOpNN(OpNN):
     """Augmented Deep Operator neural network.
     See: https://arxiv.org/pdf/2110.01654.pdf
@@ -49,7 +46,7 @@ class AugOpNN(OpNN):
         for i, p in enumerate(propty):
             name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
             p['lay_id'] = 'CrossEncoderBlock'
-            lay.append(self.get_block(propty=p, name=name))
+            lay.append(self.get_lay(propty=p, name=name))
         return lay
 
     def check_layer_size(self):
@@ -73,7 +70,7 @@ class AugOpNN(OpNN):
         kwargs['units'] = propty['kwargs']['layer_size'][1]
         kwargs['activation'] = propty['kwargs']['activation'][0]
         kwargs['name'] = identifier
-        return blocks.MultiLayerBlock(**kwargs)
+        return nn_elem.MultiLayerBlock(**kwargs)
 
     # Calling
     ###########################################################################

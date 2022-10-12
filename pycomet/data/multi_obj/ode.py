@@ -114,12 +114,12 @@ class ODE(MultiObjData):
 
     # Handling Residual Loss
     ###########################################################################
-    @tf.function(jit_compile=True)
+    @tf.function()
     def residual(self, inputs, training=True):
-
+        
         # Evaluate model outputs
-        outputs = self.net(inputs, training=training)
-
+        outputs = self.net.call(inputs, training=training)
+        
         # Evaluate residual
         res = self.xde(x=inputs, y=outputs, grads=self.grads)
 

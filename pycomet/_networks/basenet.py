@@ -1,12 +1,13 @@
 import tensorflow as tf
 
 from keras import layers as tf_layers
-from pycomet.networks import elements as nn_elem
+from pycomet.networks.elements import blocks
 from pycomet import config as cfg
 from pycomet import utils
 
 
-class BaseNet(object):
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='BaseNet')
+class BaseNet(tf_layers.Layer):
     """Base Network Layer base class."""
 
     # Initialization
@@ -41,6 +42,17 @@ class BaseNet(object):
         self.lays_propty = lays_propty
         self.active_lays = {}
 
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'dim': self.dim,
+            'lays_name': self.lays_name,
+            'lays_propty': self.lays_propty
+        }
+        base_config = super(BaseNet, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
     # Handling layers
     ###########################################################################
     def check_layers(
@@ -72,12 +84,9 @@ class BaseNet(object):
                 layers[k] = default[k]
         return layers
 
-    def get_nn_elem(self, elem):
-        return utils.get_class(modules=(nn_elem, tf_layers), name=elem)
-    
-    def get_lay(self, propty={}, default_lay_id='Lambda', name=None):
-        lay = default_lay_id if 'lay_id' not in propty else propty['lay_id']
-        lay = lay if callable(lay) else self.get_nn_elem(lay)
+    def get_block(self, propty={}, name=None):
+        blk = 'FFBlock' if 'lay_id' not in propty else propty['lay_id']
+        blk = blk if callable(blk) else utils.get_class(blocks, blk)
         if name is not None:
             propty['kwargs'].update({'name': name})
-        return lay(**propty['kwargs'])
+        return blk(**propty['kwargs'])

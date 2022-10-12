@@ -9,7 +9,6 @@ from pycomet import networks
 from pycomet import utils
 
 
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MMOpNN')
 class MMOpNN(BaseNet):
     """Multi-Physics Multi-Scale Deep Operator neural network."""
 
@@ -85,11 +84,14 @@ class MMOpNN(BaseNet):
             _propty[k_subnet] = {}
             for k in ('index', 'xform'):
                 if k in v_subnet:
-                    _propty[k_subnet][k] = v_subnet[k]
-                elif k == 'index':
-                    _propty[k_subnet][k] = i
-                elif k == 'xform':
-                    _propty[k_subnet][k] = None
+                    if k == 'index':
+                        _propty[k_subnet][k] = v_subnet[k]
+                    else:
+                        _propty[k_subnet][k] = self.get_lay(
+                            propty=v_subnet[k], default_lay_id='Lambda'
+                        )
+                else:
+                    _propty[k_subnet][k] = i if k == 'index' else None
         indices = [_propty[k]['index'] for k in _propty.keys()]
         if len(np.unique(indices)) != len(indices):
             utils.raise_value_err(
@@ -110,40 +112,19 @@ class MMOpNN(BaseNet):
     def get_opnn(self, propty={}, name=None):
         nn = 'OpNN' if 'lay_id' not in propty else propty['lay_id']
         nn = nn if callable(nn) else utils.get_class(networks, nn)
-        name = nn.__name__.lower() + '_' + name
-        lays_propty = propty if 'lays_propty' not in propty \
-            else propty['lays_propty']
         return nn(
             dim=propty['dim'],
             lays_propty=propty['lays_propty'],
-            name=name
+            name=nn.__name__.lower() + '_' + name
         )
 
     def init_output_lay(self, identifier, propty):
         _propty = {}
         for k in ('xform',):
             if k in propty and propty[k] is not None:
-                if k == 'xform' :
-                    if not isinstance(propty[k], tf_layers.Lambda):
-                        args = utils.get_fun_args(propty[k])
-                        fn = tf_layers.Lambda(
-                            function=utils.lambda_lay_dec(propty[k])
-                        )
-                    else:
-                        args = utils.get_fun_args(propty[k].function)
-                        propty[k].function = utils.lambda_lay_dec(
-                            propty[k].function
-                        )
-                        fn = propty[k]
-                    _propty[k] = {'fn': fn, 'args': args}
-                    if any([k not in ('x', 'y') for k in _propty[k]['args']]):
-                        utils.raise_value_err(
-                            "The outputs transformation function, 'xform', "
-                            "accept only ('x', 'y') as function signature, "
-                            "where 'x' <- inputs and 'y' <- model ouputs."
-                        )
-                else:
-                    _propty[k] = propty[k]
+                _propty[k] = self.get_lay(
+                    propty=propty[k], default_lay_id='IOLambda'
+                )
             else:
                 _propty[k] = None
         return _propty
@@ -173,11 +154,10 @@ class MMOpNN(BaseNet):
         return x
 
     def _manipulate_output(self, x, y, training):
-        if self.active_lays['output']['xform'] is not None:
-            lay = self.active_lays['output']['xform']
-            inputs = {'x': x, 'y': y}
-            y = lay['fn'](
-                inputs={k: inputs[k] for k in lay['args']},
-                training=training
-            )
+        out_lay = self.active_lays['output']['xform']
+        if out_lay is not None:
+            if 'iolambda' in out_lay.name.lower():
+                y = out_lay(x=x, y=y, training=training)
+            else:
+                y = out_lay(y, training=training)
         return y

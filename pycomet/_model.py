@@ -1,6 +1,5 @@
 import os
 import h5py
-import shutil
 import netron
 import pandas as pd
 import tensorflow as tf
@@ -11,7 +10,6 @@ from pycomet.optimization.callbacks import callbacks as callbacks_module
 from pycomet.optimization import losses as losses_module
 from pycomet.optimization import metrics as metrics_module
 from pycomet.optimization.optimizers import get_train_opt
-from pycomet.networks.funcnet import FuncNet
 from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import postproc
@@ -28,14 +26,12 @@ class Model(object):
         data=None,
         net=None,
         name='model',
-        architecture=None,
         path='./',
         save_format=['tf', 'tflite']
     ):
         self.name = name
         self.data = data
-        self.net = net
-        self.architecture = architecture
+        self.net  = net
 
         # Attributes for optimization
         self.optimizer = None
@@ -61,7 +57,7 @@ class Model(object):
             os.makedirs(d, exist_ok=True)
 
         # Define saving format
-        self.save_format = tf.nest.flatten(save_format)
+        self.save_format = save_format
         self.save_path = self.dir['save'] + self.name
         os.makedirs(self.save_path, exist_ok=True)
 
@@ -76,55 +72,67 @@ class Model(object):
         weights_to_load=[],
         visualize_graph=False
     ):
-        utils.print_fn(f"Building '{self.architecture}' network ...")
-        # Build the network ---------------------------------------------------
-        # I/O characterization
-        if not isinstance(self.net, tf.keras.Model):
-            inputs = [
-                tf.keras.Input((i,)) for i in tf.nest.flatten(
-                    self.net.inputs_dim
-                )
-            ]
-        else:
-            inputs = self.net.inputs
-        inputs = utils.squeeze_list(tf.nest.flatten(inputs))
-        outputs = self.net.call(inputs, training=False)
-        # Network model
-        self.net = FuncNet(inputs, outputs, name=self.name)
-        
         # Update network multi-objective loss function parameters
         if self.data is not None and self.data.multi_obj_loss:
             for attr in self.multi_obj_loss_attrs:
                 setattr(self.net, attr, getattr(self.data, attr))
             self.data.net = self.net
 
+        # Build the network ---------------------------------------------------
+        input_shape = tf.nest.map_structure(
+            lambda i: tf.TensorShape([None, i]),
+            tf.nest.flatten(self.net.inputs_dim)
+        )
+        if not self.net.built:
+            self.net.build(utils.squeeze_list(input_shape))
+        # I/O characterization
+        self.net.inputs = utils.squeeze_list([
+            tf.keras.Input((i,)) for i in tf.nest.flatten(self.net.inputs_dim)
+        ])
+        self.net.outputs = self.net.call(self.net.inputs)
+        for attr in ('inputs', 'outputs'):
+            dim = ops.get_struct_shape(getattr(self.net, attr), axis=1)
+            if dim != getattr(self.net, attr + '_dim'):
+                utils.raise_value_err(
+                    "Found an I/O network's dimensions inconsistency. "
+                    "Check 'dim' input variable."
+                )
+        # Network graph
+        self.graph = tf.keras.Model(
+            inputs=self.net.inputs, outputs=self.net.outputs, name=self.name
+        )
+
         # Build data structures -----------------------------------------------
         if self.data is not None and not self.data.built:
             self.data.build(self.net)
 
         # Visualize network graph ---------------------------------------------
-        self.net.summary(line_length=cfg._DISPLAY_LEN)
-        # Write summary
+        self.graph.summary(line_length=cfg._DISPLAY_LEN, expand_nested=True)
         with open(self.save_path + '/summary.txt', 'w') as f:
-            self.net.summary(
+            self.graph.summary(
                 line_length=cfg._DISPLAY_LEN,
                 expand_nested=True,
                 print_fn=lambda x: f.write(x + '\n')
             )
-        # Plot model
-        tf.keras.utils.plot_model(
-            self.net, self.save_path + "/model_plot.pdf"
-        )
+        with open(self.save_path + '/model_config.txt', 'w') as f:
+            self.net.print_config(stream=f)
         if verbose:
             _netron_started = False
             if visualize_graph:
-                file_name = self.save_path + '/model_struct.h5'
-                self.net.save(file_name, save_format='h5')
-                # Visualize model
-                utils.print_fn("", end="", lev=1)
-                netron.start(file_name)
-                _netron_started = True
-                shutil.rmtree(file_name)
+                # Save initialized model
+                try:
+                    file_name = self.save_path + '/model_struct.h5'
+                    self.graph.save(file_name, save_format='h5')
+                    # Visualize model
+                    utils.print_fn("", end="", lev=1)
+                    netron.start(file_name)
+                    _netron_started = True
+                except:
+                    pass
+                # Plot model
+                tf.keras.utils.plot_model(
+                    self.graph, self.dir['train'] + "/" + self.name + ".png"
+                )
             asw = utils.input_fn(
                 "Is the model structure correct? [y/n] ", lev=1
             )
@@ -158,6 +166,7 @@ class Model(object):
                 os.listdir(self.dir['ckpt']),
                 key=lambda x: int(x.split('.')[0]) if 'weights' in x else -1
             )
+            print(last_ckpt)
             if last_ckpt:
                 path = os.path.abspath(self.dir['ckpt'] + "/" + last_ckpt)
                 utils.print_fn(
@@ -221,8 +230,6 @@ class Model(object):
         steps_per_execution=None,
         jit_compile=cfg._TF['setup']['XLA']
     ):
-        utils.print_fn(f"Compiling '{self.architecture}' network ...")
-
         # Initializing the optimizer
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
@@ -275,7 +282,7 @@ class Model(object):
         callbacks=None,
         verbose=1
     ):
-        utils.print_fn(f"Training '{self.architecture}' network ...")
+        utils.print_fn("Training the model ...")
 
         # Define callbacks
         utils.print_fn("Initializing callbacks", lev=1)
@@ -380,31 +387,31 @@ class Model(object):
     ###########################################################################
     @utils.timing
     def save(
-        self
+        self,
+        lite=True
     ):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
         # Save model in 'SavedModel' format
-        if 'tf' in self.save_format:
-            utils.print_fn("SavedModel format", lev=1)
-            try:
-                # Save model in 'SavedModel' format
-                self.net.save(
-                    self.save_path + '/SavedModel',
-                    overwrite=True,
-                    include_optimizer=False,
-                    save_format='tf',
-                    signatures=None,
-                    options=None,
-                    save_traces=True
-                )
-            except:
-                utils.warning(
-                    "Unable to save the full model in TensorFlow " \
-                    "`SavedModel` format. Check custom layers/models"
-                )
+        utils.print_fn("SavedModel format", lev=1)
+        try:
+            # Save model in 'SavedModel' format
+            self.net.save(
+                self.save_path + '/SavedModel',
+                overwrite=True,
+                include_optimizer=False,
+                save_format='tf',
+                signatures=None,
+                options=None,
+                save_traces=True
+            )
+        except:
+            utils.warning(
+                "Unable to save the full model in TensorFlow " \
+                "`SavedModel` format. Check custom layers/models"
+            )
         # Save model in 'TFLite' format
-        if 'tflite' in self.save_format:
+        if lite:
             if cfg._TF['setup']['FLOATX'] == 'float64':
                 utils.warning(
                     "Unable to save the full model in TFLite format because "
@@ -433,11 +440,11 @@ class Model(object):
                     )
         # Save weights
         self.net.save_weights(
-            self.save_path+'/model_weights.h5',
+            self.save_path+'/model.h5',
             overwrite=True
         )
         # Save just pure weights (for `regularizers.FineTuningRegularizer')
-        file_name = self.save_path + '/model_weights_clean.h5'
+        file_name = self.save_path + '/model_weights.h5'
         dset = h5py.File(file_name,'w')
         for weight in self.net.weights:
             dset.create_dataset(weight.name, data=weight.numpy())

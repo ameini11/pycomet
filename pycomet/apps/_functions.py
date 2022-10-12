@@ -59,6 +59,7 @@ def _data(
     data_args = utils.get_fun_args_values(
         args=utils.get_fun_args(data_cls.__init__), modules=inputs_mod
     )
+
     # Get data sources --------------------------------------------------------
     data_gen = None
     if inputs_mod.from_file:
@@ -86,6 +87,7 @@ def _data(
         data_gen = DataGenerator(**datagen_args)
         data_src = data_gen.get_data_src(**data_src_args)
     data_args['data_src'] = data_src
+
     # Add information from physics --------------------------------------------
     physical_mdl = None
     if getattr(inputs_mod, 'physics_informed', False):
@@ -112,6 +114,7 @@ def _data(
                 "For physics-informed models, the following data types "
                 f"are available: {pycomet.data.physics_informed}"
             )
+
     # Initialize class --------------------------------------------------------
     utils.print_fn(f"Initializing '{inputs_mod.data_type}' data ...")
     data = data_cls(
@@ -138,7 +141,7 @@ def _network(
         net_args = utils.get_fun_args_values(
             args=utils.get_fun_args(net_cls.__init__), modules=inputs_mod
         )
-        return net_cls(**net_args)
+        return Net(architecture=inputs_mod.architecture, **net_args)
 
 def _model(
     inputs_mod,
@@ -151,22 +154,27 @@ def _model(
     model = pycomet.model.Model(
         data=data,
         net=net,
-        name=inputs_mod.model_name,
-        architecture=inputs_mod.architecture
+        name=inputs_mod.model_name
     )
+
     # Build model -------------------------------------------------------------
-    model.build(
-        load_net=inputs_mod.flags['load'],
-        visualize_graph=graph,
-        verbose=verbose
-    )
+    if inputs_mod.flags['load'] != 4:
+        utils.print_fn(f"Building '{inputs_mod.architecture}' network ...")
+        model.build(
+            load_net=inputs_mod.flags['load'],
+            visualize_graph=graph,
+            verbose=verbose
+        )
+
     # Compile model -----------------------------------------------------------
-    if inputs_mod.flags['train'] > 0 or not model.net._is_compiled:
+    if inputs_mod.flags['train'] > 0 and not model.net._is_compiled:
+        utils.print_fn(f"Compiling '{inputs_mod.architecture}' network ...")
         compile_args = utils.get_fun_args_values(
             args=utils.get_fun_args(model.compile),
             modules=inputs_mod
         )
         model.compile(**compile_args)
+
     # Fit Model ---------------------------------------------------------------
     if inputs_mod.flags['train'] > 0:
         callbacks = getattr(inputs_mod, 'callbacks', None)
@@ -174,6 +182,7 @@ def _model(
             if 'plotter' in callbacks and inputs_mod.flags['plot'] != 2:
                 callbacks.pop('plotter')
         model.fit(epochs=inputs_mod.epochs, callbacks=callbacks)
+
     # Save Model --------------------------------------------------------------
     if inputs_mod.flags['save'] > 0:
         model.save()
@@ -189,6 +198,7 @@ def _postproc(
     # Training phase ----------------------------------------------------------
     utils.print_fn("Training quantities", lev=1)
     model.visualize_training(history=model.dir['train']+'/history.csv')
+
     # Testing phase -----------------------------------------------------------
     if inputs_mod.flags['test'] > 0 and data.test is not None:
         utils.print_fn("Testing cases", lev=1)
