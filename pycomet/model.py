@@ -95,6 +95,7 @@ class Model(object):
                 self.net.inputs, self.net.outputs, name=self.name
             )
             func_net.set_weights(self.net.get_weights())
+        del self.net
         self.net = func_net
         
         # Update multi-objective loss function parameters

@@ -102,16 +102,15 @@ class MMOpNN(BaseNet):
                 "The properties for 'opnns' layer has to be provided "
                 "as a dictionary of (opnn_name, opnn_args) pairs."
             )
-        return {name: self.get_opnn(opnn_lays_propty, name) \
+        return {name: self.get_opnn(opnn_lays_propty) \
             for name, opnn_lays_propty in propty.items()}
 
-    def get_opnn(self, propty={}, name=''):
+    def get_opnn(self, propty={}):
         opnn = 'OpNN' if 'lay_id' not in propty else propty['lay_id']
         opnn = opnn if callable(opnn) else utils.get_class(networks, opnn)
         return opnn(
             dim=propty['dim'],
-            lays_propty=propty['lays_propty'],
-            name='_'.join((self.name, name))
+            lays_propty=propty['lays_propty']
         )
 
     # Calling
