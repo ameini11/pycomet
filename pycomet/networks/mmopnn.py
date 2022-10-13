@@ -115,12 +115,30 @@ class MMOpNN(BaseNet):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None, mask=None):
+    def call(self, x, training=None):
+        y = x
+        # Inputs manipulation
+        y = self._manipulate_input(y)
         # Kernel - OpNNs
-        y = [opnn(x, training=training) \
+        y = [opnn(y, training=training) \
              for opnn in self.active_lays['opnns'].values()]
         # Outputs manipulation
         y = self._manipulate_inout(
             x=x, y=y, identifier='output', training=training
         )
         return y
+
+    def _manipulate_input(self, x):
+        if not isinstance(x, (list, tuple, dict)):
+            utils.raise_value_err(
+                f"The inputs of `{self.name}` network have to "
+                "be one of the following: `list`,`tuple`,`dict`."
+            )
+        elif isinstance(x, (list, tuple)):
+            x = {
+                k: x[v['index']] for k, v in self.active_lays['input'].items()
+            }
+        for k, v in self.active_lays['input'].items():
+            if v['xform'] is not None:
+                x[k] = v['xform'](x[k])
+        return x

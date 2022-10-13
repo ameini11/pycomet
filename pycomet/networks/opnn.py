@@ -132,15 +132,16 @@ class OpNN(BaseNet):
                     f"Value for key 'lay_id' in layer '{identifier}' not "
                     f"recognized. Values available: ('Bias', 'Dense')"
                 )
-            if propty['lay_id'] == 'Dense':
-                propty['units'] = self.max_num_blocks
+            if 'kwargs' not in propty:
+                propty['kwargs'] = {}
             return self.get_lay(propty)
 
     # Calling
     ###########################################################################
     def call(self, x, training=None):
+        y = x
         # Inputs manipulation
-        y = self._manipulate_input(x)
+        y = self._manipulate_input(y)
         # Kernel - OpNN
         G_u, G_y = self._eval_kernel(y, training)
         # Outputs manipulation
@@ -149,12 +150,15 @@ class OpNN(BaseNet):
         return y
 
     def _manipulate_input(self, x):
-        if not isinstance(x, (list, tuple)):
+        if not isinstance(x, (list, tuple, dict)):
             utils.raise_value_err(
-                f"The inputs of `{self.name}` net "
-                "have to be a a `list` or a `tuple`."
+                f"The inputs of `{self.name}` network have to "
+                "be one of the following: `list`,`tuple`,`dict`."
             )
-        x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}
+        elif isinstance(x, (list, tuple)):
+            x = {
+                k: x[v['index']] for k, v in self.active_lays['input'].items()
+            }
         for k, v in self.active_lays['input'].items():
             if v['xform'] is not None:
                 x[k] = v['xform'](x[k])

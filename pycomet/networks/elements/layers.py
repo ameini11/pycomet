@@ -383,16 +383,16 @@ class Log(tf_layers.Layer):
                 name=name,
                 dtype=backend.floatx(),
                 initializer=initializers.Constant(value=w),
-                trainable=False
+                trainable=self.trainable
             )
         self.built = True
 
     # Calling
     ###########################################################################
     def call(self, inputs):
-        outputs = tf.math.log(inputs + self._weights['offset'])
-        outputs = outputs / self._weights['scale'] + self._weights['slope']
-        return outputs
+        outputs = inputs + self._weights['offset']
+        outputs = tf.math.log(self._weights['slope'] * outputs)
+        return outputs / self._weights['scale']
 
     # Configuration update
     ###########################################################################
