@@ -69,8 +69,7 @@ class MIONet(FlexOpNN):
                             propty={
                                 'lay_id': 'PreNetBlock',
                                 'kwargs': p['kwargs']
-                            },
-                            name='_'.join((self.name, identifier, k))
+                            }
                         )
                     } for k, p in propty.items()
                 }

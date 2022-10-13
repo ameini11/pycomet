@@ -104,8 +104,7 @@ class OpNN(BaseNet):
                     elif k == 'xform':
                         _propty[k_subnet][k] = self.get_lay(
                             propty=v_subnet[k],
-                            default_lay_id='Lambda',
-                            name='_'.join((self.name, identifier))
+                            default_lay_id='Lambda'
                         ) if v_subnet[k] is not None else None
                 else:
                     _propty[k_subnet][k] = i if k == 'index' else None
@@ -122,11 +121,7 @@ class OpNN(BaseNet):
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
         for i, p in enumerate(propty):
             lay.append(
-                self.get_lay(
-                    propty=p,
-                    default_lay_id='FFBlock',
-                    name='_'.join((self.name, identifier, str(i+1)))
-                )
+                self.get_lay(propty=p, default_lay_id='FFBlock')
             )
         return lay
 
@@ -139,7 +134,7 @@ class OpNN(BaseNet):
                 )
             if 'kwargs' not in propty:
                 propty['kwargs'] = {}
-            return self.get_lay(propty, name='_'.join((self.name, identifier)))
+            return self.get_lay(propty)
 
     # Calling
     ###########################################################################

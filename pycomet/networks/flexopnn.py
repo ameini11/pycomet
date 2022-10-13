@@ -49,8 +49,7 @@ class FlexOpNN(OpNN):
                         propty={
                             'lay_id': 'PreNetBlock',
                             'kwargs': propty['kwargs']
-                        },
-                        name='_'.join((self.name, identifier))
+                        }
                     )
                 }
             elif identifier == 'end_scale':
@@ -66,11 +65,7 @@ class FlexOpNN(OpNN):
             if identifier.startswith('branch'):
                 p['kwargs']['layer_size'][-1] += 2
             lay.append(
-                self.get_lay(
-                    propty=p,
-                    default_lay_id='FFBlock',
-                    name='_'.join((self.name, identifier, str(i+1)))
-                )
+                self.get_lay(propty=p, default_lay_id='FFBlock')
             )
         return lay
 

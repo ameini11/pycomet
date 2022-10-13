@@ -62,8 +62,7 @@ class BaseNet(object):
             if k in propty and propty[k] is not None:
                 _propty[k] = self.get_lay(
                     propty=propty[k],
-                    default_lay_id='Lambda',
-                    name='_'.join((self.name, identifier))
+                    default_lay_id='Lambda'
                 )
                 if k == 'xform':
                     _propty['signature'] = utils.get_fun_args(_propty[k].call)
