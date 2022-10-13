@@ -53,7 +53,6 @@ class MMOpNN(BaseNet):
         )
         # Initializing
         self.active_lays = self.init_layers()
-        print(self.active_lays)
 
     # Layers initialization
     ###########################################################################
