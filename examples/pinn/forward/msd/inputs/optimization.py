@@ -9,12 +9,12 @@ from inputs.postproc import figures
 
 # Training
 # =============================================================================
-epochs = 1000
+epochs = 100
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 1.e-3
-decay_steps = 4*1000
+decay_steps = 8*50
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -47,12 +47,12 @@ callbacks = {
     'model_ckpt': {
         'monitor':           'val_loss',
         'save_best_only':    True,
-        'save_weights_only': True
+        'formats':           ['h5']
     }, 
 
     'plotter': {
         'figures': figures,
-        'freq': 500
+        'freq': 50
     },
 
     'tensorboard': {

@@ -328,31 +328,31 @@ class PreNetBlock(tf_layers.Layer):
         self.transformation = transformation
         self.num_blocks = 1
         if self.transformation == 'translation':
-            self.outputs_dim = [self.num_coords]
+            self.output_dim = [self.num_coords]
             self.i, self.j = self.num_coords, 0
         elif self.transformation in ('euclidean', 'similarity'):
             if self.num_coords <= 3:
                 if self.num_coords == 1:
                     self.num_blocks = 2
-                    self.outputs_dim = [1, 1]
+                    self.output_dim = [1, 1]
                 elif self.num_coords == 2:
                     self.num_blocks = 3
-                    self.outputs_dim = [1, 2, 1]
+                    self.output_dim = [1, 2, 1]
                 elif self.num_coords == 3:
                     self.num_blocks = 3
-                    self.outputs_dim = [3, 3, 1]
+                    self.output_dim = [3, 3, 1]
                 if self.transformation == 'euclidean':
                     self.num_blocks = self.num_blocks - 1
-                    self.outputs_dim = self.outputs_dim[:-1]
+                    self.output_dim = self.output_dim[:-1]
                 self.i, self.j = None, None
             else:
-                self.outputs_dim = [self.num_coords * (self.num_coords + 1)]
+                self.output_dim = [self.num_coords * (self.num_coords + 1)]
                 self.i, self.j = self.num_coords, self.num_coords
         elif self.transformation == 'affine':
-            self.outputs_dim = [self.num_coords * (self.num_coords + 1)]
+            self.output_dim = [self.num_coords * (self.num_coords + 1)]
             self.i, self.j = self.num_coords, self.num_coords
         elif self.transformation == 'projective':
-            self.outputs_dim = [(self.num_coords + 1) ** 2]
+            self.output_dim = [(self.num_coords + 1) ** 2]
             self.i, self.j = self.num_coords+1, self.num_coords
         else:
             utils.raise_value_err(
@@ -363,7 +363,7 @@ class PreNetBlock(tf_layers.Layer):
         self.out_xform = out_xform
         self.blocks = [
             FFBlock(
-                layer_size=list(layer_size) + [self.outputs_dim[i]],
+                layer_size=list(layer_size) + [self.output_dim[i]],
                 activation=activation,
                 kernel_initializer=kernel_initializer,
                 regularizer=regularizer,
@@ -403,9 +403,8 @@ class PreNetBlock(tf_layers.Layer):
                 # Matrix
                 R = tf.reshape(tf.concat([c, -s, s, c], 1), [-1,2,2])
             elif self.num_coords == 3:
-                s, c = tf.math.sin(y[1]), tf.math.cos(y[1])
-                s = pcm_layers.Split(num_or_size_splits=3, axis=1)(s)
-                c = pcm_layers.Split(num_or_size_splits=3, axis=1)(c)
+                s = tf.split(tf.math.sin(y[1]), 3, axis=1)
+                c = tf.split(tf.math.cos(y[1]), 3, axis=1)
                 # Matrix
                 R = tf.reshape(tf.concat([
                     c[0]*c[1],
@@ -425,16 +424,16 @@ class PreNetBlock(tf_layers.Layer):
             T = y[0]
         else:
             S = None
-            R, T = pcm_layers.Split(
-                num_or_size_splits=[self.i*self.j, self.i], axis=1
-            )(y[-1])
+            R, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
             R = tf.reshape(R, [-1,self.i,self.j]) if self.j > 0 else None
-        y = T
+        # Apply operators
+        y = x2
         if R is not None:
-            yr = tf.einsum('nij,nj->ni', R, x2)
-            if S is not None:
-                yr = S * yr
-            y = y + yr
+            y = tf.einsum('nij,nj->ni', R, y)
+        if S is not None:
+            y = S * y
+        if T is not None:
+            y = y + T
         return y
 
     # Configuration update

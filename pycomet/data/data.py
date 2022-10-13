@@ -206,8 +206,8 @@ class Data(object):
             if i <= 2 and data_dim[i]:
                 if tf.nest.flatten(data_dim[i]) != tf.nest.flatten(net_dim[i]):
                     utils.raise_value_err(
-                        "Data and network '{}' dimensions not "
-                        "consistent: check `dim` or data shape.".format(io)
+                        "Data and network dimensions not "
+                        "consistent: check `dim` or data shape."
                     )
 
     # Updating default batch sizes

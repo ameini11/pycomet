@@ -9,8 +9,8 @@
 model_name = 'msd_flexopnn'
 
 dim = {
-    "inp": [4, 1],  # Branch-Trunk input dimensionality
-    "out": [2,2]   # Output dimensionality
+    "inp": [2,1],  # Branch-Trunk input dimensionality
+    "out": 2   # Output dimensionality
 }
 
 # Execution Flags

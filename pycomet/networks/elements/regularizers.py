@@ -8,7 +8,7 @@ from pycomet import config as cfg
 from pycomet import utils
 
 
-def get(name="l1+l2", l1=0., l2=0., weights_path=None):
+def get(name="l1+l2", l1=0., l2=0., model_name=None, weights_path=None):
     return (
         tf_reg.L1(l1=l1)
         if name == "l1"
@@ -16,7 +16,9 @@ def get(name="l1+l2", l1=0., l2=0., weights_path=None):
         if name == "l2"
         else tf_reg.L1L2(l1=l1, l2=l2)
         if name == "l1+l2"
-        else FineTuningRegularizer(l1=l1, l2=l2, weights_path=weights_path)
+        else FineTuningRegularizer(
+            l1=l1, l2=l2, model_name=model_name, weights_path=weights_path
+        )
         if name == "fine_tuning"
         else None
     )
@@ -52,11 +54,11 @@ class FineTuningRegularizer(tf_reg.L1L2):
             **kwargs
         )
         if weights_path is None and model_name is not None:
-            self.weights_path = f'./saving/{model_name}/model_weights.h5'
+            self.weights_path = f'./saving/{model_name}/model_weights_clean.h5'
         else:
             self.weights_path = weights_path
         if self.weights_path is not None:
-            self.weights_path = os.path.abspath(str(weights_path))
+            self.weights_path = os.path.abspath(str(self.weights_path))
             if not h5py.is_hdf5(self.weights_path):
                 utils.raise_value_err(
                     "The 'weights_path' argument of `FineTuningRegularizer` "
@@ -67,7 +69,6 @@ class FineTuningRegularizer(tf_reg.L1L2):
                 "`FineTuningRegularizer` is not given any starting point "
                 "weights (see `weights_path`)."
             )
-
         self.sp_weights = utils.H5DataSet(self.weights_path).data
         self.sp_weights = tf.nest.map_structure(
             lambda x: tf.convert_to_tensor(x, dtype=backend.floatx()),

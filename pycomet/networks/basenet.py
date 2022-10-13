@@ -30,8 +30,8 @@ class BaseNet(object):
             )
         # Dimensions
         self.dim = dim
-        self.inputs_dim = self.dim["inp"]
-        self.outputs_dim = self.dim["out"]
+        self.input_dim = self.dim["inp"]
+        self.output_dim = self.dim["out"]
         
         # Layers
         self.lays_name = lays_name

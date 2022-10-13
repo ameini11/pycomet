@@ -6,6 +6,7 @@ import tensorflow as tf
 import tensorflow.python.keras.callbacks as cb
 
 from tensorflow.python.keras import backend
+from tensorflow.python.training.tracking.data_structures import NoDependency
 from pycomet.optimization.callbacks import callbacks as callbacks_module
 from pycomet.optimization import losses as losses_module
 from pycomet.optimization import metrics as metrics_module
@@ -29,7 +30,7 @@ class Model(object):
         name='model',
         architecture=None,
         path='./',
-        save_format=['tf', 'tflite']
+        save_format=['tf']
     ):
         self.name = name
         self.data = data
@@ -78,31 +79,41 @@ class Model(object):
         utils.print_fn(f"Building '{self.architecture}' network ...")
         # Build the network ---------------------------------------------------
         # I/O characterization
-        if not isinstance(self.net, tf.keras.Model):
+        if load_net != 4 and not isinstance(self.net, tf.keras.Model):
             inputs = [
                 tf.keras.Input((i,)) for i in tf.nest.flatten(
-                    self.net.inputs_dim
+                    self.net.input_dim
                 )
             ]
+            inputs = utils.squeeze_list(tf.nest.flatten(inputs))
+            outputs = self.net.call(inputs, training=False)
+            func_net = FuncNet(
+                inputs, outputs, name=self.name
+            )
         else:
-            inputs = self.net.inputs
-        inputs = utils.squeeze_list(tf.nest.flatten(inputs))
-        outputs = self.net.call(inputs, training=False)
-        # Network model
-        self.net = FuncNet(inputs, outputs, name=self.name)
+            func_net = FuncNet(
+                self.net.inputs, self.net.outputs, name=self.name
+            )
+            func_net.set_weights(self.net.get_weights())
+        self.net = func_net
         
-        # Update network multi-objective loss function parameters
+        # Update multi-objective loss function parameters
         if self.data is not None and self.data.multi_obj_loss:
             for attr in self.multi_obj_loss_attrs:
-                setattr(self.net, attr, getattr(self.data, attr))
+                value = getattr(self.data, attr)
+                if isinstance(value, (list, tuple, dict)):
+                    value = NoDependency(value)
+                setattr(self.net, attr, value)
 
         # Build data structures -----------------------------------------------
         if self.data is not None and not self.data.built:
-            self.data.build(model=self.net)
+            self.data.build(self.net)
 
         # Visualize network graph ---------------------------------------------
-        self.visualize_graph(inputs, outputs, verbose, visualize_graph)
-        
+        self.visualize_graph(
+            self.net.inputs, self.net.outputs, verbose, visualize_graph
+        )
+
         # Loading network weights ---------------------------------------------
         self.make_or_restore(load_net, forced_loading, weights_to_load)
 
@@ -161,7 +172,7 @@ class Model(object):
         if load_net == 0:
             utils.print_fn("Making a new network", lev=1)
         elif load_net == 1:
-            path = os.path.abspath(self.save_path + '/model.h5')
+            path = os.path.abspath(self.save_path + '/model_weights.h5')
             utils.print_fn(
                 f"Restoring network from saved file '{path}'", lev=1
             )
@@ -188,6 +199,8 @@ class Model(object):
             )
             for p in path:
                 utils.print_fn(f">> '{p}'", lev=1)
+        elif load_net == 4:
+            utils.print_fn("Restoring network from saved TensorFlow file", lev=1)
         else:
             utils.raise_value_err(
                 "In `model.compile` you should pass as `load_net` argument "
@@ -196,7 +209,7 @@ class Model(object):
                 "   >> 1: restoring network from saved one (with same name);\n"
                 "   >> 2: restoring network from last checkpoint;\n"
                 "   >> 3: restoring network from a list of paths pointing to "
-                "hdf5 files defined in 'weights_to_load' input variable."
+                "hdf5 files defined in 'weights_to_load' input variable;\n"
                 "   >> 4: restoring network from TensorFlow SavedModel format."
             )    
         if path is not None:
@@ -288,7 +301,6 @@ class Model(object):
         verbose=1
     ):
         utils.print_fn(f"Training '{self.architecture}' network ...")
-
         # Define callbacks
         utils.print_fn("Initializing callbacks", lev=1)
         callbacks = callbacks_module.get_cb_list(self, callbacks)
@@ -396,7 +408,6 @@ class Model(object):
     ):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
-        # Save model in 'SavedModel' format
         if 'tf' in self.save_format:
             utils.print_fn("SavedModel format", lev=1)
             try:
@@ -445,8 +456,7 @@ class Model(object):
                     )
         # Save weights
         self.net.save_weights(
-            self.save_path+'/model_weights.h5',
-            overwrite=True
+            self.save_path+'/model_weights.h5', overwrite=True
         )
         # Save just pure weights (for `regularizers.FineTuningRegularizer')
         file_name = self.save_path + '/model_weights_clean.h5'

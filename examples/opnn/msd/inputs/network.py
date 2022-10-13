@@ -42,7 +42,7 @@ lays_propty = {
         'from': 'branch',
         'to': 'trunk',
         'kwargs': {
-            'layer_size': [dim['inp'][0], 8, 8, 8, 2],
+            'layer_size': [dim['inp'][0], 8, 8, 8],
             'activation': ['sigmoid']*3 + ['linear'],
             'out_xform': None,
             'transformation': 'projective',

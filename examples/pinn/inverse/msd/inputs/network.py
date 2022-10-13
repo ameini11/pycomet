@@ -25,10 +25,12 @@ common = {
 lays_propty = {
 
     'hidden_block': {
-        'block_type': 'FFBlock',
-        'layer_size': [1, 16, 16, 16, 2],
-        'activation': ['sigmoid']*3 + ['linear'],
-        **common
+        'lay_id': 'FFBlock',
+        'kwargs': {
+            'layer_size': [1, 16, 16, 16, 2],
+            'activation': ['sigmoid']*3 + ['linear'],
+            **common
+        }
     }
 
 }

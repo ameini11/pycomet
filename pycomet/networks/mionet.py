@@ -37,8 +37,8 @@ class MIONet(FlexOpNN):
             tf.nest.flatten({**self.n_branches, **self.n_trunks})
         )
         conditions = {
-            1: np.all((n_blocks == self.outputs_dim) + (n_blocks == 1)),
-            2: self.outputs_dim == np.amax(n_blocks)
+            1: np.all((n_blocks == self.output_dim) + (n_blocks == 1)),
+            2: self.output_dim == np.amax(n_blocks)
         }
         if not conditions[1] or not conditions[2]:
             utils.raise_value_err(
@@ -102,7 +102,7 @@ class MIONet(FlexOpNN):
 
     def _tensor_product(self, G_u, G_y):
         y = []
-        for i in range(self.outputs_dim):
+        for i in range(self.output_dim):
             G_u_i, G_y_i = [
                 [g[i] if len(g) > 1 else g[-1] for k, g in G.items()] \
                     for G in [G_u, G_y]
@@ -115,9 +115,7 @@ class MIONet(FlexOpNN):
             tf_layers.Multiply()(x) if len(x) > 1 else x[-1] \
                 for x in [G_u, G_y]
         ]
-        G_u, d, c = nn_elem.Split(
-            num_or_size_splits=[G_u.shape[1]-2, 1, 1], axis=1
-        )(G_u)
+        G_u, d, c = tf.split(G_u, [G_u.shape[1]-2, 1, 1], axis=1)
         y = tf_layers.Dot(axes=1)([G_u, G_y])
         y = tf_layers.Add()([c, tf_layers.Multiply()([d, y])])
         return y

@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from tensorflow.python.training.tracking.data_structures import NoDependency
 from tensorflow.python.keras.engine import compile_utils
 from tensorflow.python.keras.utils import losses_utils
 from tensorflow.python.keras import metrics as metrics_mod
@@ -37,9 +38,9 @@ class FuncNet(Functional):
         # Extra attributes for handling multi-objective loss
         self.multi_obj_loss = False
         self.objectives = None
-        self.obj_pred_fn = {}
+        self.obj_pred_fn = None
         self.weighted_loss = None
-    
+
     @property
     def input_dim(self):
         return ops.get_struct_shape(self.input, axis=1)

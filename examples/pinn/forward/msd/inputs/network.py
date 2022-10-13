@@ -4,9 +4,6 @@
 # --------------------------------------------------------------------------- #
 
 
-from inputs.general import model_name
-
-
 # Architecture properties
 # =============================================================================
 architecture = 'FFNN'
@@ -19,12 +16,6 @@ common = {
         'l1':   1.e-5,
         'l2':   1.e-5
     },
-    # 'regularizer': {
-    #     'name': 'fine_tuning',
-    #     'l1':   1.e-5,
-    #     'l2':   1.e-5,
-    #     'model_name': model_name
-    # },
     'dropout_kwargs': {'rate': 0.},
     'batch_norm': None,
     'weight_norm': False,

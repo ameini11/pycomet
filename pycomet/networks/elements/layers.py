@@ -587,54 +587,54 @@ class IOLambda(tf_layers.Lambda):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-# =========================================================================== #
-# IOLambda Layer
-# =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='Split'
-)
-class Split(tf_layers.Lambda):
+# # =========================================================================== #
+# # IOLambda Layer
+# # =========================================================================== #
+# @tf.keras.utils.register_keras_serializable(
+#     package=cfg._NAME, name='Split'
+# )
+# class Split(tf_layers.Lambda):
 
-    # Initialization
-    ###########################################################################
-    def __init__(
-        self,
-        num_or_size_splits=1,
-        axis=1,
-        num=None,
-        output_shape=None,
-        mask=None,
-        arguments=None,
-        **kwargs
-    ):
-        self.num_or_size_splits = num_or_size_splits
-        self.axis = axis
-        self.num = num
-        super(Split, self).__init__(
-            function=self.make_function(),
-            output_shape=output_shape,
-            mask=mask,
-            arguments=arguments,
-            **kwargs
-        )
+#     # Initialization
+#     ###########################################################################
+#     def __init__(
+#         self,
+#         num_or_size_splits=1,
+#         axis=1,
+#         num=None,
+#         output_shape=None,
+#         mask=None,
+#         arguments=None,
+#         **kwargs
+#     ):
+#         self.num_or_size_splits = num_or_size_splits
+#         self.axis = axis
+#         self.num = num
+#         super(Split, self).__init__(
+#             function=self.make_function(),
+#             output_shape=output_shape,
+#             mask=mask,
+#             arguments=arguments,
+#             **kwargs
+#         )
 
-    def make_function(self):
-        def function(x):
-            return tf.split(
-                x,
-                num_or_size_splits=self.num_or_size_splits,
-                axis=self.axis,
-                num=self.num
-            )
-        return function
+#     def make_function(self):
+#         def function(x):
+#             return tf.split(
+#                 x,
+#                 num_or_size_splits=self.num_or_size_splits,
+#                 axis=self.axis,
+#                 num=self.num
+#             )
+#         return function
 
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'num_or_size_splits': self.num_or_size_splits,
-            'axis': self.axis,
-            'num': self.num
-        }
-        base_config = super(Split, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+#     # Configuration update
+#     ###########################################################################
+#     def get_config(self):
+#         config = {
+#             'num_or_size_splits': self.num_or_size_splits,
+#             'axis': self.axis,
+#             'num': self.num
+#         }
+#         base_config = super(Split, self).get_config()
+#         return dict(list(base_config.items()) + list(config.items()))

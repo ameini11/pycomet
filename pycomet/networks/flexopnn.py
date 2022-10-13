@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 from keras import layers as tf_layers
 from pycomet.networks import elements as nn_elem
 from pycomet.networks.opnn import OpNN
@@ -82,9 +84,7 @@ class FlexOpNN(OpNN):
 
     def _tensor_product(self, G_u, G_y):
         G_u, d, c = list(zip(*[
-            nn_elem.Split(
-                num_or_size_splits=[G_u_i.shape[1]-2, 1, 1], axis=1
-            )(G_u_i) for G_u_i in G_u
+            tf.split(G_u_i, [G_u_i.shape[1]-2, 1, 1], axis=1) for G_u_i in G_u
         ]))
         y = super(FlexOpNN, self)._tensor_product(G_u, G_y)
         return [

@@ -27,7 +27,7 @@ class OpNN(BaseNet):
             **kwargs
         )
         # Input dimensionality ------------------------------------------------
-        if not isinstance(self.inputs_dim, (list, tuple)):
+        if not isinstance(self.input_dim, (list, tuple)):
             utils.raise_value_err(
                 f"`dim['inp']` passed into `{self.name}` has to be a "
                 "`list` or a `tuple`of length 2: [u_dim, y_dim]"
@@ -70,7 +70,6 @@ class OpNN(BaseNet):
         self.n_branches = len(self.active_lays['branch'])
         self.n_trunks = len(self.active_lays['trunk'])
         self.max_num_blocks = max(self.n_branches, self.n_trunks)
-        self.split_args = dict(num_or_size_splits=self.max_num_blocks, axis=1)
 
     # Layers initialization
     ###########################################################################
@@ -180,8 +179,8 @@ class OpNN(BaseNet):
             elif self.n_branches < self.n_trunks:
                 G_u = [G_u[-1]] * self.n_branches
             elif self.n_branches == self.n_trunks == 1:
-                G_u = nn_elem.Split(**self.split_args)(G_u[-1])
-                G_y = nn_elem.Split(**self.split_args)(G_y[-1])
+                G_u = tf.split(G_u[-1], self.max_num_blocks, axis=1)
+                G_y = tf.split(G_y[-1], self.max_num_blocks, axis=1)
         return [
             tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) \
                 for i in range(self.max_num_blocks)
