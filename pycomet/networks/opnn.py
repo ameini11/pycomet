@@ -119,9 +119,9 @@ class OpNN(BaseNet):
         lay = []
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
         for i, p in enumerate(propty):
-            name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
+            # name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
             lay.append(
-                self.get_lay(propty=p, default_lay_id='FFBlock', name=name)
+                self.get_lay(propty=p, default_lay_id='FFBlock')
             )
         return lay
 
@@ -151,7 +151,7 @@ class OpNN(BaseNet):
     def _manipulate_input(self, x):
         if not isinstance(x, (list, tuple)):
             utils.raise_value_err(
-                f"The inputs of the `{self.name}` net "
+                f"The inputs of `{self.name}` net "
                 "have to be a a `list` or a `tuple`."
             )
         x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}

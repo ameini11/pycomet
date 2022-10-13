@@ -20,7 +20,6 @@ class PhysicalModel(pcm.physics.PhysicalModel):
         K, C = tf.split(x[0], [1,1], axis=1)
 
         # Compute gradients
-        # dydt = grads(y, x[1], j=[0,1], i=[0], order=1, key='dydt')
         dydt = grads(y, x[2], j=[0,1], i=[0], order=1, key='dydt')
 
         # Compute residuals

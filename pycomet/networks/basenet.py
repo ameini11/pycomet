@@ -20,6 +20,7 @@ class BaseNet(object):
             *args,
             **kwargs
         )
+        self.name = self.__class__.__name__.lower()
         if not isinstance(dim, dict):
             utils.raise_value_err(
                 f"`dim` passed into `{self.name}` network has "

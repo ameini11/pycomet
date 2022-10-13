@@ -110,32 +110,17 @@ class MMOpNN(BaseNet):
         opnn = opnn if callable(opnn) else utils.get_class(networks, opnn)
         return opnn(
             dim=propty['dim'],
-            lays_propty=propty['lays_propty'],
-            name=opnn.__name__.lower() + '_' + name
+            lays_propty=propty['lays_propty']
         )
 
     # Calling
     ###########################################################################
     def call(self, x, training=None, mask=None):
-        # Inputs manipulation
-        y = self._manipulate_input(x)
         # Kernel - OpNNs
-        y = [opnn(y, training=training) \
+        y = [opnn(x, training=training) \
              for opnn in self.active_lays['opnns'].values()]
         # Outputs manipulation
         y = self._manipulate_inout(
             x=x, y=y, identifier='output', training=training
         )
         return y
-
-    def _manipulate_input(self, x):
-        if not isinstance(x, (list, tuple)):
-            utils.raise_value_err(
-                f"The inputs of the `{self.name}` net "
-                "have to be a a `list` or a `tuple`."
-            )
-        x = {k: x[v['index']] for k, v in self.active_lays['input'].items()}
-        for k, v in self.active_lays['input'].items():
-            if v['xform'] is not None:
-                x[k] = v['xform'](x[k])
-        return x
