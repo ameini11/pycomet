@@ -61,8 +61,7 @@ class MixedNet(BaseNet):
         net = net if callable(net) else utils.get_class(networks, net)
         return net(
             dim=propty['dim'],
-            lays_propty=propty['lays_propty'],
-            name=net.__name__.lower() + '_' + name
+            lays_propty=propty['lays_propty']
         )
 
     # Calling

@@ -58,6 +58,8 @@ class BaseNet(object):
                 _propty[k] = self.get_lay(
                     propty=propty[k], default_lay_id='Lambda'
                 )
+                if k == 'xform':
+                    _propty['signature'] = utils.get_fun_args(_propty[k].call)
             else:
                 _propty[k] = None
         return _propty
@@ -73,12 +75,12 @@ class BaseNet(object):
     def _manipulate_inout(
         self, x=None, y=None, identifier=None, training=False
     ):
-        lay = self.active_lays[identifier]['xform']
-        if lay is not None:
-            if 'iolambda' in lay.name.lower():
-                y = lay(x=x, y=y, training=training)
+        xform = self.active_lays[identifier]['xform']
+        if xform is not None:
+            if 'x' in self.active_lays[identifier]['signature']:
+                y = xform(x=x, y=y, training=training)
             else:
-                y = lay(y, training=training)
+                y = xform(y, training=training)
         return y
 
     # Handling layers
