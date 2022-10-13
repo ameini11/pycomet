@@ -57,7 +57,7 @@ class MIONet(FlexOpNN):
             elif identifier in ('branch', 'trunk'):
                 lays[identifier] = {
                     k: super(MIONet, self).init_block_lay(
-                        identifier=identifier+'_'+k, propty=p
+                        identifier='_'.join((identifier, k)), propty=p
                     ) for k, p in propty.items()
                 }
             elif identifier == 'prenet':
@@ -69,14 +69,15 @@ class MIONet(FlexOpNN):
                             propty={
                                 'lay_id': 'PreNetBlock',
                                 'kwargs': p['kwargs']
-                            }
+                            },
+                            name='_'.join((self.name, identifier, k))
                         )
                     } for k, p in propty.items()
                 }
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(propty)
+                lays[identifier] = self.init_inout_lay(identifier, propty)
         return lays
 
     # Calling

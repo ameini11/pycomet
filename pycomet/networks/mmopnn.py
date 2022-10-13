@@ -53,6 +53,7 @@ class MMOpNN(BaseNet):
         )
         # Initializing
         self.active_lays = self.init_layers()
+        print(self.active_lays)
 
     # Layers initialization
     ###########################################################################
@@ -64,7 +65,7 @@ class MMOpNN(BaseNet):
             elif identifier == 'opnns':
                 lays[identifier] = self.init_opnns_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(propty)
+                lays[identifier] = self.init_inout_lay(identifier, propty)
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -84,7 +85,9 @@ class MMOpNN(BaseNet):
                         _propty[k_subnet][k] = v_subnet[k]
                     else:
                         _propty[k_subnet][k] = self.get_lay(
-                            propty=v_subnet[k], default_lay_id='Lambda'
+                            propty=v_subnet[k],
+                            default_lay_id='Lambda',
+                            name='_'.join((self.name, identifier))
                         )
                 else:
                     _propty[k_subnet][k] = i if k == 'index' else None
@@ -105,12 +108,13 @@ class MMOpNN(BaseNet):
         return {name: self.get_opnn(opnn_lays_propty, name) \
             for name, opnn_lays_propty in propty.items()}
 
-    def get_opnn(self, propty={}, name='0'):
+    def get_opnn(self, propty={}, name=''):
         opnn = 'OpNN' if 'lay_id' not in propty else propty['lay_id']
         opnn = opnn if callable(opnn) else utils.get_class(networks, opnn)
         return opnn(
             dim=propty['dim'],
-            lays_propty=propty['lays_propty']
+            lays_propty=propty['lays_propty'],
+            name='_'.join((self.name, name))
         )
 
     # Calling

@@ -13,6 +13,7 @@ class BaseNet(object):
         dim,
         lays_name=None,
         lays_propty=None,
+        name=None,
         *args,
         **kwargs
     ):
@@ -20,8 +21,14 @@ class BaseNet(object):
             *args,
             **kwargs
         )
+        # Name
         self.name = self.__class__.__name__.lower()
-        if not isinstance(dim, dict):
+        if name is not None:
+            self.name = '_'.join((self.name, name))
+
+        # Dimensions
+        self.dim = dim
+        if not isinstance(self.dim, dict):
             utils.raise_value_err(
                 f"`dim` passed into `{self.name}` network has "
                 "to be a `dict` of length 2:\n"
@@ -29,8 +36,6 @@ class BaseNet(object):
                 "  - 'out': `int` (or `list` of `int`).\n"
                 "It represents the dimensions of the I/O feature space."
             )
-        # Dimensions
-        self.dim = dim
         self.input_dim = self.dim["inp"]
         self.output_dim = self.dim["out"]
         
@@ -51,12 +56,14 @@ class BaseNet(object):
 
     # Layers initialization
     ###########################################################################
-    def init_inout_lay(self, propty):
+    def init_inout_lay(self, identifier, propty):
         _propty = {}
         for k in ('xform',):
             if k in propty and propty[k] is not None:
                 _propty[k] = self.get_lay(
-                    propty=propty[k], default_lay_id='Lambda'
+                    propty=propty[k],
+                    default_lay_id='Lambda',
+                    name='_'.join((self.name, identifier))
                 )
                 if k == 'xform':
                     _propty['signature'] = utils.get_fun_args(_propty[k].call)
@@ -116,10 +123,12 @@ class BaseNet(object):
 
     def get_nn_elem(self, elem):
         return utils.get_class(modules=(nn_elem, tf_layers), name=elem)
-    
+
     def get_lay(self, propty={}, default_lay_id='Lambda', name=None):
         lay = default_lay_id if 'lay_id' not in propty else propty['lay_id']
         lay = lay if callable(lay) else self.get_nn_elem(lay)
         if name is not None:
-            propty['kwargs'].update({'name': name})
+            propty['kwargs'].update(
+                {'name': '_'.join((name, lay.__name__.lower()))}
+            )
         return lay(**propty['kwargs'])

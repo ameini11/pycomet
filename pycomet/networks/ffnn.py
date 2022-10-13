@@ -39,10 +39,12 @@ class FFNN(BaseNet):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier in ('input', 'output'):
-                lays[identifier] = self.init_inout_lay(propty)
+                lays[identifier] = self.init_inout_lay(identifier, propty)
             elif identifier == 'hidden_block':
                 lays[identifier] = self.get_lay(
-                    propty=propty, default_lay_id='FFBlock'
+                    propty=propty,
+                    default_lay_id='FFBlock',
+                    name='_'.join((self.name, identifier))
                 )
         return lays
 

@@ -43,7 +43,9 @@ class AugOpNN(OpNN):
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
         for i, p in enumerate(propty):
             p['lay_id'] = 'CrossEncoderBlock'
-            lay.append(self.get_lay(propty=p))
+            lay.append(
+                self.get_lay(propty=p, name='_'.join((self.name, identifier)))
+            )
         return lay
 
     def check_layer_size(self):
@@ -66,6 +68,7 @@ class AugOpNN(OpNN):
         }
         kwargs['units'] = propty['kwargs']['layer_size'][1]
         kwargs['activation'] = propty['kwargs']['activation'][0]
+        kwargs['name'] = '_'.join((self.name, identifier))
         return nn_elem.MultiLayerBlock(**kwargs)
 
     # Calling

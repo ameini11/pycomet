@@ -42,7 +42,7 @@ class MixedNet(BaseNet):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier in ('input', 'output'):
-                lays[identifier] = self.init_inout_lay(propty)
+                lays[identifier] = self.init_inout_lay(identifier, propty)
             elif identifier == 'networks':
                 lays[identifier] = self.init_nets_lay(identifier, propty)
         return lays
@@ -56,12 +56,13 @@ class MixedNet(BaseNet):
         return {name: self.get_net(net_lays_propty, name) \
             for name, net_lays_propty in propty.items()}
 
-    def get_net(self, propty={}, name='0'):
+    def get_net(self, propty={}, name=''):
         net = 'FFNN' if 'lay_id' not in propty else propty['lay_id']
         net = net if callable(net) else utils.get_class(networks, net)
         return net(
             dim=propty['dim'],
-            lays_propty=propty['lays_propty']
+            lays_propty=propty['lays_propty'],
+            name='_'.join((self.name, name))
         )
 
     # Calling

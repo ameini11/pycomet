@@ -83,7 +83,7 @@ class OpNN(BaseNet):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(propty)
+                lays[identifier] = self.init_inout_lay(identifier, propty)
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -103,7 +103,9 @@ class OpNN(BaseNet):
                         _propty[k_subnet][k] = v_subnet[k]
                     elif k == 'xform':
                         _propty[k_subnet][k] = self.get_lay(
-                            propty=v_subnet[k], default_lay_id='Lambda'
+                            propty=v_subnet[k],
+                            default_lay_id='Lambda',
+                            name='_'.join((self.name, identifier))
                         ) if v_subnet[k] is not None else None
                 else:
                     _propty[k_subnet][k] = i if k == 'index' else None
@@ -119,9 +121,12 @@ class OpNN(BaseNet):
         lay = []
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
         for i, p in enumerate(propty):
-            # name = f'{identifier}' if i == 0 else f'{identifier}_{i}'
             lay.append(
-                self.get_lay(propty=p, default_lay_id='FFBlock')
+                self.get_lay(
+                    propty=p,
+                    default_lay_id='FFBlock',
+                    name='_'.join((self.name, identifier, str(i+1)))
+                )
             )
         return lay
 
@@ -134,7 +139,7 @@ class OpNN(BaseNet):
                 )
             if 'kwargs' not in propty:
                 propty['kwargs'] = {}
-            return self.get_lay(propty)
+            return self.get_lay(propty, name='_'.join((self.name, identifier)))
 
     # Calling
     ###########################################################################
