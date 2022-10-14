@@ -8,22 +8,22 @@ import numpy as np
 import tensorflow as tf
 
 from inputs.general import dim
-from inputs.data import data_src, columns
+from inputs.data import data_src, cols
 # from inputs.physics import specie_thermo, process
 from pycomet.networks.elements import layers as pcm_layers
 
 
 # Architecture properties
 # =============================================================================
-architecture = 'TwoTempOneElemNN'
+architecture = 'MMOpNN'
 
 # Layers ----------------------------------------------------------------------
 common = {
     'kernel_initializer': 'GlorotNormal',
     'regularizer': {
         'name': 'l1+l2',
-        'l1': 1.e-3,
-        'l2': 1.e-3
+        'l1': 1.e-4,
+        'l2': 1.e-4
     },
     'trainable': True,
     'dropout_kwargs': {'rate': 0.},
@@ -32,7 +32,7 @@ common = {
 }
 
 def output_xform(y):
-    y =  tf.math.sigmoid(y)
+    y = tf.math.sigmoid(y)
     return tf.concat([1.-y, y],1)
 
 lays_propty = {
@@ -40,47 +40,57 @@ lays_propty = {
     'input': {
         'branch': {
             'index': 0,
-            'xform': pcm_layers.Normalization(
-                mu_sigma_file='./saving/normalization_mu_sigma.txt',
-                data_files=[data_src[k]['ics'] for k in ('train','valid')],
-                columns=[0,1,2,3]
-            )
+            'xform': {
+                'lay_id': 'Normalization',
+                'kwargs': {
+                    'mu_sigma_file': './saving/normalization_mu_sigma.txt',
+                    'data_files': [data_src[k]['ics'] for k in ('train','valid')],
+                    'columns': cols['x'][0],
+                    'trainable': False
+                }
+            }
         },
         'trunk': {
             'index': 1,
-            'xform': pcm_layers.Log(
-                base='e', slope=np.log(1.e-7), offset=1.e-14
-            )
+            'xform': {
+                'lay_id': 'Log',
+                'kwargs': {
+                    'base': 'e',
+                    'slope': 1.e7,
+                    'offset': 1.e-14,
+                    'trainable': False
+                }
+            }
         }
     },
 
     'opnns': {
         name: {
-            'lay_id': 'FlexOpNN',
+            'lay_id': 'AugOpNN',
             'dim': {
                 "inp": dim['inp'],
                 "out": 2
             },
             'lays_propty': {
 
-                'prenet': {
-                    'from': 'branch',
-                    'to': 'trunk',
-                    'kwargs': {
-                        'layer_size': [dim['inp'][0], 32, 32],
-                        'activation': ['tanh']*2 + ['linear'],
-                        'out_xform': None,
-                        'transformation': 'similarity',
-                        'num_coords': 1,
-                        **common
-                    }
-                },
+                # 'prenet': {
+                #     'from': 'branch',
+                #     'to': 'trunk',
+                #     'kwargs': {
+                #         'layer_size': [dim['inp'][0], 32, 32, 16],
+                #         'activation': ['tanh']*3 + ['linear'],
+                #         'out_xform': None,
+                #         'transformation': 'affine',
+                #         'num_coords': 1,
+                #         **common
+                #     }
+                # },
 
                 'branch': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][0], 32, 32, 16],
-                        'activation': ['tanh']*3,
+                        'layer_size': [dim['inp'][0], 64, 64, 16],
+                        'activation': ['tanh']*2 + ['linear'],
                         **common
                     }
                 },
@@ -88,14 +98,19 @@ lays_propty = {
                 'trunk': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][1], 32, 32, 16],
-                        'activation': ['tanh']*3,
+                        'layer_size': [dim['inp'][1], 64, 64, 16],
+                        'activation': ['sigmoid']*2 + ['linear'],
                         **common
                     }
                 },
 
                 'output': {
-                    'xform': output_xform
+                    'xform': {
+                        'lay_id': 'Lambda',
+                        'kwargs': {
+                            'function': output_xform
+                        }
+                    }
                 }
             }
         } for name in ('mass', 'temp')

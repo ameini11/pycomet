@@ -17,8 +17,8 @@ figures = [
     {
         'fig_name':  'temp',
         'indices':   ({1: 0}, {1: [0,1]}, {1: [0,1]}),
-        'var_names': [r'$T_h$', r'$T_v$'],
-        'labels':    [r'$t$ [s]', r'$T$ [K]'],
+        'var_names': [r'$\hat{e}_{rt}$', r'$\hat{e}_{v}$'],
+        'labels':    [r'$t$ [s]', r'$\hat{e}$'],
         'scales':    ['log', 'linear']
     }
 ]

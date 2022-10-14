@@ -14,7 +14,7 @@ data_type = 'ODE'
 physics_informed = False
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
 
 data_src = {
     'train': {
@@ -30,24 +30,30 @@ data_src = {
     'test': './data/test/'
 }
 
-columns = {
+cols = {
     'x': [[0,1,2,3],[4]],
     'y': [[5,6],[7,8]]
 }
-columns = tf.nest.map_structure(lambda _: columns, data_src)
+columns = tf.nest.map_structure(lambda _: cols, data_src)
 
 header = 0
+
+def preproc_fn(x):
+    if x.shape[1] == cols['y'][-1][-1]+1:
+        for c in cols['y']:
+            x[:,c[0]:c[1]+1] = tf.nn.softmax(x[:,c[0]:c[1]+1])
+    return x
 
 # Batching --------------------------------------------------------------------
 batch_size = {
     'train': {
-        'ics': 16,
-        'pts': 64,
-        'res': 64
+        'ics': 64,
+        'pts': 512,
+        'res': 512
     },
     'valid': {
-        'ics': 32,
-        'pts': 32,
-        'res': 32
+        'ics': 64,
+        'pts': 512,
+        'res': 512
     }
 }

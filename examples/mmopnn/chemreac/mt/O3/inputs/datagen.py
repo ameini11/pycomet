@@ -11,7 +11,7 @@ from inputs.general import flags
 # =============================================================================
 # Training data
 train_pts = {
-    'ics': 20,              # Number of training scenarios
+    'ics': 10240,              # Number of training scenarios
     'pts': 160,             # Number of total anchor pts for each scenario
     'res': 0                # Number of total collocation pts for each scenario
 }
@@ -19,5 +19,5 @@ validation_split = 0.2      # % of Validation pts
 
 # Testing data
 testing = flags['test']
-test_cases = 2             # Number of testing cases
+test_cases = 50             # Number of testing cases
 test_training = True        # Test training cases

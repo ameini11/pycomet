@@ -4,14 +4,17 @@
 # --------------------------------------------------------------------------- #
 
 
+from inputs.postproc import figures
+
+
 # Training
 # =============================================================================
-epochs = 2 #10000
+epochs = 10
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 1.e-4
-decay_steps = 4*4413*10
+decay_steps = 2560*10
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -31,8 +34,8 @@ callbacks = {
 
     'early_stopping': {
        'monitor':              'val_loss',
-       'min_delta':            1.e-4,
-       'patience':             300,
+       'min_delta':            1.e-6,
+       'patience':             500,
        'restore_best_weights': True,
        'verbose':              1
     },
@@ -52,6 +55,20 @@ callbacks = {
         'write_graph':    True,
         'write_images':   True,
         'profile_batch':  0
-    }
+    },
+
+    'plotter': {
+        'figures': figures,
+        'freq':    200
+    },
+
+    # 'weighted_loss': {
+    #     'name': 'ConstantWeightsAdapter',
+    #     'multi_obj_loss_weights': {
+    #         'ics': 64,
+    #         'pts': 512,
+    #         'res': 512
+    #     }
+    # }
     
 }
