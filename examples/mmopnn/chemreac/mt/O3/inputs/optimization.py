@@ -9,12 +9,12 @@ from inputs.postproc import figures
 
 # Training
 # =============================================================================
-epochs = 10
+epochs = 1000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
-lr = 1.e-4
-decay_steps = 2560*10
+lr = 5.e-4
+decay_steps = 2560*20
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -59,7 +59,7 @@ callbacks = {
 
     'plotter': {
         'figures': figures,
-        'freq':    200
+        'freq':    100
     },
 
     # 'weighted_loss': {

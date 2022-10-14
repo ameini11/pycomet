@@ -66,25 +66,25 @@ lays_propty = {
 
     'opnns': {
         name: {
-            'lay_id': 'AugOpNN',
+            'lay_id': 'FlexOpNN',
             'dim': {
                 "inp": dim['inp'],
                 "out": 2
             },
             'lays_propty': {
 
-                # 'prenet': {
-                #     'from': 'branch',
-                #     'to': 'trunk',
-                #     'kwargs': {
-                #         'layer_size': [dim['inp'][0], 32, 32, 16],
-                #         'activation': ['tanh']*3 + ['linear'],
-                #         'out_xform': None,
-                #         'transformation': 'affine',
-                #         'num_coords': 1,
-                #         **common
-                #     }
-                # },
+                'prenet': {
+                    'from': 'branch',
+                    'to': 'trunk',
+                    'kwargs': {
+                        'layer_size': [dim['inp'][0], 32, 32, 16],
+                        'activation': ['tanh']*3 + ['linear'],
+                        'out_xform': None,
+                        'transformation': 'affine',
+                        'num_coords': 1,
+                        **common
+                    }
+                },
 
                 'branch': {
                     'lay_id': 'FFBlock',
