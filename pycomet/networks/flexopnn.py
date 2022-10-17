@@ -73,12 +73,14 @@ class FlexOpNN(OpNN):
     ###########################################################################
     def _eval_kernel(self, x, training):
         # PreNet
+        y = x
         if 'prenet' in self.active_lays.keys():
+            # y = tf.nest.map_structure(tf.identity, x)
             lay = self.active_lays['prenet']
-            x[lay['to']] = lay['block'](
-                x=[x[lay['from']], x[lay['to']]], training=training
+            y[lay['to']] = lay['block'](
+                x=[y[lay['from']], y[lay['to']]], training=training
             )
-        return super(FlexOpNN, self)._eval_kernel(x, training)
+        return super(FlexOpNN, self)._eval_kernel(y, training)
 
     def _tensor_product(self, G_u, G_y):
         G_u, d, c = list(zip(*[

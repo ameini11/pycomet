@@ -14,7 +14,7 @@ from pycomet import utils
 from varname import nameof
 
 
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='FuncNet')
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class FuncNet(Functional):
     """Network base class."""
 
@@ -168,7 +168,7 @@ class FuncNet(Functional):
                 metrics.extend(l._metrics)
             return metrics
         else:
-            return super(Net, self).metrics
+            return super(FuncNet, self).metrics
 
     # Steps
     ###########################################################################
@@ -177,7 +177,7 @@ class FuncNet(Functional):
         if self.multi_obj_loss:
             return self.multi_obj_train_step(data)
         else:
-            return super(Net, self).train_step(data)
+            return super(FuncNet, self).train_step(data)
 
     def multi_obj_train_step(self, data):
         # Unpack data
@@ -232,7 +232,7 @@ class FuncNet(Functional):
         if self.multi_obj_loss:
             return self.multi_obj_test_step(data)
         else:
-            return super(Net, self).test_step(data)
+            return super(FuncNet, self).test_step(data)
 
     def multi_obj_test_step(self, data):
         # Unpack data

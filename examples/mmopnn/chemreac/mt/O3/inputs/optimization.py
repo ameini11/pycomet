@@ -9,7 +9,7 @@ from inputs.postproc import figures
 
 # Training
 # =============================================================================
-epochs = 1000
+epochs = 2000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
@@ -59,7 +59,7 @@ callbacks = {
 
     'plotter': {
         'figures': figures,
-        'freq':    100
+        'freq':    200
     },
 
     # 'weighted_loss': {

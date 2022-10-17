@@ -22,8 +22,8 @@ common = {
     'kernel_initializer': 'GlorotNormal',
     'regularizer': {
         'name': 'l1+l2',
-        'l1': 1.e-4,
-        'l2': 1.e-4
+        'l1': 1.e-3,
+        'l2': 1.e-3
     },
     'trainable': True,
     'dropout_kwargs': {'rate': 0.},
@@ -89,7 +89,7 @@ lays_propty = {
                 'branch': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][0], 64, 64, 16],
+                        'layer_size': [dim['inp'][0], 64, 64, 20],
                         'activation': ['tanh']*2 + ['linear'],
                         **common
                     }
@@ -98,7 +98,7 @@ lays_propty = {
                 'trunk': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][1], 64, 64, 16],
+                        'layer_size': [dim['inp'][1], 64, 64, 20],
                         'activation': ['sigmoid']*2 + ['linear'],
                         **common
                     }

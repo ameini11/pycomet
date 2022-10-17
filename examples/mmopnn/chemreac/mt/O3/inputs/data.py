@@ -14,7 +14,7 @@ data_type = 'ODE'
 physics_informed = False
 
 # Data source -----------------------------------------------------------------
-from_file = False
+from_file = True
 
 data_src = {
     'train': {

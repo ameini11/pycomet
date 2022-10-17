@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from pycomet.networks.basenet import BaseNet
 from pycomet import networks
@@ -120,8 +121,10 @@ class MMOpNN(BaseNet):
         # Inputs manipulation
         y = self._manipulate_input(y)
         # Kernel - OpNNs
-        y = [opnn(y, training=training) \
-             for opnn in self.active_lays['opnns'].values()]
+        y = {name: tf.nest.map_structure(tf.identity, y) \
+             for name in self.active_lays['opnns'].keys()}
+        y = [opnn(y[name], training=training) \
+             for name, opnn in self.active_lays['opnns'].items()]
         # Outputs manipulation
         y = self._manipulate_inout(
             x=x, y=y, identifier='output', training=training
