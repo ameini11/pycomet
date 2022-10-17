@@ -138,7 +138,7 @@ class FuncNet(Functional):
                 else:
                     self._jit_compile = jit_compile
         else:
-            return super(Net, self).compile(
+            return super(FuncNet, self).compile(
                 optimizer=optimizer,
                 loss=loss,
                 metrics=metrics,

@@ -264,7 +264,7 @@ class Model(object):
             
         # Extra trainable physical variables
         extra_trainable_variables = None
-        if self.data.physical_mdl is not None:
+        if self.data is not None and self.data.physical_mdl is not None:
             extra_trainable_variables = getattr(
                 self.data.physical_mdl, 'extra_trainable_variables', []
             )

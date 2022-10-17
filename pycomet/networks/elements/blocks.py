@@ -14,9 +14,7 @@ from pycomet import utils
 # =========================================================================== #
 # MultiLayerBlock Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='MultiLayerBlock'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class MultiLayerBlock(tf_layers.Layer):
     """Multi Layer Block."""
 
@@ -115,9 +113,7 @@ class MultiLayerBlock(tf_layers.Layer):
 # =========================================================================== #
 # FFBlock Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='FFBlock'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class FFBlock(tf_layers.Layer):
     """Simple Feed-forward block."""
 
@@ -201,9 +197,7 @@ class FFBlock(tf_layers.Layer):
 # =========================================================================== #
 # ResPIBlock Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='ResPIBlock'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class ResPIBlock(FFBlock):
     """An improved residual block architecture for PINNs.
 
@@ -290,9 +284,7 @@ class ResPIBlock(FFBlock):
 # =========================================================================== #
 # PreNetBlock Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='PreNetBlock'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class PreNetBlock(tf_layers.Layer):
     """See: https://arxiv.org/pdf/2204.12670.pdf
     """
@@ -451,9 +443,7 @@ class PreNetBlock(tf_layers.Layer):
 # =========================================================================== #
 # CrossEncoderBlock Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='CrossEncoderBlock'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class CrossEncoderBlock(FFBlock):
 
     # Initialization

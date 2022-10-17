@@ -17,9 +17,7 @@ from pycomet import utils
 # =========================================================================== #
 # TrainableActivationFun Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='TrainableActivationFun'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class TrainableActivationFun(tf_layers.Layer):
 
     # Initialization
@@ -141,9 +139,7 @@ class TrainableActivationFun(tf_layers.Layer):
 # =========================================================================== #
 # Scaling Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='Scaling'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class Scaling(tf_layers.Layer):
 
     # Initialization
@@ -209,9 +205,7 @@ class Scaling(tf_layers.Layer):
 # =========================================================================== #
 # LinearNormalization Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='LinearNormalization'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class LinearNormalization(Scaling):
 
     # Initialization
@@ -249,9 +243,7 @@ class LinearNormalization(Scaling):
 # =========================================================================== #
 # Normalization Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='Normalization'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class Normalization(tf_layers.Normalization):
 
     # Initialization
@@ -280,8 +272,8 @@ class Normalization(tf_layers.Normalization):
         self.save_dir = save_dir
 
     def build(self, input_shape):
-        self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
         if self.input_mean is None and self.input_variance is None:
+            self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
             if os.path.exists(self.mu_sigma_file):
                 self.read_mu_sigma(file=self.mu_sigma_file)
             elif os.path.exists(self.saved_file):
@@ -319,27 +311,25 @@ class Normalization(tf_layers.Normalization):
         data = tf.convert_to_tensor(np.vstack(data))
         return data
 
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'mu_sigma_file': self.mu_sigma_file,
-            'data_files': self.data_files,
-            'columns': self.columns,
-            'header': self.header,
-            'preproc_fn': self.preproc_fn,
-            'save_dir': self.save_dir
-        }
-        base_config = super(Normalization, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+    # # Configuration update
+    # ###########################################################################
+    # def get_config(self):
+    #     config = {
+    #         'mu_sigma_file': self.mu_sigma_file,
+    #         'data_files': self.data_files,
+    #         'columns': self.columns,
+    #         'header': self.header,
+    #         'preproc_fn': self.preproc_fn,
+    #         'save_dir': self.save_dir
+    #     }
+    #     base_config = super(Normalization, self).get_config()
+    #     return dict(list(base_config.items()) + list(config.items()))
 
 
 # =========================================================================== #
 # Logarithmic Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='Log'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class Log(tf_layers.Layer):
 
     # Initialization
@@ -409,9 +399,7 @@ class Log(tf_layers.Layer):
 # =========================================================================== #
 # Bias Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='Bias'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class Bias(tf_layers.Layer):
 
     # Initialization
@@ -486,9 +474,7 @@ class Bias(tf_layers.Layer):
 # =========================================================================== #
 # Permanent Dropout Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='Dropout'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class Dropout(tf_layers.Dropout):
 
     # Initialization
@@ -529,9 +515,7 @@ class Dropout(tf_layers.Dropout):
 # =========================================================================== #
 # IOLambda Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='IOLambda'
-)
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class IOLambda(tf_layers.Lambda):
 
     # Initialization
