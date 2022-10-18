@@ -6,8 +6,8 @@ from pycomet import utils
 
 from hypernet.src.general import utils as hyp_utils
 thermophysics = hyp_utils.get_thermophysics_mod()
-from thermophysics.reaction_thermo.mixture import MultiComponent
-from thermophysics.specie_thermo.specie_thermo import SpecieThermo
+mix_mod = thermophysics.reaction_thermo.mixture
+sp_th_mod = thermophysics.specie_thermo.specie_thermo
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
@@ -30,7 +30,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         for index, s in self.specie_thermo.items():
             args = s if 'config' in s \
                 else s.update(dict(index=index, process=process))
-            sp_th = SpecieThermo(**args)
+            sp_th = sp_th_mod.SpecieThermo(**args)
             self.sp_th[sp_th.name] = sp_th
         for name, s in self.sp_th.items():
             if s.specie.n_at > 1:
@@ -38,7 +38,7 @@ class TwoTempThermoLay(tf_layers.Layer):
             else:
                 self.atom = name
         # Mixture
-        self.mix = MultiComponent(self.sp_th)
+        self.mix = mix_mod.MultiComponent(self.sp_th)
 
     def call(self, inputs, training=None):
         x, y = ops.unpack_list(inputs, n_elem=2)
