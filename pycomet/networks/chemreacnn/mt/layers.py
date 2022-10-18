@@ -6,8 +6,8 @@ from pycomet import utils
 
 from hypernet.src.general import utils as hyp_utils
 thermophysics = hyp_utils.get_thermophysics_mod()
-from thermophysics.specie_thermo.specie_thermo import SpecieThermo
 from thermophysics.reaction_thermo.mixture import MultiComponent
+from thermophysics.specie_thermo.specie_thermo import SpecieThermo
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
@@ -17,7 +17,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         self,
         process=[],
         specie_thermo={},
-        out_indices={'Y': {0: [0,1]}, 'T': {1: [0,1]}},
+        out_indices={'Y': 0, 'T': 1},
         inp_indices={'e': {0: -1}},
         **kwargs
     ):
@@ -45,15 +45,13 @@ class TwoTempThermoLay(tf_layers.Layer):
     def call(self, inputs, training=None):
         x, y = ops.unpack_list(inputs, n_elem=2)
         # Mass fractions and normalized energies (from model outputs)
-        Y, e_hat = [
-            ops.extract_data(y, self.out_indices[k], axis=1) for k in ('Y','T')
-        ]
+        y = {k: y[self.out_indices[k]] for k in ('Y', 'T')}
         # Total energy (from model inputs)
         e = ops.extract_data(x, self.inp_indices['e'], axis=1)
         # Update thermodynamics
         for s in self.sp_th.values():
-            s.update(T)
-        self.mix.update(Y, var='Y')
+            s.update(y['T'])
+        self.mix.update(y['Y'], var='Y')
         # Formation energy
         e_f = self.mix._e_f()
         # Roto-translational & Vibrational energy
@@ -69,7 +67,11 @@ class TwoTempThermoLay(tf_layers.Layer):
                 cv_rt = cv_rt + s.thermo.th_int.rr.cv*s.specie.Y
         Th = e_rt/cv_rt
         # Return outputs
-        return Y, tf.concat([Th, Tv], 1)
+        y['T'] = tf.concat([Th, Tv], 1)
+        y = list(sorted(
+            {i: y[k] for k, i in self.out_indices.items()}
+        ).values())
+        return y
 
     def get_config(self):
         specie_thermo_cfg = {
