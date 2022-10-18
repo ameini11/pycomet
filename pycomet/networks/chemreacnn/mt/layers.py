@@ -21,9 +21,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         inp_indices={'e': {0: -1}},
         **kwargs
     ):
-        super(TwoTempThermoLay, self).__init__(
-            **kwargs
-        )
+        super(TwoTempThermoLay, self).__init__(**kwargs)
         self.specie_thermo = specie_thermo
         self.out_indices = out_indices
         self.inp_indices = inp_indices
