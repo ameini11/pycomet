@@ -6,19 +6,17 @@ from pycomet import utils
 
 from hypernet.src.general import utils as hyp_utils
 thermophysics = hyp_utils.get_thermophysics_mod()
-sp_th_mod = thermophysics.specie_thermo
-mix_mod = thermophysics.reaction_thermo.mixture
+from thermophysics.specie_thermo.specie_thermo import SpecieThermo
+from thermophysics.reaction_thermo.mixture import MultiComponent
 
-    
-@tf.keras.utils.register_keras_serializable(
-    package=cfg._NAME, name='TwoTempThermoLay'
-)
+
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
 class TwoTempThermoLay(tf_layers.Layer):
 
     def __init__(
         self,
-        process,
-        specie_thermo,
+        process=[],
+        specie_thermo={},
         out_indices={'Y': {0: [0,1]}, 'T': {1: [0,1]}},
         inp_indices={'e': {0: -1}},
         **kwargs
@@ -26,28 +24,26 @@ class TwoTempThermoLay(tf_layers.Layer):
         super(TwoTempThermoLay, self).__init__(
             **kwargs
         )
-        self.process = process
         self.specie_thermo = specie_thermo
         self.out_indices = out_indices
         self.inp_indices = inp_indices
         # Specie thermodynamics
-        self.sp_th = {
-            sp_th['specie']['name']: sp_th_mod.specie_thermo.SpecieThermo(
-                index=index,
-                process=self.process,
-                **sp_th
-            ) for index, sp_th in self.specie_thermo.items()
-        }
+        self.sp_th = {}
+        for index, s in self.specie_thermo.items():
+            args = s if 'config' in s \
+                else s.update(dict(index=index, process=process))
+            sp_th = SpecieThermo(**args)
+            self.sp_th[sp_th.name] = sp_th
         for name, s in self.sp_th.items():
             if s.specie.n_at > 1:
                 self.molecule = name
             else:
                 self.atom = name
         # Mixture
-        self.mix = utils.get_class(mix_mod, 'MultiComponent')(self.sp_th)
+        self.mix = MultiComponent(self.sp_th)
 
     def call(self, inputs, training=None):
-        x, y = inputs
+        x, y = ops.unpack_list(inputs, n_elem=2)
         # Mass fractions and normalized energies (from model outputs)
         Y, e_hat = [
             ops.extract_data(y, self.out_indices[k], axis=1) for k in ('Y','T')
@@ -76,9 +72,12 @@ class TwoTempThermoLay(tf_layers.Layer):
         return Y, tf.concat([Th, Tv], 1)
 
     def get_config(self):
+        specie_thermo_cfg = {
+            sp_th.specie.index: {'config': self.sp_th.get_config()} \
+                for sp_th in self.sp_th.values()
+        }
         config = {
-            "process": self.process,
-            "specie_thermo": self.specie_thermo,
+            "specie_thermo": specie_thermo_cfg,
             "out_indices": self.out_indices,
             "inp_indices": self.inp_indices
         }

@@ -1,6 +1,6 @@
 from pycomet.networks.chemreacnn.mt.layers import *
-from pycomet.networks.chemreacnn.mt.two_temp_one_elem_nn import TwoTempOneElemNN
+# from pycomet.networks.chemreacnn.mt.two_temp_one_elem_nn import TwoTempOneElemNN
 
-__all__ = [
-    "TwoTempOneElemNN"
-]
+# __all__ = [
+#     "TwoTempOneElemNN"
+# ]
