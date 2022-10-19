@@ -422,11 +422,13 @@ class Model(object):
                     options=None,
                     save_traces=True
                 )
-            except:
+            except Exception as e:
                 utils.warning(
                     "Unable to save the full model in TensorFlow " \
                     "`SavedModel` format. Check custom layers/models"
                 )
+                utils.print_fn("Error log:")
+                print(e)
         # Save model in 'TFLite' format
         if 'tflite' in self.save_format:
             if cfg._TF['setup']['FLOATX'] == 'float64':
@@ -451,10 +453,12 @@ class Model(object):
                     open(
                         self.save_path + '/model.tflite', "wb"
                     ).write(tflite_model)
-                except:
+                except Exception as e:
                     utils.warning(
                         "Unable to save the full model in TFLite format."
                     )
+                    utils.print_fn("Error log:")
+                    print(e)
         # Save weights
         self.net.save_weights(
             self.save_path+'/model_weights.h5', overwrite=True
