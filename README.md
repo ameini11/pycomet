@@ -29,7 +29,7 @@ To install PyCOMET with Conda, first create the Conda enviroment by simply typin
 ```
 $ git clone https://github.com/ivanZanardi/pycomet.git
 $ cd pycomet
-$ conda env create -f conda/<processor>.env.yml
+$ conda env create -f conda/env/tf_<processor>.yml
 ```
 where `<processor>` is either `cpu` or `gpu`.
 You can install both enveiroment to better manage your jobs.
