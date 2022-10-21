@@ -346,28 +346,17 @@ class PreNetBlock(tf_layers.Layer):
         # Initialize transformation
         self.transformation = transformation
         self.shifter = shifter
-        self.num_blocks = 1
         nc = self.num_coords['xform']
         if self.transformation == 'translation':
             self.output_dim = [nc]
             self.i, self.j = nc, 0
         elif self.transformation in ('euclidean', 'similarity'):
             if nc <= 3:
-                if nc == 1:
-                    self.num_blocks = 2
-                    self.output_dim = [1, 1]
-                elif nc == 2:
-                    self.num_blocks = 3
-                    self.output_dim = [1, 2, 1]
-                elif nc == 3:
-                    self.num_blocks = 3
-                    self.output_dim = [3, 3, 1]
+                self.output_dim = [np.math.comb(nc,2), 1, nc] # [R, S, T]
                 if self.transformation == 'euclidean':
-                    self.num_blocks = self.num_blocks - 1
-                    self.output_dim = self.output_dim[:-1]
+                    self.output_dim[1] = 0
                 if not self.shifter:
-                    self.num_blocks = self.num_blocks - 1
-                    self.output_dim = self.output_dim[1:]
+                    self.output_dim[2] = 0
                 self.i, self.j = None, None
             else:
                 self.output_dim = [nc * (nc + 1)]
@@ -383,19 +372,33 @@ class PreNetBlock(tf_layers.Layer):
                 f"The types of transformation available are: {self.xform_list}"
             )
 
+        # Kernel --------------------------------------------------------------
+        self.layer_size = layer_size
+        self.activation = activation
+        self.kernel_initializer = kernel_initializer
+        self.regularizer = regularizer
+        self.dropout_kwargs = dropout_kwargs
+        self.batch_norm = batch_norm
+        self.weight_norm = weight_norm
+        self.blocks = []
+        for d in self.output_dim:
+            if d != 0:
+                self.blocks.append(
+                    FFBlock(
+                        layer_size=list(self.layer_size) + [d],
+                        activation=self.activation,
+                        kernel_initializer=self.kernel_initializer,
+                        regularizer=self.regularizer,
+                        dropout_kwargs=self.dropout_kwargs,
+                        batch_norm=self.batch_norm,
+                        weight_norm=self.weight_norm
+                    )
+                )
+            else:
+                self.blocks.append(None)
+
         # Outputs manipulation ------------------------------------------------
         self.out_xform = out_xform
-        self.blocks = [
-            FFBlock(
-                layer_size=list(layer_size) + [self.output_dim[i]],
-                activation=activation,
-                kernel_initializer=kernel_initializer,
-                regularizer=regularizer,
-                dropout_kwargs=dropout_kwargs,
-                batch_norm=batch_norm,
-                weight_norm=weight_norm
-            ) for i in range(self.num_blocks)
-        ]
 
     # Calling
     ###########################################################################
@@ -418,18 +421,19 @@ class PreNetBlock(tf_layers.Layer):
     
     def transform(self, x1, x2, training):
         # Kernel
-        y = [blk.call(x1, training=training) for blk in self.blocks]
+        y = [blk.call(x1, training=training) if blk is not None else None \
+             for blk in self.blocks]
         # Apply transformation
         nc = self.num_coords['xform']
         if self.transformation in ('euclidean', 'similarity') and nc <= 3:
             # Rotation
             if nc == 2:
-                s, c = tf.math.sin(y[1]), tf.math.cos(y[1])
+                s, c = tf.math.sin(y[0]), tf.math.cos(y[0])
                 # Matrix
                 R = tf.reshape(tf.concat([c, -s, s, c], 1), [-1,2,2])
             elif nc == 3:
-                s = tf.split(tf.math.sin(y[1]), 3, axis=1)
-                c = tf.split(tf.math.cos(y[1]), 3, axis=1)
+                s = tf.split(tf.math.sin(y[0]), nc, axis=1)
+                c = tf.split(tf.math.cos(y[0]), nc, axis=1)
                 # Matrix
                 R = tf.reshape(tf.concat([
                     c[0]*c[1],
@@ -443,10 +447,9 @@ class PreNetBlock(tf_layers.Layer):
                     c[1]*c[2]
                 ], 1), [-1,3,3])
             else:
-                R = None
+                R = y[0]
             # Scaling factor
-            S = None if self.transformation == 'euclidean' else y[-1]
-            T = None if not self.shifter y[0]
+            S, T = y[1], y[2]
         else:
             S = None
             R, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
@@ -470,6 +473,13 @@ class PreNetBlock(tf_layers.Layer):
     ###########################################################################
     def get_config(self):
         config = {
+            'layer_size': self.layer_size,
+            'activation': self.activation,
+            'kernel_initializer': self.kernel_initializer,
+            'regularizer': self.regularizer,
+            'dropout_kwargs': self.dropout_kwargs,
+            'batch_norm': self.batch_norm,
+            'weight_norm': self.weight_norm,
             'out_xform': self.out_xform,
             'transformation': self.transformation,
             'shifter': self.shifter,
