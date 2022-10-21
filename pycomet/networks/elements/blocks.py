@@ -1,3 +1,5 @@
+import itertools
+import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
@@ -302,7 +304,9 @@ class PreNetBlock(tf_layers.Layer):
         weight_norm=False,
         out_xform=None,
         transformation='affine',
-        num_coords=1,
+        shifter=True,
+        num_coords={'xform': 1, 'identity': 0},
+        coords_indices=None,
         **kwargs
     ):
         super(PreNetBlock, self).__init__(
@@ -310,42 +314,70 @@ class PreNetBlock(tf_layers.Layer):
         )
         # Initialize math transformation --------------------------------------
         # Number of coordinates of the system to transform
-        # See `x2` in function `call`
         self.num_coords = num_coords
+        if isinstance(self.num_coords, int):
+            self.num_coords = {'xform': self.num_coords, 'identity': 0}
+        self.tot_num_coords = int(np.sum(list(self.num_coords.values())))
+        # Indices of the coordinates to be transformed
+        self.coords_indices = {}
+        full_indices = np.arange(self.tot_num_coords)
+        if coords_indices is None:
+            self.coords_indices = {'xform': full_indices, 'identity': []}
+        else:
+            self.coords_indices = {}
+            self.coords_indices['xform'] = np.sort(np.unique(
+                np.array(coords_indices['xform']).squeeze()
+            ))
+            self.coords_indices['identity'] = full_indices[
+                self.coords_indices[
+                    np.searchsorted(self.coords_indices['xform'], full_indices)
+                ] !=  full_indices
+            ]
+        self.coords_indices = tf.nest.map_structure(
+            np.ndarray.tolist, self.coords_indices
+        )
+        self.unorder_indices = itertools.chain.from_iterable(
+            self.coords_indices.values()
+        )
         # Available transformations
         self.xform_list = (
             'translation', 'euclidean', 'similarity', 'affine', 'projective'
         )
         # Initialize transformation
         self.transformation = transformation
+        self.shifter = shifter
         self.num_blocks = 1
+        nc = self.num_coords['xform']
         if self.transformation == 'translation':
-            self.output_dim = [self.num_coords]
-            self.i, self.j = self.num_coords, 0
+            self.output_dim = [nc]
+            self.i, self.j = nc, 0
         elif self.transformation in ('euclidean', 'similarity'):
-            if self.num_coords <= 3:
-                if self.num_coords == 1:
+            if nc <= 3:
+                if nc == 1:
                     self.num_blocks = 2
                     self.output_dim = [1, 1]
-                elif self.num_coords == 2:
+                elif nc == 2:
                     self.num_blocks = 3
                     self.output_dim = [1, 2, 1]
-                elif self.num_coords == 3:
+                elif nc == 3:
                     self.num_blocks = 3
                     self.output_dim = [3, 3, 1]
                 if self.transformation == 'euclidean':
                     self.num_blocks = self.num_blocks - 1
                     self.output_dim = self.output_dim[:-1]
+                if not self.shifter:
+                    self.num_blocks = self.num_blocks - 1
+                    self.output_dim = self.output_dim[1:]
                 self.i, self.j = None, None
             else:
-                self.output_dim = [self.num_coords * (self.num_coords + 1)]
-                self.i, self.j = self.num_coords, self.num_coords
+                self.output_dim = [nc * (nc + 1)]
+                self.i, self.j = nc, nc
         elif self.transformation == 'affine':
-            self.output_dim = [self.num_coords * (self.num_coords + 1)]
-            self.i, self.j = self.num_coords, self.num_coords
+            self.output_dim = [nc * (nc + 1)]
+            self.i, self.j = nc, nc
         elif self.transformation == 'projective':
-            self.output_dim = [(self.num_coords + 1) ** 2]
-            self.i, self.j = self.num_coords+1, self.num_coords
+            self.output_dim = [(nc + 1) ** 2]
+            self.i, self.j = nc+1, nc
         else:
             utils.raise_value_err(
                 f"The types of transformation available are: {self.xform_list}"
@@ -388,13 +420,14 @@ class PreNetBlock(tf_layers.Layer):
         # Kernel
         y = [blk.call(x1, training=training) for blk in self.blocks]
         # Apply transformation
-        if self.transformation in ('euclidean', 'similarity') and self.num_coords <= 3:
+        nc = self.num_coords['xform']
+        if self.transformation in ('euclidean', 'similarity') and nc <= 3:
             # Rotation
-            if self.num_coords == 2:
+            if nc == 2:
                 s, c = tf.math.sin(y[1]), tf.math.cos(y[1])
                 # Matrix
                 R = tf.reshape(tf.concat([c, -s, s, c], 1), [-1,2,2])
-            elif self.num_coords == 3:
+            elif nc == 3:
                 s = tf.split(tf.math.sin(y[1]), 3, axis=1)
                 c = tf.split(tf.math.cos(y[1]), 3, axis=1)
                 # Matrix
@@ -413,28 +446,35 @@ class PreNetBlock(tf_layers.Layer):
                 R = None
             # Scaling factor
             S = None if self.transformation == 'euclidean' else y[-1]
-            T = y[0]
+            T = None if not self.shifter y[0]
         else:
             S = None
             R, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
             R = tf.reshape(R, [-1,self.i,self.j]) if self.j > 0 else None
-        # Apply operators
-        y = x2
+        # Apply linear operators
+        y = tf.gather(x2, self.coords_indices['xform'], axis=1)
+        if len(self.coords_indices['identity']) > 0:
+            y_id = tf.gather(x2, self.coords_indices['identity'], axis=1)
         if R is not None:
             y = tf.einsum('nij,nj->ni', R, y)
         if S is not None:
             y = S * y
         if T is not None:
             y = y + T
+        if len(self.coords_indices['identity']) > 0:
+            y = tf.concat([y, y_id], 1)
+            y = tf.gather(y, self.unorder_indices, axis=1)
         return y
 
     # Configuration update
     ###########################################################################
     def get_config(self):
         config = {
-            'num_coords': self.num_coords,
             'out_xform': self.out_xform,
-            'transformation': self.transformation
+            'transformation': self.transformation,
+            'shifter': self.shifter,
+            'num_coords': self.num_coords,
+            'coords_indices': self.coords_indices
         }
         base_config = super(PreNetBlock, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
