@@ -421,7 +421,7 @@ class PreNetBlock(tf_layers.Layer):
     
     def transform(self, x1, x2, training):
         # Kernel
-        y = [blk.call(x1, training=training) if blk is not None else None \
+        y = [blk.call(x1, training=training) if blk is not None else blk \
              for blk in self.blocks]
         # Apply transformation
         nc = self.num_coords['xform']
