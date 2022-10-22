@@ -244,7 +244,7 @@ class LinearNormalization(Scaling):
 # Normalization Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Normalization(tf_layers.Normalization):
+class StdNormalization(tf_layers.Layer):
 
     # Initialization
     ###########################################################################
@@ -261,8 +261,8 @@ class Normalization(tf_layers.Normalization):
         save_dir='./saving/',
         **kwargs
     ):
-        super(Normalization, self).__init__(
-            axis=axis, mean=mean, variance=variance, **kwargs
+        super(StdNormalization, self).__init__(
+            **kwargs
         )
         self.mu_sigma_file = mu_sigma_file
         self.data_files = data_files
@@ -271,8 +271,10 @@ class Normalization(tf_layers.Normalization):
         self.preproc_fn = preproc_fn
         self.save_dir = save_dir
 
-    def build(self, input_shape):
-        if self.input_mean is None and self.input_variance is None:
+        # Initialize normalization layer
+        self.mean = mean
+        self.variance = variance
+        if self.mean is None and self.variance is None:
             self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
             if os.path.exists(self.mu_sigma_file):
                 self.read_mu_sigma(file=self.mu_sigma_file)
@@ -280,7 +282,9 @@ class Normalization(tf_layers.Normalization):
                 self.read_mu_sigma(file=self.saved_file)
             elif self.data_files is not None:
                 self.compute_mu_sigma()
-        super(Normalization, self).build(input_shape)
+        self.norm_lay = tf_layers.Normalization(
+            axis=axis, mean=self.mean, variance=self.variance
+        )
 
     # Handling mean and variance ----------------------------------------------
     def compute_mu_sigma(self):
@@ -288,14 +292,15 @@ class Normalization(tf_layers.Normalization):
             f"Computing mean and variance of layer '{self.name}'", lev=1
         )
         data = self.read_datafile(self.data_files)
-        self.input_mean, self.input_variance = tf.nn.moments(data, axes=0)
-        array = np.vstack((self.input_mean, self.input_variance))
+        self.mean, self.variance = tf.nn.moments(data, axes=0)
+        array = np.vstack((self.mean, self.variance))
+        os.makedirs(self.save_dir, exist_ok=True)
         np.savetxt(self.saved_file, array, fmt='%1.10e')
 
     def read_mu_sigma(self, file):
         array = np.loadtxt(file)
-        self.input_mean = array[0]
-        self.input_variance = array[1]
+        self.mean = array[0]
+        self.variance = array[1]
 
     # Reading data from file --------------------------------------------------
     def read_datafile(self, file):
@@ -311,19 +316,20 @@ class Normalization(tf_layers.Normalization):
         data = tf.convert_to_tensor(np.vstack(data))
         return data
 
-    # # Configuration update
-    # ###########################################################################
-    # def get_config(self):
-    #     config = {
-    #         'mu_sigma_file': self.mu_sigma_file,
-    #         'data_files': self.data_files,
-    #         'columns': self.columns,
-    #         'header': self.header,
-    #         'preproc_fn': self.preproc_fn,
-    #         'save_dir': self.save_dir
-    #     }
-    #     base_config = super(Normalization, self).get_config()
-    #     return dict(list(base_config.items()) + list(config.items()))
+    # Building
+    ###########################################################################
+    def build(self, input_shape):    
+        return self.norm_lay.build(input_shape)
+    
+    # Calling
+    ###########################################################################
+    def call(self, inputs):
+        return self.norm_lay.call(inputs)
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        return self.norm_lay.get_config()
 
 
 # =========================================================================== #
@@ -512,113 +518,181 @@ class Dropout(tf_layers.Dropout):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-# =========================================================================== #
-# IOLambda Layer
-# =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class IOLambda(tf_layers.Lambda):
-
-    # Initialization
-    ###########################################################################
-    def __init__(
-        self,
-        function,
-        signature=None,
-        output_shape=None,
-        mask=None,
-        arguments=None,
-        **kwargs
-    ):
-        self.signature = signature
-        if self.signature is None:
-            self.signature = tuple([
-                k for k in utils.get_fun_args(function) if k in ('x', 'y')
-            ])
-        if not any([k in ('x', 'y') for k in self.signature]):
-            utils.raise_value_err(
-                f"The function signature passed into {self.name} accepts "
-                "at least 'x', or 'y', or both as valid options, where 'x' "
-                "<- model inputs and 'y' <- intermediate layer/model ouputs."
-            )
-        super(IOLambda, self).__init__(
-            function=self.make_function(function),
-            output_shape=output_shape,
-            mask=mask,
-            arguments=arguments,
-            **kwargs
-        )
-
-    def make_function(self, fun):
-        def function(inputs, **kwargs):
-            inputs = {k: inputs[k] for k in self.signature}
-            return fun(**inputs, **kwargs)
-        return function
-
-    # Calling
-    ###########################################################################
-    def call(self, x=None, y=None, mask=None, training=None):
-        super(IOLambda, self).call(
-            inputs={'x': x, 'y': y}, mask=mask, training=training
-        )
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'signature': self.signature
-        }
-        base_config = super(IOLambda, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
 # # =========================================================================== #
 # # IOLambda Layer
 # # =========================================================================== #
-# @tf.keras.utils.register_keras_serializable(
-#     package=cfg._NAME, name='Split'
-# )
-# class Split(tf_layers.Lambda):
+# @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+# class IOLambda(tf_layers.Layer):
 
 #     # Initialization
 #     ###########################################################################
 #     def __init__(
 #         self,
-#         num_or_size_splits=1,
-#         axis=1,
-#         num=None,
+#         function,
+#         signature=None,
 #         output_shape=None,
 #         mask=None,
 #         arguments=None,
+#         make_fn=True,
 #         **kwargs
 #     ):
-#         self.num_or_size_splits = num_or_size_splits
-#         self.axis = axis
-#         self.num = num
-#         super(Split, self).__init__(
-#             function=self.make_function(),
+#         super(IOLambda, self).__init__(
+#             **kwargs
+#         )
+#         self.signature = signature
+#         if self.signature is None:
+#             self.signature = tuple([
+#                 k for k in utils.get_fun_args(function) if k in ('x', 'y')
+#             ])
+#         if not any([k in ('x', 'y') for k in self.signature]):
+#             utils.raise_value_err(
+#                 f"The function signature passed into {self.name} accepts "
+#                 "at least 'x', or 'y', or both as valid options, where 'x' "
+#                 "<- model inputs and 'y' <- intermediate layer/model ouputs."
+#             )
+
+#         # Initialize Lambda layer
+#         self.make_fn = make_fn
+#         if self.make_fn:
+#             function = self.make_function(function)
+#             self.make_fn = False
+#         self.lambda_lay = tf_layers.Lambda(
+#             function=function,
 #             output_shape=output_shape,
 #             mask=mask,
 #             arguments=arguments,
 #             **kwargs
 #         )
 
-#     def make_function(self):
-#         def function(x):
-#             return tf.split(
-#                 x,
-#                 num_or_size_splits=self.num_or_size_splits,
-#                 axis=self.axis,
-#                 num=self.num
-#             )
+#     def make_function(self, fun):
+#         def function(inputs, **kwargs):
+#             inputs = {k: inputs[k] for k in self.signature}
+#             return fun(**inputs, **kwargs)
 #         return function
+
+#     # Calling
+#     ###########################################################################
+#     def call(self, x=None, y=None, mask=None, training=None):
+#         return self.lambda_lay.call(
+#             inputs={'x': x, 'y': y}, mask=mask, training=training
+#         )
+
+#     # Configuration update
+#     ###########################################################################
+#     def get_config(self):
+#         config = self.lambda_lay.get_config()
+#         config.update({
+#             'signature': self.signature,
+#             'fun_made': self.fun_made
+#         })
+#         base_config = super(IOLambda, self).get_config()
+#         return dict(list(base_config.items()) + list(config.items()))
+
+#     @classmethod
+#     def from_config(cls, config, custom_objects=None):
+#         return cls.lambda_lay.from_config(
+#             cls, config, custom_objects=custom_objects
+#         )
+
+
+# # =========================================================================== #
+# # IOLambda Layer
+# # =========================================================================== #
+# @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+# class IOLambda(tf_layers.Lambda):
+
+#     # Initialization
+#     ###########################################################################
+#     def __init__(
+#         self,
+#         function,
+#         signature=None,
+#         output_shape=None,
+#         mask=None,
+#         arguments=None,
+#         **kwargs
+#     ):
+#         self.signature = signature
+#         if self.signature is None:
+#             self.signature = tuple([
+#                 k for k in utils.get_fun_args(function) if k in ('x', 'y')
+#             ])
+#         if not any([k in ('x', 'y') for k in self.signature]):
+#             utils.raise_value_err(
+#                 f"The function signature passed into {self.name} accepts "
+#                 "at least 'x', or 'y', or both as valid options, where 'x' "
+#                 "<- model inputs and 'y' <- intermediate layer/model ouputs."
+#             )
+#         super(IOLambda, self).__init__(
+#             function=self.make_function(function),
+#             output_shape=output_shape,
+#             mask=mask,
+#             arguments=arguments,
+#             **kwargs
+#         )
+
+#     def make_function(self, fun):
+#         def function(inputs, **kwargs):
+#             inputs = {k: inputs[k] for k in self.signature}
+#             return fun(**inputs, **kwargs)
+#         return function
+
+#     # Calling
+#     ###########################################################################
+#     def call(self, x=None, y=None, mask=None, training=None):
+#         super(IOLambda, self).call(
+#             inputs={'x': x, 'y': y}, mask=mask, training=training
+#         )
 
 #     # Configuration update
 #     ###########################################################################
 #     def get_config(self):
 #         config = {
-#             'num_or_size_splits': self.num_or_size_splits,
-#             'axis': self.axis,
-#             'num': self.num
+#             'signature': self.signature
 #         }
-#         base_config = super(Split, self).get_config()
+#         base_config = super(IOLambda, self).get_config()
 #         return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
+# Split Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class Split(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        num_or_size_splits=1,
+        axis=1,
+        num=None,
+        **kwargs
+    ):
+        super(Split, self).__init__(
+            **kwargs
+        )
+        self.num_or_size_splits = num_or_size_splits
+        self.axis = axis
+        self.num = num
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs, mask=None, training=None):
+        return tf.split(
+            inputs,
+            num_or_size_splits=self.num_or_size_splits,
+            axis=self.axis,
+            num=self.num
+        )
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'num_or_size_splits': self.num_or_size_splits,
+            'axis': self.axis,
+            'num': self.num
+        }
+        base_config = super(Split, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))

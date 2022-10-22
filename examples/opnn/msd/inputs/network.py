@@ -5,6 +5,7 @@
 
 
 from inputs.general import dim
+from inputs.data import data_src, columns
 
 
 # Architecture properties
@@ -30,12 +31,37 @@ lays_propty = {
     'input': {
         'branch': {
             'index': 0,
-            'xform': None
+            'xform': {
+                'lay_id': 'StdNormalization',
+                'kwargs': {
+                    'mu_sigma_file': './saving/normalization_mu_sigma.txt',
+                    'data_files': [data_src[k]['ics'] for k in ('train','valid')],
+                    'columns': columns['x'][0],
+                    'trainable': False
+                }
+            }
         },
         'trunk': {
             'index': 1,
-            'xform': None
+            'xform': {
+                'lay_id': 'Log',
+                'kwargs': {
+                    'base': 'e',
+                    'slope': 1.,
+                    'offset': 1.e-3,
+                    'trainable': False
+                }
+            }
         }
+    
+        # 'branch': {
+        #     'index': 0,
+        #     'xform': None
+        # },
+        # 'trunk': {
+        #     'index': 1,
+        #     'xform': None
+        # }
     },
 
     'prenet': {

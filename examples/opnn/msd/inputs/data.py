@@ -34,7 +34,7 @@ columns = {
     'x': [[0,1],[2]],
     'y': [3,4]
 }
-columns = tf.nest.map_structure(lambda _: columns, data_src)
+# columns = tf.nest.map_structure(lambda _: columns, data_src)
 
 header = 0
 
