@@ -31,37 +31,12 @@ lays_propty = {
     'input': {
         'branch': {
             'index': 0,
-            'xform': {
-                'lay_id': 'StdNormalization',
-                'kwargs': {
-                    'mu_sigma_file': './saving/normalization_mu_sigma.txt',
-                    'data_files': [data_src[k]['ics'] for k in ('train','valid')],
-                    'columns': columns['x'][0],
-                    'trainable': False
-                }
-            }
+            'xform': None
         },
         'trunk': {
             'index': 1,
-            'xform': {
-                'lay_id': 'Log',
-                'kwargs': {
-                    'base': 'e',
-                    'slope': 1.,
-                    'offset': 1.e-3,
-                    'trainable': False
-                }
-            }
+            'xform': None
         }
-    
-        # 'branch': {
-        #     'index': 0,
-        #     'xform': None
-        # },
-        # 'trunk': {
-        #     'index': 1,
-        #     'xform': None
-        # }
     },
 
     'prenet': {

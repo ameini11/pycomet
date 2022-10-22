@@ -595,63 +595,63 @@ class Dropout(tf_layers.Dropout):
 #         )
 
 
-# # =========================================================================== #
-# # IOLambda Layer
-# # =========================================================================== #
-# @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-# class IOLambda(tf_layers.Lambda):
+# =========================================================================== #
+# IOLambda Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class IOLambda(tf_layers.Lambda):
 
-#     # Initialization
-#     ###########################################################################
-#     def __init__(
-#         self,
-#         function,
-#         signature=None,
-#         output_shape=None,
-#         mask=None,
-#         arguments=None,
-#         **kwargs
-#     ):
-#         self.signature = signature
-#         if self.signature is None:
-#             self.signature = tuple([
-#                 k for k in utils.get_fun_args(function) if k in ('x', 'y')
-#             ])
-#         if not any([k in ('x', 'y') for k in self.signature]):
-#             utils.raise_value_err(
-#                 f"The function signature passed into {self.name} accepts "
-#                 "at least 'x', or 'y', or both as valid options, where 'x' "
-#                 "<- model inputs and 'y' <- intermediate layer/model ouputs."
-#             )
-#         super(IOLambda, self).__init__(
-#             function=self.make_function(function),
-#             output_shape=output_shape,
-#             mask=mask,
-#             arguments=arguments,
-#             **kwargs
-#         )
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        function,
+        signature=None,
+        output_shape=None,
+        mask=None,
+        arguments=None,
+        **kwargs
+    ):
+        self.signature = signature
+        if self.signature is None:
+            self.signature = tuple([
+                k for k in utils.get_fun_args(function) if k in ('x', 'y')
+            ])
+        if not any([k in ('x', 'y') for k in self.signature]):
+            utils.raise_value_err(
+                f"The function signature passed into {self.name} accepts "
+                "at least 'x', or 'y', or both as valid options, where 'x' "
+                "<- model inputs and 'y' <- intermediate layer/model ouputs."
+            )
+        super(IOLambda, self).__init__(
+            function=self.make_function(function),
+            output_shape=output_shape,
+            mask=mask,
+            arguments=arguments,
+            **kwargs
+        )
 
-#     def make_function(self, fun):
-#         def function(inputs, **kwargs):
-#             inputs = {k: inputs[k] for k in self.signature}
-#             return fun(**inputs, **kwargs)
-#         return function
+    def make_function(self, fun):
+        def function(inputs, **kwargs):
+            inputs = {k: inputs[k] for k in self.signature}
+            return fun(**inputs, **kwargs)
+        return function
 
-#     # Calling
-#     ###########################################################################
-#     def call(self, x=None, y=None, mask=None, training=None):
-#         super(IOLambda, self).call(
-#             inputs={'x': x, 'y': y}, mask=mask, training=training
-#         )
+    # Calling
+    ###########################################################################
+    def call(self, x=None, y=None, mask=None, training=None):
+        super(IOLambda, self).call(
+            inputs={'x': x, 'y': y}, mask=mask, training=training
+        )
 
-#     # Configuration update
-#     ###########################################################################
-#     def get_config(self):
-#         config = {
-#             'signature': self.signature
-#         }
-#         base_config = super(IOLambda, self).get_config()
-#         return dict(list(base_config.items()) + list(config.items()))
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'signature': self.signature
+        }
+        base_config = super(IOLambda, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 # =========================================================================== #
