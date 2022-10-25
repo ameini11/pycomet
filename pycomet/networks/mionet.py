@@ -114,7 +114,7 @@ class MIONet(FlexOpNN):
             tf_layers.Multiply()(x) if len(x) > 1 else x[-1] \
                 for x in [G_u, G_y]
         ]
-        G_u, d, c = tf.split(G_u, [G_u.shape[1]-2, 1, 1], axis=1)
+        G_u, d, c = nn_elem.Split([G_u.shape[1]-2, 1, 1], axis=1)(G_u)
         y = tf_layers.Dot(axes=1)([G_u, G_y])
         y = tf_layers.Add()([c, tf_layers.Multiply()([d, y])])
         return y

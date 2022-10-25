@@ -183,8 +183,10 @@ class OpNN(BaseNet):
             elif self.n_branches < self.n_trunks:
                 G_u = [G_u[-1]] * self.n_branches
             elif self.n_branches == self.n_trunks == 1:
-                G_u = tf.split(G_u[-1], self.max_num_blocks, axis=1)
-                G_y = tf.split(G_y[-1], self.max_num_blocks, axis=1)
+                # G_u = tf.split(G_u[-1], self.max_num_blocks, axis=1)
+                # G_y = tf.split(G_y[-1], self.max_num_blocks, axis=1)
+                G_u = nn_elem.Split(self.max_num_blocks, axis=1)(G_u[-1])
+                G_y = nn_elem.Split(self.max_num_blocks, axis=1)(G_y[-1])
         return [
             tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) \
                 for i in range(self.max_num_blocks)
