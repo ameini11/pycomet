@@ -9,6 +9,7 @@ import tensorflow as tf
 
 from inputs.general import dim
 from inputs.data import data_src, cols
+from inputs.custom_obj import OutputXform
 # from inputs.physics import specie_thermo, process
 from pycomet.networks.elements import layers as pcm_layers
 
@@ -22,8 +23,8 @@ common = {
     'kernel_initializer': 'GlorotNormal',
     'regularizer': {
         'name': 'l1+l2',
-        'l1': 1.e-3,
-        'l2': 1.e-3
+        'l1': 1.e-4,
+        'l2': 1.e-4
     },
     'trainable': True,
     'dropout_kwargs': {'rate': 0.},
@@ -31,17 +32,13 @@ common = {
     'weight_norm': False
 }
 
-def output_xform(y):
-    y = tf.math.sigmoid(y)
-    return tf.concat([1.-y, y],1)
-
 lays_propty = {
 
     'input': {
         'branch': {
             'index': 0,
             'xform': {
-                'lay_id': 'Normalization',
+                'lay_id': 'StdNormalization',
                 'kwargs': {
                     'mu_sigma_file': './saving/normalization_mu_sigma.txt',
                     'data_files': [data_src[k]['ics'] for k in ('train','valid')],
@@ -77,8 +74,8 @@ lays_propty = {
                     'from': 'branch',
                     'to': 'trunk',
                     'kwargs': {
-                        'layer_size': [dim['inp'][0], 32, 32, 16],
-                        'activation': ['tanh']*3 + ['linear'],
+                        'layer_size': [dim['inp'][0], 24, 24],
+                        'activation': ['tanh']*2 + ['linear'],
                         'out_xform': None,
                         'transformation': 'affine',
                         'num_coords': 1,
@@ -89,7 +86,7 @@ lays_propty = {
                 'branch': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][0], 64, 64, 20],
+                        'layer_size': [dim['inp'][0], 64, 64, 16],
                         'activation': ['tanh']*2 + ['linear'],
                         **common
                     }
@@ -98,19 +95,14 @@ lays_propty = {
                 'trunk': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][1], 64, 64, 20],
+                        'layer_size': [dim['inp'][1], 64, 64, 16],
                         'activation': ['sigmoid']*2 + ['linear'],
                         **common
                     }
                 },
 
                 'output': {
-                    'xform': {
-                        'lay_id': 'Lambda',
-                        'kwargs': {
-                            'function': output_xform
-                        }
-                    }
+                    'xform': OutputXform()
                 }
             }
         } for name in ('mass', 'temp')

@@ -58,16 +58,24 @@ class BaseNet(object):
     ###########################################################################
     def init_inout_lay(self, identifier, propty):
         _propty = {}
-        for k in ('xform',):
-            if k in propty and propty[k] is not None:
-                _propty[k] = self.get_lay(
+        if 'xform' in propty and propty['xform'] is not None:
+            if callable(propty['xform']):
+                _propty['xform'] = propty['xform']
+            else:
+                _propty['xform'] = self.get_lay(
                     propty=propty[k],
                     default_lay_id='Lambda'
                 )
-                if k == 'xform':
-                    _propty['signature'] = utils.get_fun_args(_propty[k].call)
-            else:
-                _propty[k] = None
+            _propty['signature'] = utils.get_fun_args(_propty['xform'].call)
+            if not any([k in ('x', 'y') for k in _propty['signature']
+            ]):
+                utils.raise_value_err(
+                    f"The function signature passed into {self.name} accepts "
+                    "at least 'x', 'y', or both as valid options, where 'x' "
+                    "<- model inputs and 'y' <- intermediate layer/model ouputs."
+                )
+        else:
+            _propty['xform'] = None
         return _propty
 
     # Calling

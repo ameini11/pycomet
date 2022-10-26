@@ -101,11 +101,16 @@ class OpNN(BaseNet):
                 if k in v_subnet:
                     if k == 'index':
                         _propty[k_subnet][k] = v_subnet[k]
-                    elif k == 'xform':
-                        _propty[k_subnet][k] = self.get_lay(
-                            propty=v_subnet[k],
-                            default_lay_id='Lambda'
-                        ) if v_subnet[k] is not None else None
+                    else:
+                        if callable(v_subnet[k]):
+                            _propty[k_subnet][k] = v_subnet[k]
+                        elif v_subnet[k] is not None:
+                            _propty[k_subnet][k] = self.get_lay(
+                                propty=v_subnet[k],
+                                default_lay_id='Lambda'
+                            )
+                        else:
+                            _propty[k_subnet][k] = None
                 else:
                     _propty[k_subnet][k] = i if k == 'index' else None
         indices = [_propty[k]['index'] for k in _propty.keys()]
@@ -183,8 +188,6 @@ class OpNN(BaseNet):
             elif self.n_branches < self.n_trunks:
                 G_u = [G_u[-1]] * self.n_branches
             elif self.n_branches == self.n_trunks == 1:
-                # G_u = tf.split(G_u[-1], self.max_num_blocks, axis=1)
-                # G_y = tf.split(G_y[-1], self.max_num_blocks, axis=1)
                 G_u = nn_elem.Split(self.max_num_blocks, axis=1)(G_u[-1])
                 G_y = nn_elem.Split(self.max_num_blocks, axis=1)(G_y[-1])
         return [

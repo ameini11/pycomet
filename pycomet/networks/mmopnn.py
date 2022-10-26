@@ -84,9 +84,15 @@ class MMOpNN(BaseNet):
                     if k == 'index':
                         _propty[k_subnet][k] = v_subnet[k]
                     else:
-                        _propty[k_subnet][k] = self.get_lay(
-                            propty=v_subnet[k], default_lay_id='Lambda'
-                        )
+                        if callable(v_subnet[k]):
+                            _propty[k_subnet][k] = v_subnet[k]
+                        elif v_subnet[k] is not None:
+                            _propty[k_subnet][k] = self.get_lay(
+                                propty=v_subnet[k],
+                                default_lay_id='Lambda'
+                            )
+                        else:
+                            _propty[k_subnet][k] = None
                 else:
                     _propty[k_subnet][k] = i if k == 'index' else None
         indices = [_propty[k]['index'] for k in _propty.keys()]

@@ -32,7 +32,7 @@ def get_parser(subparsers):
     )
     parser.add_argument('-j', '--threads',
         type=int,
-        default=16,
+        default=4,
         help='number of threads'
     )
     parser.add_argument('-d', '--dir',

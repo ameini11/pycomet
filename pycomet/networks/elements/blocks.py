@@ -432,10 +432,8 @@ class PreNetBlock(tf_layers.Layer):
                 # Matrix
                 R = tf.reshape(tf.concat([c, -s, s, c], 1), [-1,2,2])
             elif nc == 3:
-                # s = tf.split(tf.math.sin(y[0]), nc, axis=1)
-                # c = tf.split(tf.math.cos(y[0]), nc, axis=1)
-                s = nn_elem.Split(nc, axis=1)(tf.math.sin(y[0]))
-                c = nn_elem.Split(nc, axis=1)(tf.math.cos(y[0]))
+                s = pcm_layers.Split(nc, axis=1)(tf.math.sin(y[0]))
+                c = pcm_layers.Split(nc, axis=1)(tf.math.cos(y[0]))
                 # Matrix
                 R = tf.reshape(tf.concat([
                     c[0]*c[1],
@@ -454,8 +452,7 @@ class PreNetBlock(tf_layers.Layer):
             S, T = y[1], y[2]
         else:
             S = None
-            # R, T = tf.split(y[-1], [self.i*self.j, self.i], axis=1)
-            R, T = nn_elem.Split([self.i*self.j, self.i], axis=1)(y[-1])
+            R, T = pcm_layers.Split([self.i*self.j, self.i], axis=1)(y[-1])
             R = tf.reshape(R, [-1,self.i,self.j]) if self.j > 0 else None
         # Apply linear operators
         y = tf.gather(x2, self.coords_indices['xform'], axis=1)
