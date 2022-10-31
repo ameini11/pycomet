@@ -1,4 +1,5 @@
 from keras import layers as tf_layers
+from pycomet.networks import chemreacnn
 from pycomet.networks import elements as nn_elem
 from pycomet import utils
 
@@ -57,16 +58,17 @@ class BaseNet(object):
     # Layers initialization
     ###########################################################################
     def init_inout_lay(self, identifier, propty):
+        k = 'xform'
         _propty = {}
-        if 'xform' in propty and propty['xform'] is not None:
-            if callable(propty['xform']):
-                _propty['xform'] = propty['xform']
+        if k in propty and propty[k] is not None:
+            if callable(propty[k]):
+                _propty[k] = propty[k]
             else:
-                _propty['xform'] = self.get_lay(
+                _propty[k] = self.get_lay(
                     propty=propty[k],
                     default_lay_id='Lambda'
                 )
-            _propty['signature'] = utils.get_fun_args(_propty['xform'].call)
+            _propty['signature'] = utils.get_fun_args(_propty[k].call)
             if not any([k in ('x', 'y') for k in _propty['signature']
             ]):
                 utils.raise_value_err(
@@ -75,7 +77,7 @@ class BaseNet(object):
                     "<- model inputs and 'y' <- intermediate layer/model ouputs."
                 )
         else:
-            _propty['xform'] = None
+            _propty[k] = None
         return _propty
 
     # Calling
@@ -129,7 +131,7 @@ class BaseNet(object):
         return layers
 
     def get_nn_elem(self, elem):
-        return utils.get_class(modules=(nn_elem, tf_layers), name=elem)
+        return utils.get_class(modules=(nn_elem, chemreacnn, tf_layers), name=elem)
 
     def get_lay(self, propty={}, default_lay_id='Lambda', name=None):
         lay = default_lay_id if 'lay_id' not in propty else propty['lay_id']

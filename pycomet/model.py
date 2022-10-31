@@ -427,7 +427,7 @@ class Model(object):
                     "Unable to save the full model in TensorFlow " \
                     "`SavedModel` format. Check custom layers/models"
                 )
-                utils.print_fn("Error log:")
+                utils.print_fn("ERROR LOG:", lev=1)
                 print(e)
         # Save model in 'TFLite' format
         if 'tflite' in self.save_format:
