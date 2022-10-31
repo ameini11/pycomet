@@ -10,7 +10,7 @@ import tensorflow as tf
 from inputs.general import dim
 from inputs.data import data_src, cols
 from inputs.custom_obj import OutputXform
-# from inputs.physics import specie_thermo, process
+from inputs.physics import specie_thermo, process
 from pycomet.networks.elements import layers as pcm_layers
 
 
@@ -108,14 +108,16 @@ lays_propty = {
         } for name in ('mass', 'temp')
     },
 
-    # 'output': {
-    #     'lay_id': 'TwoTempThermoLay',
-    #     'kwargs': {
-    #         'process': process,
-    #         'specie_thermo': specie_thermo,
-    #         'out_indices': {'Y': {0: [0,1]}, 'T': {1: [0,1]}},
-    #         'inp_indices': {'e': {0: -1}}
-    #     }
-    # }
+    'output': {
+        'xform': {
+            'lay_id': 'TwoTempThermoLay',
+            'kwargs': {
+                'process': process,
+                'specie_thermo': specie_thermo,
+                'out_indices': {'Y': 0, 'T': 1},
+                'inp_indices': {'e': {0: 3}}
+            }
+        }
+    }
 
 }
