@@ -58,27 +58,45 @@ class BaseNet(object):
     # Layers initialization
     ###########################################################################
     def init_inout_lay(self, identifier, propty):
-        k = 'xform'
         _propty = {}
-        if k in propty and propty[k] is not None:
-            if callable(propty[k]):
-                _propty[k] = propty[k]
+        for k in ('xform', 'with_inputs'):
+            if k in propty and propty[k] is not None:
+                if k == 'xform':
+                    if callable(propty[k]):
+                        _propty[k] = propty[k]
+                    else:
+                        _propty[k] = self.get_lay(
+                            propty=propty[k],
+                            default_lay_id='Lambda'
+                        )
+                else:
+                    _propty[k] = propty[k]
             else:
-                _propty[k] = self.get_lay(
-                    propty=propty[k],
-                    default_lay_id='Lambda'
-                )
-            _propty['signature'] = utils.get_fun_args(_propty[k].call)
-            if not any([k in ('x', 'y') for k in _propty['signature']
-            ]):
-                utils.raise_value_err(
-                    f"The function signature passed into {self.name} accepts "
-                    "at least 'x', 'y', or both as valid options, where 'x' "
-                    "<- model inputs and 'y' <- intermediate layer/model ouputs."
-                )
-        else:
-            _propty[k] = None
+                _propty[k] = None
         return _propty
+    
+    # def init_inout_lay(self, identifier, propty):
+    #     k = 'xform'
+    #     _propty = {}
+    #     if k in propty and propty[k] is not None:
+    #         if callable(propty[k]):
+    #             _propty[k] = propty[k]
+    #         else:
+    #             _propty[k] = self.get_lay(
+    #                 propty=propty[k],
+    #                 default_lay_id='Lambda'
+    #             )
+    #         _propty['signature'] = utils.get_fun_args(_propty[k].call)
+    #         if not any([k in ('x', 'y') for k in _propty['signature']
+    #         ]):
+    #             utils.raise_value_err(
+    #                 f"The function signature passed into {self.name} accepts "
+    #                 "at least 'x', 'y', or both as valid options, where 'x' "
+    #                 "<- model inputs and 'y' <- intermediate layer/model ouputs."
+    #             )
+    #     else:
+    #         _propty[k] = None
+    #     return _propty
 
     # Calling
     ###########################################################################
@@ -87,17 +105,27 @@ class BaseNet(object):
     
     def call(self, x, training=None):
         return x
-        
-    def _manipulate_inout(
-        self, x=None, y=None, identifier=None, training=False
-    ):
-        xform = self.active_lays[identifier]['xform']
-        if xform is not None:
-            if 'x' in self.active_lays[identifier]['signature']:
-                y = xform(x=x, y=y, training=training)
+
+    def _manipulate_inout(self, inputs, identifier=None, training=False):
+        lay = self.active_lays[identifier]
+        if lay['xform'] is not None:
+            if lay['with_inputs'] is None or not lay['with_inputs']:
+                _inputs = inputs['y']
             else:
-                y = xform(y, training=training)
+                _inputs = [inputs[k] for k in ('x', 'y')]
+            y = lay['xform'](_inputs, training=training)
         return y
+        
+    # def _manipulate_inout(
+    #     self, x=None, y=None, identifier=None, training=False
+    # ):
+    #     xform = self.active_lays[identifier]['xform']
+    #     if xform is not None:
+    #         if 'x' in self.active_lays[identifier]['signature']:
+    #             y = xform(x=x, y=y, training=training)
+    #         else:
+    #             y = xform(y, training=training)
+    #     return y
 
     # Handling layers
     ###########################################################################

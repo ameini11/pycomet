@@ -204,6 +204,6 @@ class OpNN(BaseNet):
             y = self.active_lays['end_scale'](y)
         # Transformation
         return super(OpNN, self)._manipulate_inout(
-            x=x, y=y, identifier='output', training=training
+            inputs=dict(x=x, y=y), identifier='output', training=training
         )
             

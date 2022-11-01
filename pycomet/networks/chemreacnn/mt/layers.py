@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from tensorflow.python.training.tracking.data_structures import NoDependency
+from tensorflow.keras import backend
 from keras import layers as tf_layers
 from pycomet import operations as ops
 from pycomet import config as cfg
@@ -43,7 +44,8 @@ class TwoTempThermoLay(tf_layers.Layer):
         # Mixture
         self.mix = mix_mod.MultiComponent(self.sp_th)
         
-    def call(self, x, y, training=None):
+    def call(self, inputs, training=None):
+        x, y = ops.unpack_list(inputs, n_elem=2)
         # Mass fractions and normalized energies (from model outputs)
         y = {k: y[self.out_indices[k]] for k in ('Y', 'T')}
         # Total energy (from model inputs)
@@ -55,7 +57,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         # Roto-translational & Vibrational energy
         e_rt, e_v = tf.split(y['T']*(e-e_f), 2, axis=1)
         # Vibrational temperature
-        e_v = e_v / self.sp_th[self.molecule].specie.Y
+        e_v = e_v/(self.sp_th[self.molecule].specie.Y + backend.epsilon())
         Tv = self.sp_th[self.molecule].thermo.th_int.ho._T(e_v)
         # Roto-translational temperature
         cv_rt = tf.zeros_like(e)
@@ -65,7 +67,7 @@ class TwoTempThermoLay(tf_layers.Layer):
                 cv_rt = cv_rt + s.thermo.th_int.rr._cv()*s.specie.Y
         Th = e_rt/cv_rt
         # Return outputs
-        y['T'] = tf.concat([Th, Tv], 1)
+        y['T'] = tf.concat([Th, Th], 1)
         return [y[self.index_to_key[i]] for i in range(2)]
 
     def get_config(self):

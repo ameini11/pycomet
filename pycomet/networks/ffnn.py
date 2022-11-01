@@ -52,12 +52,12 @@ class FFNN(BaseNet):
         y = x
         # Inputs manipulation
         y = self._manipulate_inout(
-            y=y, identifier='input', training=training
+            inputs=dict(y=y), identifier='input', training=training
         )
         # Kernel
         y = self.active_lays['hidden_block'](y, training=training)
         # Outputs manipulation
         y = self._manipulate_inout(
-            x=x, y=y, identifier='output', training=training
+            inputs=dict(x=x, y=y), identifier='output', training=training
         )
         return y

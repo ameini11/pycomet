@@ -71,13 +71,13 @@ class MixedNet(BaseNet):
         y = x
         # Inputs manipulation
         y = self._manipulate_inout(
-            y=y, identifier='input', training=training
+            inputs=dict(y=y), identifier='input', training=training
         )
         # Kernel - Networks
         y = [net(y, training=training) \
              for net in self.active_lays['networks'].values()]
         # Outputs manipulation
         y = self._manipulate_inout(
-            x=x, y=y, identifier='output', training=training
+            inputs=dict(x=x, y=y), identifier='output', training=training
         )
         return y

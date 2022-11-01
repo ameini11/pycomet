@@ -133,7 +133,7 @@ class MMOpNN(BaseNet):
              for name, opnn in self.active_lays['opnns'].items()]
         # Outputs manipulation
         y = self._manipulate_inout(
-            x=x, y=y, identifier='output', training=training
+            inputs=dict(x=x, y=y), identifier='output', training=training
         )
         return y
 
