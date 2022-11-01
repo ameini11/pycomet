@@ -67,7 +67,7 @@ class TwoTempThermoLay(tf_layers.Layer):
                 cv_rt = cv_rt + s.thermo.th_int.rr._cv()*s.specie.Y
         Th = e_rt/cv_rt
         # Return outputs
-        y['T'] = tf.concat([Th, Th], 1)
+        y['T'] = tf.concat([Th, Tv], 1)
         return [y[self.index_to_key[i]] for i in range(2)]
 
     def get_config(self):
