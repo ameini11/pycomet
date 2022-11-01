@@ -53,11 +53,11 @@ class TwoTempThermoLay(tf_layers.Layer):
         # Update thermodynamics
         self.mix.update(y['Y'], var='Y')
         # Formation energy
-        e_f = self.mix._e_f()
+        e_f = tf.math.minimum(self.mix._e_f(), e*(1.-backend.epsilon()))
         # Roto-translational & Vibrational energy
         e_rt, e_v = tf.split(y['T']*(e-e_f), 2, axis=1)
         # Vibrational temperature
-        e_v = e_v/(self.sp_th[self.molecule].specie.Y + backend.epsilon())
+        e_v = e_v/self.sp_th[self.molecule].specie.Y
         Tv = self.sp_th[self.molecule].thermo.th_int.ho._T(e_v)
         # Roto-translational temperature
         cv_rt = tf.zeros_like(e)
