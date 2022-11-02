@@ -115,7 +115,7 @@ class BaseNet(object):
                 _inputs = [inputs[k] for k in ('x', 'y')]
             return lay['xform'](_inputs, training=training)
         else:
-            return inputs
+            return inputs['x'] if identifier == 'input' else inputs['y']
         
     # def _manipulate_inout(
     #     self, x=None, y=None, identifier=None, training=False
