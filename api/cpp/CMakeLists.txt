@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(PyCOMET
+project(pycomet
   VERSION 1.0
   LANGUAGES C CXX
 )
@@ -10,13 +10,11 @@ include(GNUInstallDirs)
 include(EnsureOutOfSourceBuild)
 ensure_out_of_source_build()
 
-string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_LC)
-set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME_LC}/cmake)
+set(INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/${PROJECT_NAME}/cmake)
 
 # Library target
 find_package(tensorflow REQUIRED)
 find_package(cppflow REQUIRED)
-# find_package(cppflow CONFIG REQUIRED)
 add_library(pycomet INTERFACE)
 target_include_directories(pycomet
   INTERFACE
