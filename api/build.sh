@@ -2,30 +2,30 @@
 set -e
 
 
-# PyCOMET
-SRC_DIR=$CODES_PATH/ML/PyCOMET/pycomet/api/
-BUILD_DIR=$CODES_PATH/ML/PyCOMET/pycomet/api_build
-INSTALL_DIR=$CODES_PATH/ML/PyCOMET/pycomet/api_install
+# CppFlow
+SRC_DIR=$CODES_PATH/ML/PyCOMET/pycomet/api/cpp/
+BUILD_DIR=$CODES_PATH/ML/PyCOMET/pycomet/api/build
+INSTALL_DIR=$CODES_PATH/ML/PyCOMET/pycomet/api/install
 
 # TensorFlow
-TF_VER=2.9.1
-TF_DIR=$CODES_PATH/ML/TensorFlow/v.$TF_VER
+TensorFlow_DIR=$CODES_PATH/ML/TensorFlow/v.2.9.1/
 
 # CppFlow
-CF_DIR=$CODES_PATH/ML/CppFlow/install
+CppFlow_DIR=$CODES_PATH/ML/CppFlow/install/
 
 # Install
 rm -rf $BUILD_DIR $INSTALL_DIR
 mkdir $BUILD_DIR
 cd $BUILD_DIR
 
-echo $CF_DIR
-
-cmake \
+cmake $SRC_DIR \
 	-DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-	-DCMAKE_PREFIX_PATH=$TF_DIR \
-	-DCMAKE_MODULE_PATH=$CF_DIR \
-	$SRC_DIR
+	-DCMAKE_BUILD_TYPE=Release \
+	-DBUILD_EXAMPLES=ON \
+	-Dcppflow_INCLUDE_DIRS=$CppFlow_DIR/include \
+	-Dcppflow_LIBRARIES=$CppFlow_DIR/lib/ \
+	-Dtensorflow_INCLUDE_DIRS=$TensorFlow_DIR/include \
+	-Dtensorflow_LIBRARIES=$TensorFlow_DIR/lib/libtensorflow.so
 
-make -j
+make -j 4
 make install
