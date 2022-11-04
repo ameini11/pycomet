@@ -6,9 +6,9 @@ CFLAGS=-lstdc++
 FC=gfortran
 
 all: clean
-	$(CC) -DDEBUG -g -c model_wrapper.c
-	$(FC) -DDEBUG -g -c model.F90
-	$(FC) -DDEBUG -g main.F90 model.o model_wrapper.o -o main $(CFLAGS)
+	$(CC) -DDEBUG -g -c model_c.c
+	$(FC) -DDEBUG -g -c model_f.f90
+	$(FC) -DDEBUG -g main.f90 model_c.o model_f.o -o main $(CFLAGS)
 
 clean:
 	rm -rf *.mod *.o main
