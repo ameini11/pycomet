@@ -81,7 +81,7 @@ namespace pycomet {
     }
 
     template<T>
-    std::vector<std::vector<T>> predict(std::vector<std::vector<T>> inputs)
+    std::vector<std::vector<T>> call(std::vector<std::vector<T>> inputs)
     {
         // Define inputs
         std::map<std::string, cppflow::tensor> inp;
