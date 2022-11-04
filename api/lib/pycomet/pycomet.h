@@ -18,12 +18,5 @@ namespace pycomet {
 
 }
 
-// namespace pycomet {
-
-//   inline std::string version() {
-//     return cppflow::version() + " PyCOMET: 1.0";
-//   }
-
-// }
 
 #endif
