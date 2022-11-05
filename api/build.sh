@@ -20,7 +20,7 @@ cd $BUILD_DIR
 
 cmake $SRC_DIR \
 	-DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-	-DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_BUILD_TYPE=Debug \
 	-DBUILD_EXAMPLES=ON \
 	-Dcppflow_INCLUDE_DIRS=$CppFlow_DIR/include \
 	-Dcppflow_LIBRARIES=$CppFlow_DIR/lib/ \

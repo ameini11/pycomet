@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <iterator>
+#include <map>
 
 #include "cppflow/ops.h"
 #include "cppflow/model.h"
@@ -21,17 +22,17 @@ vector<T> flatten(vector<vector<T>> const &vec)
     return flattened;
 }
 
-template<typename T>
-T vector2array(vector<T> const &vec)
-{
-    return *arr = &vec[0];
-}
+// template<typename T>
+// T vector2array(vector<T> const &vec)
+// {
+//     return *arr = &vec[0];
+// }
 
-template<typename T>
-vector<T> array2vector(T const &arr)
-{
-    return vec(begin(arr), end(arr));
-}
+// template<typename T>
+// vector<T> array2vector(T const &arr)
+// {
+//     return vec(begin(arr), end(arr));
+// }
 
 vector<float> read_csv(string filename, int skiprows, int col_s, int col_e)
 {
@@ -97,15 +98,22 @@ int main() {
 
     // Load the model from file
     auto model = cppflow::model(std::string(MODEL_PATH));
-    
+
+    std::vector<std::tuple<std::string, cppflow::tensor>> X = {
+        {"serving_default_input_1:0", input_1}, // Branch
+        {"serving_default_input_2:0", input_2}  // Trunk
+    };
+
     // Perform inference
-    auto output = model(
-        {
-            {"serving_default_input_1:0", input_1}, // Branch
-            {"serving_default_input_2:0", input_2}  // Trunk
-        },
-        {"StatefulPartitionedCall:0"}
-    );
+    auto output = model(X, {"StatefulPartitionedCall:0"});
+
+    // auto output = model(
+    //     {
+    //         {"serving_default_input_1:0", input_1}, // Branch
+    //         {"serving_default_input_2:0", input_2}  // Trunk
+    //     },
+    //     {"StatefulPartitionedCall:0"}
+    // );
 
     // Write outputs to file
     write_csv(FILEOUT_PATH, output[0].get_data<float>(), 100, 2);
