@@ -1,84 +1,23 @@
 #include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <iterator>
-#include <map>
-
-#include "cppflow"
+#include <numeric>
 #include <json/json.h>
 
+#include "includes.h"
+#include "utils.h"
+#include "model.h"
 
-using namespace std;
 
-/* ------------------------------------------------------------------------- */
-// Model class declaration
-/* ------------------------------------------------------------------------- */
-class model {
-
-	private:
-
-	    // TensorFlow model
-	    cppflow::model tf_model;
-
-	    // Inputs/Outputs
-		const std::vector<std::string> inp_id;
-		const std::vector<std::string> out_id;
-		const std::vector<std::int8_t> inp_dim;
-		const std::vector<std::int8_t> out_dim;
-		std::vector<std::int64_t> model::check_io_ops(
-			std::vector<std::string> identifiers
-		)
-
-	    // IO operations
-	    // const std::string inp_id_prefix = 'serving_default';
-	    // const std::string out_id_prefix = 'StatefulPartitionedCall';
-	    const std::vector<std::tuple<std::string, std::vector<int64_t>>> ops;
-
-	    void get_ops_info();
-
-	    // Input parser
-	    void parse_inputs(std::string inp_file)
-
-	public:
-
-	    // Constructor
-	    explicit model(const std::string inp_file);
-
-	    // Destructor
-		~model() = default;
-
-	    // Inputs/Outputs total dimensions
-		const std::int8_t inp_tot_dim;
-		const std::int8_t out_tot_dim;
-
-	    // Call functions
-	    template<T>
-	    std::vector<std::vector<T>> call(
-	    	std::vector<std::vector<T>> inputs, std::int64_t n
-	    );
-
-	    template<T>
-	    std::vector<T> call(std::vector<T> inputs, std::int64_t n);
-
-	    template<T>
-        T *call(T *inputs, std::int64_t n);
-
-};
-
-/* ------------------------------------------------------------------------- */
-// Model class definition
+// Model class
 /* ------------------------------------------------------------------------- */
 inline model::model(const std::string inp_file)
 {
-	// Parse inputs from Json file
+	// Parse inputs from json file
 	this->parse_inputs(inp_file);
     // Initialize TensorFlow model
 	this->tf_model = cppflow::model(this->path_to_model);
     // Get input/output operations
 	this->get_ops_info();
-    // Checking inputs/outputs
+    // Check inputs/outputs operations
     this->inp_dim = this->check_io_ops(this->inp_id);
     this->out_dim = this->check_io_ops(this->out_id);
 	// Inputs/outputs total dimensions
@@ -93,7 +32,7 @@ inline model::model(const std::string inp_file)
 inline void model::parse_inputs(const std::string inp_file)
 {
 	// Initialize Json object reader
-	Json::Value inputs;
+	json::value inputs;
     std::ifstream file(inp_file, std::ifstream::binary);
     file >> inputs;
 	// Extract inputs
@@ -207,29 +146,25 @@ T *model::call(T *inputs, std::int64_t n)
 };
 
 
+// External bindings
 /* ------------------------------------------------------------------------- */
-// Fortran binding
-/* ------------------------------------------------------------------------- */
-extern "C" {
+model *init_model(char *inp_file) {
+	std::string file(inp_file);
+	return new model(file);
+}
 
-	model *init_model(char *inp_file) {
-		std::string file(inp_file);
-		return new model(file);
-	}
+std::int8_t get_inp_tot_dim(model *mdl) {
+	return mdl->inp_tot_dim;
+}
 
-	std::int8_t get_inp_tot_dim(model *mdl) {
-		return mdl->inp_tot_dim;
-	}
+std::int8_t get_out_tot_dim(model *mdl) {
+	return mdl->out_tot_dim;
+}
 
-	std::int8_t get_out_tot_dim(model *mdl) {
-		return mdl->out_tot_dim;
-	}
+void delete_model(model *mdl) {
+	mdl->~model();
+}
 
-	void delete_model(model *mdl) {
-		mdl->~model();
-	}
-
-	double *call_model(model *mdl, double *inputs, std::int64_t *n) {
-    	return mdl->call(inputs, *n);
-	}
+double *call_model(model *mdl, double *inputs, std::int64_t *n) {
+	return mdl->call(inputs, *n);
 }
