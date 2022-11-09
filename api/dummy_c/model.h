@@ -21,14 +21,14 @@ namespace pycomet
 		    // Inputs/Outputs
 		    std::vector<std::string> inp_id;
 		    std::vector<std::string> out_id;
-			const std::vector<std::int32_t> inp_dim;
-			const std::vector<std::int32_t> out_dim;
+		    std::vector<std::int32_t> inp_dim;
+		    std::vector<std::int32_t> out_dim;
 			std::vector<std::int32_t> check_io_ops(
 				const std::vector<std::string> identifiers
 			);
 
 		    // IO operations
-		    const std::vector<std::tuple<std::string, std::vector<int32_t>>> ops;
+		    std::vector<std::tuple<std::string, std::vector<int32_t>>> ops;
 
 		    void get_ops_info();
 

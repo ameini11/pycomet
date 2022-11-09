@@ -51,7 +51,7 @@ inline void pycomet::model::get_ops_info()
     // Store identifier-shape pairs
     for (auto const &op_id: ops_id)
     {
-    	std::vector<int32_t> shape = this->tf_model.get_operation_shape(op);
+    	std::vector<int32_t> shape = this->tf_model.get_operation_shape(op_id);
 		this->ops.push_back(std::make_tuple(op_id, shape));
     }
 }
@@ -114,7 +114,7 @@ std::vector<T> pycomet::model::call(
 	std::vector<T> Y;
 	for (int i = 0; i < this->out_dim.size(); ++i)
 	{
-		auto y = output[i].get_data<T>();
+		auto y = outputs[i].get_data<T>();
 		Y.insert(Y.end(), y.begin(), y.end());
 	}
 	return Y;
@@ -124,8 +124,8 @@ template <typename T>
 std::vector<std::vector<T>> pycomet::model::call(
 	std::vector<std::vector<T>> inputs,
 	const std::int32_t n,
-    const bool transpose_in = false,
-    const bool transpose_out = false
+    const bool transpose_in,
+    const bool transpose_out
 )
 {
 	// Flatten inputs
@@ -153,13 +153,13 @@ T *pycomet::model::call(
 }
 
 // Explicit templates instantiation
-template std::vector<double> model::call(
+template std::vector<double> pycomet::model::call(
 	std::vector<double> inputs, const std::int32_t n
 );
-template std::vector<std::vector<double>> model::call(
+template std::vector<std::vector<double>> pycomet::model::call(
 	std::vector<std::vector<double>> inputs, const std::int32_t n
 );
-template double *model::call(
+template double *pycomet::model::call(
 	double *inputs, const std::int32_t n
 );
 
