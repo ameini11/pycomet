@@ -5,10 +5,8 @@
 #include "includes.h"
 #include "vec_ops.h"
 #include "model.h"
-#include "cppflow/model.h"
 
 using json = nlohmann::json;
-
 
 
 // Model class
@@ -96,7 +94,7 @@ std::vector<T> pycomet::model::call(
 	int start = 0;
 	int end = 0;
 	int delta;
-	for (int i = 0; i < this->inp_dim.size(); ++i)
+	for (std::uint16_t i = 0; i < this->inp_dim.size(); ++i)
 	{
 		// Extract input i
 		delta = this->inp_dim[i] * n;
@@ -112,7 +110,7 @@ std::vector<T> pycomet::model::call(
     auto outputs = this->tf_model(X, this->out_id);
 	// Compose outputs
 	std::vector<T> Y;
-	for (int i = 0; i < this->out_dim.size(); ++i)
+	for (std::uint16_t i = 0; i < this->out_dim.size(); ++i)
 	{
 		auto y = outputs[i].get_data<T>();
 		Y.insert(Y.end(), y.begin(), y.end());
@@ -129,11 +127,11 @@ std::vector<std::vector<T>> pycomet::model::call(
 )
 {
 	// Flatten inputs
-	auto X = flatten(inputs, transpose_in);
+	auto X = pycomet::flatten(inputs, transpose_in);
 	// Perform inference
 	auto Y = this->call(X, n);
 	// Reshape outputs
-	auto outputs = reshape(Y, {n, this->out_tot_dim}, transpose_out);
+	auto outputs = pycomet::reshape(Y, {n, this->out_tot_dim}, transpose_out);
 	return outputs;
 }
 
@@ -144,7 +142,7 @@ T *pycomet::model::call(
 )
 {
 	// Convert inputs from array to std::vector
-	std::vector<T> X(inputs, this->inp_tot_dim*n);
+	std::vector<T> X(*inputs, this->inp_tot_dim*n);
 	// Perform inference
 	auto Y = this->call(X, n);
 	// Convert outputs from std::vector to array

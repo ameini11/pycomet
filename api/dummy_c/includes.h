@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <cppflow/cppflow.h>
 
 
 #endif // includes_h

@@ -3,7 +3,6 @@
 
 
 #include "includes.h"
-#include "cppflow/model.h"
 
 
 namespace pycomet
