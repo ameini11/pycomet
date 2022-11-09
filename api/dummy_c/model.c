@@ -5,18 +5,20 @@
 #include "includes.h"
 #include "vec_ops.h"
 #include "model.h"
+#include "cppflow/model.h"
 
 using json = nlohmann::json;
 
 
+
 // Model class
 /* ------------------------------------------------------------------------- */
-inline model::model(const std::string inpfile)
+inline pycomet::model::model(const std::string inpfile)
 {
 	// Parse inputs from json file
 	this->parse_inputs(inpfile);
     // Initialize TensorFlow model
-	this->tf_model = cppflow::model(this->path_to_model);
+	// this->tf_model = cppflow::model(this->path_to_model);
     // Get input/output operations
 	this->get_ops_info();
     // Check inputs/outputs operations
@@ -31,7 +33,7 @@ inline model::model(const std::string inpfile)
 	);
 }
 
-inline void model::parse_inputs(const std::string inpfile)
+inline void pycomet::model::parse_inputs(const std::string inpfile)
 {
 	// Initialize Json object reader
     std::ifstream file(inpfile);
@@ -42,7 +44,7 @@ inline void model::parse_inputs(const std::string inpfile)
     this->out_id = inputs["out_id"];
 };
 
-inline void model::get_ops_info()
+inline void pycomet::model::get_ops_info()
 {
     // Get operations identifiers
     std::vector<std::string> ops_id = this->tf_model.get_operations();
@@ -54,7 +56,7 @@ inline void model::get_ops_info()
     }
 }
 
-inline std::vector<std::int32_t> model::check_io_ops(
+inline std::vector<std::int32_t> pycomet::model::check_io_ops(
 	const std::vector<std::string> identifiers
 )
 {
@@ -84,7 +86,7 @@ inline std::vector<std::int32_t> model::check_io_ops(
 };
 
 template <typename T>
-std::vector<T> model::call(
+std::vector<T> pycomet::model::call(
 	std::vector<T> inputs,
 	const std::int32_t n
 )
@@ -119,7 +121,7 @@ std::vector<T> model::call(
 }
 
 template <typename T>
-std::vector<std::vector<T>> model::call(
+std::vector<std::vector<T>> pycomet::model::call(
 	std::vector<std::vector<T>> inputs,
 	const std::int32_t n,
     const bool transpose_in = false,
@@ -136,7 +138,7 @@ std::vector<std::vector<T>> model::call(
 }
 
 template <typename T>
-T *model::call(
+T *pycomet::model::call(
 	T *inputs,
 	const std::int32_t n
 )
@@ -162,25 +164,25 @@ template double *model::call(
 );
 
 
-// External bindings
-// ----------------------------------------------------------------------------
-model *init_model(char *inpfile) {
-	std::string file(inpfile);
-	return new model(file);
-}
+// // External bindings
+// // ----------------------------------------------------------------------------
+// model *pycomet::init_model(char *inpfile) {
+// 	std::string file(inpfile);
+// 	return new model(file);
+// }
 
-std::int32_t get_inp_tot_dim(model *mdl) {
-	return mdl->inp_tot_dim;
-}
+// std::int32_t pycomet::get_inp_tot_dim(model *mdl) {
+// 	return mdl->inp_tot_dim;
+// }
 
-std::int32_t get_out_tot_dim(model *mdl) {
-	return mdl->out_tot_dim;
-}
+// std::int32_t pycomet::get_out_tot_dim(model *mdl) {
+// 	return mdl->out_tot_dim;
+// }
 
-void delete_model(model *mdl) {
-	mdl->~model();
-}
+// void pycomet::delete_model(model *mdl) {
+// 	mdl->~model();
+// }
 
-double *call_model(model *mdl, double *inputs, std::int32_t *n) {
-	return mdl->call(inputs, *n);
-}
+// double *pycomet::call_model(model *mdl, double *inputs, std::int32_t *n) {
+// 	return mdl->call(inputs, *n);
+// }

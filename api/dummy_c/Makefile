@@ -12,7 +12,7 @@
 # 	rm -rf *.mod *.o main
 
 CC = g++
-CFLAGS = -DDEBUG -Wall -g -c
+CFLAGS = -DDEBUG -Wall -g -c -std=c++17
 INCLUDE = -I/home/zanardi/Codes/ML/TensorFlow/v.2.9.1/include -I/home/zanardi/Codes/ML/CppFlow/cppflow/include -I/home/zanardi/APPLICATIONS/JSON/json/include
 LDFLAGS = -L/home/zanardi/Codes/ML/TensorFlow/v.2.9.1/lib
 LDLIBS = -lstdc++ -ltensorflow
