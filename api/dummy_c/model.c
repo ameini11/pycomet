@@ -1,0 +1,186 @@
+#include <fstream>
+#include <numeric>
+#include <nlohmann/json.hpp>
+
+#include "includes.h"
+#include "vec_ops.h"
+#include "model.h"
+
+using json = nlohmann::json;
+
+
+// Model class
+/* ------------------------------------------------------------------------- */
+inline model::model(const std::string inpfile)
+{
+	// Parse inputs from json file
+	this->parse_inputs(inpfile);
+    // Initialize TensorFlow model
+	this->tf_model = cppflow::model(this->path_to_model);
+    // Get input/output operations
+	this->get_ops_info();
+    // Check inputs/outputs operations
+    this->inp_dim = this->check_io_ops(this->inp_id);
+    this->out_dim = this->check_io_ops(this->out_id);
+	// Inputs/outputs total dimensions
+	this->inp_tot_dim = std::accumulate(
+		this->inp_dim.begin(), this->inp_dim.end(), 0
+	);
+	this->out_tot_dim = std::accumulate(
+		this->out_dim.begin(), this->out_dim.end(), 0
+	);
+}
+
+inline void model::parse_inputs(const std::string inpfile)
+{
+	// Initialize Json object reader
+    std::ifstream file(inpfile);
+    json inputs = json::parse(file);
+	// Extract inputs
+    this->path_to_model = inputs["path_to_model"];
+    this->inp_id = inputs["inp_id"];
+    this->out_id = inputs["out_id"];
+};
+
+inline void model::get_ops_info()
+{
+    // Get operations identifiers
+    std::vector<std::string> ops_id = this->tf_model.get_operations();
+    // Store identifier-shape pairs
+    for (auto const &op_id: ops_id)
+    {
+    	std::vector<int32_t> shape = this->tf_model.get_operation_shape(op);
+		this->ops.push_back(std::make_tuple(op_id, shape));
+    }
+}
+
+inline std::vector<std::int32_t> model::check_io_ops(
+	const std::vector<std::string> identifiers
+)
+{
+	std::vector<std::int32_t> dim;
+    for (auto const &i_id: identifiers)
+    {
+    	bool found = false;
+	    for (auto const &op: this->ops)
+	    {
+	    	auto op_id = std::get<0>(op);
+	    	if (op_id == i_id) {
+	    		found = true;
+	    		dim.push_back(std::get<1>(op)[1]);
+	    		break;
+	    	}
+	    }
+		if(found == false)
+		{
+		    std::cout << "\n Error! Operations identifier '" << i_id << "' not found!" << std::endl;
+		    std::cout << "\n Available options:" << std::endl;
+		    for (auto const &op: this->ops)
+		    	std::cout << "\n " << std::get<0>(op) << std::endl;
+		    exit(1);
+		}
+    }
+    return dim;
+};
+
+template <typename T>
+std::vector<T> model::call(
+	std::vector<T> inputs,
+	const std::int32_t n
+)
+{
+	// Compose inputs
+	std::vector<std::tuple<std::string, cppflow::tensor>> X;
+	int start = 0;
+	int end = 0;
+	int delta;
+	for (int i = 0; i < this->inp_dim.size(); ++i)
+	{
+		// Extract input i
+		delta = this->inp_dim[i] * n;
+		end = start + delta;
+		std::vector<T> x_vec(inputs.begin() + start, inputs.begin() + end);
+		start = end;
+		// Convert std::vector to cppflow::tensor
+    	cppflow::tensor x_ten = cppflow::tensor(x_vec, {n, this->inp_dim[i]});
+		// Make and append the tuple for input i
+		X.push_back(std::make_tuple(this->inp_id[i], x_ten));
+	};
+	// Perform inference
+    auto outputs = this->tf_model(X, this->out_id);
+	// Compose outputs
+	std::vector<T> Y;
+	for (int i = 0; i < this->out_dim.size(); ++i)
+	{
+		auto y = output[i].get_data<T>();
+		Y.insert(Y.end(), y.begin(), y.end());
+	}
+	return Y;
+}
+
+template <typename T>
+std::vector<std::vector<T>> model::call(
+	std::vector<std::vector<T>> inputs,
+	const std::int32_t n,
+    const bool transpose_in = false,
+    const bool transpose_out = false
+)
+{
+	// Flatten inputs
+	auto X = flatten(inputs, transpose_in);
+	// Perform inference
+	auto Y = this->call(X, n);
+	// Reshape outputs
+	auto outputs = reshape(Y, {n, this->out_tot_dim}, transpose_out);
+	return outputs;
+}
+
+template <typename T>
+T *model::call(
+	T *inputs,
+	const std::int32_t n
+)
+{
+	// Convert inputs from array to std::vector
+	std::vector<T> X(inputs, this->inp_tot_dim*n);
+	// Perform inference
+	auto Y = this->call(X, n);
+	// Convert outputs from std::vector to array
+	T *outputs = &Y[0];
+	return outputs;
+}
+
+// Explicit templates instantiation
+template std::vector<double> model::call(
+	std::vector<double> inputs, const std::int32_t n
+);
+template std::vector<std::vector<double>> model::call(
+	std::vector<std::vector<double>> inputs, const std::int32_t n
+);
+template double *model::call(
+	double *inputs, const std::int32_t n
+);
+
+
+// External bindings
+// ----------------------------------------------------------------------------
+model *init_model(char *inpfile) {
+	std::string file(inpfile);
+	return new model(file);
+}
+
+std::int32_t get_inp_tot_dim(model *mdl) {
+	return mdl->inp_tot_dim;
+}
+
+std::int32_t get_out_tot_dim(model *mdl) {
+	return mdl->out_tot_dim;
+}
+
+void delete_model(model *mdl) {
+	mdl->~model();
+}
+
+double *call_model(model *mdl, double *inputs, std::int32_t *n) {
+	return mdl->call(inputs, *n);
+}

@@ -1,19 +1,9 @@
 #include <iostream>
+#include <cstdint>
 #include <vector>
+
 #include "utils.h"
 
-
-// Flatten a 2D array into 1D array
-template <typename T>
-std::vector<T> flatten(
-    const std::vector<std::vector<T>> &vec
-)
-{
-    std::vector<T> result;
-    for (auto const &v: vec)
-        result.insert(result.end(), v.begin(), v.end());
-    return result;
-};
 
 // Transpose a 2D array
 template <typename T>
@@ -34,24 +24,38 @@ std::vector<std::vector<T>> transpose(
     return vec_trans;
 };
 
+// Flatten a 2D array into 1D array
+template <typename T>
+std::vector<T> flatten(
+    const std::vector<std::vector<T>> &vec2D,
+    const bool transpose_in
+)
+{
+    std::vector<T> vec1D;
+    auto _vec2D = (transpose_in == true) ? transpose(vec2D) : vec2D;
+    for (auto const &v: _vec2D)
+        vec1D.insert(vec1D.end(), v.begin(), v.end());
+    return vec1D;
+};
+
 // Reshape a 1D array into 2D array
 template <typename T>
 std::vector<std::vector<T>> reshape(
-    const std::vector<T> &vec,
-    const std::int64_t x_dim,
-    const std::int64_t y_dim
+    const std::vector<T> &vec1D,
+    const std::vector<std::int64_t> shape,
+    const bool transpose_out
 )
 {
-    std::vector<std::vector<T>> array;
+    std::vector<std::vector<T>> vec2D;
     int start = 0;
     int end = 0;
-    for (int j = 0; j < y_dim; ++j)
+    for (int j = 0; j < shape[1]; ++j)
     {
-        end = start + x_dim;
-        std::vector<T> column(vec.begin() + start, vec.begin() + end);
+        end = start + shape[0];
+        std::vector<T> vec(vec1D.begin() + start, vec1D.begin() + end);
         start = end;
-        array.push_back(column);
+        vec2D.push_back(vec);
     };
-    std::vector<std::vector<T>> array_trans = transpose(array)
-    return array_trans;
+    auto _vec2D = (transpose_out == true) ? transpose(vec2D) : vec2D;
+    return _vec2D;
 };
