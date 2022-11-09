@@ -2,19 +2,20 @@
 #define pycomet_model_h
 
 
+#include <cppflow/cppflow.h>
 #include "includes.h"
 
 
 namespace pycomet
 {
 	// Model class
-	/* --------------------------------------------------------------------- */
+	// ========================================================================
 	class model {
 
 		private:
 
 		    // TensorFlow model
-		    // cppflow::model tf_model;
+		    std::unique_ptr<cppflow::model> tfmodel;
 		    std::string path_to_model;
 
 		    // Inputs/Outputs
@@ -27,7 +28,7 @@ namespace pycomet
 			);
 
 		    // IO operations
-		    std::vector<std::tuple<std::string, std::vector<int32_t>>> ops;
+		    std::vector<std::tuple<std::string, std::vector<int64_t>>> ops;
 
 		    void get_ops_info();
 
@@ -67,27 +68,6 @@ namespace pycomet
 				const std::int32_t n
 			);
 	};
-
-	// // External bindings
-	// /* ------------------------------------------------------------------------- */
-	// #ifdef __cplusplus
-	// extern "C"
-	// {
-	// #endif
-
-	// 	model *init_model(char *inpfile);
-
-	// 	std::int32_t get_inp_tot_dim(model *mdl);
-
-	// 	std::int32_t get_out_tot_dim(model *mdl);
-
-	// 	void delete_model(model *mdl);
-
-	// 	double *call_model(model *mdl, double *inputs, std::int32_t *n);
-
-	// #ifdef __cplusplus
-	// }
-	// #endif
 }
 
 

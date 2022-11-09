@@ -8,8 +8,7 @@
 
 namespace pycomet
 {
-    // Transpose a 2D array
-    // ------------------------------------------------------------------------
+    // Transpose a 2D array ---------------------------------------------------
     template <typename T>
     std::vector<std::vector<T>> transpose(
         const std::vector<std::vector<T>> &vec
@@ -26,8 +25,7 @@ namespace pycomet
         return vec_trans;
     }
 
-    // Flatten a 2D array into 1D array
-    // ------------------------------------------------------------------------
+    // Flatten a 2D array into 1D array ---------------------------------------
     template <typename T>
     std::vector<T> flatten(
         const std::vector<std::vector<T>> &vec2D,
@@ -41,8 +39,7 @@ namespace pycomet
         return vec1D;
     }
 
-    // Reshape a 1D array into 2D array
-    // ------------------------------------------------------------------------
+    // Reshape a 1D array into 2D array ---------------------------------------
     template <typename T>
     std::vector<std::vector<T>> reshape(
         const std::vector<T> vec1D,

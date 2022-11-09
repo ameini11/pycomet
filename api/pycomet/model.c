@@ -1,6 +1,7 @@
 #include <fstream>
 #include <numeric>
 #include <nlohmann/json.hpp>
+#include <cppflow/cppflow.h>
 
 #include "includes.h"
 #include "vec_ops.h"
@@ -10,13 +11,16 @@ using json = nlohmann::json;
 
 
 // Model class
-/* ------------------------------------------------------------------------- */
+// ============================================================================
+// Constructor ----------------------------------------------------------------
 inline pycomet::model::model(const std::string inpfile)
 {
 	// Parse inputs from json file
 	this->parse_inputs(inpfile);
     // Initialize TensorFlow model
-	// this->tf_model = cppflow::model(this->path_to_model);
+    this->tfmodel = std::unique_ptr<cppflow::model>(
+    	new cppflow::model(this->path_to_model)
+    );
     // Get input/output operations
 	this->get_ops_info();
     // Check inputs/outputs operations
@@ -31,6 +35,7 @@ inline pycomet::model::model(const std::string inpfile)
 	);
 }
 
+// Auxiliary functions --------------------------------------------------------
 inline void pycomet::model::parse_inputs(const std::string inpfile)
 {
 	// Initialize Json object reader
@@ -45,11 +50,11 @@ inline void pycomet::model::parse_inputs(const std::string inpfile)
 inline void pycomet::model::get_ops_info()
 {
     // Get operations identifiers
-    std::vector<std::string> ops_id = this->tf_model.get_operations();
+    std::vector<std::string> ops_id = this->tfmodel->get_operations();
     // Store identifier-shape pairs
     for (auto const &op_id: ops_id)
     {
-    	std::vector<int32_t> shape = this->tf_model.get_operation_shape(op_id);
+    	auto shape = this->tfmodel->get_operation_shape(op_id);
 		this->ops.push_back(std::make_tuple(op_id, shape));
     }
 }
@@ -58,7 +63,7 @@ inline std::vector<std::int32_t> pycomet::model::check_io_ops(
 	const std::vector<std::string> identifiers
 )
 {
-	std::vector<std::int32_t> dim;
+	std::vector<std::int64_t> dim;
     for (auto const &i_id: identifiers)
     {
     	bool found = false;
@@ -80,9 +85,11 @@ inline std::vector<std::int32_t> pycomet::model::check_io_ops(
 		    exit(1);
 		}
     }
-    return dim;
+    std::vector<std::int32_t> dim_(dim.begin(), dim.end());
+    return dim_;
 };
 
+// Calling functions ----------------------------------------------------------
 template <typename T>
 std::vector<T> pycomet::model::call(
 	std::vector<T> inputs,
@@ -107,7 +114,7 @@ std::vector<T> pycomet::model::call(
 		X.push_back(std::make_tuple(this->inp_id[i], x_ten));
 	};
 	// Perform inference
-    auto outputs = this->tf_model(X, this->out_id);
+    auto outputs = (*this->tfmodel)(X, this->out_id);
 	// Compose outputs
 	std::vector<T> Y;
 	for (std::uint16_t i = 0; i < this->out_dim.size(); ++i)
@@ -150,7 +157,7 @@ T *pycomet::model::call(
 	return outputs;
 }
 
-// Explicit templates instantiation
+// Explicit templates instantiation -------------------------------------------
 template std::vector<double> pycomet::model::call(
 	std::vector<double> inputs, const std::int32_t n
 );
@@ -160,27 +167,3 @@ template std::vector<std::vector<double>> pycomet::model::call(
 template double *pycomet::model::call(
 	double *inputs, const std::int32_t n
 );
-
-
-// // External bindings
-// // ----------------------------------------------------------------------------
-// model *pycomet::init_model(char *inpfile) {
-// 	std::string file(inpfile);
-// 	return new model(file);
-// }
-
-// std::int32_t pycomet::get_inp_tot_dim(model *mdl) {
-// 	return mdl->inp_tot_dim;
-// }
-
-// std::int32_t pycomet::get_out_tot_dim(model *mdl) {
-// 	return mdl->out_tot_dim;
-// }
-
-// void pycomet::delete_model(model *mdl) {
-// 	mdl->~model();
-// }
-
-// double *pycomet::call_model(model *mdl, double *inputs, std::int32_t *n) {
-// 	return mdl->call(inputs, *n);
-// }
