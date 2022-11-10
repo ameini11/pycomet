@@ -3,10 +3,10 @@
 
 
 // PyCOMET headers
-#include "pycomet/includes.h"
-#include "pycomet/vec_ops.h"
-#include "pycomet/model.h"
-#include "pycomet/interface.h"
+#include "includes.h"
+#include "vec_ops.h"
+#include "model.h"
+#include "interface.h"
 
 
 namespace pycomet {

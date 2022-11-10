@@ -1,5 +1,5 @@
-#ifndef pycomet_vec_ops_h
-#define pycomet_vec_ops_h
+#ifndef pycomet_vec_ops_h_
+#define pycomet_vec_ops_h_
 
 
 #include <iostream>
@@ -63,4 +63,4 @@ namespace pycomet
 }
 
 
-#endif // pycomet_vec_ops_h
+#endif // pycomet_vec_ops_h_

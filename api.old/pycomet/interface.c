@@ -1,7 +1,4 @@
-#include "includes.h"
-#include "model.h"
-
-using namespace pycomet;
+#include "interface.h"
 
 
 // External bindings

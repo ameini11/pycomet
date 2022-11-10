@@ -1,5 +1,5 @@
-#ifndef pycomet_interface_h
-#define pycomet_interface_h
+#ifndef pycomet_interface_h_
+#define pycomet_interface_h_
 
 
 #include "includes.h"
@@ -31,4 +31,4 @@ namespace pycomet
 }
 
 
-#endif // pycomet_interface_h
+#endif // pycomet_interface_h_

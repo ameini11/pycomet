@@ -13,10 +13,10 @@
 
 CC = g++
 CFLAGS = -DDEBUG -Wall -g -c -std=c++17
-INCLUDE = -I./ -I/home/zanardi/Codes/ML/TensorFlow/v.2.9.1/include -I/home/zanardi/Codes/ML/CppFlow/cppflow/include -I/home/zanardi/APPLICATIONS/JSON/json/include
+INCLUDE = -I/home/zanardi/Codes/ML/TensorFlow/v.2.9.1/include -I/home/zanardi/Codes/ML/CppFlow/cppflow/include -I/home/zanardi/APPLICATIONS/JSON/json/include
 LDFLAGS = -L/home/zanardi/Codes/ML/TensorFlow/v.2.9.1/lib
 LDLIBS = -lstdc++ -ltensorflow
-SOURCES = pycomet/pycomet.c pycomet/model.c pycomet/interface.c pycomet/main.c
+SOURCES = pycomet.c model.c interface.c main.c
 OBJECTS = $(SOURCES:.c=.o)
 
 EXE = main
@@ -30,4 +30,16 @@ $(EXE): $(OBJECTS)
 	$(CC) $(CFLAGS) $(INCLUDE) $< -o $@
 
 clean:
-	rm -rf pycomet/*.so pycomet/*.o pycomet/*.a pycomet/$(EXE)
+	rm -rf *.so *.o *.a $(EXE)
+
+
+# all: $(EXE)
+
+# $(EXE): $(SOURCES)
+# 	$(CC) $(CFLAGS) $(SOURCES) $(INCLUDE) $(LDFLAGS) $(LDLIBS) -o $@
+
+# clean:
+# 	rm -rf *.so *.o *.a $(EXE)
+
+
+# export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/zanardi/Codes/ML/TensorFlow/v.2.9.1/lib

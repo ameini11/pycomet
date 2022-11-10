@@ -1,10 +1,6 @@
 #include <fstream>
 #include <numeric>
 #include <nlohmann/json.hpp>
-#include <cppflow/cppflow.h>
-
-#include "includes.h"
-#include "vec_ops.h"
 #include "model.h"
 
 using json = nlohmann::json;
@@ -13,7 +9,7 @@ using json = nlohmann::json;
 // Model class
 // ============================================================================
 // Constructor ----------------------------------------------------------------
-inline pycomet::model::model(const std::string inpfile)
+pycomet::model::model(const std::string inpfile)
 {
 	// Parse inputs from json file
 	this->parse_inputs(inpfile);
@@ -36,7 +32,7 @@ inline pycomet::model::model(const std::string inpfile)
 }
 
 // Auxiliary functions --------------------------------------------------------
-inline void pycomet::model::parse_inputs(const std::string inpfile)
+void pycomet::model::parse_inputs(const std::string inpfile)
 {
 	// Initialize Json object reader
     std::ifstream file(inpfile);
@@ -47,7 +43,7 @@ inline void pycomet::model::parse_inputs(const std::string inpfile)
     this->out_id = inputs["out_id"];
 };
 
-inline void pycomet::model::get_ops_info()
+void pycomet::model::get_ops_info()
 {
     // Get operations identifiers
     std::vector<std::string> ops_id = this->tfmodel->get_operations();
@@ -59,7 +55,7 @@ inline void pycomet::model::get_ops_info()
     }
 }
 
-inline std::vector<std::int32_t> pycomet::model::check_io_ops(
+std::vector<std::int32_t> pycomet::model::check_io_ops(
 	const std::vector<std::string> identifiers
 )
 {
