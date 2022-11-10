@@ -20,12 +20,12 @@ mkdir $BUILD_DIR
 cd $BUILD_DIR
 
 cmake $SRC_DIR \
-	-DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-	-DBUILD_EXAMPLES=OFF \
-	-Djson_INCLUDE_DIR=$Json_DIR/include \
-	-Dcppflow_INCLUDE_DIR=$CppFlow_DIR/include \
-	-Dtensorflow_INCLUDE_DIR=$TensorFlow_DIR/include \
-	-Dtensorflow_LIBRARY=$TensorFlow_DIR/lib/libtensorflow.so
+  -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
+  -DBUILD_EXAMPLES=OFF \
+  -Djson_INCLUDE_DIR=$Json_DIR/include \
+  -Dcppflow_INCLUDE_DIR=$CppFlow_DIR/include \
+  -Dtensorflow_INCLUDE_DIR=$TensorFlow_DIR/include \
+  -Dtensorflow_LIBRARY=$TensorFlow_DIR/lib/libtensorflow.so
 
 make -j 4
 make install
