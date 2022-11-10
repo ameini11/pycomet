@@ -11,7 +11,7 @@ PyCOMET-API uses [CppFlow](https://github.com/serizba/cppflow/) and [TensorFlow 
 
 ### Dependencies
 
-  - [TensorFlow C API](https://www.tensorflow.org/install/lang_c/)=2.9.1
+  - [TensorFlow C API](https://www.tensorflow.org/install/lang_c/) = 2.9.1
   - [CppFlow](https://github.com/serizba/cppflow/)
   - [Json](https://github.com/nlohmann/json/)
 
