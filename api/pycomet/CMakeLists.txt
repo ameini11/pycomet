@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(pycomet
     VERSION 1.0
-    LANGUAGES C CXX
+    LANGUAGES C CXX Fortran
     DESCRIPTION "Physics-informed machine learning for scientific computing and operator discovery"
 )
 
@@ -36,12 +36,14 @@ find_package(json REQUIRED)
 # Target
 # -----------------------------------------------------------------------------
 add_library(${PROJECT_NAME} SHARED)
-file(GLOB_RECURSE SOURCE_FILES RELATIVE ${CMAKE_SOURCE_DIR} "src/*.c")
+file(GLOB_RECURSE SOURCE_FILES_C RELATIVE ${CMAKE_SOURCE_DIR} "src/*.c")
+file(GLOB_RECURSE SOURCE_FILES_F RELATIVE ${CMAKE_SOURCE_DIR} "src/*.f90")
 target_sources(${PROJECT_NAME}
     PRIVATE
-        ${SOURCE_FILES}
+        ${SOURCE_FILES_C}
+        ${SOURCE_FILES_F}
 )
-set_source_files_properties(${SOURCE_FILES} PROPERTIES LANGUAGE CXX)
+set_source_files_properties(${SOURCE_FILES_C} PROPERTIES LANGUAGE CXX)
 
 
 # Include directories

@@ -8,26 +8,26 @@
 
 namespace pycomet
 {
-	// External bindings
-	// ========================================================================
-	#ifdef __cplusplus
-	extern "C"
-	{
-	#endif
+  // External bindings
+  // ========================================================================
+  #ifdef __cplusplus
+  extern "C"
+  {
+  #endif
 
-		pycomet::model *init_model(char *inpfile);
+    pycomet::model *init_model(char *inpfile);
 
-		std::int32_t get_inp_tot_dim(pycomet::model *mdl);
+    std::int32_t get_inp_tot_dim(pycomet::model *mdl);
 
-		std::int32_t get_out_tot_dim(pycomet::model *mdl);
+    std::int32_t get_out_tot_dim(pycomet::model *mdl);
 
-		void delete_model(pycomet::model *mdl);
+    void delete_model(pycomet::model *mdl);
 
-		double *call_model(pycomet::model *mdl, double *inputs, std::int32_t *n);
+    double *call_model(pycomet::model *mdl, double *inputs, std::int32_t *n);
 
-	#ifdef __cplusplus
-	}
-	#endif
+  #ifdef __cplusplus
+  }
+  #endif
 }
 
 

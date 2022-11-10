@@ -3,5 +3,5 @@
 
 
 std::string pycomet::version() {
-    return cppflow::version() + " PyCOMET: 1.0";
+  return cppflow::version() + " PyCOMET: 1.0";
 }
