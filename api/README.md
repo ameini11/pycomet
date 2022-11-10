@@ -29,7 +29,7 @@ export INSTALL_DIR=<path-to-install-dir>
 ```
 export TensorFlow_DIR=<path-to-tensorflow-dir>
 export CppFlow_DIR=<path-to-cppflow-dir>
-export Json_DIR=json
+export Json_DIR=<path-to-json-dir>
 ```
 - Prepare installation directories
 ```
