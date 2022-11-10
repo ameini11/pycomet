@@ -11,6 +11,44 @@ PyCOMET-API uses [CppFlow](https://github.com/serizba/cppflow/) and [Tensorflow 
 
 ### Dependencies
 
-  - [Tensorflow C API](https://www.tensorflow.org/install/lang_c/)
+  - [Tensorflow C API](https://www.tensorflow.org/install/lang_c/)=2.9.1
   - [CppFlow](https://github.com/serizba/cppflow/)
   - [Json](https://github.com/nlohmann/json/)
+
+### Installation
+
+To install PyCOMET-API, you just have to download the abovementioned dependencies.
+Then follows these steps:
+- Define installation directories
+```
+export SRC_DIR=<path-to-PyCOMET-API-source-dir>
+export BUILD_DIR=<path-to-build-dir>
+export INSTALL_DIR=<path-to-install-dir>
+```
+- Define dependencies directories
+```
+export TensorFlow_DIR=<path-to-tensorflow-dir>
+export CppFlow_DIR=<path-to-cppflow-dir>
+export Json_DIR=json
+```
+- Prepare installation directories
+```
+rm -rf $BUILD_DIR $INSTALL_DIR
+mkdir $BUILD_DIR
+cd $BUILD_DIR
+```
+- Configure CMAKE
+```
+cmake $SRC_DIR \
+  -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
+  -DBUILD_EXAMPLES=OFF \
+  -Djson_INCLUDE_DIR=$Json_DIR/include \
+  -Dcppflow_INCLUDE_DIR=$CppFlow_DIR/include \
+  -Dtensorflow_INCLUDE_DIR=$TensorFlow_DIR/include \
+  -Dtensorflow_LIBRARY=$TensorFlow_DIR/lib/libtensorflow.so
+```
+- Install
+```
+make -j 4
+make install
+```
