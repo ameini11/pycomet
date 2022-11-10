@@ -46,7 +46,7 @@ module model
     function c_call_model(this, inputs, n) result(outputs) bind(c, name="call_model")
       import
       type(c_ptr), value :: this
-            type(c_ptr), value :: inputs
+      type(c_ptr), value :: inputs
       integer(c_int32_t) :: n
       type(c_ptr) :: outputs
     end function c_call_model
@@ -58,7 +58,7 @@ module model
   function init_model(inpfile) result(this)
     ! Declare in-out variables
     type(model_type) :: this
-      character(*), intent(in) :: inpfile
+    character(*), intent(in) :: inpfile
     ! Initialize TensorFlow model
     this%object = c_init_model(inpfile//c_null_char)
     this%inp_tot_dim = c_get_inp_tot_dim(this%object)

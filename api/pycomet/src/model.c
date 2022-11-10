@@ -75,8 +75,8 @@ std::vector<std::int32_t> pycomet::model::check_io_ops(
     }
     if(found == false)
     {
-      std::cout << "\n Error! Operations identifier '" << i_id << "' not found!" << std::endl;
-      std::cout << "\n Available options:" << std::endl;
+      std::cout << "\n Error! Operations identifier '" << i_id;
+      std::cout << "' not found!\nAvailable options:" << std::endl;
       for (auto const &op: this->ops)
         std::cout << "\n " << std::get<0>(op) << std::endl;
       exit(1);
