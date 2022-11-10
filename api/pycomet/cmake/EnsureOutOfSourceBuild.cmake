@@ -1,6 +1,10 @@
+# =============================================================================
+# CMake utility
+# =============================================================================
 # Ensures that the build directory is different from source directory.
 # If the build directory is the source directory then it will bump
 # an error message and stop the compilation processus.
+# =============================================================================
 
 macro(ensure_out_of_source_build)
   string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}" In_Source)
