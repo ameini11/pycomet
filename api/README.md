@@ -36,7 +36,7 @@ rm -rf $BUILD_DIR $INSTALL_DIR
 mkdir $BUILD_DIR
 cd $BUILD_DIR
 ```
-- Configure CMAKE
+- Configure CMake
 ```
 cmake $SRC_DIR \
   -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
