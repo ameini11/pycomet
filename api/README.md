@@ -17,7 +17,7 @@ PyCOMET-API uses [CppFlow](https://github.com/serizba/cppflow/) and [TensorFlow 
 
 ### Installation
 
-To install PyCOMET-API, you just have to download the abovementioned dependencies, then following these steps:
+To install PyCOMET-API, you just have to download the abovementioned dependencies and then follow these steps:
 - Define installation directories
 ```
 export SRC_DIR=<path-to-PyCOMET-API-source-dir>
