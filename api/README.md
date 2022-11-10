@@ -1,7 +1,7 @@
 # PyCOMET-API
 **Physics-informed machine learning for scientific computing and operator discovery**
 
-Run PyCOMET models in C++/Fortran without TensorFlow installation and compilation. You can take a look to the [examples](https://github.com/ivanZanardi/pycomet/tree/main/api/pycomet/examples) to see how to load a deep network in your C++/Fortran project.
+Run PyCOMET models in C++/Fortran without TensorFlow installation and compilation. You can take a look to the [examples](https://github.com/ivanZanardi/pycomet/tree/main/api/pycomet/examples) to see how to load a TensorFlow `tf.Model` in your C++/Fortran project.
 
 PyCOMET-API uses [CppFlow](https://github.com/serizba/cppflow/) and [TensorFlow C API](https://www.tensorflow.org/install/lang_c) to run the models. With this project you can manage and run your models in C++/Fortran without worrying about void, malloc or free. With PyCOMET-API you easily can:
 
