@@ -2,12 +2,12 @@
 # If the build directory is the source directory then it will bump
 # an error message and stop the compilation processus.
 
-macro (ensure_out_of_source_build)
-  string (COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}" In_Source)
-  get_filename_component (PARENTDIR ${CMAKE_SOURCE_DIR} PATH)
-  string (COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${PARENTDIR}" In_Source_Subdir)
+macro(ensure_out_of_source_build)
+  string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}" In_Source)
+  get_filename_component(PARENTDIR ${CMAKE_SOURCE_DIR} PATH)
+  string(COMPARE EQUAL "${CMAKE_SOURCE_DIR}" "${PARENTDIR}" In_Source_Subdir)
 
-  if ( In_Source OR In_Source_Subdir )
+  if(In_Source OR In_Source_Subdir)
   message(FATAL_ERROR "
 ERROR BUILDING ${PROJECT_NAME}:
 In-source builds of this project are not allowed.
@@ -17,6 +17,6 @@ Also note that cmake has just added files to your source code directory.
 We suggest getting a new copy of the source code.
 Otherwise, delete 'CMakeCache.txt' and the directory 'CMakeFiles'.
   ")
-  endif ()
+  endif()
 
-endmacro (ensure_out_of_source_build)
+endmacro(ensure_out_of_source_build)

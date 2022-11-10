@@ -12,7 +12,7 @@ find_package_handle_standard_args(tensorflow
   HANDLE_COMPONENTS
 )
 
-if (tensorflow_FOUND)
+if(tensorflow_FOUND)
   mark_as_advanced(tensorflow_INCLUDE_DIR)
   mark_as_advanced(tensorflow_LIBRARY)
 endif()
