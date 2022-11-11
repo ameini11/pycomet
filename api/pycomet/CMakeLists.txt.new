@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+
+# Global
+# -----------------------------------------------------------------------------
 project(pycomet
   VERSION 1.0
   LANGUAGES C CXX Fortran
@@ -12,6 +15,7 @@ project(pycomet
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(GNUInstallDirs)
 include(EnsureOutOfSourceBuild)
+include(ConfigTarget)
 include(LogMessage)
 ensure_out_of_source_build()
 setLogsOn()
@@ -22,7 +26,6 @@ setLogsOn()
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 endif()
-
 if(CMAKE_CXX_STANDARD LESS 17)
   LogWarning("Incompatible C++ standard ${CMAKE_CXX_STANDARD}. PyCOMET requires C++17")
 endif()
@@ -46,8 +49,8 @@ LogMessage("SHARED_LIBRARY:       ${SHARED_LIBRARY}")
 # Set the component to be build
 # -----------------------------------------------------------------------------
 # Set the build options
-option(BUILD_STATIC_LIBRARY  "Build static library"  OFF )
-option(BUILD_SHARED_LIBRARY  "Build shared library"  ON)
+option(BUILD_STATIC_LIBRARY  "Build static library"  ON )
+option(BUILD_SHARED_LIBRARY  "Build shared library"  OFF)
 option(BUILD_EXAMPLES        "Build examples"        OFF)
 LogMessage("BUILD_STATIC_LIBRARY: ${BUILD_STATIC_LIBRARY}")
 LogMessage("BUILD_SHARED_LIBRARY: ${BUILD_SHARED_LIBRARY}")
@@ -61,37 +64,18 @@ find_package(cppflow REQUIRED)
 find_package(json REQUIRED)
 
 
-# # Target
-# # -----------------------------------------------------------------------------
-# add_library(${PROJECT_NAME} SHARED)
-# file(GLOB_RECURSE SOURCE_FILES_C RELATIVE ${CMAKE_SOURCE_DIR} "src/*.c")
-# file(GLOB_RECURSE SOURCE_FILES_F RELATIVE ${CMAKE_SOURCE_DIR} "src/*.f90")
-# target_sources(${PROJECT_NAME}
-#   PRIVATE
-#     ${SOURCE_FILES_C}
-#     ${SOURCE_FILES_F}
-# )
-# set_source_files_properties(${SOURCE_FILES_C} PROPERTIES LANGUAGE CXX)
+
+##############################################
+# Setting the names of the build directories #
+##############################################
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib )  # Set the name of the directory where to store libraries
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/bin )  # Set the name of the directory where to store executables
+set( CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod )  # Set the name of the directory where to store Fortran module files '*.mod'
+include_directories( ${CMAKE_Fortran_MODULE_DIRECTORY} )
 
 
-# Include directories
-# -----------------------------------------------------------------------------
-target_include_directories(${PROJECT_NAME}
-  PRIVATE
-    ${tensorflow_INCLUDE_DIR}
-    ${cppflow_INCLUDE_DIR}
-    ${json_INCLUDE_DIR}
-    # where the library itself will look for its internal headers
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-  PUBLIC
-    # where top-level project will look for the library's public headers
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    # where external projects will look for the library's public headers
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
 
-
-# Installation path
+# Installation paths
 # -----------------------------------------------------------------------------
 # note that it is not CMAKE_INSTALL_PREFIX we are checking here
 if(DEFINED CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -109,11 +93,11 @@ endif()
 
 set( PROJECT_INSTALL_DIR      ${CMAKE_INSTALL_PREFIX})
 get_filename_component( PROJECT_INSTALL_DIR "${PROJECT_INSTALL_DIR}" ABSOLUTE)
-set( LIBRARY_INSTALL_DIR      ${PROJECT_INSTALL_DIR}/lib )          # Installation directory for libraries (both static and shared)
-set( MODULES_INSTALL_DIR      ${PROJECT_INSTALL_DIR}/mod )          # Installation directory for Fortran modules
-set( EXECUTABLE_INSTALL_DIR   ${PROJECT_INSTALL_DIR}/bin )          # Installation directory for executables
-set( CMAKE_INSTALL_DIR        ${PROJECT_INSTALL_DIR}/cmake )        # Installation directory for cmake configuration files
-set( INCLUDE_INSTALL_DIR      ${MODULES_INSTALL_DIR}/include )              # Installation directory for cmake configuration files
+set( LIBRARY_INSTALL_DIR      ${PROJECT_INSTALL_DIR}/lib )
+set( MODULES_INSTALL_DIR      ${PROJECT_INSTALL_DIR}/mod )
+set( EXECUTABLE_INSTALL_DIR   ${PROJECT_INSTALL_DIR}/bin )
+set( CMAKE_INSTALL_DIR        ${PROJECT_INSTALL_DIR}/cmake )
+set( INCLUDE_INSTALL_DIR      ${PROJECT_INSTALL_DIR}/include )
 LogMessage ( "Installation directory prefix:                        CMAKE_INSTALL_PREFIX   = ${CMAKE_INSTALL_PREFIX}")
 LogMessage ( "Installation directory for the projet:                PROJECT_INSTALL_DIR    = ${PROJECT_INSTALL_DIR}")
 LogMessage ( "Installation directory for libraries:                 LIBRARY_INSTALL_DIR    = ${LIBRARY_INSTALL_DIR}")
@@ -123,19 +107,8 @@ LogMessage ( "Installation directory for executables:               EXECUTABLE_I
 LogMessage ( "Installation directory for cmake configuration files: CMAKE_INSTALL_DIR      = ${CMAKE_INSTALL_DIR}")
 LogMessage ( "Installation directory for database files:            DATABASE_INSTALL_DIR   = ${DATABASE_INSTALL_DIR}")
 if ( DEFINED MODULEFILE_INSTALL_DIR )
-LogMessage ( "Installation directory for the modulefile:            MODULEFILE_INSTALL_DIR = ${MODULEFILE_INSTALL_DIR}")
+  LogMessage ( "Installation directory for the modulefile:            MODULEFILE_INSTALL_DIR = ${MODULEFILE_INSTALL_DIR}")
 endif()
-
-
-
-
-
-# Public headers
-# -----------------------------------------------------------------------------
-# Next thing you need to do is to declare PUBLIC_HEADER property
-file(GLOB_RECURSE INCLUDE_FILES RELATIVE ${CMAKE_SOURCE_DIR} "include/*.h")
-set(public_headers ${INCLUDE_FILES})
-set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${public_headers}")
 
 
 # Build type
@@ -150,54 +123,40 @@ endif()
 LogMessage("Build type: ${CMAKE_BUILD_TYPE}")
 
 
-# Debug suffix
+# Collect public headers and sources
 # -----------------------------------------------------------------------------
-# It might be a good idea to add d suffix to debug binaries - that way you’ll
-# get lib<name>.a with Debug configuration and lib<name>.a with Release. To do
-# that you need to set the DEBUG_POSTFIX property.
-set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
-
-
-# External libraries
-# -----------------------------------------------------------------------------
-target_link_libraries(${PROJECT_NAME}
-  PRIVATE
-    ${tensorflow_LIBRARY}
-)
-
-
-
-
-###############################
-# Building the static library #
-###############################
+# Next thing you need to do is to declare PUBLIC_HEADER property
+file(GLOB_RECURSE INCLUDE_FILES RELATIVE ${CMAKE_SOURCE_DIR} "include/*.h")
+set(PUBLIC_HEADERS ${INCLUDE_FILES})
 file(GLOB_RECURSE SOURCE_FILES_C RELATIVE ${CMAKE_SOURCE_DIR} "src/*.c")
 file(GLOB_RECURSE SOURCE_FILES_F RELATIVE ${CMAKE_SOURCE_DIR} "src/*.f90")
+set_source_files_properties(${SOURCE_FILES_C} PROPERTIES LANGUAGE CXX)
 
+
+# Build static library
+# -----------------------------------------------------------------------------
 if ( BUILD_STATIC_LIBRARY )
-  set( TARGET_NAME ${LIBRARY_NAME}-static )                                         # Set the name of the target to be build: 'spark-static'
-  set( STATIC_LIBRARY ${TARGET_NAME} )                                              # Save the name of the target associated to the static library for re-use when building application codes)
-  LogMessage( "Building the static library: ${LIBRARY_NAME}" )
-  add_library( ${TARGET_NAME} STATIC )                                      # Create a static library from the list of source files
-
-  target_sources(${TARGET_NAME}
-    PRIVATE
-      ${SOURCE_FILES_C}
-      ${SOURCE_FILES_F}
+  set( TARGET_NAME ${LIBRARY_NAME}-static )
+  set( STATIC_LIBRARY ${TARGET_NAME} )
+  LogMessage( "Building the static library: ${LIBRARY_NAME}"  )
+  add_library( ${TARGET_NAME} STATIC )
+  set_target_properties(${TARGET_NAME}
+    PROPERTIES
+    OUTPUT_NAME ${LIBRARY_NAME}
+    ARCHIVE_OUTPUT_DIRECTORY ${TARGET_NAME}
   )
-  set_source_files_properties(${SOURCE_FILES_C} PROPERTIES LANGUAGE CXX)
-
-  set_target_properties( ${TARGET_NAME} PROPERTIES OUTPUT_NAME ${LIBRARY_NAME})     # Change the name of the static library from 'spark-static' to 'spark'
-  install(  TARGETS       ${STATIC_LIBRARY}                                         # Installing the static library
+  # Configure the target and create export-set
+  ConfigTarget()
+  # Install the target and create export-set
+  install(  TARGETS       ${TARGET_NAME}                                            # Install the shared library
             DESTINATION   ${LIBRARY_INSTALL_DIR}
-            EXPORT        ${LIBRARY_NAME}-targets )
+            EXPORT        ${LIBRARY_NAME}Targets )
+  # install(TARGETS ${TARGET_NAME}
+  #     EXPORT "${LIBRARY_NAME}Targets"
+  #     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIBRARY_NAME}
+  #     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+  # )
 
-  install(TARGETS ${STATIC_LIBRARY}
-    DESTINATION   ${LIBRARY_INSTALL_DIR}
-    EXPORT "${LIBRARY_NAME}Targets"
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  )
 
 endif()
 
@@ -214,16 +173,6 @@ endif()
 #             DESTINATION   ${LIBRARY_INSTALL_DIR}
 #             EXPORT        ${LIBRARY_NAME}-targets )
 # endif()
-
-
-# # Destinations
-# # -----------------------------------------------------------------------------
-# # Install the target and create export-set
-# install(TARGETS ${PROJECT_NAME}
-#     EXPORT "${PROJECT_NAME}Targets"
-#     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
-#     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-# )
 
 
 # Build examples

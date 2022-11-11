@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+
+# Global
+# -----------------------------------------------------------------------------
 project(pycomet
   VERSION 1.0
   LANGUAGES C CXX Fortran
@@ -22,37 +25,9 @@ setLogsOn()
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 endif()
-
 if(CMAKE_CXX_STANDARD LESS 17)
   LogWarning("Incompatible C++ standard ${CMAKE_CXX_STANDARD}. PyCOMET requires C++17")
 endif()
-
-
-# Set variables related to the project name
-# -----------------------------------------------------------------------------
-string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LC)
-string(TOUPPER ${PROJECT_NAME} PROJECT_NAME_UC)
-string(TOLOWER ${PROJECT_NAME} LIBRARY_NAME)
-set(${PROJECT_NAME_UC}_LIBRARY_NAME ${LIBRARY_NAME})
-set(STATIC_LIBRARY ${LIBRARY_NAME}-static)
-set(SHARED_LIBRARY ${LIBRARY_NAME}-shared)
-LogMessage("PROJECT_NAME:         ${PROJECT_NAME}")
-LogMessage("PROJECT_VERSION:      ${PROJECT_VERSION}")
-LogMessage("LIBRARY_NAME:         ${LIBRARY_NAME}")
-LogMessage("STATIC_LIBRARY:       ${STATIC_LIBRARY}")
-LogMessage("SHARED_LIBRARY:       ${SHARED_LIBRARY}")
-
-
-
-# Set the component to be build
-# -----------------------------------------------------------------------------
-# Set the build options
-option(BUILD_STATIC_LIBRARY  "Build static library"  ON )
-option(BUILD_SHARED_LIBRARY  "Build shared library"  OFF)
-option(BUILD_EXAMPLES        "Build examples"        OFF)
-LogMessage("BUILD_STATIC_LIBRARY: ${BUILD_STATIC_LIBRARY}")
-LogMessage("BUILD_SHARED_LIBRARY: ${BUILD_SHARED_LIBRARY}")
-LogMessage("BUILD_EXAMPLES :      ${BUILD_EXAMPLES}")
 
 
 # Find external packages
@@ -113,8 +88,8 @@ endif()
 # -----------------------------------------------------------------------------
 # Next thing you need to do is to declare PUBLIC_HEADER property
 file(GLOB_RECURSE INCLUDE_FILES RELATIVE ${CMAKE_SOURCE_DIR} "include/*.h")
-set(public_headers ${INCLUDE_FILES})
-set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${public_headers}")
+set(PUBLIC_HEADERS ${INCLUDE_FILES})
+set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${PUBLIC_HEADERS}")
 
 
 # Build type
@@ -172,21 +147,6 @@ install(TARGETS ${PROJECT_NAME}
 #   set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME ${APPLICATION_NAME})  # Change the name of the executable from 'spark-driver' to 'spark'
 #   target_link_libraries(${TARGET_NAME} PUBLIC ${STATIC_LIBRARY})                    # Linking the 'spark' executable to the 'spark-cfd' library, which will also link to the 'spark' and 'spark-ode' libraries due to the PUBLIC dependency
 #   install(TARGETS ${TARGET_NAME} DESTINATION ${EXECUTABLE_INSTALL_DIR})             # Installing the exectuable
-# endif()
-
-
-# # Modulefile
-# # -----------------------------------------------------------------------------
-# configure_file(
-#   ${CMAKE_MODULE_PATH}/modulefile.in
-#   ${CMAKE_BINARY_DIR}/${PROJECT_FULL_NAME}.modulefile
-# )
-# if (DEFINED MODULEFILE_INSTALL_DIR)
-#   install(
-#     FILES ${CMAKE_BINARY_DIR}/${PROJECT_FULL_NAME}.modulefile
-#     DESTINATION ${MODULEFILE_INSTALL_DIR}
-#     RENAME ${PROJECT_BUILD_CONFIGURATION}
-# )
 # endif()
 
 
