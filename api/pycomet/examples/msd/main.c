@@ -1,64 +1,31 @@
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <iterator>
-#include <map>
-
-#include "cppflow/ops.h"
-#include "cppflow/model.h"
-
-using namespace std;
+#include "pycomet.h"
 
 
-template<typename T>
-vector<T> flatten(vector<vector<T>> const &vec)
+std::vector<double> read_csv(std::string filename, int skiprows, int col_s, int col_e)
 {
-    vector<T> flattened;
-    for (auto const &v: vec) {
-        flattened.insert(flattened.end(), v.begin(), v.end());
-    }
-    return flattened;
-}
-
-// template<typename T>
-// T vector2array(vector<T> const &vec)
-// {
-//     return *arr = &vec[0];
-// }
-
-// template<typename T>
-// vector<T> array2vector(T const &arr)
-// {
-//     return vec(begin(arr), end(arr));
-// }
-
-vector<float> read_csv(string filename, int skiprows, int col_s, int col_e)
-{
-    ifstream file(filename);
-    vector<vector<float>> array;
+    std::ifstream file(filename);
+    std::vector<std::vector<double>> array;
 
     if (file)
     {
         int row = 0;
-        string line;
+        std::string line;
 
-        while (getline(file, line))
+        while (std::getline(file, line))
         {
             if (row > skiprows)
             {
-                stringstream sep(line);
-                string field;
+                std::stringstream sep(line);
+                std::string field;
 
-                array.push_back(vector<float>());
+                array.push_back(std::vector<double>());
 
                 int col = 0;
-                while (getline(sep, field, ','))
+                while (std::getline(sep, field, ','))
                 {
                     if (col_s <= col && col_e > col)
                     {
-                        array.back().push_back(stod(field));
+                        array.back().push_back(std::stod(field));
                     }
                     col++;
                 }
@@ -70,7 +37,7 @@ vector<float> read_csv(string filename, int skiprows, int col_s, int col_e)
     return flatten(array);
 }
 
-void write_csv(string filename, vector<float> vec, int r, int c){
+void write_csv(std::string filename, std::vector<double> vec, int r, int c){
 
     ofstream file(filename);
 
@@ -97,9 +64,9 @@ int main() {
     auto input_2 = cppflow::tensor(read_csv(FILEIN_PATH, 0, 2, 3), {100, 1});
 
     // Load the model from file
-    auto model = cppflow::model(std::string(MODEL_PATH));
+    auto model = cppflow::model(std::std::string(MODEL_PATH));
 
-    std::vector<std::tuple<std::string, cppflow::tensor>> X = {
+    std::std::vector<std::tuple<std::std::string, cppflow::tensor>> X = {
         {"serving_default_input_1:0", input_1}, // Branch
         {"serving_default_input_2:0", input_2}  // Trunk
     };
@@ -116,7 +83,7 @@ int main() {
     // );
 
     // Write outputs to file
-    write_csv(FILEOUT_PATH, output[0].get_data<float>(), 100, 2);
+    write_csv(FILEOUT_PATH, output[0].get_data<double>(), 100, 2);
 
     return 0;
 }

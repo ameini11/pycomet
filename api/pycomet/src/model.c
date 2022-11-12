@@ -1,7 +1,7 @@
 #include <fstream>
 #include <numeric>
 #include <nlohmann/json.hpp>
-#include "vec_ops.h"
+#include "utils.h"
 #include "model.h"
 
 using json = nlohmann::json;
@@ -131,11 +131,13 @@ std::vector<std::vector<T>> pycomet::model::call(
 )
 {
   // Flatten inputs
-  auto X = pycomet::flatten(inputs, transpose_in);
+  auto X = pycomet::vec_ops::flatten(inputs, transpose_in);
   // Perform inference
   auto Y = this->call(X, n);
   // Reshape outputs
-  auto outputs = pycomet::reshape(Y, {n, this->out_tot_dim}, transpose_out);
+  auto outputs = pycomet::vec_ops::reshape(
+    Y, {n, this->out_tot_dim}, transpose_out
+  );
   return outputs;
 }
 
