@@ -1,5 +1,5 @@
 {
-    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/cpp/examples/msd/SavedModel",
+    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/SavedModel",
     "inp_id": [
         "serving_default_input_1:0",
         "serving_default_input_2:0"

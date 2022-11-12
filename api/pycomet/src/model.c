@@ -55,7 +55,7 @@ void pycomet::model::parse_inputs(const std::string inpfile)
 
 void pycomet::model::set_global_context(std::vector<std::uint8_t> *config)
 {
-    // Create new options with the new configuration
+  // Create new options with the new configuration
   TFE_ContextOptions *opts = TFE_NewContextOptions();
   TFE_ContextOptionsSetConfig(
     opts, config->data(), config->size(), cppflow::context::get_status()
@@ -185,4 +185,14 @@ template std::vector<std::vector<double>> pycomet::model::call(
 );
 template double *pycomet::model::call(
   double *inputs, const std::int32_t n
+);
+
+template std::vector<float> pycomet::model::call(
+  std::vector<float> inputs, const std::int32_t n
+);
+template std::vector<std::vector<float>> pycomet::model::call(
+  std::vector<std::vector<float>> inputs, const std::int32_t n
+);
+template float *pycomet::model::call(
+  float *inputs, const std::int32_t n
 );
