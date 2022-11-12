@@ -1,0 +1,36 @@
+{
+    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/cpp/examples/msd/SavedModel",
+    "inp_id": [
+        "serving_default_input_1:0",
+        "serving_default_input_2:0"
+    ],
+    "out_id": [
+        "StatefulPartitionedCall:0"
+    ],
+    "inp_dim": [
+        2,
+        1
+    ],
+    "out_dim": [
+        2
+    ],
+    "config": [
+        "0x10",
+        "0x8",
+        "0x28",
+        "0x8",
+        "0x32",
+        "0xb",
+        "0x9",
+        "0x33",
+        "0x33",
+        "0x33",
+        "0x33",
+        "0x33",
+        "0x33",
+        "0xd3",
+        "0x3f",
+        "0x20",
+        "0x1"
+    ]
+}

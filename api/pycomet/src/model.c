@@ -1,6 +1,7 @@
 #include <fstream>
 #include <numeric>
 #include <nlohmann/json.hpp>
+#include <tensorflow/c/c_api.h>
 #include "utils.h"
 #include "model.h"
 
@@ -14,6 +15,9 @@ pycomet::model::model(const std::string inpfile)
 {
   // Parse inputs from json file
   this->parse_inputs(inpfile);
+  // Set global TF context
+  if (this->config != nullptr)
+    this->set_global_context(this->config);
   // Initialize TensorFlow model
   this->tfmodel = std::unique_ptr<cppflow::model>(
     new cppflow::model(this->path_to_model)
@@ -42,6 +46,22 @@ void pycomet::model::parse_inputs(const std::string inpfile)
   this->path_to_model = inputs["path_to_model"];
   this->inp_id = inputs["inp_id"];
   this->out_id = inputs["out_id"];
+  if (inputs.contains("config"))
+  {
+    std::vector<std::uint8_t> cfg = inputs["config"];
+    this->config = &cfg;
+  }
+};
+
+void pycomet::model::set_global_context(std::vector<std::uint8_t> *config)
+{
+    // Create new options with the new configuration
+  TFE_ContextOptions *opts = TFE_NewContextOptions();
+  TFE_ContextOptionsSetConfig(
+    opts, config->data(), config->size(), cppflow::context::get_status()
+  );
+  // Replace the global context with your options
+  cppflow::get_global_context() = cppflow::context(opts);
 };
 
 void pycomet::model::get_ops_info()

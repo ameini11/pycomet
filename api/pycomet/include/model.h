@@ -3,7 +3,7 @@
 
 
 #include "includes.h"
-#include "cppflow/cppflow.h"
+#include <cppflow/cppflow.h>
 
 
 namespace pycomet
@@ -17,6 +17,7 @@ namespace pycomet
       // TensorFlow model
       std::unique_ptr<cppflow::model> tfmodel;
       std::string path_to_model;
+      std::vector<std::uint8_t> *config = nullptr;
 
       // Inputs/Outputs
       std::vector<std::string> inp_id;
@@ -34,6 +35,9 @@ namespace pycomet
 
       // Input parser
       void parse_inputs(const std::string inpfile);
+
+      // Set global TF context
+      void set_global_context(std::vector<std::uint8_t> *config);
 
     public:
 
