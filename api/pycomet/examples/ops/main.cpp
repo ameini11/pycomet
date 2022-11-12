@@ -1,3 +1,5 @@
+// Test vector operations
+
 #include <stdlib.h>
 #include <time.h>
 #include "pycomet.h"
