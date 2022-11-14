@@ -2,6 +2,7 @@
 #define pycomet_utils_h_
 
 
+#include <limits>
 #include "includes.h"
 
 
@@ -68,7 +69,8 @@ namespace pycomet
     template <typename T>
     std::vector<std::vector<T>> read(
       const std::string filename,
-      const int skiprows = 0
+      const std::vector<int> row_lim = {-1,std::numeric_limits<int>::max()},
+      const std::vector<int> col_lim = {-1,std::numeric_limits<int>::max()}
     )
     {
       std::ifstream file(filename);
@@ -79,14 +81,19 @@ namespace pycomet
         std::string line;
         while (std::getline(file, line))
         {
-          if (row >= skiprows)
+          if (row_lim[0] <= row && row < row_lim[1])
           {
             std::stringstream sep(line);
             std::string field;
             array.push_back(std::vector<T>());
+            int col = 0;
             while (std::getline(sep, field, ','))
             {
-              array.back().push_back(std::stod(field));
+              if (col_lim[0] <= col && col < col_lim[1])
+              {
+                array.back().push_back(std::stod(field));
+              }
+              col++;
             }
           }
           row++;

@@ -1,17 +1,17 @@
 {
     "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/SavedModel",
-    "inp_id": [
+    "inputs_id": [
         "serving_default_input_1:0",
         "serving_default_input_2:0"
     ],
-    "out_id": [
+    "outputs_id": [
         "StatefulPartitionedCall:0"
     ],
-    "inp_dim": [
+    "inputs_dim": [
         2,
         1
     ],
-    "out_dim": [
+    "outputs_dim": [
         2
     ],
     "config": [

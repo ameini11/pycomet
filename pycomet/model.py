@@ -1,11 +1,13 @@
 import os
 import h5py
+import json
 import netron
 import pandas as pd
 import tensorflow as tf
 import tensorflow.python.keras.callbacks as cb
 
 from tensorflow.python.keras import backend
+from tensorflow.python.tools import saved_model_utils as sm_utils
 from tensorflow.python.training.tracking.data_structures import NoDependency
 from pycomet.optimization.callbacks import callbacks as callbacks_module
 from pycomet.optimization import losses as losses_module
@@ -422,6 +424,8 @@ class Model(object):
                     options=None,
                     save_traces=True
                 )
+                signature = self.get_inputs_outputs_signature()
+                self.generate_api_inpfile(signature)
             except Exception as e:
                 utils.warning(
                     "Unable to save the full model in TensorFlow " \
@@ -469,6 +473,45 @@ class Model(object):
         for weight in self.net.weights:
             dset.create_dataset(weight.name, data=weight.numpy())
         dset.close()
+
+    def get_inputs_outputs_signature(
+        self,
+        tag_set='serve',
+        signature_def_key='serving_default',
+        dumping=True
+    ):
+        path = self.save_path + '/SavedModel/'
+        # Get meta graph
+        meta_graph_def = sm_utils.get_meta_graph_def(path, tag_set)
+        # Get inputs/outputs tensor info
+        tensor_info = {
+            'inputs': meta_graph_def.signature_def[signature_def_key].inputs,
+            'outputs': meta_graph_def.signature_def[signature_def_key].outputs
+        }
+        # Save inputs/outputs tensor signature info
+        signature = {}
+        for ki, ti in tensor_info.items():
+            signature[ki] = {}
+            for kj, tj in sorted(ti.items()):
+                signature[ki][kj] = {
+                    'shape': [str(dim.size) for dim in tj.tensor_shape.dim],
+                    'name': tj.name
+                }
+        if dumping:
+            json.dump(signature, open(path+'inout_sign.json', 'w'), indent=4)
+        return signature
+
+    def generate_api_inpfile(
+        self,
+        signature
+    ):
+        inputs = {
+            "path_to_model": os.path.abspath(self.save_path + '/SavedModel/')
+        }
+        for k, s in signature.items():
+            inputs[k+'_id'] = [v['name'] for v in sorted(s.values())]
+            inputs[k+'_dim'] = [v['shape'][1] for v in sorted(s.values())]
+        json.dump(inputs, open(self.save_path+'inpfile.json', 'w'), indent=4)
 
     # Postprocessing
     ###########################################################################

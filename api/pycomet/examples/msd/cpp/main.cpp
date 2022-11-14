@@ -1,34 +1,26 @@
 #include "pycomet.h"
 
 
-
 int main() {
 
-    // Read inputs from file
-    auto input_1 = cppflow::tensor(read_csv(FILEIN_PATH, 0, 0, 2), {100, 2});
-    auto input_2 = cppflow::tensor(read_csv(FILEIN_PATH, 0, 2, 3), {100, 1});
+  std::string prefix = "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/";
 
-    // Load the model from file
-    auto model = cppflow::model(std::std::string(MODEL_PATH));
+  // Load the model from file
+  auto model = pycomet::model(prefix + "inpfile.json");
 
-    std::std::vector<std::tuple<std::std::string, cppflow::tensor>> X = {
-        {"serving_default_input_1:0", input_1}, // Branch
-        {"serving_default_input_2:0", input_2}  // Trunk
-    };
+  // Read and flatten input data
+  auto data = pycomet::csv::read<float>(prefix + "data.csv", {1,101}, {0,3});
+  auto n = data.size();
+  auto d = data[0].size();
+  auto vec = pycomet::vec_ops::flatten(data, true);
+  // for (auto const &i: vec)
+  //   std::cout << "\n " << i << std::endl;
 
-    // Perform inference
-    auto output = model(X, {"StatefulPartitionedCall:0"});
+  // Perform inference
+  auto outputs = model.call(vec, n);
+  // auto outputs = model.call(inpvec, static_cast<std::int32_t>(n));
+  for (auto const &i: outputs)
+    std::cout << "\n " << i << std::endl;
 
-    // auto output = model(
-    //     {
-    //         {"serving_default_input_1:0", input_1}, // Branch
-    //         {"serving_default_input_2:0", input_2}  // Trunk
-    //     },
-    //     {"StatefulPartitionedCall:0"}
-    // );
-
-    // Write outputs to file
-    write_csv(FILEOUT_PATH, output[0].get_data<double>(), 100, 2);
-
-    return 0;
+  return 0;
 }

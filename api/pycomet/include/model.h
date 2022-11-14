@@ -20,13 +20,15 @@ namespace pycomet
       std::vector<std::uint8_t> *config = nullptr;
 
       // Inputs/Outputs
-      std::vector<std::string> inp_id;
-      std::vector<std::string> out_id;
-      std::vector<std::int32_t> inp_dim;
-      std::vector<std::int32_t> out_dim;
+      std::vector<std::string> inputs_id;
+      std::vector<std::string> outputs_id;
+      std::vector<std::int32_t> inputs_dim;
+      std::vector<std::int32_t> outputs_dim;
       std::vector<std::int32_t> check_io_ops(
         const std::vector<std::string> identifiers
       );
+      const std::string inputs_id_prefix = "serving_default";
+      const std::string outputs_id_prefix = "StatefulPartitionedCall";
 
       // IO operations
       std::vector<std::tuple<std::string, std::vector<int64_t>>> ops;
@@ -54,14 +56,16 @@ namespace pycomet
       // Call functions
       template <typename T>
       std::vector<T> call(
-        std::vector<T> inputs,
-        const std::int32_t n
+        const std::vector<T> inputs,
+        const std::int32_t n,
+        const bool rowmajor = false
       );
 
       template <typename T>
       std::vector<std::vector<T>> call(
         std::vector<std::vector<T>> inputs,
         const std::int32_t n,
+        const bool rowmajor = false,
         const bool transpose_in = false,
         const bool transpose_out = false
       );
