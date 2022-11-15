@@ -78,8 +78,8 @@ module model
     ! Declare in-out variables
     type(model_type), intent(in) :: this
     integer(c_int32_t), intent(in) :: n
-    real(c_double), intent(in), target :: inputs(n*this%inp_tot_dim)
-    real(c_double), dimension(:), pointer :: f_out_ptr
+    real(c_float), intent(in), target :: inputs(n*this%inp_tot_dim)
+    real(c_float), dimension(:), pointer :: f_out_ptr
     ! Declare local variables
     type(c_ptr) :: c_out_ptr
     ! Get c++ outputs pointer with model call function

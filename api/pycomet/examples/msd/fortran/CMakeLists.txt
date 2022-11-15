@@ -1,2 +1,2 @@
-add_executable(main main.f90)
-target_link_libraries(main PUBLIC ${PROJECT_NAME})
+add_executable(msd_f main.f90)
+target_link_libraries(msd_f PUBLIC ${PROJECT_NAME})

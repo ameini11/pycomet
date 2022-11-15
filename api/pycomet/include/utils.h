@@ -116,8 +116,8 @@ namespace pycomet
       {
         for (int j = 0; j < shape[1]; ++j)
         {
-          auto value = (rowmajor == true) ? vec[i*shape[1]+j] : vec[j*shape[0]+i];
-          file << std::setprecision(precision) << value;
+          auto v = (rowmajor == true) ? vec[i*shape[1]+j] : vec[j*shape[0]+i];
+          file << std::setprecision(precision) << v;
           if (j != shape[1]-1)
           {
             file << ",";

@@ -1,2 +1,2 @@
-add_executable(main main.cpp)
-target_link_libraries(main PUBLIC ${PROJECT_NAME})
+add_executable(msd_c main.cpp)
+target_link_libraries(msd_c PUBLIC ${PROJECT_NAME})

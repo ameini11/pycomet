@@ -24,9 +24,9 @@ void pycomet::delete_model(pycomet::model *mdl)
   mdl->~model();
 }
 
-double *pycomet::call_model(
+float *pycomet::call_model(
   pycomet::model *mdl,
-  double *inputs, 
+  float *inputs, 
   std::int32_t *n
 )
 {

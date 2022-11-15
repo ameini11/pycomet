@@ -9,7 +9,7 @@
 namespace pycomet
 {
   // Model class
-  // ========================================================================
+  // ==========================================================================
   class model
   {
     private:
@@ -73,7 +73,8 @@ namespace pycomet
       template <typename T>
       T *call(
         T *inputs,
-        const std::int32_t n
+        const std::int32_t n,
+        const bool rowmajor = false
       );
   };
 }

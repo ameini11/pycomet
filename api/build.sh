@@ -20,6 +20,7 @@ mkdir $BUILD_DIR
 cd $BUILD_DIR
 
 cmake $SRC_DIR \
+  -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
   -DBUILD_EXAMPLES=ON \
   -Djson_INCLUDE_DIR=$Json_DIR/include \
