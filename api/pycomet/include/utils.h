@@ -69,8 +69,8 @@ namespace pycomet
     template <typename T>
     std::vector<std::vector<T>> read(
       const std::string filename,
-      const std::vector<int> row_lim = {-1,std::numeric_limits<int>::max()},
-      const std::vector<int> col_lim = {-1,std::numeric_limits<int>::max()}
+      const std::vector<int> row_lim = {0,std::numeric_limits<int>::max()},
+      const std::vector<int> col_lim = {0,std::numeric_limits<int>::max()}
     )
     {
       std::ifstream file(filename);

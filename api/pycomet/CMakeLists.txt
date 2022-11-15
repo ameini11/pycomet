@@ -30,6 +30,11 @@ if(CMAKE_CXX_STANDARD LESS 17)
 endif()
 
 
+# Set fortran flags
+# -----------------------------------------------------------------------------
+include(SetFortranFlags)
+
+
 # Find external packages
 # -----------------------------------------------------------------------------
 find_package(tensorflow REQUIRED)
@@ -59,7 +64,7 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_INSTALL_PREFIX}/mod)
 # -----------------------------------------------------------------------------
 add_library(${PROJECT_NAME} SHARED)
 file(GLOB_RECURSE SOURCE_FILES_C RELATIVE ${CMAKE_SOURCE_DIR} "src/*.c")
-file(GLOB_RECURSE SOURCE_FILES_F RELATIVE ${CMAKE_SOURCE_DIR} "src/*.f90")
+file(GLOB_RECURSE SOURCE_FILES_F RELATIVE ${CMAKE_SOURCE_DIR} "src/model.f90" "src/utils.f90")
 target_sources(${PROJECT_NAME}
   PRIVATE
     ${SOURCE_FILES_C}

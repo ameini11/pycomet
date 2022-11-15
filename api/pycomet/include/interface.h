@@ -23,7 +23,14 @@ namespace pycomet
 
     void delete_model(pycomet::model *mdl);
 
-    float *call_model(pycomet::model *mdl, float *inputs, std::int32_t *n);
+    // extern "C++"
+    // {
+    //   template <typename T>
+    //   T *call_model(pycomet::model *mdl, T *inputs, std::int32_t *n);
+    // }
+    float *call_model(
+      pycomet::model *mdl, float *inputs, std::int32_t *n
+    );
 
   #ifdef __cplusplus
   }

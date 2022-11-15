@@ -4,7 +4,6 @@
 #include <tensorflow/c/c_api.h>
 #include "utils.h"
 #include "model.h"
-// #include <algorithm>
 
 using json = nlohmann::json;
 
@@ -205,24 +204,26 @@ T *pycomet::model::call(
 }
 
 // Explicit templates instantiation -------------------------------------------
-template std::vector<double> pycomet::model::call(
-  std::vector<double> inputs,
+// Integer
+template std::vector<std::int32_t> pycomet::model::call(
+  std::vector<std::int32_t> inputs,
   const std::int32_t n,
   const bool rowmajor
 );
-template std::vector<std::vector<double>> pycomet::model::call(
-  std::vector<std::vector<double>> inputs,
+template std::vector<std::vector<std::int32_t>> pycomet::model::call(
+  std::vector<std::vector<std::int32_t>> inputs,
   const std::int32_t n,
   const bool rowmajor,
   const bool transpose_in,
   const bool transpose_out
 );
-template double *pycomet::model::call(
-  double *inputs,
+template std::int32_t *pycomet::model::call(
+  std::int32_t *inputs,
   const std::int32_t n,
   const bool rowmajor
 );
 
+// Single-precision floating-point format
 template std::vector<float> pycomet::model::call(
   std::vector<float> inputs,
   const std::int32_t n,
@@ -237,6 +238,25 @@ template std::vector<std::vector<float>> pycomet::model::call(
 );
 template float *pycomet::model::call(
   float *inputs,
+  const std::int32_t n,
+  const bool rowmajor
+);
+
+// Double-precision floating-point format
+template std::vector<double> pycomet::model::call(
+  std::vector<double> inputs,
+  const std::int32_t n,
+  const bool rowmajor
+);
+template std::vector<std::vector<double>> pycomet::model::call(
+  std::vector<std::vector<double>> inputs,
+  const std::int32_t n,
+  const bool rowmajor,
+  const bool transpose_in,
+  const bool transpose_out
+);
+template double *pycomet::model::call(
+  double *inputs,
   const std::int32_t n,
   const bool rowmajor
 );

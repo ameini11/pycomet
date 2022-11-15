@@ -24,10 +24,31 @@ void pycomet::delete_model(pycomet::model *mdl)
   mdl->~model();
 }
 
+// Calling functions
+// extern "C++"
+// {
+//   template <typename T>
+//   T *pycomet::call_model(
+//     pycomet::model *mdl, T *inputs, std::int32_t *n
+//   )
+//   {
+//     return mdl->call(inputs, *n);
+//   }
+
+//   template std::int32_t *pycomet::call_model(
+//     pycomet::model *mdl, std::int32_t *inputs, std::int32_t *n
+//   );
+
+//   template float *pycomet::call_model(
+//     pycomet::model *mdl, float *inputs, std::int32_t *n
+//   );
+
+//   template double *pycomet::call_model(
+//     pycomet::model *mdl, double *inputs, std::int32_t *n
+//   );
+// }
 float *pycomet::call_model(
-  pycomet::model *mdl,
-  float *inputs, 
-  std::int32_t *n
+  pycomet::model *mdl, float *inputs, std::int32_t *n
 )
 {
   return mdl->call(inputs, *n);
