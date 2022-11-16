@@ -74,18 +74,19 @@ module model
     this%object = c_null_ptr
   end subroutine delete_model
 
-  function call_model(this, inputs, n) result(f_out_ptr)
+  subroutine call_model(this, inputs, n, f_out_ptr)
     ! Declare in-out variables
     type(model_type), intent(in) :: this
     integer(c_int32_t), intent(in) :: n
     real(c_float), intent(in), target :: inputs(n*this%inp_tot_dim)
-    real(c_float), dimension(:), pointer :: f_out_ptr
+    real(c_float), intent(out), dimension(:), pointer :: f_out_ptr
     ! Declare local variables
     type(c_ptr) :: c_out_ptr
+    integer :: i
     ! Get c++ outputs pointer with model call function
     c_out_ptr = c_call_model(this%object, c_loc(inputs), n)
     ! Convert c++ pointer to fortran pointer
-    call c_f_pointer(c_out_ptr, f_out_ptr, [n*this%inp_tot_dim])
-  end function call_model
+    call c_f_pointer(c_out_ptr, f_out_ptr, [n*this%out_tot_dim])
+  end subroutine call_model
 
 end module model

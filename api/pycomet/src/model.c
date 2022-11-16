@@ -1,5 +1,6 @@
 #include <fstream>
 #include <numeric>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 #include <tensorflow/c/c_api.h>
 #include "utils.h"
@@ -118,6 +119,15 @@ std::vector<T> pycomet::model::call(
   const bool rowmajor
 )
 {
+  std::vector<T> I;
+  I.assign(inputs.begin(), inputs.end());
+  // Reshape inputs
+  if ((this->inp_tot_dim > 1) && (rowmajor == true))
+  {
+    auto I_arr = pycomet::vec_ops::reshape(I, {n, this->inp_tot_dim});
+    auto I_vec = pycomet::vec_ops::flatten(I_arr, true);
+    I.assign(I_vec.begin(), I_vec.end());
+  }
   // Compose inputs
   std::vector<std::tuple<std::string, cppflow::tensor>> X;
   int start = 0;
@@ -128,15 +138,13 @@ std::vector<T> pycomet::model::call(
     // Extract i-th input
     delta = this->inputs_dim[i] * n;
     end = start + delta;
-    std::vector<T> x(inputs.begin() + start, inputs.begin() + end);
+    std::vector<T> x(I.begin() + start, I.begin() + end);
     start = end;
     // Reshape i-th input
-    if (rowmajor == false)
+    if (this->inputs_dim[i] > 1)
     {
-      auto x_arr = pycomet::vec_ops::reshape(
-        x, {this->inputs_dim[i], n}, true
-      );
-      auto x_vec = pycomet::vec_ops::flatten(x_arr);
+      auto x_arr = pycomet::vec_ops::reshape(x, {this->inputs_dim[i], n});
+      auto x_vec = pycomet::vec_ops::flatten(x_arr, true);
       x.assign(x_vec.begin(), x_vec.end());
     }
     // Convert std::vector to cppflow::tensor with the proper shape
@@ -153,16 +161,20 @@ std::vector<T> pycomet::model::call(
     // Extract data from i-th output
     auto y = outputs[i].get_data<T>();
     // Reshape i-th output
-    if (rowmajor == false)
+    if (this->outputs_dim[i] > 1)
     {
-      auto y_arr = pycomet::vec_ops::reshape(
-        y, {this->outputs_dim[i], n}, true);
-      auto y_vec = pycomet::vec_ops::flatten(y_arr, true
-      );
+      auto y_arr = pycomet::vec_ops::reshape(y, {n, this->outputs_dim[i]});
+      auto y_vec = pycomet::vec_ops::flatten(y_arr, true);
       y.assign(y_vec.begin(), y_vec.end());
     }
-    // Vertically stack i-th output data
     Y.insert(Y.end(), y.begin(), y.end());
+  }
+  // Reshape outputs
+  if ((this->out_tot_dim > 1) && (rowmajor == true))
+  {
+    auto Y_arr = pycomet::vec_ops::reshape(Y, {this->out_tot_dim, n}, true);
+    auto Y_vec = pycomet::vec_ops::flatten(Y_arr);
+    Y.assign(Y_vec.begin(), Y_vec.end());
   }
   return Y;
 }
@@ -177,11 +189,11 @@ std::vector<std::vector<T>> pycomet::model::call(
 )
 {
   // Flatten inputs
-  auto X = pycomet::vec_ops::flatten(inputs, transpose_in);
+  std::vector<T> X = pycomet::vec_ops::flatten(inputs, transpose_in);
   // Perform inference
-  auto Y = this->call(X, n, rowmajor);
+  std::vector<T> Y = this->call(X, n, rowmajor);
   // Reshape outputs
-  auto outputs = pycomet::vec_ops::reshape(
+  std::vector<std::vector<T>> outputs = pycomet::vec_ops::reshape(
     Y, {n, this->out_tot_dim}, transpose_out
   );
   return outputs;
@@ -195,9 +207,11 @@ T *pycomet::model::call(
 )
 {
   // Convert inputs from array to std::vector
-  std::vector<T> X(*inputs, this->inp_tot_dim*n);
+  std::int32_t size = this->inp_tot_dim*n;
+  T *data[size] = {inputs};
+  std::vector<T> X(*data, *data + size);
   // Perform inference
-  auto Y = this->call(X, n, rowmajor);
+  std::vector<T> Y = this->call(X, n, rowmajor);
   // Convert outputs from std::vector to array
   T *outputs = &Y[0];
   return outputs;

@@ -1,59 +1,59 @@
 program main
 
-    use, intrinsic :: iso_c_binding
-    use, intrinsic :: iso_fortran_env
-    use model
-    use utils
+  use, intrinsic :: iso_c_binding
+  use model
+  use utils
 
-    implicit none
+  implicit none
 
-    character(64) :: prefix = "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/"
-    character(16) :: inpfile = "inpfile.json"
-    character(16) :: datafile = "data.csv"
-    character(16) :: predfile = "fortran/pred.csv"
-    real(kind=real32), allocatable, dimension(:,:) :: data
-    real(kind=real32), allocatable, dimension(:) :: vec
-    integer, dimension(2) :: row_lim = (/2,102/)
-    integer, dimension(2) :: col_lim = (/1,4/)
-    integer :: i
-    type(model_type) :: mdl
+  ! Declarations
+  character(64) :: prefix = "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/"
+  character(16) :: inpfile = "inpfile.json"
+  character(16) :: datafile = "data.csv"
+  character(16) :: predfile = "fortran/pred.csv"
+  real(c_float), allocatable, dimension(:,:) :: data
+  real(c_float), pointer, dimension(:) :: inputs
+  real(c_float), dimension(:), pointer :: outputs
+  integer, dimension(2) :: row_lim = (/2,102/)
+  integer, dimension(2) :: col_lim = (/1,4/)
+  integer(c_int32_t) :: n
+  integer :: i
+  type(model_type) :: mdl
 
-  ! auto model = trim(prefix) // "inpfile.json"
+  ! Load model from file
+  mdl = init_model(trim(prefix) // trim(inpfile))
 
-  !   zz = trim(xx) // trim(yy)
+  ! Read input data
+  call read_csv_float(                                                        &
+    trim(prefix) // trim(datafile), row_lim, col_lim, data=data               &
+  )
 
-  !   integer(c_int8_t) :: i, j
-  !   integer(c_int64_t) :: n = 10
-  !   real(8), allocatable, dimension(:,:) :: inp
-  !   real(8), allocatable, dimension(:,:) :: out
-  
-    call read_csv_float(                                                      &
-      trim(prefix) // trim(datafile), row_lim, col_lim, data=data             &
-    )
+  ! Flatten input data
+  n = row_lim(2)-row_lim(1)
+  allocate(inputs(size(data)))
+  inputs = reshape(data, (/size(data)/))
 
-    mdl = init_model(trim(prefix) // trim(inpfile))
+  ! Perform inference
+  ! allocate(outputs(n*2))
+  call call_model(mdl, inputs, n, outputs)
+  ! outputs = call_model(mdl, inputs, n)
+  ! do i = 1,n*2
+  !   print *, outputs(i)
+  ! enddo
 
-    ! allocate(inp(n,mdl%inp_tot_dim))
+  ! data = reshape(outputs, (/n, 2/))
 
-    vec = reshape(data, (/100*3/))    ! prints "2 2"
-
-    do i=1,100*3
-        write(*,*) vec(i)
-    end do
-    ! write(*,*) vec(:)
-
-    call write_csv_float(                                                     &
-      trim(prefix) // trim(predfile), 100, data=data                          &
-    )
-
-    ! out = call_model(mdl, inp, n)
-
-
-    ! do i=1,n
-    !     write(*,*) out(i, :)
-    ! end do
+  ! do i = 1,n
+  !   print *, data(i,:)
+  ! enddo
 
 
-    call delete_model(mdl)
+  ! ! Write outputs to file
+  ! call write_csv_float(                                                     &
+  !   trim(prefix) // trim(predfile), 100, data=data                          &
+  ! )
+
+  ! Delete model
+  call delete_model(mdl)
 
 end program main
