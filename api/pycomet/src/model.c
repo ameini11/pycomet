@@ -1,6 +1,5 @@
 #include <fstream>
 #include <numeric>
-#include <algorithm>
 #include <nlohmann/json.hpp>
 #include <tensorflow/c/c_api.h>
 #include "utils.h"
@@ -181,7 +180,7 @@ std::vector<T> pycomet::model::call(
 
 template <typename T>
 std::vector<std::vector<T>> pycomet::model::call(
-  std::vector<std::vector<T>> inputs,
+  const std::vector<std::vector<T>> inputs,
   const std::int32_t n,
   const bool rowmajor,
   const bool transpose_in,
@@ -200,77 +199,54 @@ std::vector<std::vector<T>> pycomet::model::call(
 }
 
 template <typename T>
-T *pycomet::model::call(
-  T *inputs,
+std::vector<T> pycomet::model::call(
+  const T *inputs,
   const std::int32_t n,
   const bool rowmajor
 )
 {
   // Convert inputs from array to std::vector
-  std::int32_t size = this->inp_tot_dim*n;
-  T *data[size] = {inputs};
-  std::vector<T> X(*data, *data + size);
+  std::vector<T> X(inputs, inputs + this->inp_tot_dim*n);
   // Perform inference
   std::vector<T> Y = this->call(X, n, rowmajor);
-  // Convert outputs from std::vector to array
-  T *outputs = &Y[0];
-  return outputs;
+  return Y;
 }
 
 // Explicit templates instantiation -------------------------------------------
-// Integer
-template std::vector<std::int32_t> pycomet::model::call(
-  std::vector<std::int32_t> inputs,
-  const std::int32_t n,
-  const bool rowmajor
-);
-template std::vector<std::vector<std::int32_t>> pycomet::model::call(
-  std::vector<std::vector<std::int32_t>> inputs,
-  const std::int32_t n,
-  const bool rowmajor,
-  const bool transpose_in,
-  const bool transpose_out
-);
-template std::int32_t *pycomet::model::call(
-  std::int32_t *inputs,
-  const std::int32_t n,
-  const bool rowmajor
-);
-
 // Single-precision floating-point format
 template std::vector<float> pycomet::model::call(
-  std::vector<float> inputs,
+  const std::vector<float> inputs,
   const std::int32_t n,
   const bool rowmajor
 );
 template std::vector<std::vector<float>> pycomet::model::call(
-  std::vector<std::vector<float>> inputs,
+  const std::vector<std::vector<float>> inputs,
   const std::int32_t n,
   const bool rowmajor,
   const bool transpose_in,
   const bool transpose_out
 );
-template float *pycomet::model::call(
-  float *inputs,
+template std::vector<float> pycomet::model::call(
+  const float *inputs,
   const std::int32_t n,
   const bool rowmajor
 );
 
 // Double-precision floating-point format
 template std::vector<double> pycomet::model::call(
-  std::vector<double> inputs,
+  const std::vector<double> inputs,
   const std::int32_t n,
   const bool rowmajor
 );
 template std::vector<std::vector<double>> pycomet::model::call(
-  std::vector<std::vector<double>> inputs,
+  const std::vector<std::vector<double>> inputs,
   const std::int32_t n,
   const bool rowmajor,
   const bool transpose_in,
   const bool transpose_out
 );
-template double *pycomet::model::call(
-  double *inputs,
+template std::vector<double> pycomet::model::call(
+  const double *inputs,
   const std::int32_t n,
   const bool rowmajor
 );

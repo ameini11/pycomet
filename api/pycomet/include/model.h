@@ -63,7 +63,7 @@ namespace pycomet
 
       template <typename T>
       std::vector<std::vector<T>> call(
-        std::vector<std::vector<T>> inputs,
+        const std::vector<std::vector<T>> inputs,
         const std::int32_t n,
         const bool rowmajor = false,
         const bool transpose_in = false,
@@ -71,8 +71,8 @@ namespace pycomet
       );
 
       template <typename T>
-      T *call(
-        T *inputs,
+      std::vector<T> call(
+        const T *inputs,
         const std::int32_t n,
         const bool rowmajor = false
       );

@@ -24,32 +24,38 @@ void pycomet::delete_model(pycomet::model *mdl)
   mdl->~model();
 }
 
-// Calling functions
+void pycomet::call_model(
+  pycomet::model *mdl, std::int32_t *n, float *inputs, float *outputs
+)
+{
+  // Perform inference
+  std::vector<float> Y = mdl->call(inputs, *n);
+  // Convert outputs from std::vector to array
+  std::copy(Y.begin(), Y.end(), outputs);
+}
+
 // extern "C++"
 // {
 //   template <typename T>
-//   T *pycomet::call_model(
+//   void pycomet::call_model(
 //     pycomet::model *mdl, T *inputs, std::int32_t *n
 //   )
 //   {
-//     return mdl->call(inputs, *n);
+//     // Perform inference
+//     std::vector<T> Y = mdl->call(inputs, *n);
+//     // Convert outputs from std::vector to array
+//     std::copy(Y.begin(), Y.end(), outputs);
 //   }
 
-//   template std::int32_t *pycomet::call_model(
+//   void pycomet::call_model(
 //     pycomet::model *mdl, std::int32_t *inputs, std::int32_t *n
 //   );
 
-//   template float *pycomet::call_model(
+//   void pycomet::call_model(
 //     pycomet::model *mdl, float *inputs, std::int32_t *n
 //   );
 
-//   template double *pycomet::call_model(
+//   void pycomet::call_model(
 //     pycomet::model *mdl, double *inputs, std::int32_t *n
 //   );
 // }
-float *pycomet::call_model(
-  pycomet::model *mdl, float *inputs, std::int32_t *n
-)
-{
-  return mdl->call(inputs, *n);
-}
