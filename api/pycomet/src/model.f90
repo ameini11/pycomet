@@ -55,15 +55,15 @@ module pcm_model
 
   contains
 
-  function init_model(inpfile) result(this)
+  subroutine init_model(inpfile, this)
     ! Declare in-out variables
-    type(model_type) :: this
     character(*), intent(in) :: inpfile
+    type(model_type), intent(out) :: this
     ! Initialize TensorFlow model
     this%object = c_init_model(inpfile//c_null_char)
     this%inp_tot_dim = c_get_inp_tot_dim(this%object)
     this%out_tot_dim = c_get_out_tot_dim(this%object)
-  end function init_model
+  end subroutine init_model
 
   subroutine delete_model(this)
     ! Declare in-out variables

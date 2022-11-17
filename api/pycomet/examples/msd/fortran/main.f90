@@ -16,10 +16,10 @@ program main
   integer, dimension(2) :: row_lim = (/2,102/)
   integer, dimension(2) :: col_lim = (/1,4/)
   integer(c_int32_t) :: n
-  type(model_type) :: mdl
+  type(model_type) :: model
 
   ! Load model from file
-  mdl = init_model(trim(prefix) // trim(inpfile))
+  call init_model(trim(prefix) // trim(inpfile), model)
 
   ! Read input data
   call read_csv_float(                                                        &
@@ -33,8 +33,8 @@ program main
 
   ! Perform inference
   allocate(outputs(200))
-  call call_model(mdl, n, inputs, outputs)
-  data = reshape(outputs, (/n, mdl%out_tot_dim/))
+  call call_model(model, n, inputs, outputs)
+  data = reshape(outputs, (/n, model%out_tot_dim/))
 
   ! Write outputs to file
   call write_csv_float(                                                       &
@@ -42,6 +42,6 @@ program main
   )
 
   ! Delete model
-  call delete_model(mdl)
+  call delete_model(model)
 
 end program main
