@@ -1,4 +1,4 @@
-module model
+module pcm_model
 
   use, intrinsic :: iso_c_binding
 
@@ -84,4 +84,4 @@ module model
     call c_call_model(this%object, n, c_loc(inputs), c_loc(outputs))
   end subroutine call_model
 
-end module model
+end module pcm_model

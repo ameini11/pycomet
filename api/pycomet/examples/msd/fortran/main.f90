@@ -1,7 +1,7 @@
 program main
 
   use, intrinsic :: iso_c_binding
-  use model
+  use pcm_model
   use utils
 
   implicit none

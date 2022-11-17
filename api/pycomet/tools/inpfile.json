@@ -7,13 +7,6 @@
     "outputs_id": [
         "StatefulPartitionedCall:0"
     ],
-    "inputs_dim": [
-        2,
-        1
-    ],
-    "outputs_dim": [
-        2
-    ],
     "config": [
         "0x10",
         "0x8",

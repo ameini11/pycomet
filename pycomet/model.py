@@ -493,9 +493,11 @@ class Model(object):
         for ki, ti in tensor_info.items():
             signature[ki] = {}
             for kj, tj in sorted(ti.items()):
+                name = tj.name[:-2] if tj.name.endswith(':0') else tj.name
+                if tj.name if not .
                 signature[ki][kj] = {
                     'shape': [str(dim.size) for dim in tj.tensor_shape.dim],
-                    'name': tj.name
+                    'name': name
                 }
         if dumping:
             json.dump(signature, open(path+'inout_sign.json', 'w'), indent=4)
