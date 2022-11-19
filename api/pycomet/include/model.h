@@ -33,6 +33,10 @@ namespace pycomet
       // IO operations
       std::vector<std::tuple<std::string, std::vector<int64_t>>> ops;
 
+      // Evaluate parameters
+      std::vector<std::int32_t> batch_size = -1;
+      bool rowmajor = true;
+
       void get_ops_info();
 
       // Input parser
@@ -57,6 +61,12 @@ namespace pycomet
       template <typename T>
       std::vector<T> call(
         const std::vector<T> inputs,
+        const std::int32_t n
+      );
+
+      template <typename T>
+      std::vector<T> call(
+        const std::vector<T> inputs,
         const std::int32_t n,
         const bool rowmajor = false
       );
@@ -70,12 +80,12 @@ namespace pycomet
         const bool transpose_out = false
       );
 
-      template <typename T>
-      std::vector<T> call(
-        const T *inputs,
-        const std::int32_t n,
-        const bool rowmajor = false
-      );
+      // template <typename T>
+      // std::vector<T> call(
+      //   const T *inputs,
+      //   const std::int32_t n,
+      //   const bool rowmajor = false
+      // );
   };
 }
 

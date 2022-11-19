@@ -25,11 +25,18 @@ void pycomet::delete_model(pycomet::model *mdl)
 }
 
 void pycomet::call_model(
-  pycomet::model *mdl, std::int32_t *n, float *inputs, float *outputs
+  pycomet::model *mdl,
+  float *inputs,
+  float *outputs,
+  std::int32_t *n,
+  std::int32_t *batch_size,
+  bool *rowmajor,
 )
 {
+  // Convert inputs from array to std::vector
+  std::vector<float> X(inputs, inputs + mdl->inp_tot_dim*(*n));
   // Perform inference
-  std::vector<float> Y = mdl->call(inputs, *n);
+  std::vector<float> Y = mdl->call(X, *n, *batch_size, *rowmajor);
   // Convert outputs from std::vector to array
   std::copy(Y.begin(), Y.end(), outputs);
 }

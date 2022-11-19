@@ -24,7 +24,12 @@ namespace pycomet
     void delete_model(pycomet::model *mdl);
 
     void call_model(
-      pycomet::model *mdl, std::int32_t *n, float *inputs, float *outputs
+      pycomet::model *mdl,                // PyCOMET model
+      float *inputs,                      // 1D array of inputs (row-/column-major)
+      float *outputs,                     // Empty 1D array of outputs
+      std::int32_t *n,                    // Total number of evaluated points
+      std::int32_t *batch_size = -1,      // Batch size
+      bool *rowmajor = true,              // Row-/column-major for 1D array 
     );
 
     // extern "C++"
