@@ -18,10 +18,6 @@ namespace pycomet
       std::vector<std::uint8_t> *config = nullptr;
 
       // Inputs/Outputs
-      std::vector<std::string> inputs_id;
-      std::vector<std::string> outputs_id;
-      std::vector<std::int32_t> inputs_dim;
-      std::vector<std::int32_t> outputs_dim;
       std::vector<std::int32_t> check_io_ops(
         const std::vector<std::string> identifiers
       );
@@ -69,6 +65,12 @@ namespace pycomet
 
       // Destructor
       ~model() = default;
+
+      // Inputs/Outputs
+      std::vector<std::string> inputs_id;
+      std::vector<std::string> outputs_id;
+      std::vector<std::int32_t> inputs_dim;
+      std::vector<std::int32_t> outputs_dim;
 
       // Inputs/Outputs total dimensions
       std::int32_t inp_tot_dim;

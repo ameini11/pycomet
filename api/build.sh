@@ -22,7 +22,7 @@ cd $BUILD_DIR
 cmake $SRC_DIR \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
-  -DBUILD_EXAMPLES=OFF \
+  -DBUILD_EXAMPLES=ON \
   -Djson_INCLUDE_DIR=$Json_DIR/include \
   -Dcppflow_INCLUDE_DIR=$CppFlow_DIR/include \
   -Dtensorflow_INCLUDE_DIR=$TensorFlow_DIR/include \
