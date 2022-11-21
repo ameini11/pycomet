@@ -1,4 +1,4 @@
-module utils
+module pcm_utils
 
   use, intrinsic :: iso_c_binding
 
@@ -33,15 +33,15 @@ module utils
   end function columns_count
 
 #define t int
-#define tt integer(c_int32_t)
+#define tt integer(4)
 #include "utils_t.f90"
 
 #define t float
-#define tt real(c_float)
+#define tt real(4)
 #include "utils_t.f90"
 
 #define t double
-#define tt real(c_double)
+#define tt real(8)
 #include "utils_t.f90"
 
-end module utils
+end module pcm_utils

@@ -2,20 +2,20 @@ program main
 
   use, intrinsic :: iso_c_binding
   use pcm_model
-  use utils
+  use pcm_utils
 
   implicit none
 
   ! Declarations
   character(64) :: prefix = "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/"
-  character(16) :: inpfile = "inpfile.json"
+  character(32) :: inpfile = "fortran/inpfile.json"
   character(16) :: datafile = "data.csv"
   character(16) :: predfile = "fortran/pred.csv"
-  real(c_float), allocatable, dimension(:,:) :: data
-  real(c_float), allocatable, dimension(:) :: inputs, outputs
+  real(4), allocatable, dimension(:,:) :: data
+  real(4), allocatable, dimension(:) :: inputs, outputs
   integer, dimension(2) :: row_lim = (/2,102/)
   integer, dimension(2) :: col_lim = (/1,4/)
-  integer(c_int32_t) :: n
+  integer(4) :: n
   type(model_type) :: model
 
   ! Load model from file
@@ -32,7 +32,7 @@ program main
   inputs = reshape(data, (/size(data)/))
 
   ! Perform inference
-  allocate(outputs(200))
+  allocate(outputs(n*model%out_tot_dim))
   call call_model(model, n, inputs, outputs)
   data = reshape(outputs, (/n, model%out_tot_dim/))
 
