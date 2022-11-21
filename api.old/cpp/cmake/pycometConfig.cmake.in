@@ -1,8 +1,0 @@
-get_filename_component(PyCOMET_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-
-if(NOT TARGET pycomet::pycomet)
-  set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PyCOMET_CMAKE_DIR}/modules")
-  find_package(TensorFlow REQUIRED)
-  find_package(CppFlow REQUIRED)
-  include("${PyCOMET_CMAKE_DIR}/PyCOMETTargets.cmake")
-endif()
