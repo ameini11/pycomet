@@ -9,7 +9,7 @@
 namespace pycomet
 {
   // External bindings
-  // ========================================================================
+  /* ======================================================================= */
   #ifdef __cplusplus
   extern "C"
   {
@@ -25,11 +25,9 @@ namespace pycomet
 
     void call_model(
       pycomet::model *mdl,                // PyCOMET model
-      float *inputs,                      // 1D array of inputs (row-/column-major)
-      float *outputs,                     // Empty 1D array of outputs
       std::int32_t *n,                    // Total number of evaluated points
-      std::int32_t *batch_size = -1,      // Batch size
-      bool *rowmajor = true,              // Row-/column-major for 1D array 
+      float *inputs,                      // 1D array of inputs (row-/column-major)
+      float *outputs                      // Empty 1D array of outputs
     );
 
     // extern "C++"

@@ -62,6 +62,39 @@ namespace pycomet
       auto _vec2D = (transpose_out == true) ? transpose(vec2D) : vec2D;
       return _vec2D;
     }
+
+    // Reordering 1D array (flattened 2D array) -------------------------------
+    template <typename T>
+    std::vector<T> invert_major(
+      std::vector<T> x,
+      const std::int32_t i,
+      const std::int32_t j,
+      const bool row2col
+    )
+    {
+      std::vector<std::int32_t> shape_ij = {i, j};
+      std::vector<std::int32_t> shape_ji = {j, i};
+      auto shape = (row2col == true) ? shape_ij : shape_ji;
+      std::vector<T> vec = flatten(reshape(x, shape), true);
+      return vec;
+    }
+
+    template <typename T>
+    std::vector<T> reorder_vec(
+      std::vector<T> x,
+      const std::int32_t i,
+      const std::int32_t j,
+      const bool row2col,
+      const bool rowmajor
+    )
+    {
+      if ((j > 1) && (rowmajor == false))
+      {
+        std::vector<T> x_vec = invert_major(x, i, j, row2col);
+        x.assign(x_vec.begin(), x_vec.end());
+      }
+      return x;
+    }
   }
 
   namespace csv

@@ -8,9 +8,8 @@
 using json = nlohmann::json;
 
 
-// Model class
-// ============================================================================
-// Constructor ----------------------------------------------------------------
+// Constructor
+/* ========================================================================= */
 pycomet::model::model(const std::string inpfile)
 {
   // Parse inputs from json file
@@ -36,7 +35,8 @@ pycomet::model::model(const std::string inpfile)
   );
 }
 
-// Auxiliary functions --------------------------------------------------------
+// Auxiliary functions
+/* ========================================================================= */
 void pycomet::model::parse_inputs(const std::string inpfile)
 {
   // Initialize Json object reader
@@ -50,6 +50,14 @@ void pycomet::model::parse_inputs(const std::string inpfile)
   {
     std::vector<std::uint8_t> cfg = inputs["config"];
     this->config = &cfg;
+  }
+  if (inputs.contains("batch_size"))
+  {
+    this->batch_size = inputs["batch_size"];
+  }
+  if (inputs.contains("rowmajor"))
+  {
+    this->rowmajor = inputs["rowmajor"];
   }
 };
 
@@ -110,26 +118,33 @@ std::vector<std::int32_t> pycomet::model::check_io_ops(
   return dim_;
 };
 
-// Calling functions ----------------------------------------------------------
+// Inputs/Outputs manipulations
+/* ========================================================================= */
 template <typename T>
-std::vector<T> pycomet::model::invert_major(
-  std::vector<T> x,
-  const std::int32_t n,
-  const std::int32_t dim,
-  bool row2col
+std::vector<T> pycomet::model::compose_outputs(
+  std::vector<cppflow::tensor> outputs,
+  const std::int32_t n
 )
 {
-  std::vector<std::int32_t> shape = (row2col == true) ? {n, dim} : {dim, n};
-  auto arr = pycomet::vec_ops::reshape(x, shape);
-  auto vec = pycomet::vec_ops::flatten(arr, true);
-  return vec;
+  std::vector<T> Y;
+  for (std::uint16_t i = 0; i < this->outputs_dim.size(); ++i)
+  {
+    // Extract data from i-th output (row-major ordering)
+    auto y = outputs[i].get_data<T>();
+    // Eventually reorder i-th output (only if inputs are col-major)
+    auto y_ = pycomet::vec_ops::reorder_vec(
+      y, n, this->outputs_dim[i], true, this->rowmajor
+    );
+    // Append inputs
+    Y.insert(Y.end(), y_.begin(), y_.end());
+  }
+  return Y;
 }
 
 template <typename T>
 std::vector<std::vector<T>> pycomet::model::compose_inputs(
   std::vector<T> inputs,
-  const std::int32_t n,
-  const bool rowmajor
+  const std::int32_t n
 )
 {
   std::vector<std::vector<T>> X;
@@ -145,30 +160,22 @@ std::vector<std::vector<T>> pycomet::model::compose_inputs(
       end = start + delta;
       std::vector<T> x(inputs.begin() + start, inputs.begin() + end);
       start = end;
-      // Reshape i-th input
-      if ((this->inputs_dim[i] > 1) && (rowmajor == false))
-      {
-        std::vector<T> x_vec = pycomet::model::invert_major(
-          x, n, this->inputs_dim[i], false
-        );
-        x.assign(x_vec.begin(), x_vec.end());
-      }
+      // Eventually reorder i-th input (row-major/col-major ordering)
+      std::vector<T> x_ = pycomet::vec_ops::reorder_vec(
+        x, n, this->inputs_dim[i], false, this->rowmajor
+      );
       // Append the i-th input
-      X.push_back(x);
+      X.push_back(x_);
     }
   }
   else
   {
-    // Reshape inputs
-    if ((this->inputs_dim[0] > 1) && (rowmajor == false))
-    {
-      std::vector<T> inp_vec = pycomet::model::invert_major(
-        inputs, n, this->inputs_dim[0], false
-      );
-      inputs.assign(inp_vec.begin(), inp_vec.end());
-    }
+    // Eventually reorder inputs
+    auto inputs_ = pycomet::vec_ops::reorder_vec(
+      inputs, n, this->inputs_dim[0], false, this->rowmajor
+    );
     // Append inputs
-    X.push_back(inputs);
+    X.push_back(inputs_);
   }
   return X;
 }
@@ -190,46 +197,23 @@ std::vector<std::tuple<std::string, cppflow::tensor>> pycomet::model::convert_in
   return X;
 }
 
-template <typename T>
-std::vector<T> pycomet::model::compose_outputs(
-  std::vector<cppflow::tensor> outputs,
-  const std::int32_t n,
-  const bool rowmajor
-)
-{
-  std::vector<T> Y;
-  for (std::uint16_t i = 0; i < this->outputs_dim.size(); ++i)
-  {
-    // Extract data from i-th output
-    auto y = outputs[i].get_data<T>();
-    // Reshape i-th output
-    if ((this->inputs_dim[i] > 1) && (rowmajor == false))
-    {
-      std::vector<T> y_vec = pycomet::model::invert_major(
-        y, n, this->out_tot_dim[i], true
-      );
-      y.assign(y_vec.begin(), y_vec.end());
-    }
-    Y.insert(Y.end(), y.begin(), y.end());
-  }
-}
-
+// Calling functions
+/* ========================================================================= */
 template <typename T>
 std::vector<T> pycomet::model::call(
-  const std::vector<T> inputs,
-  const std::int32_t n,
-  const bool rowmajor
+  std::vector<T> inputs,
+  const std::int32_t n
 )
 {
   // Inputs manipulation
   std::vector<std::vector<T>> I;
-  I = pycomet::model::compose_inputs(inputs, n, rowmajor);
+  I = pycomet::model::compose_inputs(inputs, n);
   std::vector<std::tuple<std::string, cppflow::tensor>> X;
   X = pycomet::model::convert_inputs(I, n);
   // Perform inference
-  auto outputs = (*this->tfmodel)(X, this->outputs_id);
+  std::vector<cppflow::tensor> outputs = (*this->tfmodel)(X, this->outputs_id);
   // Outputs manipulation
-  std::vector<T> Y = pycomet::model::compose_outputs(outputs, n, rowmajor);
+  std::vector<T> Y = pycomet::model::compose_outputs<T>(outputs, n);
   return Y;
 }
 
@@ -302,73 +286,89 @@ std::vector<T> pycomet::model::call(
 
 template <typename T>
 std::vector<std::vector<T>> pycomet::model::call(
-  const std::vector<std::vector<T>> inputs,
-  const std::int32_t n,
-  const bool rowmajor,
-  const bool transpose_in,
-  const bool transpose_out
+  const std::vector<std::vector<T>> inputs,   // row-major data
+  const std::int32_t n
 )
 {
+  // Force col-major
+  this->rowmajor = false;
   // Flatten inputs
-  std::vector<T> X = pycomet::vec_ops::flatten(inputs, transpose_in);
+  std::vector<T> X = pycomet::vec_ops::flatten(inputs, true);
   // Perform inference
-  std::vector<T> Y = this->call(X, n, rowmajor);
+  std::vector<T> Y = this->call(X, n);
   // Reshape outputs
   std::vector<std::vector<T>> outputs = pycomet::vec_ops::reshape(
-    Y, {n, this->out_tot_dim}, transpose_out
+    Y, {this->out_tot_dim, n}, true
   );
   return outputs;
 }
 
-template <typename T>
-std::vector<T> pycomet::model::call(
-  const T *inputs,
-  const std::int32_t n,
-  const bool rowmajor
-)
-{
-  // Convert inputs from array to std::vector
-  std::vector<T> X(inputs, inputs + this->inp_tot_dim*n);
-  // Perform inference
-  std::vector<T> Y = this->call(X, n, rowmajor);
-  return Y;
-}
+// template <typename T>
+// std::vector<T> pycomet::model::call(
+//   const T *inputs,
+//   const std::int32_t n,
+//   const bool rowmajor
+// )
+// {
+//   // Convert inputs from array to std::vector
+//   std::vector<T> X(inputs, inputs + this->inp_tot_dim*n);
+//   // Perform inference
+//   std::vector<T> Y = this->call(X, n, rowmajor);
+//   return Y;
+// }
 
-// Explicit templates instantiation -------------------------------------------
-// Single-precision floating-point format
+// Explicit templates instantiation
+/* ========================================================================= */
+// Single-precision floating-point format -------------------------------------
+template std::vector<float> pycomet::model::compose_outputs(
+  std::vector<cppflow::tensor> outputs,
+  const std::int32_t n
+);
+template std::vector<std::vector<float>> pycomet::model::compose_inputs(
+  std::vector<float> inputs,
+  const std::int32_t n
+);
+template std::vector<std::tuple<std::string, cppflow::tensor>> pycomet::model::convert_inputs(
+  std::vector<std::vector<float>> inputs,
+  const std::int32_t n
+);
 template std::vector<float> pycomet::model::call(
   const std::vector<float> inputs,
-  const std::int32_t n,
-  const bool rowmajor
+  const std::int32_t n
 );
 template std::vector<std::vector<float>> pycomet::model::call(
   const std::vector<std::vector<float>> inputs,
-  const std::int32_t n,
-  const bool rowmajor,
-  const bool transpose_in,
-  const bool transpose_out
+  const std::int32_t n
 );
-template std::vector<float> pycomet::model::call(
-  const float *inputs,
-  const std::int32_t n,
-  const bool rowmajor
-);
+// template std::vector<float> pycomet::model::call(
+//   const float *inputs,
+//   const std::int32_t n,
+//   const bool rowmajor
+// );
 
-// Double-precision floating-point format
+// Double-precision floating-point format -------------------------------------
+template std::vector<double> pycomet::model::compose_outputs(
+  std::vector<cppflow::tensor> outputs,
+  const std::int32_t n
+);
+template std::vector<std::vector<double>> pycomet::model::compose_inputs(
+  std::vector<double> inputs,
+  const std::int32_t n
+);
+template std::vector<std::tuple<std::string, cppflow::tensor>> pycomet::model::convert_inputs(
+  std::vector<std::vector<double>> inputs,
+  const std::int32_t n
+);
 template std::vector<double> pycomet::model::call(
   const std::vector<double> inputs,
-  const std::int32_t n,
-  const bool rowmajor
+  const std::int32_t n
 );
 template std::vector<std::vector<double>> pycomet::model::call(
   const std::vector<std::vector<double>> inputs,
-  const std::int32_t n,
-  const bool rowmajor,
-  const bool transpose_in,
-  const bool transpose_out
+  const std::int32_t n
 );
-template std::vector<double> pycomet::model::call(
-  const double *inputs,
-  const std::int32_t n,
-  const bool rowmajor
-);
+// template std::vector<double> pycomet::model::call(
+//   const double *inputs,
+//   const std::int32_t n,
+//   const bool rowmajor
+// );

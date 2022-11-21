@@ -8,15 +8,13 @@
 
 namespace pycomet
 {
-  // Model class
-  // ==========================================================================
   class model
   {
     private:
 
       // TensorFlow model
-      std::unique_ptr<cppflow::model> tfmodel;
       std::string path_to_model;
+      std::unique_ptr<cppflow::model> tfmodel;
       std::vector<std::uint8_t> *config = nullptr;
 
       // Inputs/Outputs
@@ -30,12 +28,12 @@ namespace pycomet
       const std::string inputs_id_prefix = "serving_default";
       const std::string outputs_id_prefix = "StatefulPartitionedCall";
 
+      // Evaluating parameters
+      std::int32_t batch_size = -1;
+      bool rowmajor = true;
+
       // IO operations
       std::vector<std::tuple<std::string, std::vector<int64_t>>> ops;
-
-      // Evaluate parameters
-      std::vector<std::int32_t> batch_size = -1;
-      bool rowmajor = true;
 
       void get_ops_info();
 
@@ -44,6 +42,25 @@ namespace pycomet
 
       // Set global TF context
       void set_global_context(std::vector<std::uint8_t> *config);
+
+      // Inputs/Outputs manipulations
+      template <typename T>
+      std::vector<T> compose_outputs(
+        std::vector<cppflow::tensor> outputs,
+        const std::int32_t n
+      );
+      
+      template <typename T>
+      std::vector<std::vector<T>> compose_inputs(
+        std::vector<T> inputs,
+        const std::int32_t n
+      );
+
+      template <typename T>
+      std::vector<std::tuple<std::string, cppflow::tensor>> convert_inputs(
+        std::vector<std::vector<T>> inputs,
+        const std::int32_t n
+      );
 
     public:
 
@@ -60,24 +77,14 @@ namespace pycomet
       // Call functions
       template <typename T>
       std::vector<T> call(
-        const std::vector<T> inputs,
+        std::vector<T> inputs,
         const std::int32_t n
       );
 
       template <typename T>
-      std::vector<T> call(
-        const std::vector<T> inputs,
-        const std::int32_t n,
-        const bool rowmajor = false
-      );
-
-      template <typename T>
       std::vector<std::vector<T>> call(
-        const std::vector<std::vector<T>> inputs,
-        const std::int32_t n,
-        const bool rowmajor = false,
-        const bool transpose_in = false,
-        const bool transpose_out = false
+        std::vector<std::vector<T>> inputs,
+        const std::int32_t n
       );
 
       // template <typename T>
