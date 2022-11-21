@@ -140,10 +140,10 @@ class OpNN(BaseNet):
             if 'kwargs' not in propty:
                 propty['kwargs'] = {}
                 if propty['lay_id']  == 'Dense':
-                    propty['kwargs'] = dict(
+                    propty['kwargs'] = {
                         'units': self.output_dim,
                         'kernel_initializer': 'GlorotNormal'
-                    )
+                    }
             if 'kernel_initializer' in propty['kwargs']:
                 init = propty['kwargs']['kernel_initializer']
                 init = nn_elem.initializers.get(init)
