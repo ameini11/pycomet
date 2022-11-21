@@ -88,13 +88,6 @@ namespace pycomet
         std::vector<std::vector<T>> inputs,
         const std::int32_t n
       );
-
-      // template <typename T>
-      // std::vector<T> call(
-      //   const T *inputs,
-      //   const std::int32_t n,
-      //   const bool rowmajor = false
-      // );
   };
 }
 

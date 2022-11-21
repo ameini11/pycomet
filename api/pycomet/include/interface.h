@@ -30,14 +30,6 @@ namespace pycomet
       float *outputs                      // Empty 1D array of outputs
     );
 
-    // extern "C++"
-    // {
-    //   template <typename T>
-    //   void call_model(
-    //     pycomet::model *mdl, std::int32_t *n, float *inputs, float *outputs
-    //   );
-    // }
-
   #ifdef __cplusplus
   }
   #endif

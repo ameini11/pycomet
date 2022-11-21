@@ -38,29 +38,3 @@ void pycomet::call_model(
   // Convert outputs from std::vector to array
   std::copy(Y.begin(), Y.end(), outputs);
 }
-
-// extern "C++"
-// {
-//   template <typename T>
-//   void pycomet::call_model(
-//     pycomet::model *mdl, T *inputs, std::int32_t *n
-//   )
-//   {
-//     // Perform inference
-//     std::vector<T> Y = mdl->call(inputs, *n);
-//     // Convert outputs from std::vector to array
-//     std::copy(Y.begin(), Y.end(), outputs);
-//   }
-
-//   void pycomet::call_model(
-//     pycomet::model *mdl, std::int32_t *inputs, std::int32_t *n
-//   );
-
-//   void pycomet::call_model(
-//     pycomet::model *mdl, float *inputs, std::int32_t *n
-//   );
-
-//   void pycomet::call_model(
-//     pycomet::model *mdl, double *inputs, std::int32_t *n
-//   );
-// }
