@@ -108,14 +108,6 @@ class BaseNet(object):
 
     # Calling
     ###########################################################################
-    def get_siso_call(self, input_dim):
-        def call(x, training=None):
-            x = nn_elem.Split(input_dim, axis=1)(x)
-            y = self.call(x, training)
-            y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-            return y
-        return call
-    
     def __call__(self, x, training=None):
         return self.call(x, training)
     
@@ -143,6 +135,14 @@ class BaseNet(object):
     #         else:
     #             y = xform(y, training=training)
     #     return y
+
+    def get_siso_call(self, input_dim):
+        def call(x, training=None):
+            x = nn_elem.Split(input_dim, axis=1)(x)
+            y = self.call(x, training)
+            y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+            return y
+        return call
 
     # Handling layers
     ###########################################################################

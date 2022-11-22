@@ -109,9 +109,7 @@ lays_propty = {
             'kwargs': {
                 'process': process,
                 'specie_thermo': specie_thermo,
-                'out_indices': {'Y': 0, 'T': 1},
-                'inp_indices': {'e': {0: 3}},
-                'decoding': 'temperature'
+                'coding_type': 'temperature'
             }
         },
         'with_inputs': True
