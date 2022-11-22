@@ -16,6 +16,7 @@ class MIONet(FlexOpNN):
         dim,
         lays_name=None,
         lays_propty=None,
+        force_siso=False,
         *args,
         **kwargs
     ):
@@ -23,6 +24,7 @@ class MIONet(FlexOpNN):
             dim=dim,
             lays_name=lays_name,
             lays_propty=lays_propty,
+            force_siso=force_siso,
             *args,
             **kwargs
         )

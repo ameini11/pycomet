@@ -41,14 +41,10 @@ header = 0
 def preproc_fn(x):
     eps = 1.e-6
     if x.shape[1] == cols['y'][-1][-1]+1:
-        # for c in cols['y']:
-        #     f = (((x[:,c[0]] + eps) < 1.).astype(int) - 0.5) * 2
-        #     x[:,c[0]] = x[:,c[0]] + f * eps
-        #     x[:,c[1]] = 1. - x[:,c[0]]
-        c = cols['y'][0]
-        f = (((x[:,c[0]] + eps) < 1.).astype(int) - 0.5) * 2
-        x[:,c[0]] = x[:,c[0]] + f * eps
-        x[:,c[1]] = 1. - x[:,c[0]]
+        for c in cols['y']:
+            f = (((x[:,c[0]] + eps) < 1.).astype(int) - 0.5) * 2
+            x[:,c[0]] = x[:,c[0]] + f * eps
+            x[:,c[1]] = 1. - x[:,c[0]]
     return x
 
 # Batching --------------------------------------------------------------------

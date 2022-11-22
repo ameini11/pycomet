@@ -11,7 +11,6 @@ from inputs.postproc import figures
 # =============================================================================
 epochs = 2000
 optimizer = 'adam'
-run_eagerly = False # For debugging
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
@@ -24,9 +23,9 @@ decay = ["exponential", decay_steps, decay_rate]
 axis = 0 # -1 0 None
 reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
 loss = {
-    'ics': ['malpe', 'mse'],
-    'pts': ['malpe', 'mse'],
-    'res': 'mae'
+    'ics': ['malpe', 'mae'],
+    'pts': ['malpe', 'mae'],
+    'res': ['mae', 'mae']
 }
 
 ## Callbacks
@@ -35,8 +34,8 @@ callbacks = {
 
     'early_stopping': {
        'monitor':              'val_loss',
-       'min_delta':            1.e-6,
-       'patience':             500,
+       'min_delta':            1.e-4,
+       'patience':             300,
        'restore_best_weights': True,
        'verbose':              1
     },
@@ -60,7 +59,7 @@ callbacks = {
 
     'plotter': {
         'figures': figures,
-        'freq':    200
+        'freq':    400
     },
 
     # 'weighted_loss': {

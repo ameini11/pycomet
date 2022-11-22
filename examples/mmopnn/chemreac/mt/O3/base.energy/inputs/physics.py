@@ -44,4 +44,4 @@ specie_thermo = {
 
 process = ['adiabatic', 'isochoric']
 
-use_norm_energy = False
+use_norm_energy = True

@@ -9,7 +9,6 @@ import tensorflow as tf
 
 from inputs.general import dim
 from inputs.data import data_src, cols
-from inputs.custom_obj import OutputXform
 from inputs.physics import specie_thermo, process
 from pycomet.networks.elements import layers as pcm_layers
 
@@ -23,8 +22,8 @@ common = {
     'kernel_initializer': 'GlorotNormal',
     'regularizer': {
         'name': 'l1+l2',
-        'l1': 1.e-4,
-        'l2': 1.e-4
+        'l1': 5.e-4,
+        'l2': 5.e-4
     },
     'trainable': True,
     'dropout_kwargs': {'rate': 0.},
@@ -66,7 +65,7 @@ lays_propty = {
             'lay_id': 'FlexOpNN',
             'dim': {
                 "inp": dim['inp'],
-                "out": 2
+                "out": 1
             },
             'lays_propty': {
 
@@ -86,7 +85,7 @@ lays_propty = {
                 'branch': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][0], 64, 64, 16],
+                        'layer_size': [dim['inp'][0], 64, 64, 24],
                         'activation': ['tanh']*2 + ['linear'],
                         **common
                     }
@@ -95,14 +94,10 @@ lays_propty = {
                 'trunk': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][1], 64, 64, 16],
+                        'layer_size': [dim['inp'][1], 64, 64, 24],
                         'activation': ['sigmoid']*2 + ['linear'],
                         **common
                     }
-                },
-
-                'output': {
-                    'xform': OutputXform()
                 }
             }
         } for name in ('mass', 'temp')
@@ -115,9 +110,11 @@ lays_propty = {
                 'process': process,
                 'specie_thermo': specie_thermo,
                 'out_indices': {'Y': 0, 'T': 1},
-                'inp_indices': {'e': {0: 3}}
+                'inp_indices': {'e': {0: 3}},
+                'decoding': 'temperature'
             }
-        }
+        },
+        'with_inputs': True
     }
 
 }

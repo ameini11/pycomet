@@ -14,7 +14,7 @@ data_type = 'ODE'
 physics_informed = False
 
 # Data source -----------------------------------------------------------------
-from_file = True
+from_file = False
 
 data_src = {
     'train': {
@@ -39,7 +39,7 @@ columns = tf.nest.map_structure(lambda _: cols, data_src)
 header = 0
 
 def preproc_fn(x):
-    eps = 1.e-6
+    eps = 1.e-8
     if x.shape[1] == cols['y'][-1][-1]+1:
         c = cols['y'][0]
         f = (((x[:,c[0]] + eps) < 1.).astype(int) - 0.5) * 2

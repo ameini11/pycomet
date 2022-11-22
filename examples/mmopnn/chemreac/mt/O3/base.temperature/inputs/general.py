@@ -22,3 +22,5 @@ flags = {
     'plot':  2,       # Plotting            0: no, 1: offline, 2: online
     'save':  1        # Saving model        0: no, 1: yes
 }
+
+run_eagerly = False   # 'True' for debugging

@@ -36,6 +36,7 @@ class DataGenerator(pcm.data.DataGenerator):
         process,
         num_threads=20,
         sampling_method='source',
+        ic_sampling='stratified',
         use_norm_energy=False,
         *args,
         **kwargs
@@ -71,6 +72,7 @@ class DataGenerator(pcm.data.DataGenerator):
         self.test_training = test_training      # Test training case [Bool]
         
         self.sampling_method = sampling_method
+        self.ic_sampling = ic_sampling
 
         # Input Space Variables -----------------------------------------------
         self.inp_space = np.vstack(list(inp_space.values())).T
@@ -129,9 +131,11 @@ class DataGenerator(pcm.data.DataGenerator):
         samples = x[proj.argsort()]
         # Returning initial conditions ----------------------------------------
         if self.test_cases > 0:
-            idx_train, idx_test = self.stratified_sampling(
-                np.arange(n_samples), self.test_cases
-            )
+            inp = (np.arange(n_samples), self.test_cases)
+            if self.ic_sampling == 'stratified':
+                idx_train, idx_test = self.stratified_sampling(*inp)
+            else:
+                idx_train, idx_test = self.random_sampling(*inp)
             return [samples[idx_train], samples[idx_test]]
         else:
             return [samples]
@@ -272,11 +276,14 @@ class DataGenerator(pcm.data.DataGenerator):
             self.runs_dir+'/data/train_valid/', inp_space_samples
         )
         # Sampling ------------------------------------------------------------
+        indices = np.arange(len(ics))
+        if not self.ic_sampling =='stratified':
+            np.random.shuffle(indices)
         # Sample 0D data
         data = {}
-        for i, case in cases.items():
-            i = int(i)-1
-            case = pd.DataFrame(case, columns=self.box_header)
+        for i in indices:
+            case_id = str(int(i+1)).zfill(6)
+            case = pd.DataFrame(cases[case_id], columns=self.box_header)
             # Sample single case
             data_pts = self.train_pts if (i % 2) == 0 else self.valid_pts
             data_i = self.sample_data(ics[i], case, data_pts)
@@ -436,6 +443,19 @@ class DataGenerator(pcm.data.DataGenerator):
         # Return sorted indices
         return np.sort(samples)
 
+    def random_sampling(self, x, size):
+        x_1 = np.random.choice(x, size, replace=False)
+        x_2 = np.setdiff1d(x, x_1)
+        assert np.intersect1d(x_1, x_2).size == 0
+        return x_2, x_1
+
+    def stratified_sampling(self, x, size):
+        x_split = np.array_split(x, size)
+        x_1 = np.array([np.random.choice(i) for i in x_split])
+        x_2 = np.setdiff1d(x, x_1)
+        assert np.intersect1d(x_1, x_2).size == 0
+        return x_2, x_1
+
     def uniform_sampling(self, x, size):
         # Construct nearest neighbors tree
         tree = KDTree(np.c_[x.ravel()])
@@ -446,13 +466,6 @@ class DataGenerator(pcm.data.DataGenerator):
         # Find indices
         samples = tree.query(x=tf.split(x_un, size), k=1)[1]
         return np.unique(samples)
-
-    def stratified_sampling(self, x, strata):
-        x_split = np.array_split(x, strata)
-        x_1 = np.array([np.random.choice(i) for i in x_split])
-        x_2 = np.setdiff1d(x, x_1)
-        assert np.intersect1d(x_1, x_2).size == 0
-        return x_2, x_1
 
     def compute_diff(self, x, i):
         dx = x[i['+1']] - x[i['-1']]

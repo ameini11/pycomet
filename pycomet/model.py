@@ -493,11 +493,9 @@ class Model(object):
         for ki, ti in tensor_info.items():
             signature[ki] = {}
             for kj, tj in sorted(ti.items()):
-                name = tj.name[:-2] if tj.name.endswith(':0') else tj.name
-                if tj.name if not .
                 signature[ki][kj] = {
                     'shape': [str(dim.size) for dim in tj.tensor_shape.dim],
-                    'name': name
+                    'name': tj.name
                 }
         if dumping:
             json.dump(signature, open(path+'inout_sign.json', 'w'), indent=4)
@@ -511,9 +509,9 @@ class Model(object):
             "path_to_model": os.path.abspath(self.save_path + '/SavedModel/')
         }
         for k, s in signature.items():
-            inputs[k+'_id'] = [v['name'] for v in sorted(s.values())]
-            inputs[k+'_dim'] = [v['shape'][1] for v in sorted(s.values())]
-        json.dump(inputs, open(self.save_path+'inpfile.json', 'w'), indent=4)
+            inputs[k+'_id'] = [v['name'] for v in s.values()]
+            inputs[k+'_dim'] = [v['shape'][1] for v in s.values()]
+        json.dump(inputs, open(self.save_path+'/inpfile.json', 'w'), indent=4)
 
     # Postprocessing
     ###########################################################################

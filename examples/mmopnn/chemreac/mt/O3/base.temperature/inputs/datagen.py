@@ -21,3 +21,5 @@ validation_split = 0.2      # % of Validation pts
 testing = flags['test']
 test_cases = 50             # Number of testing cases
 test_training = True        # Test training cases
+
+ic_sampling = 'random'      # 'stratified'
