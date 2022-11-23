@@ -149,7 +149,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         # Enforce mass/energy conservation
         for k in ('Y', 'T'):
             y[k] = tf.math.sigmoid(y[k])
-            y[k] = tf.concat([1.-y[k], y[k]],1)
+            y[k] = tf.concat([1.-y[k], y[k]], 1)
         # Recovering energies/temperatures ------------------------------------
         # Update mixture
         self.mix.update(y['Y'], var='Y')

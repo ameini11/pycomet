@@ -38,8 +38,7 @@ class Model(object):
         self.data = data
         self.net = net
         self.architecture = architecture
-        if self.net.force_siso:
-            self.name = self.name + '_siso'
+        self.force_siso = self.net.force_siso
 
         # Attributes for optimization
         self.optimizer = None
@@ -68,6 +67,8 @@ class Model(object):
         self.save_format = tf.nest.flatten(save_format)
         self.save_path = self.dir['save'] + self.name
         os.makedirs(self.save_path, exist_ok=True)
+        if self.force_siso:
+            os.makedirs(self.save_path + '_siso', exist_ok=True)
 
     # Building Model
     ###########################################################################
@@ -409,12 +410,16 @@ class Model(object):
     ):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
+        # Set saving path
+        if self.force_siso:
+            self.save_path = self.save_path + '_siso'
+        path = self.save_path + '/SavedModel'
         if 'tf' in self.save_format:
             utils.print_fn("SavedModel format", lev=1)
             try:
                 # Save model in 'SavedModel' format
                 self.net.save(
-                    self.save_path + '/SavedModel',
+                    path,
                     overwrite=True,
                     include_optimizer=False,
                     save_format='tf',
@@ -444,30 +449,25 @@ class Model(object):
                 utils.print_fn("TFLite format", lev=1)
                 try:
                     # 'TFLite' format
-                    converter = tf.lite.TFLiteConverter.from_saved_model(
-                        self.save_path + '/SavedModel'
-                    )
+                    converter = tf.lite.TFLiteConverter.from_saved_model(path)
                     converter.target_spec.supported_ops = [
                         tf.lite.OpsSet.TFLITE_BUILTINS,
                         tf.lite.OpsSet.SELECT_TF_OPS
                     ]
                     tflite_model = converter.convert()
-                    open(
-                        self.save_path + '/model.tflite', "wb"
-                    ).write(tflite_model)
+                    open(path + '/model.tflite', "wb").write(tflite_model)
                 except Exception as e:
                     utils.warning(
                         "Unable to save the full model in TFLite format."
                     )
-                    utils.print_fn("Error log:")
-                    print(e)
+                    utils.print_fn("Error log:", lev=2)
+                    print(f'\n{e}\n')
         # Save weights
         self.net.save_weights(
-            self.save_path+'/model_weights.h5', overwrite=True
+            self.save_path + '/model_weights.h5', overwrite=True
         )
         # Save just pure weights (for `regularizers.FineTuningRegularizer')
-        file_name = self.save_path + '/model_weights_clean.h5'
-        dset = h5py.File(file_name,'w')
+        dset = h5py.File(self.save_path + '/model_weights_clean.h5','w')
         for weight in self.net.weights:
             dset.create_dataset(weight.name, data=weight.numpy())
         dset.close()
