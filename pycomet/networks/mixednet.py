@@ -27,8 +27,10 @@ class MixedNet(BaseNet):
         )
         # Layers --------------------------------------------------------------
         # Layers names
-        if self.lays_name is None:
-            self.lays_name = ('input', 'networks', 'output')
+        if lays_name == None:
+            self.lays_name = self.lays_name + ('networks',)
+        else:
+            self.lays_name = lays_name
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
@@ -37,6 +39,7 @@ class MixedNet(BaseNet):
         )
         # Initializing
         self.active_lays = self.init_layers()
+        self.init_preinput_lay()
 
     # Layers initialization
     ###########################################################################
@@ -44,7 +47,7 @@ class MixedNet(BaseNet):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier in ('input', 'output'):
-                lays[identifier] = self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
             elif identifier == 'networks':
                 lays[identifier] = self.init_nets_lay(identifier, propty)
         return lays
@@ -69,11 +72,11 @@ class MixedNet(BaseNet):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None):
+    def call_net(self, x, training=None):
         y = x
         # Inputs manipulation
         y = self._manipulate_inout(
-            inputs=dict(y=y), identifier='input', training=training
+            inputs=dict(x=x, y=y), identifier='input', training=training
         )
         # Kernel - Networks
         y = [net(y, training=training) \

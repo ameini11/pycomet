@@ -24,8 +24,10 @@ class FFNN(BaseNet):
             **kwargs
         )
         # Layers names
-        if self.lays_name is None:
-            self.lays_name = ('input', 'hidden_block', 'output')
+        if lays_name == None:
+            self.lays_name = self.lays_name + ('hidden_block',)
+        else:
+            self.lays_name = lays_name
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
@@ -34,6 +36,7 @@ class FFNN(BaseNet):
         )
         # Initializing layers
         self.active_lays = self.init_layers()
+        self.init_preinput_lay()
 
     # Layers initialization
     ###########################################################################
@@ -41,7 +44,7 @@ class FFNN(BaseNet):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier in ('input', 'output'):
-                lays[identifier] = self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
             elif identifier == 'hidden_block':
                 lays[identifier] = self.get_lay(
                     propty=propty, default_lay_id='FFBlock'
@@ -50,11 +53,11 @@ class FFNN(BaseNet):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None):
+    def call_net(self, x, training=None):
         y = x
         # Inputs manipulation
         y = self._manipulate_inout(
-            inputs=dict(y=y), identifier='input', training=training
+            inputs=dict(x=x, y=y), identifier='input', training=training
         )
         # Kernel
         y = self.active_lays['hidden_block'](y, training=training)

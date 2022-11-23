@@ -37,7 +37,7 @@ class OpNN(BaseNet):
 
         # Layers --------------------------------------------------------------
         # Default layers
-        self.default_lays_propty = {
+        self.default_lays_propty.update({
             'input': {
                 'branch': {
                     'index': 0,
@@ -55,12 +55,12 @@ class OpNN(BaseNet):
                 'lay_id': None,
                 'kwargs': {}
             }
-        }
+        })
         # Layers names
-        if self.lays_name is None:
-            self.lays_name = (
-                'input', 'branch', 'trunk', 'end_scale', 'output'
-            )
+        if lays_name == None:
+            self.lays_name = self.lays_name + ('branch', 'trunk', 'end_scale')
+        else:
+            self.lays_name = lays_name
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
@@ -69,6 +69,7 @@ class OpNN(BaseNet):
         )
         # Initializing
         self.active_lays = self.init_layers()
+        self.init_preinput_lay()
         self.n_branches = len(self.active_lays['branch'])
         self.n_trunks = len(self.active_lays['trunk'])
         self.max_num_blocks = max(self.n_branches, self.n_trunks)
@@ -85,7 +86,7 @@ class OpNN(BaseNet):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -154,7 +155,7 @@ class OpNN(BaseNet):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None):
+    def call_net(self, x, training=None):
         y = x
         # Inputs manipulation
         y = self._manipulate_input(y)

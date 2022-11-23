@@ -46,14 +46,14 @@ class TwoTempThermoLay(tf_layers.Layer):
             self.inp_indices_encoded = {
                 'Y_m': 0, 'rho': 1, 'Th': 2, 'e': 3
             }
+        self.inp_index_to_key = {
+            i: k for k, i in self.inp_indices_encoded.items()
+        }
         self.inp_indices_toencode = inp_indices_toencode
         if self.inp_indices_toencode == None:
             self.inp_indices_toencode = {
                 'rho_m': 0, 'rho_a': 1, 'Th': 2, 'Tv': 3
             }
-        self.inp_index_to_key = {
-            i: k for k, i in self.inp_indices_toencode.items()
-        }
         # Define type of encoding/decoding type
         self.coding_type = coding_type
         # Temperature limiter
@@ -86,13 +86,13 @@ class TwoTempThermoLay(tf_layers.Layer):
             return self.encode(inputs, training)
         else:
             utils.raise_value_err("Input 'coding_type' not valid.")
-        
+
     def encode(self, inputs, training=None):
         # Extracting inputs quantities to encode
-        for k, index in self.inp_indices_toencode.items():
-            x[k] = tf.gather(inputs[self.inp_tensor_toencode], [index], axis=1)
+        x = {k: tf.gather(inputs[self.inp_tensor_toencode], [index], axis=1) \
+            for k, index in self.inp_indices_toencode.items()}
         # Allocate encoded quantities
-        y[k] = {k: 0 for k in self.inp_indices_encoded.keys()}
+        y = {k: 0 for k in self.inp_indices_encoded.keys()}
         # Encode mass quantities
         y['rho'] = x['rho_m'] + x['rho_a']
         y['Y_m'] = x['rho_m'] / y['rho']
@@ -106,11 +106,17 @@ class TwoTempThermoLay(tf_layers.Layer):
         # Total energy and roto-translational temperature (heavy particles)
         y['e'] = self.mix._he()
         y['Th'] = x['Th']
-        # Compose and return new inputs
-        inputs[self.inp_tensor_toencode] = tf.concat(
+        # Compose and return outputs
+        outputs = []
+        outputs_i = tf.concat(
             [y[self.inp_index_to_key[i]] for i in range(len(y))], 1
         )
-        return inputs
+        for i in range(len(inputs)):
+            if i == self.inp_tensor_toencode:
+                outputs.append(outputs_i)
+            else:
+                outputs.append(inputs[i])
+        return outputs
         
     def decode_temperature(self, inputs, training=None):
         # Recovering inputs/outputs quantities --------------------------------
@@ -121,7 +127,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         # Enforce temperature to be positive
         y['T'] = tf.nn.relu(y['T']) + self.T_min
         # Recovering energies/temperatures ------------------------------------
-        # Update thermodynamics
+        # Update mixture
         self.mix.update(y['Y'], var='Y')
         # Formation energy
         e_f = self.mix._e_f()
@@ -145,9 +151,7 @@ class TwoTempThermoLay(tf_layers.Layer):
             y[k] = tf.math.sigmoid(y[k])
             y[k] = tf.concat([1.-y[k], y[k]],1)
         # Recovering energies/temperatures ------------------------------------
-        # Update thermodynamics
-        for s in self.sp_th.values():
-            s.update(y['T'])
+        # Update mixture
         self.mix.update(y['Y'], var='Y')
         # Formation energy
         e_f_max = e * (1. - backend.epsilon())
@@ -172,7 +176,11 @@ class TwoTempThermoLay(tf_layers.Layer):
         y = {k: y[self.out_indices_todecode[k]] for k in ('Y', 'T')}
         # Extract model inputs QoI
         #  - Total energy
-        e = ops.extract_data(x, self.inp_indices_encoded['e'], axis=1)
+        e = tf.gather(
+            x[self.inp_tensor_toencode],
+            [self.inp_indices_encoded['e']],
+            axis=1
+        )
         return y, e
 
     def _cv_rt(self):

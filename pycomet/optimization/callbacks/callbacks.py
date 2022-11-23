@@ -41,13 +41,11 @@ def get_callback(model, identifier, kwargs):
             )
         elif identifier == "model_ckpt":
             mc = []
-            prefix = model.dir['ckpt'] + "/{epoch:06d}."
+            kwargs['filepath'] = model.dir['ckpt'] + "/{epoch:06d}"
             formats = tf.nest.flatten(kwargs['formats']) \
                 if 'formats' in kwargs else ['h5']
             for k in formats:
                 kwargs['save_weights_only'] = True if k == 'h5' else False
-                suffix = f"{k}.h5" if k == 'h5' else k
-                kwargs['filepath'] = prefix + suffix
                 mc.append(model_ckpt.ModelCheckpoint(**kwargs))
             return mc
         elif identifier == "tensorboard":

@@ -30,7 +30,7 @@ class MMOpNN(BaseNet):
         )
         # Layers --------------------------------------------------------------
         # Default layers
-        self.default_lays_propty = {
+        self.default_lays_propty.update({
             'input': {
                 'branch': {
                     'index': 0,
@@ -44,10 +44,12 @@ class MMOpNN(BaseNet):
             'output': {
                 'xform': None
             }
-        }
+        })
         # Layers names
-        if self.lays_name is None:
-            self.lays_name = ('input', 'opnns', 'output')
+        if lays_name == None:
+            self.lays_name = self.lays_name + ('opnns',)
+        else:
+            self.lays_name = lays_name
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
@@ -56,18 +58,21 @@ class MMOpNN(BaseNet):
         )
         # Initializing
         self.active_lays = self.init_layers()
+        self.init_preinput_lay()
 
     # Layers initialization
     ###########################################################################
     def init_layers(self):
         lays = {}
         for identifier, propty in self.lays_propty.items():
-            if identifier == 'input':
+            if identifier == 'preinput':
+                lays[identifier] = self.init_inout_lay(propty)
+            elif identifier == 'input':
                 lays[identifier] = self.init_input_lay(identifier, propty)
             elif identifier == 'opnns':
                 lays[identifier] = self.init_opnns_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
 
     def init_input_lay(self, identifier, propty):
@@ -124,7 +129,7 @@ class MMOpNN(BaseNet):
 
     # Calling
     ###########################################################################
-    def call(self, x, training=None):
+    def call_net(self, x, training=None):
         y = x
         # Inputs manipulation
         y = self._manipulate_input(y)

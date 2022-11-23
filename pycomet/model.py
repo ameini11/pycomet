@@ -38,6 +38,8 @@ class Model(object):
         self.data = data
         self.net = net
         self.architecture = architecture
+        if self.net.force_siso:
+            self.name = self.name + '_siso'
 
         # Attributes for optimization
         self.optimizer = None
@@ -82,11 +84,7 @@ class Model(object):
         # Build the network ---------------------------------------------------
         # I/O characterization
         if load_net != 4 and not isinstance(self.net, tf.keras.Model):
-            inputs = [
-                tf.keras.Input((i,)) for i in tf.nest.flatten(
-                    self.net.input_dim
-                )
-            ]
+            inputs = [tf.keras.Input((i,)) for i in self.net.input_dim]
             inputs = utils.squeeze_list(tf.nest.flatten(inputs))
             outputs = self.net.call(inputs, training=False)
             func_net = FuncNet(
@@ -431,8 +429,8 @@ class Model(object):
                     "Unable to save the full model in TensorFlow " \
                     "`SavedModel` format. Check custom layers/models"
                 )
-                utils.print_fn("ERROR LOG:", lev=1)
-                print(e)
+                utils.print_fn("Error log:", lev=2)
+                print(f'\n{e}\n')
         # Save model in 'TFLite' format
         if 'tflite' in self.save_format:
             if cfg._TF['setup']['FLOATX'] == 'float64':

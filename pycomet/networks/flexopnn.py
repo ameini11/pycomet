@@ -23,7 +23,8 @@ class FlexOpNN(OpNN):
     ):
         if lays_name is None:
             lays_name = (
-                'input', 'branch', 'trunk', 'prenet', 'end_scale', 'output'
+                'preinput', 'input', 'branch', 'trunk', 
+                'prenet', 'end_scale', 'output'
             )
         super(FlexOpNN, self).__init__(
             dim=dim,
@@ -57,7 +58,7 @@ class FlexOpNN(OpNN):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
     
     def init_block_lay(self, identifier, propty):

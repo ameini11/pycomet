@@ -1,3 +1,6 @@
+import numpy as np
+import tensorflow as tf
+
 from keras import layers as tf_layers
 from pycomet.networks import chemreacnn
 from pycomet.networks import elements as nn_elem
@@ -38,23 +41,29 @@ class BaseNet(object):
                 "  - 'out': `int` (or `list` of `int`).\n"
                 "It represents the dimensions of the I/O feature space."
             )
-        self.input_dim = self.dim["inp"]
-        self.output_dim = self.dim["out"]
+        self.input_dim = tf.nest.flatten(self.dim["inp"])
+        self.output_dim = tf.nest.flatten(self.dim["out"])
         
         # Force single-input single-output
         self.force_siso = force_siso
         if self.force_siso:
-            self.call = self.get_siso_call(self.input_dim)
+            self.call = self.make_siso_call(self.call, self.input_dim)
             self.input_dim = [np.sum(self.input_dim)]
             self.output_dim = [np.sum(self.output_dim)]
-        
+            self.name = self.name + '_siso'
+
         # Layers
         self.lays_name = lays_name
+        if self.lays_name == None:
+            self.lays_name = ('preinput', 'input', 'output')
         self.lays_propty = lays_propty
         self.active_lays = {}
 
         # Default layers
         self.default_lays_propty = {
+            'preinput': {
+                'xform': None
+            },
             'input': {
                 'xform': None
             },
@@ -65,7 +74,7 @@ class BaseNet(object):
 
     # Layers initialization
     ###########################################################################
-    def init_inout_lay(self, identifier, propty):
+    def init_inout_lay(self, propty):
         _propty = {}
         for k in ('xform', 'with_inputs'):
             if k in propty and propty[k] is not None:
@@ -106,12 +115,25 @@ class BaseNet(object):
     #         _propty[k] = None
     #     return _propty
 
+    def init_preinput_lay(self):
+        self.active_lays['preinput'] = self.init_inout_lay(
+            self.lays_propty['preinput']
+        )
+
     # Calling
     ###########################################################################
     def __call__(self, x, training=None):
         return self.call(x, training)
     
     def call(self, x, training=None):
+        y = x
+        # Pre-inputs manipulation
+        y = self._manipulate_inout(
+            inputs=dict(x=x, y=y), identifier='preinput', training=training
+        )
+        return self.call_net(y, training)
+
+    def call_net(self, x, training=None):
         return x
 
     def _manipulate_inout(self, inputs, identifier=None, training=False):
@@ -123,7 +145,7 @@ class BaseNet(object):
                 _inputs = [inputs[k] for k in ('x', 'y')]
             return lay['xform'](_inputs, training=training)
         else:
-            return inputs['x'] if identifier == 'input' else inputs['y']
+            return inputs['x'] if identifier in ('preinput', 'input') else inputs['y']
         
     # def _manipulate_inout(
     #     self, x=None, y=None, identifier=None, training=False
@@ -136,10 +158,10 @@ class BaseNet(object):
     #             y = xform(y, training=training)
     #     return y
 
-    def get_siso_call(self, input_dim):
+    def make_siso_call(self, call_fun, input_dim):
         def call(x, training=None):
             x = nn_elem.Split(input_dim, axis=1)(x)
-            y = self.call(x, training)
+            y = call_fun(x, training)
             y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
             return y
         return call

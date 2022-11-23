@@ -71,7 +71,8 @@ def main(args):
     inputs = fun.import_inputs(args.dir)
 
     # Check flags -------------------------------------------------------------
-    inputs.flags['train'] = 0
+    for k in ('train', 'test', 'plot'):
+        inputs.flags[k] = 0
     inputs.flags['save'] = 1
     if inputs.flags['load'] == 0:
         utils.raise_value_err(
@@ -79,17 +80,12 @@ def main(args):
             "one. Modified the 'load' entry in the 'flags' input variable."
         )
 
-    # Data
-    ###########################################################################
-    if not inputs.from_file:
-        utils.raise_value_err(
-            "The test cases have to be retrieved from a list "
-            "of `.csv` files. Check 'from_file' input variable."
-        )
-    data = fun._data(
-        inputs_mod=inputs,
-        wdir=args.dir
-    )
+    # # Data
+    # ###########################################################################
+    # data = fun._data(
+    #     inputs_mod=inputs,
+    #     wdir=args.dir
+    # )
 
     # Network 
     ###########################################################################
@@ -103,7 +99,7 @@ def main(args):
     model = fun._model(
         inputs_mod=inputs,
         net=net,
-        data=data,
+        data=None,
         graph=args.graph,
         verbose=args.verbose
     )

@@ -17,6 +17,7 @@ from pycomet.networks.elements import layers as pcm_layers
 # Architecture properties
 # =============================================================================
 architecture = 'MMOpNN'
+force_siso = False
 
 # Layers ----------------------------------------------------------------------
 common = {
@@ -33,6 +34,17 @@ common = {
 }
 
 lays_propty = {
+
+    # 'preinput': {
+    #     'xform': {
+    #         'lay_id': 'TwoTempThermoLay',
+    #         'kwargs': {
+    #             'process': process,
+    #             'specie_thermo': specie_thermo,
+    #             'coding_type': 'encode'
+    #         }
+    #     }
+    # },
 
     'input': {
         'branch': {
