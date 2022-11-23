@@ -78,8 +78,8 @@ module pcm_model
     ! Declare in-out variables
     type(model_type), intent(in) :: this
     integer(c_int32_t), intent(in) :: n
-    real(c_float), intent(in), target :: inputs(n*this%inp_tot_dim)
-    real(c_float), intent(out), target :: outputs(n*this%out_tot_dim)
+    real(c_double), intent(in), target :: inputs(n*this%inp_tot_dim)
+    real(c_double), intent(out), target :: outputs(n*this%out_tot_dim)
     ! Get outputs with model call function
     call c_call_model(this%object, n, c_loc(inputs), c_loc(outputs))
   end subroutine call_model

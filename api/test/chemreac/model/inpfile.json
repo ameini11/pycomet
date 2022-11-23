@@ -11,5 +11,6 @@
     ],
     "outputs_dim": [
         "4"
-    ]
+    ],
+    "rowmajor": false
 }

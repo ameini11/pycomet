@@ -13,6 +13,7 @@ then
     cd ${cwd}
 fi
 
+make clean
 make
 
 ./test

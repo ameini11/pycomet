@@ -26,8 +26,8 @@ namespace pycomet
     void call_model(
       pycomet::model *mdl,                // PyCOMET model
       std::int32_t *n,                    // Total number of evaluated points
-      float *inputs,                      // 1D array of inputs (row-/column-major)
-      float *outputs                      // Empty 1D array of outputs
+      double *inputs,                      // 1D array of inputs (row-/column-major)
+      double *outputs                      // Empty 1D array of outputs
     );
 
   #ifdef __cplusplus
