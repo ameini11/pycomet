@@ -162,6 +162,7 @@ class BaseNet(object):
         def call(x, training=None):
             x = nn_elem.Split(input_dim, axis=1)(x)
             y = call_fun(x, training)
+            y = tf.nest.flatten(y)
             y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
             return y
         return call
