@@ -98,19 +98,29 @@ std::vector<std::int32_t> pycomet::model::check_io_ops(
     bool found = false;
     for (auto const &op: this->ops)
     {
-      auto op_id = std::get<0>(op);
-      if (op_id == i_id) {
-        found = true;
-        dim.push_back(std::get<1>(op)[1]);
-        break;
+      int i = 0;
+      std::string op_id = std::get<0>(op);
+      if (i_id.find(op_id) != std::string::npos)
+      {
+        while (found == false && i < this->max_num_io)
+        {
+          if (i_id == op_id + ":" + std::to_string(i))
+          {
+            dim.push_back(std::get<1>(op)[1]);
+            found = true;
+          }
+          i++;
+        }
       }
+      if (found == true)
+        break;
     }
-    if(found == false)
+    if (found == false)
     {
       std::cout << "\n Error! Operations identifier '" << i_id;
       std::cout << "' not found!\nAvailable options:" << std::endl;
       for (auto const &op: this->ops)
-        std::cout << "\n " << std::get<0>(op) << std::endl;
+        std::cout << "\n " << std::get<0>(op) + ":<i>" << std::endl;
       exit(1);
     }
   }

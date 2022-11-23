@@ -23,6 +23,7 @@ namespace pycomet
       );
       const std::string inputs_id_prefix = "serving_default";
       const std::string outputs_id_prefix = "StatefulPartitionedCall";
+      const std::int32_t max_num_io = 10;
 
       // Evaluating parameters
       std::int32_t batch_size = -1;

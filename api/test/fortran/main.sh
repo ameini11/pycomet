@@ -2,7 +2,7 @@
 
 set -e
 
-. ./env.sh
+. ../env.sh
 
 make
 

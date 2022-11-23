@@ -1,5 +1,5 @@
 {
-    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/test/chemreac/SavedModel",
+    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/test/chemreac/model/SavedModel",
     "inputs_id": [
         "serving_default_input_1:0"
     ],

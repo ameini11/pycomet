@@ -5,12 +5,14 @@ program test
   implicit none
 
   ! Declarations
-  character(64) :: prefix = "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/"
-  character(32) :: inpfile = "fortran/inpfile.json"
+  character(64) :: cwd
+  character(32) :: inpfile = "/model/inpfile.json"
   type(model_type) :: model
+  
+  call getcwd(cwd)
 
   ! Load model from file
-  call init_model(trim(prefix) // trim(inpfile), model)
+  call init_model(trim(cwd) // trim(inpfile), model)
 
   ! Delete model
   call delete_model(model)
