@@ -141,6 +141,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         Th = e_rt/cv_rt
         # Return outputs
         y['T'] = tf.concat([Th, y['T']], 1)
+        y['Y'] = tf.reverse(y['Y'], [1])
         return [y[self.out_index_to_key[i]] for i in range(len(y))]
         
     def decode_energy(self, inputs, training=None):
@@ -165,6 +166,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         Th = e_rt/self._cv_rt()
         # Return outputs
         y['T'] = tf.concat([Th, Tv], 1)
+        y['Y'] = tf.reverse(y['Y'], [1])
         return [y[self.out_index_to_key[i]] for i in range(2)]
 
     def extract_inout_qoi(self, inputs):
