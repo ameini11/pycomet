@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -8,7 +8,7 @@ cwd=${PWD}
 model_path=${cwd}/model/SavedModel
 if [ ! -d "${model_path}" ] 
 then
-    cd ${model_path}/..
+    cd ${cwd}/model/
     unzip ${model_path}.zip
     cd ${cwd}
 fi
