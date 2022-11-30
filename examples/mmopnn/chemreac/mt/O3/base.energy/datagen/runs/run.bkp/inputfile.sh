@@ -9,17 +9,17 @@ TRANSFER = TTv
 #Initial conditions (pressure temperature and mole fractions)
 P0  = 10000.d0
 T0  = 300.d0
-COMP0 = O O2 
-XC0 = 0.4d0 0.6d0
+COMP0 = O O2
+XC0 = 0.2d0 0.8d0
 
 #Bath temperature 
 T_BATH = 5000.d0
 
-#Bath case: AD/ISOTH
-CASE = AD
+#Simulation mode
+MODE = ADIABATIC
 
 #Read initial solution from 'init_sol.dat'
-READ_INIT_SOL = .true.
+READ_INIT_SOL = T
 
 #---------------------------
 #Time-grid parameters
