@@ -52,7 +52,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         self.inp_indices_toencode = inp_indices_toencode
         if self.inp_indices_toencode == None:
             self.inp_indices_toencode = {
-                'rho_m': 0, 'rho_a': 1, 'Th': 2, 'Tv': 3
+                'rho_a': 0, 'rho_m': 1, 'Th': 2, 'Tv': 3
             }
         # Define type of encoding/decoding type
         self.coding_type = coding_type
@@ -97,7 +97,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         y['rho'] = x['rho_m'] + x['rho_a']
         y['Y_m'] = x['rho_m'] / y['rho']
         # Encode energy quantities
-        Y = tf.concat([x['rho_m'], x['rho_a']], 1) / y['rho']
+        Y = tf.concat([x['rho_a'], x['rho_m']], 1) / y['rho']
         T = tf.concat([x['Th'], x['Tv']], 1)
         # Update thermodynamics
         for s in self.sp_th.values():
