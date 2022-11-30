@@ -11,10 +11,11 @@ from inputs.postproc import figures
 # =============================================================================
 epochs = 2000
 optimizer = 'adam'
+run_eagerly = False # For debugging
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 2560*30
+decay_steps = 1285*30
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 

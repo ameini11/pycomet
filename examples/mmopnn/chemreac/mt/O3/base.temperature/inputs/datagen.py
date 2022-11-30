@@ -10,6 +10,7 @@ from inputs.general import flags
 # Data generator inputs
 # =============================================================================
 # Training data
+sampling_inp_space = False
 train_pts = {
     'ics': 10240,           # Number of training scenarios
     'pts': 160,             # Number of total anchor pts for each scenario
@@ -22,4 +23,4 @@ testing = flags['test']
 test_cases = 50             # Number of testing cases
 test_training = True        # Test training cases
 
-ic_sampling = 'random'      # 'stratified'
+ic_sampling = 'random' #'stratified'

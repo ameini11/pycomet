@@ -4,13 +4,9 @@
 # --------------------------------------------------------------------------- #
 
 
-import numpy as np
-import tensorflow as tf
-
 from inputs.general import dim
 from inputs.data import data_src, cols
 from inputs.physics import specie_thermo, process
-from pycomet.networks.elements import layers as pcm_layers
 
 
 # Architecture properties
@@ -97,7 +93,9 @@ lays_propty = {
                 'branch': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][0], 64, 64, 24],
+                        'layer_size': [dim['inp'][0], 48, 48, 16],
+                        # 'layer_size': [dim['inp'][0], 48, 48, 16] \
+                        #     if name == 'mass' else [dim['inp'][0], 96, 96, 32],
                         'activation': ['tanh']*2 + ['linear'],
                         **common
                     }
@@ -106,8 +104,10 @@ lays_propty = {
                 'trunk': {
                     'lay_id': 'FFBlock',
                     'kwargs': {
-                        'layer_size': [dim['inp'][1], 64, 64, 24],
-                        'activation': ['sigmoid']*2 + ['linear'],
+                        'layer_size': [dim['inp'][1], 48, 48, 16],
+                        # 'layer_size': [dim['inp'][1], 48, 48, 16] \
+                        #     if name == 'mass' else [dim['inp'][1], 96, 96, 32],
+                        'activation': ['tanh']*2 + ['linear'],
                         **common
                     }
                 }
@@ -121,7 +121,7 @@ lays_propty = {
             'kwargs': {
                 'process': process,
                 'specie_thermo': specie_thermo,
-                'coding_type': 'decode_temperature'
+                'coding_type': 'decode_energy'
             }
         },
         'with_inputs': True

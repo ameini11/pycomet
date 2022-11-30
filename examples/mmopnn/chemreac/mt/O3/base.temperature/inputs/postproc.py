@@ -10,7 +10,7 @@ figures = [
     {
         'fig_name':  'mass',
         'indices':   ({1: 0}, {0: [0,1]}, {0: [0,1]}),
-        'var_names': [r'$Y_{O_2}$', r'$Y_O$'],
+        'var_names': [r'$Y_O$', r'$Y_{O_2}$'],
         'labels':    [r'$t$ [s]', r'$Y$'],
         'scales':    ['log', 'linear']
     },

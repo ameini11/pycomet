@@ -35,8 +35,8 @@ class DataGenerator(pcm.data.DataGenerator):
         specie_thermo,
         process,
         num_threads=20,
+        sampling_inp_space=False,
         sampling_method='source',
-        ic_sampling='stratified',
         use_norm_energy=False,
         *args,
         **kwargs
@@ -72,11 +72,11 @@ class DataGenerator(pcm.data.DataGenerator):
         self.test_training = test_training      # Test training case [Bool]
         
         self.sampling_method = sampling_method
-        self.ic_sampling = ic_sampling
 
         # Input Space Variables -----------------------------------------------
         self.inp_space = np.vstack(list(inp_space.values())).T
         self.inp_space_lbl = list(inp_space.keys())
+        self.sampling_inp_space = sampling_inp_space
 
         # Output Space Variables ----------------------------------------------
         self.use_norm_energy = use_norm_energy
@@ -97,7 +97,7 @@ class DataGenerator(pcm.data.DataGenerator):
         # Labeling Data -------------------------------------------------------
         self.box_header = ['t', 'X_O', 'X_O2', 'Th', 'Tv', 'rho', 'p', 'n', 'E']
         self.data_lbl_inp = ['Y_O2', 'rho', 'Th', 'E', 't']
-        self.data_lbl_out = ['Y_O2', 'Y_O']
+        self.data_lbl_out = ['Y_O', 'Y_O2']
         if self.use_norm_energy:
             self.data_lbl_out = self.data_lbl_out + ['e_tr', 'e_v']
         else:
@@ -107,14 +107,23 @@ class DataGenerator(pcm.data.DataGenerator):
     def get_data_src(
         self
     ):
-        pcm.utils.print_fn('Sampling input space', lev=1)
-        samples = self.sample_inp_space()
+        if self.sampling_inp_space:
+            pcm.utils.print_fn('Sampling input space', lev=1)
+            samples = self.sample_inp_space()
+        else:
+            pcm.utils.print_fn('Reading sampled input space', lev=1)
+            samples = {
+                k: pd.read_csv(self.runs_dir + f'/data/{k}/inp_space.csv') \
+                    for k in ('train','valid','test')
+            }
+            samples = tf.nest.map_structure(lambda x: x.to_numpy(), samples)
         pcm.utils.print_fn('Training/validation data', lev=1)
-        self.data_src.update(self.training_data(samples[0]))
+        self.data_src.update(self.training_data(samples))
         if self.testing and self.test_cases > 0:
             pcm.utils.print_fn('Testing data', lev=1)
-            self.data_src['test'] = self.testing_data(samples[1], samples[0])
+            self.data_src['test'] = self.testing_data(samples)
         return self.data_src
+            
 
     # Input space samples
     ###########################################################################
@@ -129,29 +138,35 @@ class DataGenerator(pcm.data.DataGenerator):
         # Sorting w.r.t. the projection norm
         proj = np.dot(x_norm, np.ones((dim,1))).squeeze()
         samples = x[proj.argsort()]
-        # Returning initial conditions ----------------------------------------
+        # Sampling indices ----------------------------------------------------
+        idx_train = np.arange(n_samples)
+        idx_test = []
         if self.test_cases > 0:
-            inp = (np.arange(n_samples), self.test_cases)
-            if self.ic_sampling == 'stratified':
-                idx_train, idx_test = self.stratified_sampling(*inp)
-            else:
-                idx_train, idx_test = self.random_sampling(*inp)
-            return [samples[idx_train], samples[idx_test]]
-        else:
-            return [samples]
+            idx_train, idx_test = self.stratified_sampling(
+                idx_train, self.test_cases
+            )
+        if not self.ic_sampling == 'stratified':
+            np.random.shuffle(idx_train)
+        indices = {
+            'train': idx_train[0::2],
+            'valid': idx_train[1::2],
+            'test': idx_test
+        }
+        # Returning initial conditions ----------------------------------------
+        return tf.nest.map_structure(lambda x: samples[x], indices)
 
     def manipulate_inp_space_samples(
         self, inp_space_samples
     ):
-        XO2, Th, Tv, p = np.split(inp_space_samples, 4, axis=1)
+        XO2, p, Th, Tv = np.split(inp_space_samples, 4, axis=1)
         # Compose physical variables
-        X = np.hstack([XO2, 1.-XO2])
+        X = np.hstack([1.-XO2, XO2])
         T = np.hstack([Th, Tv])
         # Update thermodynamics
         self.update_thermo(X, T)
         # Compute initial solution for PLATO: [X_O, X_O2, Th, Tv, rho, n]
         rho, n = self.mix._rho(p, T).numpy(), self.mix._n(p, T).numpy()
-        init_sol = np.hstack([np.flip(X, 1), T, rho, n])
+        init_sol = np.hstack([X, T, rho, n])
         # Compute input initial conditions for DNN: [Y_O2, rho, Th, e]
         YO2, e = self.sp_th['O2'].specie.Y, self.mix._he()
         ics = np.hstack([YO2, rho, Th, e])
@@ -174,11 +189,12 @@ class DataGenerator(pcm.data.DataGenerator):
             # Saving computed solutions
             os.makedirs(path, exist_ok=True)
             # Save input space samples
-            pd.DataFrame(inp_space_samples, columns=self.inp_space_lbl).to_csv(
-                path + '/inp_space.csv',
-                index=False,
-                float_format='{:e}'.format
-            )
+            if not os.path.exists(path + '/inp_space.csv'):
+                pd.DataFrame(inp_space_samples, columns=self.inp_space_lbl).to_csv(
+                    path + '/inp_space.csv',
+                    index=False,
+                    float_format='{:e}'.format
+                )
             # Save input initial conditions for DNN
             pd.DataFrame(ics, columns=self.data_lbl_inp[:-1]).to_csv(
                 path + '/ics.csv',
@@ -211,7 +227,7 @@ class DataGenerator(pcm.data.DataGenerator):
             np.savetxt(file, ic.reshape(1,-1))
         # Run 0D simulation
         subprocess.run(
-            "box input 1",
+            "box inputfile.sh 1",
             shell=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.STDOUT
@@ -255,13 +271,13 @@ class DataGenerator(pcm.data.DataGenerator):
 
     def extract_physical_var(self, df):
         # Extract physical variables
-        X = df[['X_O2', 'X_O']].to_numpy()
+        X = df[['X_O', 'X_O2']].to_numpy()
         T = df[['Th', 'Tv']].to_numpy()
         t = df['t'].to_numpy().reshape(-1,1)
         # Update thermodynamics
         self.update_thermo(X, T)
         # Compute needed physical variables
-        Y = np.hstack([self.sp_th[k].specie.Y.numpy() for k in ['O2','O']])
+        Y = np.hstack([self.sp_th[k].specie.Y.numpy() for k in ['O','O2']])
         e = self.get_norm_energies()
         return t, Y, T, e
 
@@ -271,25 +287,22 @@ class DataGenerator(pcm.data.DataGenerator):
         self,
         inp_space_samples
     ):
-        # Computing -----------------------------------------------------------
-        ics, cases = self.compute_solutions(
-            self.runs_dir+'/data/train_valid/', inp_space_samples
-        )
-        # Sampling ------------------------------------------------------------
-        indices = np.arange(len(ics))
-        if not self.ic_sampling =='stratified':
-            np.random.shuffle(indices)
-        # Sample 0D data
+        # Generating data -----------------------------------------------------
         data = {}
-        for i in indices:
-            case_id = str(int(i+1)).zfill(6)
-            case = pd.DataFrame(cases[case_id], columns=self.box_header)
-            # Sample single case
-            data_pts = self.train_pts if (i % 2) == 0 else self.valid_pts
-            data_i = self.sample_data(ics[i], case, data_pts)
-            # Stack data
-            data_type = 'train' if (i % 2) == 0 else 'valid'
-            data = self.stack_data(data, data_i, data_type)
+        for k in ('train', 'valid'):
+            pts = self.train_pts if k == 'train' else self.valid_pts
+            # Computing 0D data
+            ics, cases = self.compute_solutions(
+                self.runs_dir + f'/data/{k}/', inp_space_samples[k]
+            )
+            # Sampling 0D data
+            for i, case in cases.items():
+                i = int(i)-1
+                case = pd.DataFrame(case, columns=self.box_header)
+                # Sample single case
+                data_i = self.sample_data(ics[i], case, pts)
+                # Stack data
+                data = self.stack_data(data, data_i, k)
         # Saving --------------------------------------------------------------
         # Save data in a `.csv` file
         for data_type in data:
@@ -356,22 +369,21 @@ class DataGenerator(pcm.data.DataGenerator):
     ###########################################################################
     def testing_data(
         self,
-        inp_space_samples_test,
-        inp_space_samples_train=None
+        inp_space_samples
     ):
         # Check test underfitting
-        if self.test_training and inp_space_samples_train is not None:
+        if self.test_training and inp_space_samples['train'] is not None:
             assert self.scenarios >= self.test_cases
             idx = self.stratified_sampling(
-                np.arange(inp_space_samples_train.shape[0]),
+                np.arange(inp_space_samples['train'].shape[0]),
                 self.test_cases
             )[1]
-            inp_space_samples_test = np.vstack((
-                inp_space_samples_test, inp_space_samples_train[idx]
+            inp_space_samples['test'] = np.vstack((
+                inp_space_samples['test'], inp_space_samples['train'][idx]
             ))
         # Computing -----------------------------------------------------------
         ics, cases = self.compute_solutions(
-            self.runs_dir+'/data/test/', inp_space_samples_test
+            self.runs_dir+'/data/test/', inp_space_samples['test']
         )
         # Saving --------------------------------------------------------------
         path = self.data_dir + '/test/'
@@ -443,19 +455,6 @@ class DataGenerator(pcm.data.DataGenerator):
         # Return sorted indices
         return np.sort(samples)
 
-    def random_sampling(self, x, size):
-        x_1 = np.random.choice(x, size, replace=False)
-        x_2 = np.setdiff1d(x, x_1)
-        assert np.intersect1d(x_1, x_2).size == 0
-        return x_2, x_1
-
-    def stratified_sampling(self, x, size):
-        x_split = np.array_split(x, size)
-        x_1 = np.array([np.random.choice(i) for i in x_split])
-        x_2 = np.setdiff1d(x, x_1)
-        assert np.intersect1d(x_1, x_2).size == 0
-        return x_2, x_1
-
     def uniform_sampling(self, x, size):
         # Construct nearest neighbors tree
         tree = KDTree(np.c_[x.ravel()])
@@ -466,6 +465,13 @@ class DataGenerator(pcm.data.DataGenerator):
         # Find indices
         samples = tree.query(x=tf.split(x_un, size), k=1)[1]
         return np.unique(samples)
+
+    def stratified_sampling(self, x, strata):
+        x_split = np.array_split(x, strata)
+        x_1 = np.array([np.random.choice(i) for i in x_split])
+        x_2 = np.setdiff1d(x, x_1)
+        assert np.intersect1d(x_1, x_2).size == 0
+        return x_2, x_1
 
     def compute_diff(self, x, i):
         dx = x[i['+1']] - x[i['-1']]
