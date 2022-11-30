@@ -1,5 +1,5 @@
 {
-    "path_to_model": "/home/zanardi/Workspace/CFD/HEGEL/1D/EU.NLTE/sod.O3/surrogate/input/model/SavedModel",
+    "path_to_model": "/home/zanardi/Workspace/CFD/HEGEL/1D/EU.NLTE/shock/pde/surrogate/strang/input/model/SavedModel",
     "inputs_id": [
         "serving_default_input_1:0"
     ],
