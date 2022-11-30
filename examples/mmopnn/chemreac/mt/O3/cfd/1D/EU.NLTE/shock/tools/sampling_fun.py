@@ -21,7 +21,7 @@ def stratified_sampling(
     assert np.intersect1d(x_1, x_2).size == 0
     return x_2, x_1
 
-def sample_space(
+def sample_lhs(
     bounds,
     nb_samples
 ):
@@ -35,7 +35,7 @@ def sample_space(
     # Returning initial conditions
     return samples
 
-def conditional_lhs(
+def sample_conditional_lhs(
     bounds,
     nb_samples,
     indices=None
@@ -78,6 +78,57 @@ def qdirichlet(X, alpha):
             Y[:, idx] = gamma.ppf(X[:, idx], a)
     
     return Y / Y.sum(axis=1)[:, np.newaxis]
+
+def check_samples(samples, bounds):
+    n = len(samples)
+    dT = -np.diff(np.take(samples, [-2,-1], axis=1))
+    samples = np.hstack([samples, dT])
+    cond = (samples >= bounds[0]) * (samples <= bounds[1])
+    cond = np.product(cond, axis=1)
+    idx  = np.where(cond)[0]
+    samples = samples[idx]
+    return samples, n - len(idx)
+
+def lhs_kde_combined_sampling(
+    nb,
+    bounds,
+    bounds_raw,
+    bounds_prim,
+    kde,
+    scaler,
+    kde_samples_perc
+):
+    # Define number of samples
+    nb_samples_lhs = int(nb*(1-kde_samples_perc))
+    nb_samples_kde = nb - nb_samples_lhs
+    # LHS
+    samples = []
+    n = nb_samples_lhs
+    while n > 0:
+        samples_n = sample_lhs(
+            bounds=bounds_prim,
+            nb_samples=n
+        )
+        samples_n, n = check_samples(samples_n, bounds)
+        samples.append(samples_n)
+    samples_lhs = np.vstack(samples)
+    # KDE
+    samples = []
+    n = nb_samples_kde
+    while n > 0:
+        samples_n = sample_kde(
+            kde,
+            nb_samples=n,
+            scaler=scaler,
+            bounds=bounds_prim
+        )
+        samples_n, n = check_samples(samples_n, bounds)
+        samples.append(samples_n)
+    samples_kde = np.vstack(samples)
+    # Concatenate
+    samples = np.vstack([samples_lhs, samples_kde])
+    samples = np.take(samples, np.arange(len(bounds_raw)), 1)
+    return samples
 
 # Bounds and scaling
 # -----------------------------------------------------------------------------
