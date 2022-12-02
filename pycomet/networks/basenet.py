@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import tensorflow as tf
 
@@ -56,7 +57,7 @@ class BaseNet(object):
         self.lays_name = lays_name
         if self.lays_name == None:
             self.lays_name = ('preinput', 'input', 'output')
-        self.lays_propty = lays_propty
+        self.lays_propty = copy.deepcopy(lays_propty)
         self.active_lays = {}
 
         # Default layers
