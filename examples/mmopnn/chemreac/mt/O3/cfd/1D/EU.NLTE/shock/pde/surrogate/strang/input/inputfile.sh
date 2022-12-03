@@ -2,10 +2,10 @@
 #Example of input file for HEGEL - High-fidElity tool for maGnEto-gasdynamics appLications 
 #----------------------------------------------------------
 
-# SIMULATION_START_TIME   = 0.290528e-5
-# SIMULATION_START_ITER   = 500
+# SIMULATION_START_TIME   = 0.290526E-05
+# SIMULATION_START_ITER   = 5000
 # SIMULATION_RESTART_PATH = ../output/
-# SIMULATION_RESTART_FILE = restart_EU_NLTE_500.dat
+# SIMULATION_RESTART_FILE = restart_EU_NLTE_5000.dat
 
 # SIMULATION_OVWRITE_CONV_FILE = T
 # SIMULATION_WRITE_AT_RESTART = F
@@ -14,7 +14,7 @@
 #Mesh
 #--------------------------
 MESH_NB_DIM     = 1
-MESH_PATH       = /home/zanardi/Workspace/CFD/HEGEL/1D/EU.NLTE/shock/meshes/n701
+MESH_PATH       = /home/zanardi/Workspace/CFD/HEGEL/1D/EU.NLTE/shock/meshes/n1401
 MESH_NODE_FILE  = nodes.dat
 MESH_BOUND_FILE = bound.dat
 MESH_BOUND      = INLET OUTLET    #Boundaries
@@ -41,14 +41,15 @@ OUTLET.AMB = F
 #----------------------------
 
 #Settings for Strang splitting
-NUM_TIME_STEP = 1.d-5                      #Time-step
-NUM_TIME_STEP_BOUND = T
-NUM_CFL = 1.d0                            #CFL number
+NUM_TIME_STEP = 5.d-9                      #Time-step
+NUM_TIME_STEP_BOUND = F
+NUM_CFL = 1.d0                             #CFL number
 NUM_INTER_CFL = F
 NUM_CFL_RATE  = 1000
 NUM_CFL_FILE  = ./cfl
 # NUM_STOP_COND = RES -3.                  #Stop condition
-NUM_STOP_COND = ITER 100                  #Stop condition
+# NUM_STOP_COND = ITER 2000                  #Stop condition
+NUM_STOP_COND = TIME 1.1e-5                  #Stop condition
 NUM_TIME_INT = STRANG                      #Time-integration: Three-point backward
 NUM_STRANG_ODE_SET = BOX_AD
 NUM_STRANG_ODE_RTOL = 1.d-6
@@ -56,7 +57,7 @@ NUM_STRANG_ODE_ATOL = 1.d-9
 NUM_FLUX = VAN_LEER                        #Numerical inviscid flux
 NUM_TIME_ACCURATE = T
 NUM_REC_PROC = MUSCL                       #Reconstruction procedure
-NUM_LIMITER = VAN_ALBADA            #Slope limiter
+NUM_LIMITER = VAN_ALBADA                   #Slope limiter
 
 #----------------------------
 #Physico-chemical library 
