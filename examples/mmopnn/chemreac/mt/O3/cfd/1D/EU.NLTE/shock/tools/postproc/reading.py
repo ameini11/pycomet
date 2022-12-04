@@ -27,9 +27,9 @@ def read_dataset(
         os.getcwd() + f'/../../meshes/n{nb_nodes}/nodes.dat'
     )
     # Full dataset
-    path_to_dataset = os.path.abspath(os.getcwd() + f'/output/') + '/'
+    path_to_dataset = os.path.abspath(os.getcwd() + f'/../output/datasets/')
     os.makedirs(path_to_dataset, exist_ok=True)
-    dataset_filename = path_to_dataset + f'/dataset_n{nb_nodes}_i{nb_iters}.hdf5'
+    dataset_filename = path_to_dataset + f'/n{nb_nodes}_i{nb_iters}.hdf5'
     # Read/Create dataset
     # -------------------------------------------------------------------------
     if os.path.exists(dataset_filename):
