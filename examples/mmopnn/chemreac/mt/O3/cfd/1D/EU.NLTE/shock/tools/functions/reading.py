@@ -4,45 +4,52 @@ import numpy as np
 from silx.io.dictdump import dicttoh5, h5todict
 
 
+def load_dataset(
+    path_to_case,
+    nb_nodes,
+    nb_iters
+):
+    filename = os.path.abspath(path_to_case) \
+        + f'/tools/output/datasets//n{nb_nodes}_i{nb_iters}.hdf5'
+    return h5todict(filename)
+
+
 def read_dataset(
+    path_to_case,
     models,
     scheme,
-    nb_iters,
     nb_nodes,
+    nb_iters,
+    conv_iter=None,
     saving=True
 ):
     # Define paths
     # -------------------------------------------------------------------------
+    path = os.path.abspath(path_to_case)
     # Solution data
     prim_filename = 'restart_EU_NLTE'
     phys_filename = 'flowfield_EU_NLTE'
     iters = np.arange(nb_iters+1)
     prefix = {
-        model: os.path.abspath(
-            os.getcwd() + f'/../../pde/{model}/{scheme}/output/'
-        ) + '/' for model in models
+        model: path + f'/pde/{model}/n{nb_nodes}/{scheme}/output/' \
+            for model in models
     }
     # Grid data
-    path_to_grid = os.path.abspath(
-        os.getcwd() + f'/../../meshes/n{nb_nodes}/nodes.dat'
-    )
+    path_to_grid = path + f'/meshes/n{nb_nodes}/nodes.dat'
     # Full dataset
-    path_to_dataset = os.path.abspath(os.getcwd() + f'/../output/datasets/')
+    path_to_dataset = path + f'/tools/output/datasets/'
     os.makedirs(path_to_dataset, exist_ok=True)
     dataset_filename = path_to_dataset + f'/n{nb_nodes}_i{nb_iters}.hdf5'
-    # Read/Create dataset
+    # Read and create dataset
     # -------------------------------------------------------------------------
-    if os.path.exists(dataset_filename):
-        data = h5todict(dataset_filename)
-        dataset_exists = True
-    else:
-        data = {model: {} for model in models}
-        data = read_grid(data, path_to_grid)
-        data = read_time(data, prefix, iters, phys_filename)
-        data = read_prim(data, prefix, iters, prim_filename)
-        if saving:
-            save_dataset(data, dataset_filename)
-    return data
+    data = {model: {} for model in models}
+    data = read_grid(data, path_to_grid)
+    data = read_time(data, prefix, iters, phys_filename)
+    data = read_prim(data, prefix, iters, prim_filename)
+    if conv_iter is not None:
+        data = read_conv_prim(data, prefix, conv_iter, prim_filename)
+    if saving:
+        save_dataset(data, dataset_filename)
 
 
 def read_grid(
@@ -110,6 +117,25 @@ def read_prim(
     # Update database
     for model in data.keys():
         data[model].update(prim[model])
+    return data
+
+
+def read_conv_prim(
+    data,
+    prefix,
+    conv_iter,
+    prim_filename,
+    cols=['rho_O','rho_O2','u','Th','Tv']
+):
+    conv_data = read_prim(
+        data={model: {} for model in data.keys()},
+        prefix=prefix,
+        iters=[conv_iter],
+        prim_filename=prim_filename,
+        cols=cols
+    )
+    for model in data.keys():
+        data[model]['conv'] = conv_data[model]
     return data
 
 

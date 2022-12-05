@@ -1,23 +1,13 @@
 import os
 import numpy as np
-# import matplotlib as mpl
-
-# from matplotlib import cm
-# from matplotlib import pyplot as plt
-
 
 import matplotlib as mpl
 from matplotlib import cm
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-# from matplotlib.animation import FuncAnimation
-# from IPython.display import HTML
-# %matplotlib notebook
-# mpl.use('pgf')
 
 # Use custom style
-# See: https://matplotlib.org/1.5.3/users/style_sheets.html
 style_name = 'paper_1column'
 mpl.style.use(
     os.environ['WORKSPACE_PATH'] \
@@ -27,63 +17,6 @@ mpl.style.use(
 # Get colors list
 COLORS = mpl.rcParams['axes.prop_cycle'].by_key()['color']*10
 
-
-# def time_space_2d(
-#     t,
-#     x,
-#     y,
-#     tlim=None,
-#     xlim=None,
-#     tshift=None,
-#     xshift=None,
-#     eps=1.e-3,
-#     cbar_lbl='',
-#     cbar_fmt=None,
-#     fig_name=None,
-#     path=None,
-#     save=True,
-#     show=False
-# ):
-#     fig, ax = plt.subplots()
-#     # Set 'time' axis
-#     t_s, t_e = get_lim(t, tlim, eps)
-#     t = t[t_s:t_e]
-#     if tshift is not None:
-#         t = t + tshift
-#     ax.set_xlabel('$t$ [s]')
-#     # Set 'space' axis
-#     x_s, x_e = get_lim(x, xlim, eps)
-#     x = x[x_s:x_e]
-#     if xshift is not None:
-#         x = x + xshift
-#     ax.set_ylabel('$x$ [m]')
-#     # Set notation
-#     ax.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-#     # Mesh
-#     T, X = np.meshgrid(t, x)
-#     # Set variables
-#     Y = y[t_s:t_e,x_s:x_e].T
-#     # Plot
-#     p = ax.pcolormesh(T,X,Y,cmap=cm.viridis,linewidth=0,rasterized=True)
-#     # Set aspect
-#     ax.set_aspect(1./ax.get_data_ratio()), adjustable='box')
-#     # Color bar
-#     if cbar_fmt is None:
-#         cbar_fmt = mpl.ticker.ScalarFormatter(useMathText=True)
-#         cbar_fmt.set_powerlimits((0, 0))
-#     # divider = make_axes_locatable(ax)
-#     # cax = divider.append_axes("right", size="5%", pad=0.05)
-#     cbar = plt.colorbar(p, format=cbar_fmt, label=cbar_lbl)#, cax=cax)
-#     # Save figure
-#     if save:
-#         fig_path = path + '/' + fig_name
-#         fig.savefig(fig_path+'.pdf')
-#     # Show and close figure
-#     if show:
-#         plt.show()
-#     plt.close()
-    
-    
 
 def time_space_2d(
     t,
@@ -144,25 +77,17 @@ def time_space_2d(
         bbox_transform=ax.transAxes,
         borderpad=0
     )
-    # cax = inset_axes(
-    #     ax,
-    #     width="4%",
-    #     height="100%",
-    #     loc="lower left",
-    #     bbox_to_anchor=(1.02, 0., 1, 1),
-    #     bbox_transform=ax.transAxes,
-    #     borderpad=0
-    # )
     if compute_cticks:
         cticks = np.linspace(np.amin(Y), np.amax(Y), 5)
     cbar = plt.colorbar(
         im,
         format=cfmt,
-        label=clbl,
+        # label=clbl,
         cax=cax,
         ticks=cticks,
         orientation='horizontal'
     )
+    cbar.set_label(clbl, labelpad=20)
     cax.xaxis.tick_top()
     cax.xaxis.set_label_position('top')
     # Save figure
@@ -188,7 +113,7 @@ def test(
     y,
     y_pred=None,
     var_names=None,
-    fig_name=None,
+    figname=None,
     labels=[None, None],
     scales=['linear', 'linear'],
     title=None,
@@ -242,7 +167,7 @@ def test(
         markersize=10,
         lw=2.,
         fillstyle='none',
-        markevery=y.shape[0]//50,
+        markevery=y.shape[0]//80,
         ls='--'
     )
     # Define parameters
@@ -274,10 +199,49 @@ def test(
 
     # Save figure
     if save:
-        fig_path = path + '/' + fig_name
+        fig_path = path + '/' + figname
         for ext in ('pdf', 'pgf'):
             fig.savefig(fig_path+'.'+ext)
 
+    # Show and close figure
+    if show:
+        plt.show()
+    plt.close()
+
+def bars(
+    y,
+    ticks_lbl,
+    width=0.13,
+    xlabel=None,
+    ylabel=None,
+    figname=None,
+    path=None,
+    save=True,
+    show=False
+):
+    fig, ax = plt.subplots()
+    # X axis
+    tick_loc = np.arange(len(y))
+    ax.set_xticks(tick_loc)
+    ax.set_xticklabels(ticks_lbl)
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    # Y axis
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+    # Plot error bars
+    for i, yi in enumerate(y):
+        ax.bar(
+            x=tick_loc[i],
+            height=yi,
+            width=width,
+            color=COLORS[0]
+        )
+    # Save figure
+    if save:
+        fig_path = path + '/' + figname
+        for ext in ('pdf', 'pgf'):
+            fig.savefig(fig_path+'.'+ext)
     # Show and close figure
     if show:
         plt.show()
