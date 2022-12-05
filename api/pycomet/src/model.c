@@ -48,7 +48,7 @@ void pycomet::model::parse_inputs(const std::string inpfile)
   this->outputs_id = inputs["outputs_id"];
   if (inputs.contains("config"))
   {
-    std::vector<std::uint8_t> cfg = inputs["config"];
+    std::vector<std::string> cfg = inputs["config"];
     this->config = &cfg;
   }
   if (inputs.contains("batch_size"))
@@ -61,7 +61,7 @@ void pycomet::model::parse_inputs(const std::string inpfile)
   }
 };
 
-void pycomet::model::set_global_context(std::vector<std::uint8_t> *config)
+void pycomet::model::set_global_context(std::vector<std::string> *config)
 {
   // Create new options with the new configuration
   TFE_ContextOptions *opts = TFE_NewContextOptions();

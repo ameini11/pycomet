@@ -15,7 +15,7 @@ namespace pycomet
       // TensorFlow model
       std::string path_to_model;
       std::unique_ptr<cppflow::model> tfmodel;
-      std::vector<std::uint8_t> *config = nullptr;
+      std::vector<std::string> *config = nullptr;
 
       // Inputs/Outputs
       std::vector<std::int32_t> check_io_ops(
@@ -38,7 +38,7 @@ namespace pycomet
       void parse_inputs(const std::string inpfile);
 
       // Set global TF context
-      void set_global_context(std::vector<std::uint8_t> *config);
+      void set_global_context(std::vector<std::string> *config);
 
       // Inputs/Outputs manipulations
       template <typename T>
