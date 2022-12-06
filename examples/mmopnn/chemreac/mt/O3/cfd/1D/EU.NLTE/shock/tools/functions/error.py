@@ -59,11 +59,6 @@ def eval_err(y_pred, y_true, norm_fn='mean', err_fn='ape'):
         err_fn_ = ae
     return norm_fn_(err_fn_(y_pred, y_true))
 
-# Shock capturing
-def capture_shock(x, eps=1.e-2):
-    idx = (np.absolute((x - x[0,0])/x[0,0]) > eps).argmax(axis=1)
-    return idx
-
 # Linear avarage filtering
 def lin_fn(x, p0, p1):
     a = (p1[1]-p0[1])/(p1[0]-p0[0])

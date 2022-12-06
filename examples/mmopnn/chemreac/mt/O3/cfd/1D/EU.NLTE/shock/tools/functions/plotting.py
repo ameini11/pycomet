@@ -18,6 +18,8 @@ mpl.style.use(
 COLORS = mpl.rcParams['axes.prop_cycle'].by_key()['color']*10
 
 
+# Solution data
+###############################################################################
 def time_space_2d(
     t,
     x,
@@ -112,19 +114,21 @@ def test(
     x,
     y,
     y_pred=None,
+    title=None,
     var_names=None,
-    figname=None,
+    legend_loc='best',
     labels=[None, None],
     scales=['linear', 'linear'],
-    title=None,
     xlim=None,
     ylim=None,
+    text=None,
+    text_loc=(0.72, 0.95),
     path=None,
+    figname=None,
     save=True,
     show=False
 ):
     fig, ax = plt.subplots()
-    
     # Set up figure
     if title is not None:
         ax.set_title(title)
@@ -157,7 +161,6 @@ def test(
         y = np.expand_dims(y, 1)
     # Set notation
     plt.ticklabel_format(axis='both', style='sci', scilimits=(0,0))
-
     # Define styles
     true_style = dict(
         lw=2.,
@@ -194,24 +197,29 @@ def test(
         ax.legend(
             [plt.plot([], [], c=COLORS[i])[0] for i in idx],
             [var_names[i] for i in idx],
-            ncol=int(np.ceil(n/3))
+            loc=legend_loc
         )
-
+    # Add text
+    if text is not None:
+        ax.text(*text_loc, text, transform=ax.transAxes, fontsize=22)
     # Save figure
     if save:
         fig_path = path + '/' + figname
         for ext in ('pdf', 'pgf'):
             fig.savefig(fig_path+'.'+ext)
-
     # Show and close figure
     if show:
         plt.show()
     plt.close()
 
+
+# Error
+###############################################################################
 def bars(
     y,
     ticks_lbl,
     width=0.13,
+    var_names=None,
     xlabel=None,
     ylabel=None,
     figname=None,
@@ -229,14 +237,75 @@ def bars(
     # Y axis
     if ylabel is not None:
         ax.set_ylabel(ylabel)
+    # Compute bar location for each varibles
+    n = len(y[0])
+    loc = np.linspace(0, 2*n, num=n, endpoint=False)
+    if len(loc) > 1:
+        if (n % 2) == 0:
+            loc = loc - 1
+        loc = list(-loc) + list(loc)
+        loc = np.sort(np.unique(loc))
+    loc = loc.astype(int)
     # Plot error bars
     for i, yi in enumerate(y):
-        ax.bar(
-            x=tick_loc[i],
-            height=yi,
-            width=width,
-            color=COLORS[0]
-        )
+        for j in range(len(yi)):
+            # Plot `mass` computational time
+            style = dict(
+                x=tick_loc[i] + width/2*loc[j],
+                height=yi[j],
+                width=width,
+                color=COLORS[j]
+            )
+            if var_names is not None and i == 0:
+                style = {**style, 'label': var_names[j]}
+            ax.bar(**style)
+    # Add legend
+    if var_names is not None:
+        ax.legend()
+        #     loc='center left',
+        #     bbox_to_anchor=(-0.007, 1.05),
+        #     ncol=4,
+        #     fontsize=18.5
+        # )
+    # Save figure
+    if save:
+        fig_path = path + '/' + figname
+        for ext in ('pdf', 'pgf'):
+            fig.savefig(fig_path+'.'+ext)
+    # Show and close figure
+    if show:
+        plt.show()
+    plt.close()
+    
+
+# Speedup
+###############################################################################
+def speedup(
+    x,
+    y,
+    figname=None,
+    path=None,
+    save=True,
+    show=False
+):
+    style = dict(
+        marker='s',
+        fillstyle='full',
+        ls='--'
+    )
+    fig, ax = plt.subplots()
+    # X axis
+    ax.set_xlabel('\# of cells')
+    ax.set_xscale('log')
+    xlim = [x[0]*0.9, x[-1]*1.1]
+    ax.set_xlim(xlim)
+    # Y axis
+    ax.set_ylabel('Speedup')
+    # Plot speedup
+    for k, s in y.items():
+        plt.plot(x, s, label=k, **style)
+    plt.hlines(1., xlim[0], xlim[-1], colors='grey', lw=0.5)
+    ax.legend(loc='best')
     # Save figure
     if save:
         fig_path = path + '/' + figname

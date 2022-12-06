@@ -10,7 +10,7 @@ def load_dataset(
     nb_iters
 ):
     filename = os.path.abspath(path_to_case) \
-        + f'/tools/output/datasets//n{nb_nodes}_i{nb_iters}.hdf5'
+        + f'/tools/datasets/n{nb_nodes}_i{nb_iters}.hdf5'
     return h5todict(filename)
 
 
@@ -37,7 +37,7 @@ def read_dataset(
     # Grid data
     path_to_grid = path + f'/meshes/n{nb_nodes}/nodes.dat'
     # Full dataset
-    path_to_dataset = path + f'/tools/output/datasets/'
+    path_to_dataset = path + f'/tools/datasets/'
     os.makedirs(path_to_dataset, exist_ok=True)
     dataset_filename = path_to_dataset + f'/n{nb_nodes}_i{nb_iters}.hdf5'
     # Read and create dataset
@@ -45,7 +45,7 @@ def read_dataset(
     data = {model: {} for model in models}
     data = read_grid(data, path_to_grid)
     data = read_time(data, prefix, iters, phys_filename)
-    data = read_prim(data, prefix, iters, prim_filename)
+    data = read_trans_prim(data, prefix, iters, prim_filename)
     if conv_iter is not None:
         data = read_conv_prim(data, prefix, conv_iter, prim_filename)
     if saving:
@@ -117,6 +117,25 @@ def read_prim(
     # Update database
     for model in data.keys():
         data[model].update(prim[model])
+    return data
+
+
+def read_trans_prim(
+    data,
+    prefix,
+    iters,
+    prim_filename,
+    cols=['rho_O','rho_O2','u','Th','Tv']
+):
+    trans_data = read_prim(
+        data={model: {} for model in data.keys()},
+        prefix=prefix,
+        iters=iters,
+        prim_filename=prim_filename,
+        cols=cols
+    )
+    for model in data.keys():
+        data[model]['trans'] = trans_data[model]
     return data
 
 
