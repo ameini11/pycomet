@@ -56,6 +56,19 @@ def init_thermos(
     mix = mix_mod.MultiComponent(sp_th)
     return sp_th, mix
 
+def update_thermos(
+    sp_th,
+    mix,
+    X,
+    T
+):
+    # Update thermodynamics
+    for s in sp_th.values():
+        s.update(T)
+    # Update mixture
+    mix.update(X, var='X', T=T)
+    return sp_th, mix
+
 def extract_prim_var(
     df,
     sp_th,
@@ -69,10 +82,7 @@ def extract_prim_var(
     u = df[['u']].to_numpy()
     p = df[['p']].to_numpy()
     # Update thermodynamics
-    for s in sp_th.values():
-        s.update(T)
-    # Update mixture
-    mix.update(X, var='X')
+    sp_th, mix = update_thermos(sp_th, mix, X, T)
     # Compute needed physical variables
     Y = np.hstack([sp_th[k].specie.Y.numpy() for k in species])
     return tf.concat([Y*rho, u, T], 1).numpy()

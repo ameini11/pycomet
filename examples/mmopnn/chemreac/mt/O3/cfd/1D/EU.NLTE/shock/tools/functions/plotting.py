@@ -122,7 +122,7 @@ def test(
     xlim=None,
     ylim=None,
     text=None,
-    text_loc=(0.72, 0.95),
+    text_loc=(0.7, 0.95),
     path=None,
     figname=None,
     save=True,
@@ -201,7 +201,7 @@ def test(
         )
     # Add text
     if text is not None:
-        ax.text(*text_loc, text, transform=ax.transAxes, fontsize=22)
+        ax.text(*text_loc, text, transform=ax.transAxes, fontsize=24)
     # Save figure
     if save:
         fig_path = path + '/' + figname
@@ -239,13 +239,7 @@ def bars(
         ax.set_ylabel(ylabel)
     # Compute bar location for each varibles
     n = len(y[0])
-    loc = np.linspace(0, 2*n, num=n, endpoint=False)
-    if len(loc) > 1:
-        if (n % 2) == 0:
-            loc = loc - 1
-        loc = list(-loc) + list(loc)
-        loc = np.sort(np.unique(loc))
-    loc = loc.astype(int)
+    loc = np.arange(-n+1, n+1, 2)
     # Plot error bars
     for i, yi in enumerate(y):
         for j in range(len(yi)):
@@ -262,11 +256,6 @@ def bars(
     # Add legend
     if var_names is not None:
         ax.legend()
-        #     loc='center left',
-        #     bbox_to_anchor=(-0.007, 1.05),
-        #     ncol=4,
-        #     fontsize=18.5
-        # )
     # Save figure
     if save:
         fig_path = path + '/' + figname
