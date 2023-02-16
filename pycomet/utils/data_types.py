@@ -95,6 +95,9 @@ def squeeze_list(iterable):
     else:
         return iterable
 
+def get_cardinality(x):
+    return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
+
 class H5DataSet:
     def __init__(self, path, no_group=False):
         self.data = {}

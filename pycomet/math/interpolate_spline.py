@@ -15,26 +15,46 @@ class InterpolateSpline(object):
         values,
         order=2,
         regularization_weight=0.,
+        scale="lin",
         *args,
         **kwargs
     ):
         self.order = order
         self.regularization_weight = regularization_weight
-
-        # Initialize training points
-        self.train_points = self._reshape_tensor(points)
-        self.train_values = self._reshape_tensor(values)
-
+        # Scaling
+        self.scale = {
+            "lin": [lambda x: x, lambda x: x],
+            "log": [lambda x: tf.math.log(x), lambda x: tf.math.exp(x)]
+        }[scale]
         # Fit the spline to the observed data
-        self.w, self.v = _solve_interpolation(
-            self.train_points,
-            self.train_values,
-            self.order,
-            self.regularization_weight
-        )
+        self.solve(points, values)
 
     # Methods
     ###########################################################################
+    def solve(self, points, values):
+        self.train_points = self._reshape_tensor(points, dim=3)
+        self.train_values = self._reshape_tensor(values, dim=3)
+        self.rbf = _solve_interpolation(
+            train_points=self.train_points,
+            train_values=self.scale[0](self.train_values),
+            order=self.order,
+            regularization_weight=self.regularization_weight
+        )
+
+    def apply(self, points):
+        query_points = self._reshape_tensor(points, dim=3)
+        query_values = _apply_interpolation(
+            query_points=query_points,
+            train_points=self.train_points,
+            w=self.rbf[0],
+            v=self.rbf[1],
+            order=self.order
+        )
+        return self.scale[1](query_values)
+
+    def grad(self, points, indices=0, order=0):
+        raise NotImplementedError
+
     def _reshape_tensor(self, array, dim=3):
         tensor = tf.convert_to_tensor(array)
         shape = tuple(tensor.shape)
@@ -57,17 +77,3 @@ class InterpolateSpline(object):
             utils.raise_value_err(
                 f'The input tensor in `{self.name}` is more than 3D.'
             )
-
-    def apply(self, points):
-        query_points = self._reshape_tensor(points)
-        query_values = _apply_interpolation(
-            query_points,
-            self.train_points,
-            self.w,
-            self.v,
-            self.order
-        )
-        return self._reshape_tensor(query_values, dim=2)
-
-    def grad(self, points, indices=0, order=0):
-        raise NotImplementedError

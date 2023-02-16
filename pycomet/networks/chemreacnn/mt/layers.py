@@ -7,6 +7,7 @@ from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import utils
 
+# Hypernet (Version v.22.12)
 from hypernet.src.general import utils as hyp_utils
 thermophysics = hyp_utils.get_thermophysics_mod()
 mix_mod = thermophysics.reaction_thermo.mixture

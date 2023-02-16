@@ -18,8 +18,8 @@ class BaseNet(object):
         dim,
         lays_name=None,
         lays_propty=None,
-        name=None,
         force_siso=False,
+        name=None,
         *args,
         **kwargs
     ):
@@ -44,7 +44,7 @@ class BaseNet(object):
             )
         self.input_dim = tf.nest.flatten(self.dim["inp"])
         self.output_dim = tf.nest.flatten(self.dim["out"])
-        
+
         # Force single-input single-output
         self.force_siso = force_siso
         if self.force_siso:
@@ -55,7 +55,7 @@ class BaseNet(object):
 
         # Layers
         self.lays_name = lays_name
-        if self.lays_name == None:
+        if self.lays_name is None:
             self.lays_name = ('preinput', 'input', 'output')
         self.lays_propty = copy.deepcopy(lays_propty)
         self.active_lays = {}
@@ -137,8 +137,9 @@ class BaseNet(object):
     def call_net(self, x, training=None):
         return x
 
-    def _manipulate_inout(self, inputs, identifier=None, training=False):
-        lay = self.active_lays[identifier]
+    def _manipulate_inout(self, inputs, lay=None, identifier=None, training=None):
+        if lay is None:
+            lay = self.active_lays[identifier]
         if lay['xform'] is not None:
             if lay['with_inputs'] is None or not lay['with_inputs']:
                 _inputs = inputs['y']
@@ -146,7 +147,7 @@ class BaseNet(object):
                 _inputs = [inputs[k] for k in ('x', 'y')]
             return lay['xform'](_inputs, training=training)
         else:
-            return inputs['x'] if identifier in ('preinput', 'input') else inputs['y']
+            return inputs['x'] if 'input' in identifier else inputs['y']
         
     # def _manipulate_inout(
     #     self, x=None, y=None, identifier=None, training=False

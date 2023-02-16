@@ -148,7 +148,7 @@ class Scaling(tf_layers.Layer):
         self,
         slope=1.,
         offset=0.,
-        trans_fn=None,
+        xform=None,
         **kwargs
     ):
         super(Scaling, self).__init__(
@@ -156,7 +156,7 @@ class Scaling(tf_layers.Layer):
         )
         self.slope = slope
         self.offset = offset
-        self.trans_fn = trans_fn
+        self.xform = xform
         self.weights_values = {
             'slope': self.slope,
             'offset': self.offset,
@@ -186,8 +186,8 @@ class Scaling(tf_layers.Layer):
     ###########################################################################
     def call(self, inputs):
         outputs = inputs * self._weights['slope'] + self._weights['offset']
-        if self.trans_fn is not None:
-            outputs = self.trans_fn(outputs)
+        if self.xform is not None:
+            outputs = self.xform(outputs)
         return outputs
 
     # Configuration update
@@ -196,7 +196,7 @@ class Scaling(tf_layers.Layer):
         config = {
             'slope': self.slope,
             'offset': self.offset,
-            'trans_fn': self.trans_fn
+            'xform': self.xform
         }
         base_config = super(Scaling, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -695,4 +695,69 @@ class Split(tf_layers.Layer):
             'num': self.num
         }
         base_config = super(Split, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
+# Limiter Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class Limiter(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        limits=None,
+        xform_in=None,
+        xform_out=None,
+        **kwargs
+    ):
+        super(Limiter, self).__init__(**kwargs)
+        self.limits = limits
+        self.xform_in = xform_in
+        self.xform_out = xform_out
+
+    # Building
+    ###########################################################################
+    def build(self, input_shape):
+        input_shape = tf.TensorShape(input_shape)
+        last_dim = tf.compat.dimension_value(input_shape[-1])
+        if last_dim is None:
+            utils.raise_value_err(
+                "The last dimension of the inputs to "
+                f"`{self.name}` should be defined. Found `None`."
+            )
+        self._weights = [
+            self.add_weight(
+                name=name,
+                dtype=backend.floatx(),
+                initializer=initializers.Constant(value=w),
+                trainable=False
+            ) for w in self.limits
+        ]
+        self.built = True
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None):
+        y = inputs
+        if self.xform_in is not None:
+            y = self.xform_in(y)
+        y = tfp.math.clip_by_value_preserve_gradient(
+            y, self._weights[0], self._weights[1]
+        )
+        if self.xform_out is not None:
+            y = self.xform_out(y)
+        return y
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'limits': self.limits,
+            'xform_in': self.xform_in,
+            'xform_out': self.xform_out
+        }
+        base_config = super(Limiter, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
