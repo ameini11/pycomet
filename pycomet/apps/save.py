@@ -80,13 +80,6 @@ def main(args):
             "one. Modified the 'load' entry in the 'flags' input variable."
         )
 
-    # # Data
-    # ###########################################################################
-    # data = fun._data(
-    #     inputs_mod=inputs,
-    #     wdir=args.dir
-    # )
-
     # Network 
     ###########################################################################
     net = fun._network(

@@ -3,7 +3,6 @@ from inputs.datagen import *
 from inputs.postproc import *
 from inputs.network import *
 from inputs.general import *
-from inputs.custom_obj import *
 from inputs.data import *
 from inputs.physics import *
 from inputs.optimization import *

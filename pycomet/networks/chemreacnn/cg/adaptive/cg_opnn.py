@@ -4,8 +4,8 @@ from keras import layers as tf_layers
 from pycomet import utils
 from pycomet import networks
 from pycomet.networks.basenet import BaseNet
-from pycomet.networks.chemreacnn.cg.adaptive import TimeScaleOpNN
-from pycomet.networks.chemreacnn.cg.adaptive import CurrentToNextTS
+from pycomet.networks.chemreacnn.cg.adaptive.ts_opnn import TimeScaleOpNN
+from pycomet.networks.chemreacnn.cg.adaptive.layers import CurrentToNextTS
 from pycomet.networks.opnn import _init_input_lay, _manipulate_input
 
 

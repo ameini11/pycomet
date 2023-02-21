@@ -2,10 +2,10 @@ import tensorflow as tf
 
 from tensorflow.keras import backend
 from pycomet import utils
-from pycomet.networks import MMOpNN
+from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
-from pycomet.networks.chemreacnn.cg.adaptive import TSFastestToCurrent
+from pycomet.networks.chemreacnn.cg.adaptive.layers import FastestToCurrentTS
 
 
 class TimeScaleOpNN(BaseNet):

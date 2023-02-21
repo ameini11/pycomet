@@ -94,18 +94,20 @@ layer_sizes = {
 
 specie_thermos = {
     names[0]: None,
-    names[i+1]: {
-        'specie': {
-            'name': 'O2',
-            'model': {
-               'levels': 'O3_UMN/O2.csv',
-               'lev_mapping': f'O3_UMN/O2/LevelsMap_RVE{nb_bins}.csv'
+    **{
+        names[i+1]: {
+            'specie': {
+                'name': 'O2',
+                'model': {
+                   'levels': 'O3_UMN/O2.csv',
+                   'lev_mapping': f'O3_UMN/O2/LevelsMap_RVE{nb_bins}.csv'
+                }
+            },
+            'thermo': {
+                'model': 'CoupledModes'
             }
-        },
-        'thermo': {
-            'model': 'CoupledModes'
-        }
-    } for i, nb_bins in enumerate([3,9,27])
+        } for i, nb_bins in enumerate([3,9,27])
+    }
 }
 
 def get_opnn_cfg(
@@ -130,7 +132,7 @@ def get_opnn_cfg(
             'trunk': {
                 'lay_id': 'ResPIBlock',
                 'kwargs': {
-                    'layer_size': layer_sizes['trunk'],
+                    'layer_size': layer_size['trunk'],
                     'activation': ['sigmoid']*(len(layer_size['trunk'])-1),
                     **common
                 }
@@ -199,7 +201,8 @@ lays_propty = {
     'input': {
         'branch': {
             'index': 0,
-            'xform': None,
+            'xform': None
+        },
         'trunk': {
             'index': 1,
             'xform': {
