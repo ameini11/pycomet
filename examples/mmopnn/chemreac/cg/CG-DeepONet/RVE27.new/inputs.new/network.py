@@ -8,10 +8,6 @@ import numpy as np
 import tensorflow as tf
 
 from inputs.general import dim
-from inputs.data import data_src, cols
-# from inputs.custom_obj import OutputXform
-from inputs.physics import specie_thermo, process
-from pycomet.networks.elements import layers as pcm_layers
 
 
 # Architecture properties
@@ -198,6 +194,7 @@ def get_ts_opnn_cfg(
     }
     return cfg
 
+# Full network characterization
 lays_propty = {
     'input': {
         'branch': {

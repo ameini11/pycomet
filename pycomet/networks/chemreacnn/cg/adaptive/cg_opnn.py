@@ -127,7 +127,7 @@ class CGOpNN(BaseNet):
         if 'temp' in self.active_lays:
             T = self.active_lays['temp'](y, training=training)
         # Kernel - Mass (TimeScaleOpNNs)
-        kwargs = dict(x=[T, y], training=training, eq_lay=eq_lay)
+        kwargs = dict(x=[y, T], training=training, eq_lay=eq_lay)
         if training or (neq_mask is None):
             y = [ts(**kwargs) for ts in self.active_lays['mass'].values()]
         else:
@@ -139,7 +139,7 @@ class CGOpNN(BaseNet):
         # Outputs manipulation
         y = self._manipulate_output(y)
         if T is not None:
-            return tf.nest.flatten([T, y])
+            return tf.nest.flatten([y, T])
         else:
             return y
 

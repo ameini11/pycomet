@@ -6,21 +6,21 @@
 
 # Model/architecture properties
 # =============================================================================
-model_name = 'mt_O3_mmopnn'
+model_name = 'cg_deeponet'
 
 dim = {
-    "inp": [4, 1],  # Branch-Trunk input dimensionality
-    "out": [2, 2]   # Output dimensionality
+    "inp": [2+27, 1],  # Branch-Trunk input dimensionality
+    "out": [1, 27, 1]   # Output dimensionality
 }
 
 # Execution Flags
 # =============================================================================
 flags = {
-    'load':  1,       # Loading model       0: no, 1: saved model, 2: ckpt
-    'train': 1,       # Training model      0: no, 1: yes
-    'test':  1,       # Testing model       0: no, 1: yes
-    'plot':  2,       # Plotting            0: no, 1: offline, 2: online
+    'load':  0,       # Loading model       0: no, 1: saved model, 2: ckpt
+    'train': 0,       # Training model      0: no, 1: yes
+    'test':  0,       # Testing model       0: no, 1: yes
+    'plot':  0,       # Plotting            0: no, 1: offline, 2: online
     'save':  1        # Saving model        0: no, 1: yes
 }
 
-run_eagerly = False # For debugging
+run_eagerly = False   # Only when debugging

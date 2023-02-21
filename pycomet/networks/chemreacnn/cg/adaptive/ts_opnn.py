@@ -66,7 +66,7 @@ class TimeScaleOpNN(BaseNet):
                 lays[k] = self.init_inout_lay(propty[k])
             else:
                 _propty = propty[k] if k in propty else dict(
-                    num_or_size_splits=[1,1,self.input_dim[0]-2],
+                    num_or_size_splits=[self.input_dim[0]-2,1,1],
                     axis=1
                 )
                 lays[k] = nn_elem.Split(**propty[k])
@@ -83,7 +83,7 @@ class TimeScaleOpNN(BaseNet):
         eq_lay=None
     ):
         # Inputs manipulation
-        x, T, rho = self._manipulate_input(x, training)
+        x, T = self._manipulate_input(x, training)
         # Kernel - MMOpNNs
         if training or (neq_mask is None):
             y = self.active_lays["mmopnn"](x, training=training)
@@ -92,7 +92,7 @@ class TimeScaleOpNN(BaseNet):
         # Equilibrium layer
         if eq_lay is not None:
             y = self.active_lays["equilibrium"](
-                inputs=[y, T, rho], training=training
+                inputs=[y, T], training=training
             )
         # Outputs manipulation
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
@@ -100,9 +100,9 @@ class TimeScaleOpNN(BaseNet):
 
     def _manipulate_input(self, x, training):
         # Extract inputs
-        T, [ic, t] = x
+        [ic, t], T = x
         # Extract initial physical inputs
-        T0, rho, Y0 = self.active_lays["input"]["split_ic"](ic)
+        Y0, T0, rho = self.active_lays["input"]["split_ic"](ic)
         if T is None:
             T = T0
         # Add mass fractions: micro-bins (fastest ts) to macro-bins (current ts)
@@ -120,10 +120,9 @@ class TimeScaleOpNN(BaseNet):
             training=training
         )
         # Recompose ICs
-        ic = tf_layers.Concatenate()([T0, rho, Y0])
+        ic = tf_layers.Concatenate()([Y0, T0, rho])
         # Recompose inputs
-        x = [ic, t]
-        return x, T, rho
+        return [ic, t], T
 
     def _adaptive_call_net(self, x, neq_mask):
         y = []

@@ -14,7 +14,7 @@ data_type = 'ODE'
 physics_informed = False
 
 # Data source -----------------------------------------------------------------
-from_file = True
+from_file = False
 
 data_src = {
     'train': {
@@ -31,32 +31,30 @@ data_src = {
 }
 
 cols = {
-    'x': [[0,1,2,3],[4]],
-    'y': [[5,6],[7,8]]
+    'x': [np.arange(29),[29]],
+    'y': [[30],31+np.arange(27),[58]]
+    
 }
 columns = tf.nest.map_structure(lambda _: cols, data_src)
 
 header = 0
 
 def preproc_fn(x):
-    eps = 1.e-6
-    if x.shape[1] == cols['y'][-1][-1]+1:
-        for c in cols['y']:
-            f = (((x[:,c[0]] + eps) < 1.).astype(int) - 0.5) * 2
-            x[:,c[0]] = x[:,c[0]] + f * eps
-            x[:,c[1]] = 1. - x[:,c[0]]
+    if x.shape[1] == columns['y'][-1][-1]:
+        s = np.sum(x[:,columns['y'][1]], axis=1, keepdims=1)
+        x[:,columns['y'][0]] = 1.0 - s
     return x
 
 # Batching --------------------------------------------------------------------
 batch_size = {
     'train': {
-        'ics': 64,
-        'pts': 512,
+        'ics': 128,
+        'pts': 128,
         'res': 512
     },
     'valid': {
-        'ics': 64,
-        'pts': 512,
-        'res': 512
+        'ics': 256,
+        'pts': 256,
+        'res': 256
     }
 }
