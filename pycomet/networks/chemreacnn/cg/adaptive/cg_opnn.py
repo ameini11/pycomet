@@ -92,35 +92,28 @@ class CGOpNN(BaseNet):
         T = None
         if 'temp' in self.active_lays:
             T = self.active_lays['temp'](y, training=training)
-        # Update variables
-        y = [y, T]
         # Kernel - Mass (TimeScaleOpNNs)
-        ts_mass = self.active_lays['mass']
+        kwargs = dict(x=[T, y], training=training, eq_lay=eq_lay)
         if training or (neq_mask is None):
-            y = [ts(y, training=training, eq_lay=eq_lay) \
-                for ts in ts_mass.values()]
+            y = [ts(**kwargs) for ts in self.active_lays['mass'].values()]
         else:
             y = []
-            for i, ts in enumerate(ts_mass.values()):
-                if i == 0:
-                    y.append(ts(y, eq_lay=eq_lay))
-                else:
-                    y.append(ts(y, neq_mask=neq_mask[i-1], eq_lay=eq_lay))
+            for i, ts in enumerate(self.active_lays['mass'].values()):
+                if i != 0:
+                    kwargs["neq_mask"] = neq_mask[i-1]
+                y.append(ts(**kwargs))
         # Outputs manipulation
         y = self._manipulate_output(y)
         if T is not None:
-            return tf.nest.flatten([y, T])
+            return tf.nest.flatten([T, y])
         else:
             return y
 
     def _manipulate_output(self, y):
         if len(y) > 1:
-            # Concatenate TimeScaleOpNN outputs
-            y = [tf_layers.Concatenate()(y_i) \
-                if isinstance(y_i, (list, tuple)) else y_i for y_i in y]
             # Connect groups
             y = self.active_lays["ts_connect"](y)
-            # Compose outputs
+            # Compose outputs: atom mass fraction + last timescale
             return [tf.gather(y[0], [0], axis=1), y[-1]]
         else:
             return nn_elem.Split(y[-1].shape[1], axis=1)(y[-1])

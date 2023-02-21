@@ -54,6 +54,7 @@ class TimeScaleOpNN(BaseNet):
                     lays_propty=propty["lays_propty"]
                 )
             elif identifier == "equilibrium":
+                propty["output_dim"] = lays["mmopnn"].output_dim
                 lays[identifier] = self.init_inout_lay(propty)
         return lays
 
@@ -88,22 +89,22 @@ class TimeScaleOpNN(BaseNet):
             y = self.active_lays["mmopnn"](x, training=training)
         else:
             y = self._adaptive_call_net(x, neq_mask)
-        # Outputs manipulation
-        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
         # Equilibrium layer
         if eq_lay is not None:
-            return self.active_lays["equilibrium"](
+            y = self.active_lays["equilibrium"](
                 inputs=[y, T, rho], training=training
             )
-        else:
-            return y
+        # Outputs manipulation
+        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        return y
 
     def _manipulate_input(self, x, training):
         # Extract inputs
-        (ic, t), T = x
+        T, [ic, t] = x
         # Extract initial physical inputs
         T0, rho, Y0 = self.active_lays["input"]["split_ic"](ic)
-        T = T0 if T is None else T
+        if T is None:
+            T = T0
         # Add mass fractions: micro-bins (fastest ts) to macro-bins (current ts)
         Y0 = self.active_lays["input"]["ts_connect"](Y0)
         # Xform mass fractions

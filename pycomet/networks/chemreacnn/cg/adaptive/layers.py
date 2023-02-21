@@ -20,67 +20,46 @@ class Equilibrium(tf_layers.Layer):
     ###########################################################################
     def __init__(
         self,
-        output_dim,
+        output_dim=2,
         use_pf_int=False,
-        specie_thermo=None,
-        inputs_indices={'x': 0, 'T': 1, 'rho': 2}
+        specie_thermo=None
         **kwargs
     ):
         super(Equilibrium, self).__init__(**kwargs)
         # Output dimensions
-        self.output_dim = output_dim
+        self.output_dim = tf.nest.flatten(output_dim)
         # Partition functions
         self.use_pf_int = use_pf_int
         if self.use_pf_int:
             # Specie thermodynamics
-            self.sp_th = {}
-            for index, s in specie_thermo.items():
-                if "config" in s:
-                    args = s
-                else:
-                    args = {**s, **dict(index=index, process=process)}
-                sp_th = sp_th_mod.SpecieThermo(**args)
-                self.sp_th[sp_th.specie.name] = sp_th
-        # Inputs unpacking order
-        self.inputs_keys = ('x', 'T', 'rho')
-        self.inputs_indices = inputs_indices
-        err_msg = f"For the `{self.name}` layer, 'inputs_indices' " \
-            "has to be a `dict` with keys ('x', 'T', 'rho') and " \
-            "values the corresponding indices for unpacking."
-        if not isinstance(self.inputs_indices, dict):
-            utils.raise_value_err(err_msg)
-        else:
-            for k in self.inputs_keys:
-                if k not in self.inputs_keys:
-                    utils.raise_value_err(err_msg)
+            if "config" in specie_thermo:
+                args = specie_thermo
+            else:
+                args = {**specie_thermo, **dict(index=0, process=process)}
+            self.sp_th = sp_th_mod.SpecieThermo(**args)
 
     # Calling
     ###########################################################################
     def call(self, inputs, training=None):
         if isinstance(inputs, (list, tuple)):
-            x, T, rho = [
-                inputs[self.inputs_indices[k]] for k in self.inputs_keys
-            ]
+            x, T = inputs
         else:
             utils.raise_value_err(
                 f"The inputs of the `{self.name}` layer have "
-                "to be a `list` or a `tuple`: [x, T, rho]"
+                "to be a `list` or a `tuple`: [x, T]"
             )
+        y = tf.nest.flatten(x)
         if self.use_pf_int:
             # Partition functions
-            Q = []
-            for st in self.sp_th.values():
-                st.pf.int.update(T)
-                Q.append(st.pf.int.Q)
-            Q = tf_layers.Concatenate()(Q) if len(Q) > 1 else Q[-1]
+            self.sp_th.pf.int.update(T)
+            Q = nn_elem.Split(self.output_dim, axis=1)(self.sp_th.pf.int.Q)
             # Simil-Softmax layer
-            y = tf_layers.Multiply()([tf.math.exp(x), Q])
-            y = nn_elem.Split(self.output_dim, axis=1)(y)
-            y = [y_i / tf.reduce_sum(y_i, axis=-1, keepdims=True) for y_i in y]
+            y = [tf_layers.Multiply()([tf.math.exp(yi), Qi]) \
+                for yi, Qi in zip(y, Q)]
+            y = [yi / tf.math.reduce_sum(yi, axis=-1, keepdims=1) for yi in y]
         else:
-            y = nn_elem.Split(self.output_dim, axis=1)(x)
-            y = [tf_layers.Softmax(axis=-1)(y_i) for y_i in y]
-        return y if len(y) > 1 else y[-1]
+            y = [tf_layers.Softmax(axis=-1)(yi) for yi in y]
+        return y
 
     # Configuration
     ###########################################################################
@@ -95,8 +74,7 @@ class Equilibrium(tf_layers.Layer):
         config = {
             "output_dim": self.output_dim,
             "use_pf_int": self.use_pf_int,
-            "specie_thermo": specie_thermo_cfg,
-            "inputs_indices": self.inputs_indices
+            "specie_thermo": specie_thermo_cfg
         }
         base_config = super(Equilibrium, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
