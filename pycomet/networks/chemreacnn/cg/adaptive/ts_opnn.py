@@ -15,13 +15,13 @@ class TimeScaleOpNN(BaseNet):
     def __init__(
         self,
         dim,
-        lays_propty,
-        fastest_to_current_ts,
+        lays_name=None,
+        lays_propty=None,
+        fastest_to_current_ts=None,
         *args,
         **kwargs
     ):
         # Layers names
-        lays_name = ("input", "mmopnn", "equilibrium")
         super(TimeScaleOpNN, self).__init__(
             dim=dim,
             lays_name=lays_name,
@@ -29,17 +29,32 @@ class TimeScaleOpNN(BaseNet):
             *args,
             **kwargs
         )
-        # Layers --------------------------------------------------------------
-        # Checking
-        self.lays_propty = self.check_layers(
-            layers=self.lays_propty,
-            not_opt=("mmopnn",)
-        )
-        # Initializing
-        self.active_lays = self.init_layers()
         # Timescales ----------------------------------------------------------
         # Fastest-to-current timescale connectivity
         self.fastest_to_current_ts = fastest_to_current_ts
+        # Layers --------------------------------------------------------------
+        # Default layers
+        self.default_lays_propty.update({
+            'input': {
+                "xform_temp": {},
+                "xform_mass": {},
+                "split_ic": {}
+            }
+        })
+        # Layers names
+        if lays_name == None:
+            self.lays_name = self.lays_name + ("mmopnn", "equilibrium")
+        else:
+            self.lays_name = lays_name
+        # Layers properties
+        self.lays_propty = self.check_layers(
+            layers=self.lays_propty,
+            not_opt=('mmopnn', "equilibrium"),
+            default=self.default_lays_propty
+        )
+        # Initializing
+        self.active_lays = self.init_layers()
+        self.init_preinput_lay()
 
     # Layers initialization
     ###########################################################################
@@ -63,13 +78,13 @@ class TimeScaleOpNN(BaseNet):
         for k in ("xform_temp", "xform_mass", "split_ic"):
             if k.startswith("xform"):
                 _propty = propty[k] if k in propty else {}
-                lays[k] = self.init_inout_lay(propty[k])
+                lays[k] = self.init_inout_lay(_propty)
             else:
                 _propty = propty[k] if k in propty else dict(
                     num_or_size_splits=[self.input_dim[0]-2,1,1],
                     axis=1
                 )
-                lays[k] = nn_elem.Split(**propty[k])
+                lays[k] = nn_elem.Split(**_propty)
         lays["ts_connect"] = FastestToCurrentTS(self.fastest_to_current_ts)
         return lays
 

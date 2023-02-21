@@ -34,7 +34,6 @@ class OpNN(BaseNet):
                 f"`dim['inp']` passed into `{self.name}` has to be a "
                 "`list` or a `tuple`of length 2: [u_dim, y_dim]"
             )
-
         # Layers --------------------------------------------------------------
         # Default layers
         self.default_lays_propty.update({
@@ -109,7 +108,7 @@ class OpNN(BaseNet):
                 propty['kwargs'] = {}
                 if propty['lay_id']  == 'Dense':
                     propty['kwargs'] = {
-                        'units': self.output_dim,
+                        'units': self.output_dim[-1],
                         'kernel_initializer': 'GlorotNormal'
                     }
             if 'kernel_initializer' in propty['kwargs']:
@@ -190,7 +189,7 @@ def _init_input_lay(opnn_cls, identifier, propty):
                     if callable(v_subnet[k]):
                         _propty[k_subnet][k] = v_subnet[k]
                     elif v_subnet[k] is not None:
-                        _propty[k_subnet][k] = net_cls.get_lay(
+                        _propty[k_subnet][k] = opnn_cls.get_lay(
                             propty=v_subnet[k],
                             default_lay_id='Lambda'
                         )

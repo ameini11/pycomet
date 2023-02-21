@@ -117,29 +117,31 @@ class BaseNet(object):
     #     return _propty
 
     def init_preinput_lay(self):
-        self.active_lays['preinput'] = self.init_inout_lay(
-            self.lays_propty['preinput']
-        )
+        k = 'preinput'
+        self.active_lays[k] = self.init_inout_lay(self.lays_propty[k])
 
     # Calling
     ###########################################################################
-    def __call__(self, x, training=None):
-        return self.call(x, training)
+    def __call__(self, x, training=None, *args, **kwargs):
+        return self.call(x, training, *args, **kwargs)
     
-    def call(self, x, training=None):
+    def call(self, x, training=None, *args, **kwargs):
         y = x
         # Pre-inputs manipulation
         y = self._manipulate_inout(
             inputs=dict(x=x, y=y), identifier='preinput', training=training
         )
-        return self.call_net(y, training)
+        return self.call_net(y, training, *args, **kwargs)
 
-    def call_net(self, x, training=None):
+    def call_net(self, x, training=None, *args, **kwargs):
         return x
 
     def _manipulate_inout(self, inputs, lay=None, identifier=None, training=None):
         if lay is None:
-            lay = self.active_lays[identifier]
+            if identifier in self.active_lays:
+                lay = self.active_lays[identifier]
+            else:
+                pass
         if lay['xform'] is not None:
             if lay['with_inputs'] is None or not lay['with_inputs']:
                 _inputs = inputs['y']

@@ -15,6 +15,11 @@ def make_dict(keys, values):
         return dict(zip(keys, values))
     return {keys: values}
 
+def depth(d):
+    if isinstance(d, dict):
+        return 1 + (max(map(depth, d.values())) if d else 0)
+    return 0
+
 def numbers_to_str(numbers, precision=2):
     """Convert a list/tuple/array of numbers into a string."""
     if numbers is None:
