@@ -2,9 +2,11 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
-from pycomet.networks import elements as nn_elem
-from pycomet.networks.flexopnn import FlexOpNN
 from pycomet import utils
+from pycomet.networks.flexopnn import FlexOpNN
+from pycomet.networks import elements as nn_elem
+from pycomet.networks.opnn import _init_input_lay
+
 
 
 class MIONet(FlexOpNN):
@@ -55,7 +57,7 @@ class MIONet(FlexOpNN):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
-                lays[identifier] = self.init_input_lay(identifier, propty)
+                lays[identifier] = _init_input_lay(self, identifier, propty)
             elif identifier in ('branch', 'trunk'):
                 lays[identifier] = {
                     k: super(MIONet, self).init_block_lay(

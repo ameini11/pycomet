@@ -6,6 +6,7 @@ from pycomet import networks
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks.chemreacnn.cg.adaptive import TimeScaleOpNN
 from pycomet.networks.chemreacnn.cg.adaptive import CurrentToNextTS
+from pycomet.networks.opnn import _init_input_lay, _manipulate_input
 
 
 class CGOpNN(BaseNet):
@@ -16,13 +17,13 @@ class CGOpNN(BaseNet):
         self,
         dim,
         groups_graph,
+        lays_name=None,
         lays_propty=None,
         force_siso=False,
         *args,
         **kwargs
     ):
         # Layers names
-        lays_name = ("temp", "mass")
         super(CGOpNN, self).__init__(
             dim=dim,
             lays_name=lays_name,
@@ -31,23 +32,54 @@ class CGOpNN(BaseNet):
             *args,
             **kwargs
         )
+        # Input dimensionality ------------------------------------------------
+        if not isinstance(self.input_dim, (list, tuple)):
+            utils.raise_value_err(
+                f"`dim['inp']` passed into `{self.name}` has to be a "
+                "`list` or a `tuple`of length 2: [u_dim, y_dim]"
+            )
         # Timescales connectivity ---------------------------------------------
         self.fastest_to_current_ts = self.connect_fastest_to_current_ts(groups_graph)   # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
         self.current_to_next_ts = self.connect_current_to_next_ts(groups_graph)         # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
         # Layers --------------------------------------------------------------
-        # Checking
+        # Default layers
+        self.default_lays_propty.update({
+            'input': {
+                'branch': {
+                    'index': 0,
+                    'xform': None
+                },
+                'trunk': {
+                    'index': 1,
+                    'xform': None
+                }
+            },
+            'output': {
+                'xform': None
+            }
+        })
+        # Layers names
+        if lays_name == None:
+            self.lays_name = self.lays_name + ("temp", "mass")
+        else:
+            self.lays_name = lays_name
+        # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
-            not_opt=("temp", "mass")
+            not_opt=("temp", "mass"),
+            default=self.default_lays_propty
         )
         # Initializing
         self.active_lays = self.init_layers()
+        self.init_preinput_lay()
 
     # Layers initialization
     ###########################################################################
     def init_layers(self):
         lays = {}
         for identifier, propty in self.lays_propty.items():
+            if identifier == "input":
+                lays[identifier] = _init_input_lay(self, identifier, propty)
             if identifier == "temp":
                 lays[identifier] = self.init_temp_lay(propty)
             elif identifier == "mass":
@@ -88,6 +120,8 @@ class CGOpNN(BaseNet):
         eq_lay=None
     ):
         y = x
+        # Inputs manipulation
+        y = _manipulate_input(self, y)
         # Kernel - Temperature (OpNN)
         T = None
         if 'temp' in self.active_lays:

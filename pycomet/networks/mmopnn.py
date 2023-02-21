@@ -1,9 +1,10 @@
 import numpy as np
 import tensorflow as tf
 
-from pycomet.networks.basenet import BaseNet
-from pycomet import networks
 from pycomet import utils
+from pycomet import networks
+from pycomet.networks.basenet import BaseNet
+from pycomet.networks.opnn import _init_input_lay, _manipulate_input
 
 
 class MMOpNN(BaseNet):
@@ -65,50 +66,13 @@ class MMOpNN(BaseNet):
     def init_layers(self):
         lays = {}
         for identifier, propty in self.lays_propty.items():
-            if identifier == 'preinput':
-                lays[identifier] = self.init_inout_lay(propty)
-            elif identifier == 'input':
-                lays[identifier] = self.init_input_lay(identifier, propty)
+            if identifier == 'input':
+                lays[identifier] = _init_input_lay(self, identifier, propty)
             elif identifier == 'opnns':
                 lays[identifier] = self.init_opnns_lay(identifier, propty)
             elif identifier == 'output':
                 lays[identifier] = self.init_inout_lay(propty)
         return lays
-
-    def init_input_lay(self, identifier, propty):
-        # Checking properties format
-        if not isinstance(propty, dict):
-            utils.raise_value_err(
-                f"Layer '{identifier}' in 'lays_propty' input has "
-                f"to be a `dict` with names of the inputs as keys."
-            )
-        # Initializing layer properties
-        _propty = {}
-        for i, (k_subnet, v_subnet) in enumerate(propty.items()):
-            _propty[k_subnet] = {}
-            for k in ('index', 'xform'):
-                if k in v_subnet:
-                    if k == 'index':
-                        _propty[k_subnet][k] = v_subnet[k]
-                    else:
-                        if callable(v_subnet[k]):
-                            _propty[k_subnet][k] = v_subnet[k]
-                        elif v_subnet[k] is not None:
-                            _propty[k_subnet][k] = self.get_lay(
-                                propty=v_subnet[k],
-                                default_lay_id='Lambda'
-                            )
-                        else:
-                            _propty[k_subnet][k] = None
-                else:
-                    _propty[k_subnet][k] = i if k == 'index' else None
-        indices = [_propty[k]['index'] for k in _propty.keys()]
-        if len(np.unique(indices)) != len(indices):
-            utils.raise_value_err(
-                f"Key 'index' in layer '{identifier}' has "
-                "to be different between each subnet."
-            )
-        return _propty
 
     def init_opnns_lay(self, identifier, propty):
         if not isinstance(propty, dict):
@@ -132,7 +96,7 @@ class MMOpNN(BaseNet):
     def call_net(self, x, training=None):
         y = x
         # Inputs manipulation
-        y = self._manipulate_input(y)
+        y = _manipulate_input(self, y)
         # Kernel - OpNNs
         y = {name: tf.nest.map_structure(tf.identity, y) \
              for name in self.active_lays['opnns'].keys()}
@@ -143,18 +107,3 @@ class MMOpNN(BaseNet):
             inputs=dict(x=x, y=y), identifier='output', training=training
         )
         return y
-
-    def _manipulate_input(self, x):
-        if not isinstance(x, (list, tuple, dict)):
-            utils.raise_value_err(
-                f"The inputs of `{self.name}` network have to "
-                "be one of the following: `list`,`tuple`,`dict`."
-            )
-        elif isinstance(x, (list, tuple)):
-            x = {
-                k: x[v['index']] for k, v in self.active_lays['input'].items()
-            }
-        for k, v in self.active_lays['input'].items():
-            if v['xform'] is not None:
-                x[k] = v['xform'](x[k])
-        return x

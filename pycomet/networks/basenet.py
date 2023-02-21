@@ -3,9 +3,9 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
+from pycomet import utils
 from pycomet.networks import chemreacnn
 from pycomet.networks import elements as nn_elem
-from pycomet import utils
 
 
 class BaseNet(object):

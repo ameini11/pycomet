@@ -80,7 +80,7 @@ class OpNN(BaseNet):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
-                lays[identifier] = self.init_input_lay(identifier, propty)
+                lays[identifier] = _init_input_lay(self, identifier, propty)
             elif identifier in ('branch', 'trunk'):
                 lays[identifier] = self.init_block_lay(identifier, propty)
             elif identifier == 'end_scale':
@@ -88,41 +88,6 @@ class OpNN(BaseNet):
             elif identifier == 'output':
                 lays[identifier] = self.init_inout_lay(propty)
         return lays
-
-    def init_input_lay(self, identifier, propty):
-        # Checking properties format
-        if not isinstance(propty, dict):
-            utils.raise_value_err(
-                f"Layer '{identifier}' in 'lays_propty' input has "
-                f"to be a `dict` with names of the inputs as keys."
-            )
-        # Initializing layer properties
-        _propty = {}
-        for i, (k_subnet, v_subnet) in enumerate(propty.items()):
-            _propty[k_subnet] = {}
-            for k in ('index', 'xform'):
-                if k in v_subnet:
-                    if k == 'index':
-                        _propty[k_subnet][k] = v_subnet[k]
-                    else:
-                        if callable(v_subnet[k]):
-                            _propty[k_subnet][k] = v_subnet[k]
-                        elif v_subnet[k] is not None:
-                            _propty[k_subnet][k] = self.get_lay(
-                                propty=v_subnet[k],
-                                default_lay_id='Lambda'
-                            )
-                        else:
-                            _propty[k_subnet][k] = None
-                else:
-                    _propty[k_subnet][k] = i if k == 'index' else None
-        indices = [_propty[k]['index'] for k in _propty.keys()]
-        if len(np.unique(indices)) != len(indices):
-            utils.raise_value_err(
-                f"Key 'index' in layer '{identifier}' has "
-                "to be different between each subnet."
-            )
-        return _propty
 
     def init_block_lay(self, identifier, propty):
         lay = []
@@ -158,28 +123,13 @@ class OpNN(BaseNet):
     def call_net(self, x, training=None):
         y = x
         # Inputs manipulation
-        y = self._manipulate_input(y)
+        y = _manipulate_input(self, x)
         # Kernel - OpNN
         G_u, G_y = self._eval_kernel(y, training)
         # Outputs manipulation
         y = self._tensor_product(G_u, G_y)
         y = self._manipulate_output(x, y, training)
         return y
-
-    def _manipulate_input(self, x):
-        if not isinstance(x, (list, tuple, dict)):
-            utils.raise_value_err(
-                f"The inputs of `{self.name}` network have to "
-                "be one of the following: `list`,`tuple`,`dict`."
-            )
-        elif isinstance(x, (list, tuple)):
-            x = {
-                k: x[v['index']] for k, v in self.active_lays['input'].items()
-            }
-        for k, v in self.active_lays['input'].items():
-            if v['xform'] is not None:
-                x[k] = v['xform'](x[k])
-        return x
 
     def _eval_kernel(self, x, training):
         # Branch/Trunk
@@ -219,3 +169,54 @@ class OpNN(BaseNet):
             inputs=dict(x=x, y=y), identifier='output', training=training
         )
             
+# Public util functions
+# -----------------------------------------------------------------------------
+def _init_input_lay(opnn_cls, identifier, propty):
+    # Checking properties format
+    if not isinstance(propty, dict):
+        utils.raise_value_err(
+            f"Layer '{identifier}' in 'lays_propty' input has "
+            f"to be a `dict` with names of the inputs as keys."
+        )
+    # Initializing layer properties
+    _propty = {}
+    for i, (k_subnet, v_subnet) in enumerate(propty.items()):
+        _propty[k_subnet] = {}
+        for k in ('index', 'xform'):
+            if k in v_subnet:
+                if k == 'index':
+                    _propty[k_subnet][k] = v_subnet[k]
+                else:
+                    if callable(v_subnet[k]):
+                        _propty[k_subnet][k] = v_subnet[k]
+                    elif v_subnet[k] is not None:
+                        _propty[k_subnet][k] = net_cls.get_lay(
+                            propty=v_subnet[k],
+                            default_lay_id='Lambda'
+                        )
+                    else:
+                        _propty[k_subnet][k] = None
+            else:
+                _propty[k_subnet][k] = i if k == 'index' else None
+    indices = [_propty[k]['index'] for k in _propty.keys()]
+    if len(np.unique(indices)) != len(indices):
+        utils.raise_value_err(
+            f"Key 'index' in layer '{identifier}' has "
+            "to be different between each subnet."
+        )
+    return _propty
+
+def _manipulate_input(opnn_cls, x):
+    if not isinstance(x, (list, tuple, dict)):
+        utils.raise_value_err(
+            f"The inputs of `{opnn_cls.name}` network have to "
+            "be one of the following: `list`,`tuple`,`dict`."
+        )
+    elif isinstance(x, (list, tuple)):
+        x = {
+            k: x[v['index']] for k, v in opnn_cls.active_lays['input'].items()
+        }
+    for k, v in opnn_cls.active_lays['input'].items():
+        if v['xform'] is not None:
+            x[k] = v['xform'](x[k])
+    return x

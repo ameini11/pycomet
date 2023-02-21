@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from keras import layers as tf_layers
 from pycomet.networks import elements as nn_elem
-from pycomet.networks.opnn import OpNN
+from pycomet.networks.opnn import OpNN, _init_input_lay
 
 
 class FlexOpNN(OpNN):
@@ -41,7 +41,7 @@ class FlexOpNN(OpNN):
         lays = {}
         for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
-                lays[identifier] = self.init_input_lay(identifier, propty)
+                lays[identifier] = _init_input_lay(self, identifier, propty)
             elif identifier in ('branch', 'trunk'):
                 lays[identifier] = self.init_block_lay(identifier, propty)
             elif identifier == 'prenet':
