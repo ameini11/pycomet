@@ -22,7 +22,7 @@ class Equilibrium(tf_layers.Layer):
         self,
         output_dim=2,
         use_pf_int=False,
-        specie_thermo=None
+        specie_thermo=None,
         **kwargs
     ):
         super(Equilibrium, self).__init__(**kwargs)

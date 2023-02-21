@@ -1,72 +1,49 @@
-# *************************************************************************** #
-#                                    PrODE                                    #
-# --------------------------------------------------------------------------- #
-#                     Machine-Learning-Based Approximators                    #
-#                  for Ordinary Differential Equations (ODEs)                 #
-#                                                                             #
-# *************************************************************************** #
-
 # -------------------------------- INPUT FILE ------------------------------- #
 # Description:
-# >> Generating and/or handling data for training and testing phase.
+# >> Handling data for training and testing phase.
 # --------------------------------------------------------------------------- #
+
+
+import tensorflow as tf
 
 
 # Data properties
 # =============================================================================
 data_type = 'ODE'
 
+physics_informed = False
+
 # Data source -----------------------------------------------------------------
 from_file = False
 
-# *** From file
-file = {
+data_src = {
     'train': {
         'ics': './data/train/ics.csv',
         'pts': './data/train/pts.csv',
-        'res': './data/train/res.csv'
+        'res': None #'./data/train/res.csv'
     },
     'valid': {
         'ics': './data/valid/ics.csv',
         'pts': './data/valid/pts.csv',
-        'res': './data/valid/res.csv'
+        'res': None #'./data/valid/res.csv'
     },
-    'test': './data/test/ics.csv'
+    'test': './data/test/'
 }
 
-columns = {
-    'x': [[0,29],[29,30]],
-    'y': [[30,32],[32,35],[35,44],[44,71]]
+cols = {
+    'x': [np.arange(29),[29]],
+    'y': [[30],31+np.arange(27),[58]]
+    
 }
+columns = tf.nest.map_structure(lambda _: cols, data_src)
 
 header = 0
 
 def preproc_fn(x):
-    """Manipulates data extracted from file.
-
-    Args:
-        x: Array or list of arrays.
-
-    Returns:
-        An array or list of arrays.
-    """
     if x.shape[1] == columns['y'][-1][-1]:
-        x[:,columns['y'][0][0]+1] = 1. - x[:,columns['y'][0][0]]
+        s = np.sum(x[:,columns['y'][1]], axis=1, keepdims=1)
+        x[:,columns['y'][0]] = 1.0 - s
     return x
-
-# *** From arrays
-# Training data
-train_pts = {
-    'ics': 2048,            # Number of training scenarios
-    'pts': 1,               # Number of total anchor pts for each scenario
-    'res': 160              # Number of total collocation pts for each scenario
-}
-validation_split = 0.2      # % of Validation pts
-distribution = 'uniform'    # Training pts distribution
-
-# Testing data
-test_cases = 50             # Number of testing cases
-test_training = True        # Test training cases
 
 # Batching --------------------------------------------------------------------
 batch_size = {

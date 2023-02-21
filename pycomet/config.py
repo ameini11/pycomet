@@ -42,7 +42,7 @@ _TF = {
 
 # Custom packages -------------------------------------------------------------
 _CUSTOMS_PKG = {
-    'hypernet': '/home/zanardi/Codes/TC/HyperNet/hypernet/'
+    'hypernet': '/home/zanardi/Codes/TC/HyperNet/v.22.12/hypernet'
 }
 
 # Matplotlib ------------------------------------------------------------------
