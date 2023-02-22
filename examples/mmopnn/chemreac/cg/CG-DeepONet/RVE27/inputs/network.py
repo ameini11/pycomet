@@ -74,21 +74,21 @@ dims = {
 
 layer_sizes = {
     names[0]: {
-        "branch": [ 2+1, 16, 16,  8],
-        "trunk":  [   1, 16, 16,  8]
+        "branch": [ 2+1, 32, 32,  8],
+        "trunk":  [   1, 32, 32,  8]
     },
     names[1]: {
-        "branch": [ 2+3, 32, 32, 16],
-        "trunk":  [   1, 32, 32, 16]
+        "branch": [ 2+3, 48, 48, 16],
+        "trunk":  [   1, 48, 48, 16]
 
     },
     names[2]: {
-        "branch": [ 2+9, 32, 32, 16],
-        "trunk":  [   1, 32, 32, 16]
+        "branch": [ 2+9, 48, 48, 16],
+        "trunk":  [   1, 48, 48, 16]
     },
     names[3]: {
-        "branch": [2+27, 32, 32, 16],
-        "trunk":  [   1, 32, 32, 16]
+        "branch": [2+27, 48, 48, 16],
+        "trunk":  [   1, 48, 48, 16]
     }
 }
 
@@ -115,7 +115,7 @@ def get_opnn_cfg(
     layer_size
 ):
     cfg = {
-        "lay_id": "OpNN",
+        "lay_id": "AugOpNN",
         "dim": {
             "inp": dim[0],
             "out": dim[1]
@@ -166,13 +166,13 @@ def get_ts_opnn_cfg(
                         "trainable": False
                     }
                 },
-                "xform_mass": {
-                    "lay_id": "Log",
-                    "kwargs": {
-                        "base": 10,
-                        "trainable": False
-                    }
-                }
+                # "xform_mass": {
+                #     "lay_id": "Log",
+                #     "kwargs": {
+                #         "base": 10,
+                #         "trainable": False
+                #     }
+                # }
             },
             "mmopnn": {
                 "dim": {
@@ -232,7 +232,7 @@ lays_propty = {
         }
     },
     "temp": {
-        "lay_id": "OpNN",
+        "lay_id": "AugOpNN",
         "dim": {
             "inp": dim["inp"],
             "out": 1
@@ -241,7 +241,7 @@ lays_propty = {
             "branch": {
                 "lay_id": "FFBlock",
                 "kwargs": {
-                    "layer_size": [dim["inp"][0], 16, 16, 8],
+                    "layer_size": [dim["inp"][0], 32, 32, 8],
                     "activation": ["tanh"]*2 + ["linear"],
                     **common
                 }
@@ -249,7 +249,7 @@ lays_propty = {
             "trunk": {
                 "lay_id": "FFBlock",
                 "kwargs": {
-                    "layer_size": [dim["inp"][1], 16, 16, 8],
+                    "layer_size": [dim["inp"][1], 32, 32, 8],
                     "activation": ["sigmoid"]*2 + ["linear"],
                     **common
                 }

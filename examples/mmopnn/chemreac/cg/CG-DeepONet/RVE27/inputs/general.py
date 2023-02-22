@@ -23,4 +23,4 @@ flags = {
     'save':  1        # Saving model        0: no, 1: yes
 }
 
-run_eagerly = False   # Only when debugging
+run_eagerly = True   # Only when debugging
