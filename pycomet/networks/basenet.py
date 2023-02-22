@@ -138,10 +138,7 @@ class BaseNet(object):
 
     def _manipulate_inout(self, inputs, lay=None, identifier=None, training=None):
         if lay is None:
-            if identifier in self.active_lays:
-                lay = self.active_lays[identifier]
-            else:
-                pass
+            lay = self.active_lays[identifier]
         if lay['xform'] is not None:
             if lay['with_inputs'] is None or not lay['with_inputs']:
                 _inputs = inputs['y']
@@ -149,8 +146,8 @@ class BaseNet(object):
                 _inputs = [inputs[k] for k in ('x', 'y')]
             return lay['xform'](_inputs, training=training)
         else:
-            return inputs['x'] if 'input' in identifier else inputs['y']
-        
+            return inputs['y']
+
     # def _manipulate_inout(
     #     self, x=None, y=None, identifier=None, training=False
     # ):

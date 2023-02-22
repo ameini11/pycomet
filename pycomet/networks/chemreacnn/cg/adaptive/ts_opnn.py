@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from tensorflow.keras import backend
+from keras import layers as tf_layers
 from pycomet import utils
 from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.basenet import BaseNet
@@ -35,7 +36,7 @@ class TimeScaleOpNN(BaseNet):
         # Layers --------------------------------------------------------------
         # Default layers
         self.default_lays_propty.update({
-            'input': {
+            "input": {
                 "xform_temp": {},
                 "xform_mass": {},
                 "split_ic": {}
@@ -43,13 +44,13 @@ class TimeScaleOpNN(BaseNet):
         })
         # Layers names
         if lays_name == None:
-            self.lays_name = self.lays_name + ("mmopnn", "equilibrium")
+            self.lays_name = self.lays_name + ("mmopnn", "output")
         else:
             self.lays_name = lays_name
         # Layers properties
         self.lays_propty = self.check_layers(
             layers=self.lays_propty,
-            not_opt=('mmopnn', "equilibrium"),
+            not_opt=("mmopnn", "output"),
             default=self.default_lays_propty
         )
         # Initializing
@@ -68,8 +69,7 @@ class TimeScaleOpNN(BaseNet):
                     dim=propty["dim"],
                     lays_propty=propty["lays_propty"]
                 )
-            elif identifier == "equilibrium":
-                propty["output_dim"] = lays["mmopnn"].output_dim
+            elif identifier == "output":
                 lays[identifier] = self.init_inout_lay(propty)
         return lays
 
@@ -77,8 +77,9 @@ class TimeScaleOpNN(BaseNet):
         lays = {}
         for k in ("xform_temp", "xform_mass", "split_ic"):
             if k.startswith("xform"):
-                _propty = propty[k] if k in propty else {}
+                _propty = {"xform": propty[k]} if k in propty else {}
                 lays[k] = self.init_inout_lay(_propty)
+                print(lays[k])
             else:
                 _propty = propty[k] if k in propty else dict(
                     num_or_size_splits=[self.input_dim[0]-2,1,1],
@@ -94,8 +95,7 @@ class TimeScaleOpNN(BaseNet):
         self,
         x,
         training=None,
-        neq_mask=None,
-        eq_lay=None
+        neq_mask=None
     ):
         # Inputs manipulation
         x, T = self._manipulate_input(x, training)
@@ -105,10 +105,9 @@ class TimeScaleOpNN(BaseNet):
         else:
             y = self._adaptive_call_net(x, neq_mask)
         # Equilibrium layer
-        if eq_lay is not None:
-            y = self.active_lays["equilibrium"](
-                inputs=[y, T], training=training
-            )
+        y = self._manipulate_inout(
+            inputs=dict(y=[y, T]), identifier="output", training=training
+        )
         # Outputs manipulation
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
         return y
@@ -124,13 +123,13 @@ class TimeScaleOpNN(BaseNet):
         Y0 = self.active_lays["input"]["ts_connect"](Y0)
         # Xform mass fractions
         Y0 = self._manipulate_inout(
-            inputs=dict(x=Y0, y=None),
+            inputs=dict(y=Y0),
             lay=self.active_lays["input"]["xform_mass"],
             training=training
         )
         # Xform temperature
         T0 = self._manipulate_inout(
-            inputs=dict(x=T0, y=None),
+            inputs=dict(y=T0),
             lay=self.active_lays["input"]["xform_temp"],
             training=training
         )

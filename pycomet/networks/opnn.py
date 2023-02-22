@@ -164,7 +164,7 @@ class OpNN(BaseNet):
         if self.active_lays['end_scale'] is not None:
             y = self.active_lays['end_scale'](y)
         # Transformation
-        return super(OpNN, self)._manipulate_inout(
+        return self._manipulate_inout(
             inputs=dict(x=x, y=y), identifier='output', training=training
         )
             

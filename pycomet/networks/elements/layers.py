@@ -2,6 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from tensorflow.python.keras import backend
 from tensorflow.python.keras import activations
@@ -728,14 +729,14 @@ class Limiter(tf_layers.Layer):
                 "The last dimension of the inputs to "
                 f"`{self.name}` should be defined. Found `None`."
             )
-        self._weights = [
-            self.add_weight(
-                name=name,
+        self._weights = {
+            f'lim_{i}': self.add_weight(
+                name=f'lim_{i}',
                 dtype=backend.floatx(),
                 initializer=initializers.Constant(value=w),
                 trainable=False
-            ) for w in self.limits
-        ]
+            ) for i, w in enumerate(self.limits)
+        }
         self.built = True
 
     # Calling
@@ -745,7 +746,7 @@ class Limiter(tf_layers.Layer):
         if self.xform_in is not None:
             y = self.xform_in(y)
         y = tfp.math.clip_by_value_preserve_gradient(
-            y, self._weights[0], self._weights[1]
+            y, self._weights['lim_0'], self._weights['lim_1']
         )
         if self.xform_out is not None:
             y = self.xform_out(y)

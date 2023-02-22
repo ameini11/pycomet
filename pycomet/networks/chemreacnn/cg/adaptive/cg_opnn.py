@@ -1,6 +1,6 @@
 import itertools
+import tensorflow as tf
 
-from keras import layers as tf_layers
 from pycomet import utils
 from pycomet import networks
 from pycomet.networks.basenet import BaseNet
@@ -44,18 +44,18 @@ class CGOpNN(BaseNet):
         # Layers --------------------------------------------------------------
         # Default layers
         self.default_lays_propty.update({
-            'input': {
-                'branch': {
-                    'index': 0,
-                    'xform': None
+            "input": {
+                "branch": {
+                    "index": 0,
+                    "xform": None
                 },
-                'trunk': {
-                    'index': 1,
-                    'xform': None
+                "trunk": {
+                    "index": 1,
+                    "xform": None
                 }
             },
-            'output': {
-                'xform': None
+            "output": {
+                "xform": None
             }
         })
         # Layers names
@@ -88,11 +88,11 @@ class CGOpNN(BaseNet):
         return lays
 
     def init_temp_lay(self, propty={}):
-        opnn = 'OpNN' if 'lay_id' not in propty else propty['lay_id']
+        opnn = "OpNN" if "lay_id" not in propty else propty["lay_id"]
         opnn = opnn if callable(opnn) else utils.get_class(networks, opnn)
         return opnn(
-            dim=propty['dim'],
-            lays_propty=propty['lays_propty']
+            dim=propty["dim"],
+            lays_propty=propty["lays_propty"]
         )
 
     def init_mass_lay(self, propty):
@@ -104,8 +104,8 @@ class CGOpNN(BaseNet):
         lays = {}
         for i, (name, ipropty) in enumerate(propty.items()):
             lays[name] = TimeScaleOpNN(
-                dim=ipropty['dim'],
-                lays_propty=ipropty['lays_propty'],
+                dim=ipropty["dim"],
+                lays_propty=ipropty["lays_propty"],
                 fastest_to_current_ts=self.fastest_to_current_ts[i]
             )
         return lays
@@ -116,23 +116,22 @@ class CGOpNN(BaseNet):
         self,
         x,
         training=None,
-        neq_mask=None,
-        eq_lay=None
+        neq_mask=None
     ):
         y = x
         # Inputs manipulation
         y = _manipulate_input(self, y)
         # Kernel - Temperature (OpNN)
         T = None
-        if 'temp' in self.active_lays:
-            T = self.active_lays['temp'](y, training=training)
+        if "temp" in self.active_lays:
+            T = self.active_lays["temp"](y, training=training)
         # Kernel - Mass (TimeScaleOpNNs)
-        kwargs = dict(x=[y, T], training=training, eq_lay=eq_lay)
+        kwargs = dict(x=[[y["branch"], y["trunk"]], T], training=training)
         if training or (neq_mask is None):
-            y = [ts(**kwargs) for ts in self.active_lays['mass'].values()]
+            y = [ts(**kwargs) for ts in self.active_lays["mass"].values()]
         else:
             y = []
-            for i, ts in enumerate(self.active_lays['mass'].values()):
+            for i, ts in enumerate(self.active_lays["mass"].values()):
                 if i != 0:
                     kwargs["neq_mask"] = neq_mask[i-1]
                 y.append(ts(**kwargs))
@@ -159,7 +158,7 @@ class CGOpNN(BaseNet):
         connectivity[level] = []
         if isinstance(graph, dict):
             for g in graph.values():
-                if hasattr(g, 'keys'):
+                if hasattr(g, "keys"):
                     l = list(g.keys())
                     d = {**d, **g}
                 else:

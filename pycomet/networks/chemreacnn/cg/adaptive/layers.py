@@ -23,6 +23,7 @@ class Equilibrium(tf_layers.Layer):
         output_dim=2,
         use_pf_int=False,
         specie_thermo=None,
+        process=None,
         **kwargs
     ):
         super(Equilibrium, self).__init__(**kwargs)
@@ -51,8 +52,8 @@ class Equilibrium(tf_layers.Layer):
         y = tf.nest.flatten(x)
         if self.use_pf_int:
             # Partition functions
-            self.sp_th.pf.int.update(T)
-            Q = nn_elem.Split(self.output_dim, axis=1)(self.sp_th.pf.int.Q)
+            Q = self.sp_th.pf.int.spline['Q'].apply(points=T)
+            Q = nn_elem.Split(self.output_dim, axis=-1)(Q)
             # Simil-Softmax layer
             y = [tf_layers.Multiply()([tf.math.exp(yi), Qi]) \
                 for yi, Qi in zip(y, Q)]
@@ -65,10 +66,7 @@ class Equilibrium(tf_layers.Layer):
     ###########################################################################
     def get_config(self):
         if self.use_pf_int:
-            specie_thermo_cfg = {
-                st.specie.index: {"config": st.get_config()} \
-                    for st in self.sp_th.values()
-            }
+            specie_thermo_cfg = {"config": self.sp_th.get_config()}
         else:
             specie_thermo_cfg = None
         config = {
