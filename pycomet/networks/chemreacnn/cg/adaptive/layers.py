@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
@@ -11,10 +12,10 @@ sp_th_mod = thermophysics.specie_thermo.specie_thermo
 
 
 # =========================================================================== #
-# Equilibrium Layer
+# CGEquilibrium Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Equilibrium(tf_layers.Layer):
+class CGEquilibrium(tf_layers.Layer):
 
     # Initialization
     ###########################################################################
@@ -26,7 +27,7 @@ class Equilibrium(tf_layers.Layer):
         process=None,
         **kwargs
     ):
-        super(Equilibrium, self).__init__(**kwargs)
+        super(CGEquilibrium, self).__init__(**kwargs)
         # Output dimensions
         self.output_dim = tf.nest.flatten(output_dim)
         # Partition functions
@@ -74,10 +75,83 @@ class Equilibrium(tf_layers.Layer):
             "use_pf_int": self.use_pf_int,
             "specie_thermo": specie_thermo_cfg
         }
-        base_config = super(Equilibrium, self).get_config()
+        base_config = super(CGEquilibrium, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+    
+    
+# =========================================================================== #
+# CGThermoEncoder Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class CGThermoEncoder(tf_layers.Layer):
 
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        tensor_toencode=0,
+        nb_bins=1,
+        indices_toencode=None,
+        encoded_tensors_order=None,
+        **kwargs
+    ):
+        super(CGThermoEncoder, self).__init__(**kwargs)
+        # Tensor to encode
+        self.tensor_toencode = tensor_toencode
+        # Tensor's indices to encode
+        self.nb_bins = int(nb_bins)
+        self.indices_toencode = indices_toencode
+        if self.indices_toencode == None:
+            indices = np.arange(self.nb_bins)
+            self.indices_toencode = {
+                'rho_a': [0], 'rho_m': 1+indices, 'Th': [indices[-1]+2]
+            }
+        self.indices_toencode = {
+            k: list(index) for k, index in self.indices_toencode.items()
+        }
+        # Encoded tensor's order
+        self.encoded_tensors_order = encoded_tensors_order
+        if self.encoded_tensors_order == None:
+            self.encoded_tensors_order = {0: 'Y_m', 1: 'Th', 2: 'rho'}
 
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None):
+        # Extracting inputs quantities to encode
+        x = {k: tf.gather(inputs[self.tensor_toencode], index, axis=1) \
+            for k, index in self.indices_toencode.items()}
+        # Encoded quantities
+        y = {}
+        # Encode mass quantities
+        y['rho'] = tf.math.reduce_sum(x['rho_m'], axis=1, keepdims=1) + x['rho_a']
+        y['Y_m'] = x['rho_m'] / y['rho']
+        # Encode temperature quantities
+        y['Th'] = x['Th']
+        # Compose and return outputs
+        outputs = []
+        outputs_i = tf.concat(
+            [y[self.encoded_tensors_order[i]] for i in range(len(y))], 1
+        )
+        for i in range(len(inputs)):
+            if i == self.tensor_toencode:
+                outputs.append(outputs_i)
+            else:
+                outputs.append(inputs[i])
+        return outputs
+
+    # Configuration
+    ###########################################################################
+    def get_config(self):
+        config = {
+            "tensor_toencode": self.tensor_toencode,
+            "nb_bins": self.nb_bins,
+            "indices_toencode": self.indices_toencode,
+            "encoded_tensors_order": self.encoded_tensors_order
+        }
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+    
+    
 # =========================================================================== #
 # FastestToCurrentTS Layer
 # =========================================================================== #
@@ -140,7 +214,7 @@ class CurrentToNextTS(tf_layers.Layer):
     # Calling
     ###########################################################################
     def call(self, inputs, training=None):
-        y = inputs
+        y = tf.nest.map_structure(tf.identity, inputs)
         for ts, indeces in self.current_to_next_ts.items():
             if indeces is not None:
                 # Split the current slower timescale

@@ -11,3 +11,6 @@
 # b) Loading the PyCOMET module
 # -----------------------------------------------------------------------------
 module load pycomet
+
+export TF_NUM_INTEROP_THREADS=4
+export TF_NUM_INTRAOP_THREADS=4

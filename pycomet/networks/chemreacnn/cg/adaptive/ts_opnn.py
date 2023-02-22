@@ -79,7 +79,6 @@ class TimeScaleOpNN(BaseNet):
             if k.startswith("xform"):
                 _propty = {"xform": propty[k]} if k in propty else {}
                 lays[k] = self.init_inout_lay(_propty)
-                print(lays[k])
             else:
                 _propty = propty[k] if k in propty else dict(
                     num_or_size_splits=[self.input_dim[0]-2,1,1],

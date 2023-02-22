@@ -1,116 +1,275 @@
-# *************************************************************************** #
-#                                    PrODE                                    #
-# --------------------------------------------------------------------------- #
-#                     Machine-Learning-Based Approximators                    #
-#                  for Ordinary Differential Equations (ODEs)                 #
-#                                                                             #
-# *************************************************************************** #
-
 # -------------------------------- INPUT FILE ------------------------------- #
 # Description:
 # >> Defining the Neural Network architecture
 # --------------------------------------------------------------------------- #
 
 
+import numpy as np
 import tensorflow as tf
-import inputs.general as inp_gen
 
-from tensorflow.python.keras import layers as tf_layers
-from prode.utilities.model import layers as pro_layers
+from inputs.general import dim
 
 
 # Architecture properties
 # =============================================================================
-architecture = 'IsoThermChemReacNN'
+architecture = "CGOpNN"
 
-# TimeScaleNNs characterization -----------------------------------------------
-names = ['TS0', 'TS1', 'TS2', 'TS3']
+force_siso = True
 
-tsnn_dim = {
+groups_graph = {
+    0: {
+        0: {
+            0: [ 0, 1, 2],
+            1: [ 3, 4, 5],
+            2: [ 6, 7, 8]
+        },
+        1: {
+            3: [ 9,10,11],
+            4: [12,13,14],
+            5: [15,16,17]
+        },
+        2: {
+            6: [18,19,20],
+            7: [21,22,23],
+            8: [24,25,26]
+        }
+    }
+}
+
+# Layers ----------------------------------------------------------------------
+common = {
+    "kernel_initializer": "GlorotNormal",
+    "regularizer": {
+        "name": "l1+l2",
+        "l1": 1.e-3,
+        "l2": 1.e-3
+    },
+    "trainable": True,
+    "dropout_kwargs": {"rate": 0.0},
+    "batch_norm": None,
+    "weight_norm": False
+}
+
+# TimeScaleOpNNs characterization
+names = ["TS0", "TS1", "TS2", "TS3"]
+
+dims = {
     names[0]: {
-        "inp": inp_gen.dim['inp'],
+        "inp": dim["inp"],
         "out": 2
     },
     names[1]: {
-        "inp": inp_gen.dim['inp'],
+        "inp": dim["inp"],
         "out": 3
     },
     names[2]: {
-        "inp": inp_gen.dim['inp'],
+        "inp": dim["inp"],
         "out": [3]*3
     },
     names[3]: {
-        "inp": inp_gen.dim['inp'],
+        "inp": dim["inp"],
         "out": [3]*9
     }
 }
 
-layer_size = {
+layer_sizes = {
     names[0]: {
-        "branch": [2+1, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
+        "branch": [ 2+1, 16, 16,  8],
+        "trunk":  [   1, 16, 16,  8]
     },
     names[1]: {
-        "branch": [2+3, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
+        "branch": [ 2+3, 32, 32, 16],
+        "trunk":  [   1, 32, 32, 16]
+
     },
     names[2]: {
-        "branch": [2+9, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
+        "branch": [ 2+9, 32, 32, 16],
+        "trunk":  [   1, 32, 32, 16]
     },
     names[3]: {
-        "branch": [2+27, 32, 32, 32],
-        "trunk":  [1, 64, 64, 32]
+        "branch": [2+27, 32, 32, 16],
+        "trunk":  [   1, 32, 32, 16]
     }
 }
 
-activation = {
-    name: {
-        "branch": 'tanh',   # elu/gelu
-        "trunk":  'sigmoid'
-    } for name in names
+specie_thermos = {
+    names[0]: None,
+    **{
+        names[i+1]: {
+            "specie": {
+                "name": "O2",
+                "model": {
+                   "levels": "O3_UMN/O2.csv",
+                   "lev_mapping": f"O3_UMN/O2/LevelsMap_RVE{nb_bins}.csv"
+                }
+            },
+            "thermo": {
+                "model": "CoupledModes"
+            }
+        } for i, nb_bins in enumerate([3,9,27])
+    }
 }
 
-kernel_initializer = 'GlorotNormal' #'GlorotNormal' 'zeros'
+def get_opnn_cfg(
+    dim,
+    layer_size
+):
+    cfg = {
+        "lay_id": "OpNN",
+        "dim": {
+            "inp": dim[0],
+            "out": dim[1]
+        },
+        "lays_propty": {
+            "branch": [{
+                'lay_id': 'FFBlock',
+                'kwargs': {
+                    "layer_size": layer_size["branch"],
+                    "activation": ["tanh"]*(len(layer_size["branch"])-1),
+                    **common
+                }
+            } for _ in range(dim[1])],
+            "trunk": {
+                "lay_id": "FFBlock",
+                "kwargs": {
+                    "layer_size": layer_size["trunk"],
+                    "activation": ["sigmoid"]*(len(layer_size["trunk"])-1),
+                    **common
+                }
+            },
+            "end_scale": {
+                "lay_id": "Dense"
+            }
+        }
+    }
+    return cfg
 
-block = 'ResPIBlock' # 'FFBlock' 'ResPIBlock'
-block_linear_out = False
+def get_ts_opnn_cfg(
+    dim,
+    layer_size,
+    specie_thermo=None
+):
+    dim["inp"] = tf.nest.flatten(dim["inp"])
+    dim["out"] = tf.nest.flatten(dim["out"])
+    cfg = {
+        "dim": {
+            "inp": dim["inp"],
+            "out": np.sum(dim["out"])
+        },
+        "lays_propty": {
+            "input": {
+                "xform_temp": {
+                    "lay_id": "LinearNormalization",
+                    "kwargs": {
+                        "mn": 200.0,
+                        "mx": 10000.0,
+                        "trainable": False
+                    }
+                },
+                "xform_mass": {
+                    "lay_id": "Log",
+                    "kwargs": {
+                        "base": 10,
+                        "trainable": False
+                    }
+                }
+            },
+            "mmopnn": {
+                "dim": {
+                    "inp": dim["inp"],
+                    "out": dim["out"]
+                },
+                "lays_propty": {
+                    "opnns": {
+                        f"opnn_{i+1}": get_opnn_cfg(
+                            dim=[dim["inp"], d],
+                            layer_size=layer_size
+                        ) for i, d in enumerate(dim["out"])
+                    }
+                }
+            },
+            "output": {
+                "xform": {
+                    "lay_id": "CGEquilibrium",
+                    "kwargs": {
+                        "output_dim": dim["out"],
+                        "use_pf_int": True if specie_thermo is not None else False,
+                        "specie_thermo": specie_thermo,
+                        "process": ["adiabatic", "isochoric"]
+                    }
+                }
+            }
+        }
+    }
+    return cfg
 
-opnn_end_scale = 'dense'
-
-stacked = True
-
-cross_encoder = {
-    "branch": False,
-    "trunk": False
-}
-
-augmented = False
-
-# Regularizers ----------------------------------------------------------------
-batch_norm = {
-    "branch": None,
-    "trunk":  None
-}
-
-regularization = {
-    'name':         'fine_tuning',                                      # 'fine_tuning'
-    'l1':           1.e-3,
-    'l2':           1.e-3,
-    'weights_path': './saving/'+inp_gen.model_name+'_weights.h5'  # For `FineTuningRegularizer`
-}
-
-dropout_rate = 0
-
-# I/O Transformations
-# =============================================================================
-# Global model ----------------------------------------------------------------
-# *** Inputs
-input_fn = {
-    "branch": tf_layers.Lambda(lambda x: x, name='branch_fn'),
-    # "trunk": tf_layers.Lambda(lambda x: tf.math.reciprocal((x+1.e-15)*1.e7))
-    "trunk": pro_layers.Scaling(slope=1.e7, name='trunk_fn', trainable=False)
-    # "trunk": pro_layers.Log(
-    #     base='e', slope=1.e7, offset=1.e-15, name='trunk_fn', trainable=False
-    # )
+# Full network characterization
+lays_propty = {
+    'preinput': {
+        'xform': {
+            'lay_id': 'CGThermoEncoder',
+            'kwargs': {
+                'nb_bins': 27
+            }
+        }
+    },
+    "input": {
+        "branch": {
+            "index": 0,
+            "xform": None
+        },
+        "trunk": {
+            "index": 1,
+            "xform": {
+                "lay_id": "Log",
+                "kwargs": {
+                    "base": "e",
+                    "slope": 1.e7,
+                    "offset": 1.e-14,
+                    "trainable": False
+                }
+            }
+        }
+    },
+    "temp": {
+        "lay_id": "OpNN",
+        "dim": {
+            "inp": dim["inp"],
+            "out": 1
+        },
+        "lays_propty": {
+            "branch": {
+                "lay_id": "FFBlock",
+                "kwargs": {
+                    "layer_size": [dim["inp"][0], 16, 16, 8],
+                    "activation": ["tanh"]*2 + ["linear"],
+                    **common
+                }
+            },
+            "trunk": {
+                "lay_id": "FFBlock",
+                "kwargs": {
+                    "layer_size": [dim["inp"][1], 16, 16, 8],
+                    "activation": ["sigmoid"]*2 + ["linear"],
+                    **common
+                }
+            },
+            "output": {
+                "xform": {
+                    "lay_id": "Limiter",
+                    "kwargs": {
+                        "limits": [200.0, 10000.0],
+                        "xform_in": tf.math.exp
+                    }
+                }
+            }
+        }
+    },
+    "mass": {
+        name: get_ts_opnn_cfg(
+            dim=dims[name],
+            layer_size=layer_sizes[name],
+            specie_thermo=specie_thermos[name]
+        ) for name in names
+    }
 }

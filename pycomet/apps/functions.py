@@ -176,7 +176,6 @@ def _model(
     # Save Model --------------------------------------------------------------
     if inputs_mod.flags['save'] > 0:
         model.save()
-
     return model
 
 def _postproc(

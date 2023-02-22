@@ -1,6 +1,7 @@
 import itertools
 import tensorflow as tf
 
+from tensorflow.python.training.tracking.data_structures import NoDependency
 from pycomet import utils
 from pycomet import networks
 from pycomet.networks.basenet import BaseNet
@@ -40,7 +41,7 @@ class CGOpNN(BaseNet):
             )
         # Timescales connectivity ---------------------------------------------
         self.fastest_to_current_ts = self.connect_fastest_to_current_ts(groups_graph)   # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
-        self.current_to_next_ts = self.connect_current_to_next_ts(groups_graph)         # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
+        self.current_to_next_ts = NoDependency(self.connect_current_to_next_ts(groups_graph))        # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
         # Layers --------------------------------------------------------------
         # Default layers
         self.default_lays_propty.update({

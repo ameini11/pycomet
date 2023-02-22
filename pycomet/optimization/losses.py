@@ -70,18 +70,18 @@ def get_loss_fn(
                 'res': ['mse', 'mse']
             }
     """
-    loss_identifier = {
-        "mae":   MeanAbsoluteError(axis, reduction, *args, **kwargs),
-        "malpe": MeanAbsoluteLogarithmicPercentageError(axis, reduction, *args, **kwargs),
-        "mape":  MeanAbsolutePercentageError(axis, reduction, *args, **kwargs),
-        "mse":   MeanSquaredError(axis, reduction, *args, **kwargs),
-        "msle":  MeanSquaredLogarithmicError(axis, reduction, *args, **kwargs),
-        "gnlll": GaussianNLLLoss(axis, reduction, *args, **kwargs),
-        "zero":  Zero(reduction, *args, **kwargs)
-    }
+    loss_identifiers = ("mae", "malpe", "mape", "mse", "msle", "gnlll", "zero")
     if isinstance(identifier, str):
-        if identifier.lower() in loss_identifier:
-            return loss_identifier[identifier.lower()]
+        if identifier.lower() in loss_identifiers:
+            return {
+                "mae":   MeanAbsoluteError(axis, reduction, *args, **kwargs),
+                "malpe": MeanAbsoluteLogarithmicPercentageError(axis, reduction, *args, **kwargs),
+                "mape":  MeanAbsolutePercentageError(axis, reduction, *args, **kwargs),
+                "mse":   MeanSquaredError(axis, reduction, *args, **kwargs),
+                "msle":  MeanSquaredLogarithmicError(axis, reduction, *args, **kwargs),
+                "gnlll": GaussianNLLLoss(axis, reduction, *args, **kwargs),
+                "zero":  Zero(reduction, *args, **kwargs)
+            }[identifier.lower()]
         else:
             return identifier
     elif callable(identifier):
@@ -237,7 +237,7 @@ def gaussian_nll_loss(axis=0, full=False):
         if full:
             loss += 0.5 * tf.math.log(2 * tf.math.pi)
         return backend.mean(loss, axis=axis) if axis else loss
-    return loss_fns
+    return loss_fn
 
 # ZERO ------------------------------------------------------------------------
 @keras_export('keras.losses.Zero')
