@@ -32,9 +32,6 @@ class DataGenerator(object):
         process_flags,
         nb_jobs=4
     ):
-        self.path = path + "/data/"
-        os.makedirs(self.path, exist_ok=True)
-        
         self.nb_jobs = nb_jobs
         self.nb_cases = nb_cases
 
