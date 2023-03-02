@@ -85,6 +85,7 @@ def _data(
         data_gen = DataGenerator(**datagen_args)
         data_src = data_gen.get_data_src(**data_src_args)
     data_args['data_src'] = data_src
+
     # Add information from physics --------------------------------------------
     physical_mdl = None
     if getattr(inputs_mod, 'physics_informed', False):

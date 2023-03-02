@@ -159,8 +159,8 @@ class Scaling(tf_layers.Layer):
         self.offset = offset
         self.xform = xform
         self.weights_values = {
-            'slope': self.slope,
-            'offset': self.offset,
+            'slope': np.array(self.slope),
+            'offset': np.array(self.offset)
         }
 
     # Building
@@ -178,7 +178,8 @@ class Scaling(tf_layers.Layer):
             self._weights[name] = self.add_weight(
                 name=name,
                 dtype=backend.floatx(),
-                initializer=initializers.Constant(value=w),
+                shape=w.shape,
+                initializer=lambda shape, dtype: w,
                 trainable=self.trainable
             )
         self.built = True
@@ -213,20 +214,25 @@ class LinearNormalization(Scaling):
     ###########################################################################
     def __init__(
         self,
-        mn=0.,
-        mx=1.,
+        mn=0.0,
+        mx=1.0,
         **kwargs
     ):
         self.mn, self.mx = mn, mx
-        if self.mx != self.mn:
-            slope = 1. / (self.mx-self.mn)
-            offset = - self.mn * slope
-        else:
-            slope = 1. / self.mx
-            offset = 0.
+        for k in ("mn","mx"):
+            x = getattr(self, k)
+            x = np.array(x).reshape(-1)
+            setattr(self, k, x)
+        # Default values
+        slope = 1.0 / self.mx
+        offset = np.zeros_like(slope)
+        # Avoid singularity
+        idx = np.where(self.mx != self.mn)
+        slope[idx] = 1.0 / (self.mx[idx]-self.mn[idx])
+        offset[idx] = - self.mn[idx] * slope[idx]
         super(LinearNormalization, self).__init__(
-            slope=slope,
-            offset=offset,
+            slope=slope.reshape(1,-1),
+            offset=offset.reshape(1,-1),
             **kwargs
         )
 

@@ -78,6 +78,7 @@ def plot_test(
     else:
         colors = COLORS
     # Loop over features
+    print(y.shape)
     for d in range(n):
         # >> Plot true values
         ax.plot(
@@ -91,8 +92,7 @@ def plot_test(
             x,
             y_pred[:,d],
             **pred_style,
-            c=colors[d],
-            label=var_names[d]
+            c=colors[d]
         )
     # Add legend
     if var_names is not None:

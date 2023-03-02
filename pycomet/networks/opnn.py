@@ -69,9 +69,14 @@ class OpNN(BaseNet):
         # Initializing
         self.active_lays = self.init_layers()
         self.init_preinput_lay()
-        self.n_branches = len(self.active_lays['branch'])
-        self.n_trunks = len(self.active_lays['trunk'])
-        self.max_num_blocks = max(self.n_branches, self.n_trunks)
+        self.nb_branches = len(self.active_lays['branch'])
+        self.nb_trunks = len(self.active_lays['trunk'])
+        max_nb_blocks = max(self.nb_branches, self.nb_trunks)
+        if max_nb_blocks != 1 and max_nb_blocks != self.output_dim[-1]:
+            utils.raise_value_err(
+                "The number of trunks/branches do "
+                "not match the number of outputs"
+            )
 
     # Layers initialization
     ###########################################################################
@@ -143,18 +148,16 @@ class OpNN(BaseNet):
         return G_u, G_y
 
     def _tensor_product(self, G_u, G_y):
-        if self.max_num_blocks > 1:
-            if self.n_branches > self.n_trunks:
-                G_y = [G_y[-1]] * self.n_branches
-            elif self.n_branches < self.n_trunks:
-                G_u = [G_u[-1]] * self.n_branches
-            elif self.n_branches == self.n_trunks == 1:
-                G_u = nn_elem.Split(self.max_num_blocks, axis=1)(G_u[-1])
-                G_y = nn_elem.Split(self.max_num_blocks, axis=1)(G_y[-1])
-        return [
-            tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) \
-                for i in range(self.max_num_blocks)
-        ]
+        if self.output_dim[-1] > 1:
+            if self.nb_branches > self.nb_trunks:
+                G_y = [G_y[-1]] * self.nb_branches
+            elif self.nb_branches < self.nb_trunks:
+                G_u = [G_u[-1]] * self.nb_branches
+            elif self.nb_branches == self.nb_trunks == 1:
+                G_u = nn_elem.Split(self.output_dim[-1], axis=1)(G_u[-1])
+                G_y = nn_elem.Split(self.output_dim[-1], axis=1)(G_y[-1])
+        return [tf_layers.Dot(axes=1)([G_u[i], G_y[i]]) \
+            for i in range(self.output_dim[-1])]
 
     def _manipulate_output(self, x, y, training):
         # Concatenation
