@@ -186,8 +186,9 @@ def _postproc(
 ):
     utils.print_fn("Postprocessing ...")
     # Training phase ----------------------------------------------------------
-    utils.print_fn("Training quantities", lev=1)
-    model.visualize_training(history=model.dir['train']+'/history.csv')
+    if inputs_mod.flags['train'] > 0:
+        utils.print_fn("Training quantities", lev=1)
+        model.visualize_training(history=model.dir['train']+'/history.csv')
     # Testing phase -----------------------------------------------------------
     if inputs_mod.flags['test'] > 0 and data.test is not None:
         utils.print_fn("Testing cases", lev=1)

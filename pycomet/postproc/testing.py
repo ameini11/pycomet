@@ -54,8 +54,15 @@ def plot_test(
     if ylim is not None:
         ax.set_ylim(ylim)
     # Check 2nd dim: looping over columns
+    x = np.squeeze(x)
+    if len(x.shape) < 2:
+        x = np.expand_dims(x, 1)
+    y = np.squeeze(y)
     if len(y.shape) < 2:
         y = np.expand_dims(y, 1)
+    y_pred = np.squeeze(y_pred)
+    if len(y_pred.shape) < 2:
+        y_pred = np.expand_dims(y_pred, 1)
 
     # Plot figure -------------------------------------------------------------
     # Define styles
@@ -78,7 +85,6 @@ def plot_test(
     else:
         colors = COLORS
     # Loop over features
-    print(y.shape)
     for d in range(n):
         # >> Plot true values
         ax.plot(
