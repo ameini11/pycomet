@@ -5,7 +5,7 @@ from keras import layers as tf_layers
 from pycomet.networks import elements as nn_elem
 from pycomet import config as cfg
 
-# Hypernet (Version v.22.12)
+# Hypernet (v.22.12)
 from hypernet.src.general import utils as hyp_utils
 thermophysics = hyp_utils.get_thermophysics_mod()
 sp_th_mod = thermophysics.specie_thermo.specie_thermo

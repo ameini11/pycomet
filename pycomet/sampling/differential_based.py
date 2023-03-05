@@ -12,21 +12,23 @@ class DifferentialBased(Sampler):
     def __init__(
         self,
         method='source',
-        grad_split=0.75
+        grad_split=0.75,
+        xlim=None,
         name=None,
         *args,
         **kwargs
     ):
-        super(PhysicalSpace, self).__init__(
+        super(DifferentialBased, self).__init__(
             name,
             *args,
             **kwargs
         )
         self.method = method
         self.grad_split = grad_split
+        self.xlim = xlim
 
     # Sampling ----------------------------------------------------------------
-    def sample(self, x, y, nb_pts, start_idx=0):
+    def sample(self, x, y, nb_pts):
         # Handling solution
         y = np.hstack(tf.nest.flatten(y))
         n, d = y.shape
@@ -41,8 +43,12 @@ class DifferentialBased(Sampler):
         elif self.method == 'source':
             # Source-based sampling method
             norm = self.compute_norm_source(dx, dy, indices)
+        # Limit the sampling domain
+        if self.xlim is not None:
+            idx = np.where((x >= self.xlim[0]) * (x <= self.xlim[1]))
+            x, norm = x[idx], norm[idx]
         # Sampling
-        samples = self.combined_sampling(x[start_idx:], norm, nb_pts)
+        samples = self.combined_sampling(x, norm, nb_pts)
         return samples
     
     # Numerical differentiation -----------------------------------------------

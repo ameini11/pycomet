@@ -5,9 +5,10 @@ from tensorflow.python.training.tracking.data_structures import NoDependency
 from pycomet import utils
 from pycomet import networks
 from pycomet.networks.basenet import BaseNet
+from pycomet.networks.opnn import _init_input_lay, _manipulate_input
 from pycomet.networks.chemreacnn.cg.adaptive.ts_opnn import TimeScaleOpNN
 from pycomet.networks.chemreacnn.cg.adaptive.layers import CurrentToNextTS
-from pycomet.networks.opnn import _init_input_lay, _manipulate_input
+from pycomet.networks.chemreacnn.cg.adaptive.groups_connect import GroupsConnect
 
 
 class CGOpNN(BaseNet):
@@ -40,8 +41,7 @@ class CGOpNN(BaseNet):
                 "`list` or a `tuple`of length 2: [u_dim, y_dim]"
             )
         # Timescales connectivity ---------------------------------------------
-        self.fastest_to_current_ts = self.connect_fastest_to_current_ts(groups_graph)   # {0: [[0, 1, 2, 3, 4, 5, 6, 7, 8]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
-        self.current_to_next_ts = NoDependency(self.connect_current_to_next_ts(groups_graph))        # {0: [[0, 1, 2]], 1: [[0, 1, 2], [3, 4, 5], [6, 7, 8]], 2: None}
+        self.grp_conn = GroupsConnect(groups_graph)
         # Layers --------------------------------------------------------------
         # Default layers
         self.default_lays_propty.update({
@@ -85,7 +85,7 @@ class CGOpNN(BaseNet):
                 lays[identifier] = self.init_temp_lay(propty)
             elif identifier == "mass":
                 lays[identifier] = self.init_mass_lay(propty)
-        lays["ts_connect"] = CurrentToNextTS(self.current_to_next_ts)
+        lays["ts_connect"] = CurrentToNextTS(self.grp_conn.current_to_next_ts)
         return lays
 
     def init_temp_lay(self, propty={}):
@@ -107,7 +107,7 @@ class CGOpNN(BaseNet):
             lays[name] = TimeScaleOpNN(
                 dim=ipropty["dim"],
                 lays_propty=ipropty["lays_propty"],
-                fastest_to_current_ts=self.fastest_to_current_ts[i]
+                fastest_to_current_ts=self.grp_conn.fastest_to_current_ts[i]
             )
         return lays
 
@@ -151,61 +151,3 @@ class CGOpNN(BaseNet):
             return [tf.gather(y[0], [0], axis=1), y[-1]]
         else:
             return nn_elem.Split(y[-1].shape[1], axis=1)(y[-1])
-
-    # Groups connectivity/indexing
-    ###########################################################################
-    def connect_current_to_next_ts(self, graph, level=0, connectivity={}):
-        d = {}
-        connectivity[level] = []
-        if isinstance(graph, dict):
-            for g in graph.values():
-                if hasattr(g, "keys"):
-                    l = list(g.keys())
-                    d = {**d, **g}
-                else:
-                    l = d = g
-                connectivity[level].append(l)
-        else:
-            connectivity[level] = None
-        if d != {}:
-            return self.connect_current_to_next_ts(
-                d, level=level+1, connectivity=connectivity
-            )
-        else:
-            return connectivity
-
-    def connect_fastest_to_current_ts(self, graph, ts={}):
-        nb_ts = utils.depth(graph)
-        connectivity = self.graph_to_nested_list(graph)
-        for l in range(-1, nb_ts):
-            ts[l+1] = self.merge(connectivity, it_max=l+1)
-        return ts
-
-    def graph_to_nested_list(self, graph):
-        if isinstance(graph, dict):
-            ls = []
-            for k, v in graph.items():
-                ls.append(self.graph_to_nested_list(v))
-            return ls
-        else:
-            if isinstance(graph, (list, tuple, set)):
-                return list(graph)
-            else:
-                utils.raise_value_err(
-                    "The last level of the groups graph has to be a list."
-                )
-
-    def merge(self, ls, it=0, it_max=1):
-        if any(isinstance(l, list) for l in ls):
-            if it < it_max:
-                ls = list(itertools.chain.from_iterable(ls))
-                return self.merge(ls, it=it+1, it_max=it_max)
-            else:
-                return self.join(ls)
-
-    def join(self, ls):
-        try:
-            ls = [list(itertools.chain.from_iterable(l)) for l in ls]
-            return self.join(ls)
-        except:
-            return ls

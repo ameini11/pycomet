@@ -118,3 +118,25 @@ class H5DataSet:
             else:
                 name_ = name
             self.data[name_] = self.df[name][()]
+
+# Files -----------------------------------------------------------------------
+def replace(file, patterns, replaces):
+    file_old = open(file, 'r')
+    file_new = open(file+'_new', 'w')
+    for line in file_old:
+        if any([p in line for p in patterns]):
+            for i, p in enumerate(patterns):
+                if p in line:
+                    line_new = replaces[i]
+                    break
+        else:
+            line_new = line
+        file_new.write(line_new)
+    file_new.close()
+    file_old.close()
+    os.rename(file+'_new', file)
+
+def generate_rnd_name(ref_name, rnd_num=1.e6):
+    rnd_num = int(rnd_num)
+    text = os.path.splitext(ref_name)
+    return text[0] + f'_{np.random.randint(rnd_num)}' + text[1]
