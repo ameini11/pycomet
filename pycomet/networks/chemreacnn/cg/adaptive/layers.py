@@ -56,7 +56,7 @@ class CGEquilibrium(tf_layers.Layer):
             Q = self.sp_th.pf.int.spline['Q'].apply(points=T)
             Q = nn_elem.Split(self.output_dim, axis=-1)(Q)
             # Simil-Softmax layer
-            y = [tf_layers.Multiply()([tf.math.exp(yi), Qi]) \
+            y = [tf_layers.Multiply()([tf.math.exp(-yi), Qi]) \
                 for yi, Qi in zip(y, Q)]
             y = [yi / tf.math.reduce_sum(yi, axis=-1, keepdims=1) for yi in y]
         else:
@@ -107,12 +107,12 @@ class CGThermoEncoder(tf_layers.Layer):
                 'rho_a': [0], 'rho_m': 1+indices, 'Th': [indices[-1]+2]
             }
         self.indices_toencode = {
-            k: list(index) for k, index in self.indices_toencode.items()
+            k: list(indices) for k, indices in self.indices_toencode.items()
         }
         # Encoded tensor's order
         self.encoded_tensors_order = encoded_tensors_order
         if self.encoded_tensors_order == None:
-            self.encoded_tensors_order = {0: 'Y_m', 1: 'Th', 2: 'rho'}
+            self.encoded_tensors_order = {0: 'rho', 1: 'Y_m', 2: 'Th'}
 
     # Calling
     ###########################################################################
@@ -123,7 +123,8 @@ class CGThermoEncoder(tf_layers.Layer):
         # Encoded quantities
         y = {}
         # Encode mass quantities
-        y['rho'] = tf.math.reduce_sum(x['rho_m'], axis=1, keepdims=1) + x['rho_a']
+        y['rho'] = tf.math.reduce_sum(x['rho_m'], axis=1, keepdims=1)
+        y['rho'] = y['rho'] + x['rho_a']
         y['Y_m'] = x['rho_m'] / y['rho']
         # Encode temperature quantities
         y['Th'] = x['Th']

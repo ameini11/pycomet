@@ -205,10 +205,10 @@ class Scaling(tf_layers.Layer):
 
 
 # =========================================================================== #
-# LinearNormalization Layer
+# ZeroToOneNormalization Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class LinearNormalization(Scaling):
+class ZeroToOneNormalization(Scaling):
 
     # Initialization
     ###########################################################################
@@ -216,13 +216,24 @@ class LinearNormalization(Scaling):
         self,
         mn=0.0,
         mx=1.0,
+        xform=None,
+        file=None,
+        axis=1,
         **kwargs
     ):
-        self.mn, self.mx = mn, mx
+        if file is None:
+            self.mn, self.mx = mn, mx
+        else:
+            self.mn, self.mx = np.split(np.loadtxt(file), 2, axis)
+        # Convert to array
         for k in ("mn","mx"):
             x = getattr(self, k)
             x = np.array(x).reshape(-1)
             setattr(self, k, x)
+        # Transform
+        self.xform = xform
+        if self.xform is not None:
+            self.mn, self.mx = self.xform(self.mn), self.xform(self.mx)
         # Default values
         slope = 1.0 / self.mx
         offset = np.zeros_like(slope)
@@ -230,7 +241,8 @@ class LinearNormalization(Scaling):
         idx = np.where(self.mx != self.mn)
         slope[idx] = 1.0 / (self.mx[idx]-self.mn[idx])
         offset[idx] = - self.mn[idx] * slope[idx]
-        super(LinearNormalization, self).__init__(
+        # Parent class
+        super(ZeroToOneNormalization, self).__init__(
             slope=slope.reshape(1,-1),
             offset=offset.reshape(1,-1),
             **kwargs
@@ -241,9 +253,10 @@ class LinearNormalization(Scaling):
     def get_config(self):
         config = {
             'mn': self.mn,
-            'mx': self.mx
+            'mx': self.mx,
+            'xform': self.xform
         }
-        base_config = super(LinearNormalization, self).get_config()
+        base_config = super(ZeroToOneNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 

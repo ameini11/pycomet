@@ -75,16 +75,24 @@ class TimeScaleOpNN(BaseNet):
 
     def init_input_lay(self, propty):
         lays = {}
-        for k in ("xform_temp", "xform_mass", "split_ic"):
+        for k in ("split_ic", "xform_log", "xform_linscale", "prenet"):
             if k.startswith("xform"):
                 _propty = {"xform": propty[k]} if k in propty else {}
                 lays[k] = self.init_inout_lay(_propty)
-            else:
+            elif k == "split_ic":
                 _propty = propty[k] if k in propty else dict(
-                    num_or_size_splits=[self.input_dim[0]-2,1,1],
+                    num_or_size_splits=[1,self.input_dim[0]-2,1],
                     axis=1
                 )
                 lays[k] = nn_elem.Split(**_propty)
+            elif k == "prenet":
+                if k in propty:
+                    lays[k] = self.get_lay(
+                        propty={
+                            'lay_id': 'PreNetBlock',
+                            'kwargs': propty[k]['kwargs']
+                        }
+                    )
         lays["ts_connect"] = FastestToCurrentTS(self.fastest_to_current_ts)
         return lays
 
@@ -115,25 +123,29 @@ class TimeScaleOpNN(BaseNet):
         # Extract inputs
         [ic, t], T = x
         # Extract initial physical inputs
-        Y0, T0, rho = self.active_lays["input"]["split_ic"](ic)
+        rho, Y0, T0 = self.active_lays["input"]["split_ic"](ic)
         if T is None:
             T = T0
         # Add mass fractions: micro-bins (fastest ts) to macro-bins (current ts)
         Y0 = self.active_lays["input"]["ts_connect"](Y0)
-        # Xform mass fractions
-        Y0 = self._manipulate_inout(
-            inputs=dict(y=Y0),
-            lay=self.active_lays["input"]["xform_mass"],
-            training=training
-        )
-        # Xform temperature
-        T0 = self._manipulate_inout(
-            inputs=dict(y=T0),
-            lay=self.active_lays["input"]["xform_temp"],
-            training=training
-        )
         # Recompose ICs
-        ic = tf_layers.Concatenate()([Y0, T0, rho])
+        ic = tf_layers.Concatenate()([rho, Y0, T0])
+        # Transform ICs
+        ic = self._manipulate_inout(
+            inputs=dict(y=ic),
+            lay=self.active_lays["input"]["xform_log"],
+            training=training
+        )
+        ic = self._manipulate_inout(
+            inputs=dict(y=ic),
+            lay=self.active_lays["input"]["xform_linscale"],
+            training=training
+        )
+        # Prenet for automatic time shifting
+        if "prenet" in self.active_lays["input"].keys():
+            t = self.active_lays["input"]["prenet"](
+                x=[ic, t], training=training
+            )
         # Recompose inputs
         return [ic, t], T
 

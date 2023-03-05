@@ -159,7 +159,7 @@ def get_ts_opnn_cfg(
         "lays_propty": {
             "input": {
                 "xform_temp": {
-                    "lay_id": "LinearNormalization",
+                    "lay_id": "ZeroToOneNormalization",
                     "kwargs": {
                         "mn": 200.0,
                         "mx": 10000.0,
