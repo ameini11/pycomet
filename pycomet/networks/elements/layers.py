@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -780,4 +781,56 @@ class Limiter(tf_layers.Layer):
             'xform_out': self.xform_out
         }
         base_config = super(Limiter, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
+# MultiLays Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class MultiLays(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        lays_propty,
+        **kwargs
+    ):
+        super(MultiLays, self).__init__(
+            **kwargs
+        )
+        # Order layers by index
+        indices = list(lays_propty.keys()).sort()
+        self.lays_propty = {i: lays_propty[i] for i in indices}
+        # Initialize layers
+        self.layers = {
+            i: self.get_lay(propty) for i, propty in self.lays_propty.items()
+        }
+
+    # Initialize layers
+    ###########################################################################
+    def get_lay(self, propty={}):
+        lay = propty['lay_id']
+        if not callable(lay):
+            lay = utils.get_class(
+                modules=(sys.modules[__name__], tf_layers), name=elem
+            )
+        return lay(**propty['kwargs'])
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None):
+        y = inputs
+        for i, lay in self.layers.items():
+            y = self.layers[i](y, training=training)
+        return y
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'lays_propty': self.lays_propty
+        }
+        base_config = super(MultiLays, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

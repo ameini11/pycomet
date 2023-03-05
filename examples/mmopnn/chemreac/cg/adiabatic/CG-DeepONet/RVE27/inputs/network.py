@@ -159,7 +159,7 @@ def get_opnn_cfg(
 # TimeScaleOpNN: Full network config
 # -------------------------------------
 branch_multilay = {
-    "lay_id": "MultiLay",
+    "lay_id": "MultiLays",
     "kwargs": {
         0: {
             "lay_id": "Log",
