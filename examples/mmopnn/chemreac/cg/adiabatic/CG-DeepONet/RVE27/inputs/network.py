@@ -14,29 +14,14 @@ from inputs.general import dim
 # =============================================================================
 architecture = "CGOpNN"
 
-force_siso = True
+force_siso = False
 
-groups_graph = {
-    0: {
-        0: {
-            0: [ 0, 1, 2],
-            1: [ 3, 4, 5],
-            2: [ 6, 7, 8]
-        },
-        1: {
-            3: [ 9,10,11],
-            4: [12,13,14],
-            5: [15,16,17]
-        },
-        2: {
-            6: [18,19,20],
-            7: [21,22,23],
-            8: [24,25,26]
-        }
-    }
-}
+# -----------------------------------------------------------------------------
+# Layers
+# -----------------------------------------------------------------------------
 
-# Layers ----------------------------------------------------------------------
+# Layers - Common properties
+# -------------------------------------
 common = {
     "kernel_initializer": "GlorotNormal",
     "regularizer": {
@@ -50,7 +35,12 @@ common = {
     "weight_norm": False
 }
 
-# TimeScaleOpNNs characterization
+# -----------------------------------------------------------------------------
+# TimeScaleOpNN
+# -----------------------------------------------------------------------------
+
+# TimeScaleOpNN - Simple properties
+# -------------------------------------
 names = ["TS0", "TS1", "TS2", "TS3"]
 
 dims = {
@@ -74,24 +64,26 @@ dims = {
 
 layer_sizes = {
     names[0]: {
-        "branch": [ 2+1, 32, 32,  8],
-        "trunk":  [   1, 32, 32,  8]
+        "branch": [ 2+1, 32, 32, 16],
+        "trunk":  [   1, 32, 32, 16]
     },
     names[1]: {
-        "branch": [ 2+3, 48, 48, 16],
-        "trunk":  [   1, 48, 48, 16]
+        "branch": [ 2+3, 32, 32, 16],
+        "trunk":  [   1, 32, 32, 16]
 
     },
     names[2]: {
-        "branch": [ 2+9, 48, 48, 16],
-        "trunk":  [   1, 48, 48, 16]
+        "branch": [ 2+9, 32, 32, 16],
+        "trunk":  [   1, 32, 32, 16]
     },
     names[3]: {
-        "branch": [2+27, 48, 48, 16],
-        "trunk":  [   1, 48, 48, 16]
+        "branch": [2+27, 32, 32, 16],
+        "trunk":  [   1, 32, 32, 16]
     }
 }
 
+# TimeScaleOpNN - Physics
+# -------------------------------------
 specie_thermos = {
     names[0]: None,
     **{
@@ -110,12 +102,35 @@ specie_thermos = {
     }
 }
 
+groups_graph = {
+    0: {
+        0: {
+            0: [ 0, 1, 2],
+            1: [ 3, 4, 5],
+            2: [ 6, 7, 8]
+        },
+        1: {
+            3: [ 9,10,11],
+            4: [12,13,14],
+            5: [15,16,17]
+        },
+        2: {
+            6: [18,19,20],
+            7: [21,22,23],
+            8: [24,25,26]
+        }
+    }
+}
+
+# TimeScaleOpNN - Single OpNN config
+# -------------------------------------
 def get_opnn_cfg(
     dim,
     layer_size
 ):
+    nb_lays = tf.nest.map_structure(len, layer_size)
     cfg = {
-        "lay_id": "AugOpNN",
+        "lay_id": "FlexOpNN",
         "dim": {
             "inp": dim[0],
             "out": dim[1]
@@ -125,7 +140,7 @@ def get_opnn_cfg(
                 'lay_id': 'FFBlock',
                 'kwargs': {
                     "layer_size": layer_size["branch"],
-                    "activation": ["tanh"]*(len(layer_size["branch"])-1),
+                    "activation": ["tanh"]*(nb_lays-2) + ["linear"],
                     **common
                 }
             } for _ in range(dim[1])],
@@ -133,16 +148,37 @@ def get_opnn_cfg(
                 "lay_id": "FFBlock",
                 "kwargs": {
                     "layer_size": layer_size["trunk"],
-                    "activation": ["sigmoid"]*(len(layer_size["trunk"])-1),
+                    "activation": ["sigmoid"]*(nb_lays-2) + ["linear"],
                     **common
                 }
-            },
-            "end_scale": {
-                "lay_id": "Dense"
             }
         }
     }
     return cfg
+
+# TimeScaleOpNN: Full network config
+# -------------------------------------
+branch_multilay = {
+    "lay_id": "MultiLay",
+    "kwargs": {
+        0: {
+            "lay_id": "Log",
+            "kwargs": {
+                "base": 'e',
+                "trainable": False
+            }
+        }
+        1: {
+            "lay_id": "ZeroToOneNormalization",
+            "kwargs": {
+                "xform": np.log,
+                "file": ...,
+                "axis": 1,
+                "trainable": False
+            }
+        }
+    }
+}
 
 def get_ts_opnn_cfg(
     dim,
@@ -158,21 +194,17 @@ def get_ts_opnn_cfg(
         },
         "lays_propty": {
             "input": {
-                "xform_temp": {
-                    "lay_id": "ZeroToOneNormalization",
+                "multilay": branch_multilay,
+                "prenet": {
                     "kwargs": {
-                        "mn": 200.0,
-                        "mx": 10000.0,
-                        "trainable": False
+                        'layer_size': [dim['inp'][0], 16, 16],
+                        'activation': ['tanh']*2 + ['linear'],
+                        'out_xform': None,
+                        'transformation': 'affine',
+                        'num_coords': 1,
+                        **common
                     }
-                },
-                # "xform_mass": {
-                #     "lay_id": "Log",
-                #     "kwargs": {
-                #         "base": 10,
-                #         "trainable": False
-                #     }
-                # }
+                }
             },
             "mmopnn": {
                 "dim": {
@@ -203,16 +235,20 @@ def get_ts_opnn_cfg(
     }
     return cfg
 
-# Full network characterization
+# -----------------------------------------------------------------------------
+# Complete network characterization
+# -----------------------------------------------------------------------------
 lays_propty = {
-    'preinput': {
-        'xform': {
-            'lay_id': 'CGThermoEncoder',
-            'kwargs': {
-                'nb_bins': 27
-            }
-        }
-    },
+    
+    # 'preinput': {
+    #     'xform': {
+    #         'lay_id': 'CGThermoEncoder',
+    #         'kwargs': {
+    #             'nb_bins': 27
+    #         }
+    #     }
+    # },
+    
     "input": {
         "branch": {
             "index": 0,
@@ -224,24 +260,55 @@ lays_propty = {
                 "lay_id": "Log",
                 "kwargs": {
                     "base": "e",
-                    "slope": 1.e7,
-                    "offset": 1.e-14,
+                    "slope": 1.e8,
+                    "offset": 1.e-12,
                     "trainable": False
                 }
             }
         }
     },
+    
+    "mass": {
+        name: get_ts_opnn_cfg(
+            dim=dims[name],
+            layer_size=layer_sizes[name],
+            specie_thermo=specie_thermos[name]
+        ) for name in names
+    },
+    
     "temp": {
-        "lay_id": "AugOpNN",
+        "lay_id": "FlexOpNN",
         "dim": {
             "inp": dim["inp"],
             "out": 1
         },
         "lays_propty": {
+            "input": {
+                "branch": {
+                    "index": 0,
+                    "xform": branch_multilay
+                },
+                "trunk": {
+                    "index": 0,
+                    "xform": None
+                }
+            },
+            'prenet': {
+                'from': 'branch',
+                'to': 'trunk',
+                'kwargs': {
+                    'layer_size': [dim['inp'][0], 16, 16],
+                    'activation': ['tanh']*2 + ['linear'],
+                    'out_xform': None,
+                    'transformation': 'affine',
+                    'num_coords': 1,
+                    **common
+                }
+            },
             "branch": {
                 "lay_id": "FFBlock",
                 "kwargs": {
-                    "layer_size": [dim["inp"][0], 32, 32, 8],
+                    "layer_size": [dim["inp"][0], 32, 32, 16],
                     "activation": ["tanh"]*2 + ["linear"],
                     **common
                 }
@@ -249,7 +316,7 @@ lays_propty = {
             "trunk": {
                 "lay_id": "FFBlock",
                 "kwargs": {
-                    "layer_size": [dim["inp"][1], 32, 32, 8],
+                    "layer_size": [dim["inp"][1], 32, 32, 16],
                     "activation": ["sigmoid"]*2 + ["linear"],
                     **common
                 }
@@ -264,12 +331,6 @@ lays_propty = {
                 }
             }
         }
-    },
-    "mass": {
-        name: get_ts_opnn_cfg(
-            dim=dims[name],
-            layer_size=layer_sizes[name],
-            specie_thermo=specie_thermos[name]
-        ) for name in names
     }
+    
 }

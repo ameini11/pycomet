@@ -37,9 +37,10 @@ class TimeScaleOpNN(BaseNet):
         # Default layers
         self.default_lays_propty.update({
             "input": {
-                "xform_temp": {},
-                "xform_mass": {},
-                "split_ic": {}
+                "split_ic": {},
+                "xform_log": {},
+                "xform_linscale": {},
+                "prenet": {}
             }
         })
         # Layers names
@@ -77,16 +78,22 @@ class TimeScaleOpNN(BaseNet):
         lays = {}
         for k in ("split_ic", "xform_log", "xform_linscale", "prenet"):
             if k.startswith("xform"):
-                _propty = {"xform": propty[k]} if k in propty else {}
+                if (k in propty) and (len(propty[k]) != 0):
+                    _propty = {"xform": propty[k]}
+                else:
+                    _propty = {}
                 lays[k] = self.init_inout_lay(_propty)
             elif k == "split_ic":
-                _propty = propty[k] if k in propty else dict(
-                    num_or_size_splits=[1,self.input_dim[0]-2,1],
-                    axis=1
-                )
+                if (k in propty) and (len(propty[k]) != 0):
+                    _propty = propty[k]
+                else:
+                    _propty = dict(
+                        num_or_size_splits=[1,self.input_dim[0]-2,1],
+                        axis=1
+                    )
                 lays[k] = nn_elem.Split(**_propty)
             elif k == "prenet":
-                if k in propty:
+                if (k in propty) and (len(propty[k]) != 0):
                     lays[k] = self.get_lay(
                         propty={
                             'lay_id': 'PreNetBlock',

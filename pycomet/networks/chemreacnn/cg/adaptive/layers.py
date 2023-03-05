@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
-from pycomet.networks import elements as nn_elem
 from pycomet import config as cfg
+from pycomet.networks import elements as nn_elem
 
 # Hypernet (v.22.12)
 from hypernet.src.general import utils as hyp_utils

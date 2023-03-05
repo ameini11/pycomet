@@ -9,6 +9,7 @@ import numpy as np
 
 # Plotting quantities
 # =============================================================================
+idx = list(np.arange(27))
 figures = [
     {
         'fig_name':  'mass_O',
@@ -18,7 +19,7 @@ figures = [
     },
     {
         'fig_name':  'mass_O2',
-        'indices':   ({1: 0}, {1: np.arange(27)}, {1: np.arange(27)}),
+        'indices':   ({1: 0}, {1: idx}, {1: idx}),
         'labels':    [r'$t$ [s]', r'$Y$'],
         'scales':    ['log', 'log']
     },

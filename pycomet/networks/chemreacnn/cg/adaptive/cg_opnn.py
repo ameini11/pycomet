@@ -147,7 +147,13 @@ class CGOpNN(BaseNet):
         if len(y) > 1:
             # Connect groups
             y = self.active_lays["ts_connect"](y)
-            # Compose outputs: atom mass fraction + last timescale
-            return [tf.gather(y[0], [0], axis=1), y[-1]]
-        else:
-            return nn_elem.Split(y[-1].shape[1], axis=1)(y[-1])
+        return y
+
+    # def _manipulate_output(self, y):
+    #     if len(y) > 1:
+    #         # Connect groups
+    #         y = self.active_lays["ts_connect"](y)
+    #         # Compose outputs: atom mass fraction + last timescale
+    #         return [tf.gather(y[0], [0], axis=1), y[-1]]
+    #     else:
+    #         return nn_elem.Split(y[-1].shape[1], axis=1)(y[-1])

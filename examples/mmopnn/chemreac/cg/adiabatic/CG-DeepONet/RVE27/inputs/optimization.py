@@ -23,9 +23,9 @@ decay = ["exponential", decay_steps, decay_rate]
 axis = 0 # -1 0 None
 reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
 loss = {
-    'ics': ['malpe', 'malpe', 'malpe'],
-    'pts': ['malpe', 'malpe', 'malpe'],
-    'res': ['mae', 'mae', 'mae']
+    'ics': 'malpe',
+    'pts': 'malpe',
+    'res': 'mae'
 }
 
 ## Callbacks
@@ -59,7 +59,7 @@ callbacks = {
 
     'plotter': {
         'figures': figures,
-        'freq':    400
+        'freq':    500
     },
 
     # 'weighted_loss': {

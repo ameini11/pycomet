@@ -6,7 +6,15 @@
 
 # Physical model: CG model for O3 system
 # =============================================================================
+# Time limits
+tlim = [1.e-10, 1.e-6]
+
 # Thermodynamics - HyperNet code & database
+specie_names = {
+    "m": "O2",
+    "a": "O"
+},
+    
 specie_thermo = {
     0: {
         'specie': {

@@ -10,7 +10,7 @@ import tensorflow as tf
 
 # Data properties
 # =============================================================================
-data_type = 'ODE'
+data_type = 'DataSet'
 
 physics_informed = False
 
@@ -19,12 +19,12 @@ from_file = False
 
 data_src = {
     'train': {
-        'ics': './data/train/ics.csv',
+        'ics': None #'./data/train/ics.csv',
         'pts': './data/train/pts.csv',
         'res': None #'./data/train/res.csv'
     },
     'valid': {
-        'ics': './data/valid/ics.csv',
+        'ics': None #'./data/valid/ics.csv',
         'pts': './data/valid/pts.csv',
         'res': None #'./data/valid/res.csv'
     },

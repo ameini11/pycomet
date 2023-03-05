@@ -31,11 +31,10 @@ class DataGenerator(pcm.data.DataGenerator):
         train_pts,
         validation_split,
         tlim,
-        grad_split,
         groups_graph,
-        specie_names=,
         specie_thermo,
         process,
+        grad_split=0.75,
         specie_names={"m": "O2", "a": "O"},
         *args,
         **kwargs
@@ -66,7 +65,7 @@ class DataGenerator(pcm.data.DataGenerator):
         # Time sampling -------------------------------------------------------
         self.dyn_sampler = DifferentialBased(
             method='source',
-            grad_split=0.75,
+            grad_split=grad_split,
             xlim=np.log(tlim)
         )
 
@@ -123,13 +122,6 @@ class DataGenerator(pcm.data.DataGenerator):
         self.data_lbl_out += ['T']
         # Input-Output features
         self.data_lbl = self.data_lbl_inp + self.data_lbl_out
-        
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        print(self.grp_lbl)
-        print(self.inp_lbl)
-        print(self.box_lbl)
-        print(self.data_lbl)
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     # Data source
     ###########################################################################
@@ -264,17 +256,6 @@ class DataGenerator(pcm.data.DataGenerator):
                 data_i = self.sample_data(ics_samples[i], case, pts)
                 # Stack data
                 data = self.stack_data(data, data_i, k)
-    
-            # if (i % 2) == 0:
-            #     marker_style = dict(marker='o', lw=0.5, ls='none', \
-            #                         fillstyle='full', markersize=2)
-            #     plt.xscale('log')
-            #     plt.yscale('log')
-            #     plt.plot(data_i['res'][0][1], np.hstack(data_i['res'][1]), **marker_style, label=self.data_label_out)
-            #     plt.plot(data_i['pts'][0][1], np.hstack(data_i['pts'][1]), c='k', **marker_style)
-            #     plt.legend()
-            #     plt.grid()
-            #     plt.show()
             
         # Saving --------------------------------------------------------------
         # Save data in a `.csv` file
@@ -397,5 +378,3 @@ class DataGenerator(pcm.data.DataGenerator):
         Y_ts[0] = np.hstack([Y['a'], Y_ts[0]])
         # Return variables
         return t, Y, T
-        
-        
