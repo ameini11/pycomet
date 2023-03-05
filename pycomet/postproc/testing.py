@@ -5,6 +5,8 @@ matplotlib, plt = utils.import_matplotlib()
 COLORS = matplotlib.rcParams['axes.prop_cycle'].by_key()['color']
 
 
+# Plotting testing quantities
+###########################################################################
 def plot_test(
     path=None,
     x=None,

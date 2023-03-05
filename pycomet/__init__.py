@@ -54,6 +54,7 @@ from pycomet import operations
 from pycomet import optimization
 from pycomet import physics
 from pycomet import postproc
+from pycomet import sampling
 from pycomet import utils
 from pycomet.apps import import_inputs, load_model
 

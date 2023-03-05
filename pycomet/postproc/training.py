@@ -5,7 +5,7 @@ from pycomet import utils
 matplotlib, plt = utils.import_matplotlib()
 
 
-# Plotting Training Quantities
+# Plotting training quantities
 ###########################################################################
 def plot_loss(
     history=None,
