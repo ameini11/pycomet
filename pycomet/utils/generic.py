@@ -3,6 +3,7 @@ import gc
 import h5py
 import random
 import signal
+import subprocess
 import numpy as np
 import tensorflow as tf
 
@@ -48,9 +49,27 @@ def generate_init_mod_file(path=''):
             file.write(f'from {module}.{Path(p).stem} import *\n')
     file.close()
 
-def load_external_module(load_cmd, env_keys=("PATH", "LD_LIBRARY_PATH")):
+def load_external_module(
+    load_cmd='module load plato',
+    shell='/bin/bash',
+    env_keys=("PATH", "LD_LIBRARY_PATH")
+):
+    # Initialize process
+    p = subprocess.Popen(
+        [shell],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    # Invoke command
     cmd = ' '.join([f'{load_cmd}'] + [f"&& echo ${k}" for k in env_keys])
-    out = get_ipython().getoutput(cmd)[-len(env_keys):]
+    out, err = p.communicate(cmd.encode())
+    # Decode output
+    out = out.decode().split('\n')
+    out = [i for i in out if i]
+    out = out[-len(env_keys):]
+    # Update environment
     for i, k in enumerate(env_keys):
         os.environ[k] = out[i]
     return os.environ
+

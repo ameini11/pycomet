@@ -183,7 +183,7 @@ class DataGenerator(object):
         case_id = str(int(case_nb+1)).zfill(6)
         case_path = shutil.copytree(
             path + f'/run.bkp',
-            path + f'/run.{case_id}',
+            path + f'/run.{pcm.utils.generate_rnd_name(case_id)}',
             dirs_exist_ok=True
         )  
         os.chdir(case_path)
