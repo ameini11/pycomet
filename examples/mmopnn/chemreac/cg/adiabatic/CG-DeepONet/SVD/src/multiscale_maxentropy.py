@@ -5,7 +5,9 @@ import pandas as pd
 import tensorflow as tf
 
 from src import utils
-from prode.physics.general import const
+
+# HyperNet (v.22.12)
+from hypernet.src.general import const
 
 EPS = 1.e-5
 

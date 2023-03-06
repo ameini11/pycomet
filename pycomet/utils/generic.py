@@ -47,3 +47,10 @@ def generate_init_mod_file(path=''):
             and Path(p).suffix == '.py':
             file.write(f'from {module}.{Path(p).stem} import *\n')
     file.close()
+
+def load_external_module(load_cmd, env_keys=("PATH", "LD_LIBRARY_PATH")):
+    cmd = ' '.join([f'{load_cmd}'] + [f"&& echo ${k}" for k in env_keys])
+    out = get_ipython().getoutput(cmd)[-len(env_keys):]
+    for i, k in enumerate(env_keys):
+        os.environ[k] = out[i]
+    return os.environ

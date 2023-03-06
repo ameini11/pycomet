@@ -120,11 +120,15 @@ class H5DataSet:
             self.data[name_] = self.df[name][()]
 
 # Files -----------------------------------------------------------------------
-def replace(file, patterns, replaces):
+def replace(file, patterns, replaces, startswith=True):
     file_old = open(file, 'r')
     file_new = open(file+'_new', 'w')
     for line in file_old:
-        if any([p in line for p in patterns]):
+        if startswith:
+            cond = any([line.startswith(p) for p in patterns])
+        else:
+            cond = any([p in line for p in patterns])
+        if cond:
             for i, p in enumerate(patterns):
                 if p in line:
                     line_new = replaces[i]
