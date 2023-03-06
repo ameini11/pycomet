@@ -1,3 +1,4 @@
+import copy
 import tensorflow as tf
 
 from keras import layers as tf_layers
@@ -64,6 +65,7 @@ class FlexOpNN(OpNN):
     def init_block_lay(self, identifier, propty):
         lay = []
         propty = propty if isinstance(propty, (list,tuple)) else [propty]
+        propty = tf.nest.map_structure(copy.deepcopy, propty)
         for i, p in enumerate(propty):
             if identifier.startswith('branch'):
                 p['kwargs']['layer_size'][-1] += 2
@@ -91,5 +93,5 @@ class FlexOpNN(OpNN):
         y = super(FlexOpNN, self)._tensor_product(G_u, G_y)
         return [
             tf_layers.Add()([c[i], tf_layers.Multiply()([d[i], y[i]])]) \
-                for i in range(self.max_num_blocks)
+                for i in range(self.output_dim[-1])
         ]

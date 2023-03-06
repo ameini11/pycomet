@@ -363,9 +363,9 @@ class Log(tf_layers.Layer):
     ###########################################################################
     def __init__(
         self,
-        base=10.,
-        slope=0.,
-        offset=1.,
+        base=10.0,
+        slope=0.0,
+        offset=1.0,
         **kwargs
     ):
         super(Log, self).__init__(
@@ -375,7 +375,7 @@ class Log(tf_layers.Layer):
         self.slope = slope
         self.offset = offset
         if self.base == 'e':
-            self.scale = 1.
+            self.scale = 1.0
         else:
             self.scale = np.log(float(self.base))
         self.weights_values = {
@@ -787,8 +787,7 @@ class Limiter(tf_layers.Layer):
 # =========================================================================== #
 # MultiLays Layer
 # =========================================================================== #
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class MultiLays(tf_layers.Layer):
+class MultiLays(object):
 
     # Initialization
     ###########################################################################
@@ -801,7 +800,8 @@ class MultiLays(tf_layers.Layer):
             **kwargs
         )
         # Order layers by index
-        indices = list(lays_propty.keys()).sort()
+        indices = list(lays_propty.keys())
+        indices.sort()
         self.lays_propty = {i: lays_propty[i] for i in indices}
         # Initialize layers
         self.layers = {
@@ -814,23 +814,14 @@ class MultiLays(tf_layers.Layer):
         lay = propty['lay_id']
         if not callable(lay):
             lay = utils.get_class(
-                modules=(sys.modules[__name__], tf_layers), name=elem
+                modules=(sys.modules[__name__], tf_layers), name=lay
             )
         return lay(**propty['kwargs'])
 
     # Calling
     ###########################################################################
-    def call(self, inputs, training=None):
+    def __call__(self, inputs, training=None, *args, **kwargs):
         y = inputs
         for i, lay in self.layers.items():
-            y = self.layers[i](y, training=training)
+            y = self.layers[i](y, training=training, *args, **kwargs)
         return y
-
-    # Configuration update
-    ###########################################################################
-    def get_config(self):
-        config = {
-            'lays_propty': self.lays_propty
-        }
-        base_config = super(MultiLays, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))

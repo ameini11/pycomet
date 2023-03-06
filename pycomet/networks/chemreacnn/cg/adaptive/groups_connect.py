@@ -10,7 +10,7 @@ class GroupsConnect(object):
     ###########################################################################
     def __init__(
         self,
-        groups_graph
+        groups_graph,
         *args,
         **kwargs
     ):

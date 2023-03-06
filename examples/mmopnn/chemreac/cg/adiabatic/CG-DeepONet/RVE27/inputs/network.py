@@ -128,7 +128,7 @@ def get_opnn_cfg(
     dim,
     layer_size
 ):
-    nb_lays = tf.nest.map_structure(len, layer_size)
+    nb_lays = {k: len(l) for k, l in layer_size.items()}
     cfg = {
         "lay_id": "FlexOpNN",
         "dim": {
@@ -140,7 +140,7 @@ def get_opnn_cfg(
                 'lay_id': 'FFBlock',
                 'kwargs': {
                     "layer_size": layer_size["branch"],
-                    "activation": ["tanh"]*(nb_lays-2) + ["linear"],
+                    "activation": ["tanh"]*(nb_lays["branch"]-2) + ["linear"],
                     **common
                 }
             } for _ in range(dim[1])],
@@ -148,7 +148,7 @@ def get_opnn_cfg(
                 "lay_id": "FFBlock",
                 "kwargs": {
                     "layer_size": layer_size["trunk"],
-                    "activation": ["sigmoid"]*(nb_lays-2) + ["linear"],
+                    "activation": ["sigmoid"]*(nb_lays["trunk"]-2) + ["linear"],
                     **common
                 }
             }
@@ -158,7 +158,7 @@ def get_opnn_cfg(
 
 # TimeScaleOpNN: Full network config
 # -------------------------------------
-branch_multilay = {
+branch_multilays = [{
     "lay_id": "MultiLays",
     "kwargs": {
         "lays_propty": {
@@ -168,21 +168,22 @@ branch_multilay = {
                     "base": 'e',
                     "trainable": False
                 }
-            }
+            },
             1: {
                 "lay_id": "ZeroToOneNormalization",
                 "kwargs": {
                     "xform": np.log,
-                    "file": './datagen/data/bounds.txt',
-                    "axis": 1,
+                    "mn": [2.9e3, 3.0e-3] + [1.0e-14]*nb_bins,
+                    "mx": [9.0e3, 1.7e-2] + [  1.0e0]*nb_bins,
                     "trainable": False
                 }
             }
         }
     }
-}
+} for nb_bins in (1,3,9,27)]
 
 def get_ts_opnn_cfg(
+    index,
     dim,
     layer_size,
     specie_thermo=None
@@ -196,7 +197,7 @@ def get_ts_opnn_cfg(
         },
         "lays_propty": {
             "input": {
-                "multilay": branch_multilay,
+                "multilays": branch_multilays[index],
                 "prenet": {
                     "kwargs": {
                         'layer_size': [dim['inp'][0], 16, 16],
@@ -272,10 +273,11 @@ lays_propty = {
     
     "mass": {
         name: get_ts_opnn_cfg(
+            index=i,
             dim=dims[name],
             layer_size=layer_sizes[name],
             specie_thermo=specie_thermos[name]
-        ) for name in names
+        ) for i, name in enumerate(names)
     },
     
     "temp": {
@@ -288,10 +290,10 @@ lays_propty = {
             "input": {
                 "branch": {
                     "index": 0,
-                    "xform": branch_multilay
+                    "xform": branch_multilays[-1]
                 },
                 "trunk": {
-                    "index": 0,
+                    "index": 1,
                     "xform": None
                 }
             },

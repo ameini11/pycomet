@@ -38,8 +38,7 @@ class TimeScaleOpNN(BaseNet):
         self.default_lays_propty.update({
             "input": {
                 "split_ic": {},
-                "xform_log": {},
-                "xform_linscale": {},
+                "multilays": {},
                 "prenet": {}
             }
         })
@@ -76,13 +75,10 @@ class TimeScaleOpNN(BaseNet):
 
     def init_input_lay(self, propty):
         lays = {}
-        for k in ("split_ic", "xform_log", "xform_linscale", "prenet"):
-            if k.startswith("xform"):
+        for k in ("split_ic", "multilays", "prenet"):
+            if k == "multilays":
                 if (k in propty) and (len(propty[k]) != 0):
-                    _propty = {"xform": propty[k]}
-                else:
-                    _propty = {}
-                lays[k] = self.init_inout_lay(_propty)
+                    lays[k] = self.get_lay(propty[k])
             elif k == "split_ic":
                 if (k in propty) and (len(propty[k]) != 0):
                     _propty = propty[k]
@@ -137,22 +133,14 @@ class TimeScaleOpNN(BaseNet):
         Y0 = self.active_lays["input"]["ts_connect"](Y0)
         # Recompose ICs
         ic = tf_layers.Concatenate()([rho, Y0, T0])
-        # Transform ICs
-        ic = self._manipulate_inout(
-            inputs=dict(y=ic),
-            lay=self.active_lays["input"]["xform_log"],
-            training=training
-        )
-        ic = self._manipulate_inout(
-            inputs=dict(y=ic),
-            lay=self.active_lays["input"]["xform_linscale"],
-            training=training
-        )
-        # Prenet for automatic time shifting
-        if "prenet" in self.active_lays["input"].keys():
-            t = self.active_lays["input"]["prenet"](
-                x=[ic, t], training=training
-            )
+        # Transform inputs
+        inp_lay = self.active_lays["input"]
+        # Transform inputs: ICs
+        if "multilays" in inp_lay.keys():
+            ic = inp_lay["multilays"](ic, training=training)
+        # Transform inputs: Time - Prenet for automatic shifting/scaling
+        if "prenet" in inp_lay.keys():
+            t = inp_lay["prenet"]([ic, t], training=training)
         # Recompose inputs
         return [ic, t], T
 

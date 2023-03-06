@@ -1,7 +1,6 @@
 import itertools
 import tensorflow as tf
 
-from tensorflow.python.training.tracking.data_structures import NoDependency
 from pycomet import utils
 from pycomet import networks
 from pycomet.networks.basenet import BaseNet
@@ -125,7 +124,9 @@ class CGOpNN(BaseNet):
         # Kernel - Temperature (OpNN)
         T = None
         if "temp" in self.active_lays:
-            T = self.active_lays["temp"](y, training=training)
+            T = self.active_lays["temp"](
+                tf.nest.map_structure(tf.identity, y), training=training
+            )
         # Kernel - Mass (TimeScaleOpNNs)
         kwargs = dict(x=[[y["branch"], y["trunk"]], T], training=training)
         if training or (neq_mask is None):
