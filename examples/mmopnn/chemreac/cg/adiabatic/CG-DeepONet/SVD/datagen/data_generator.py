@@ -29,6 +29,7 @@ class DataGenerator(object):
         specie_thermo,
         process,
         specie_names={"m": "O2", "a": "O"},
+        tlim=None,
         load_plato="module load plato",
         nb_jobs=4,
         *args,
@@ -55,6 +56,8 @@ class DataGenerator(object):
         self.nb_bins = self.sp_th[self.specie_names["m"]].specie.n_comp
         # Mixture
         self.mix = utils.get_class(mix_mod, 'MultiComponent')(self.sp_th)
+        # Time limits
+        self.tlim = tlim
 
         # Labeling data -------------------------------------------------------
         # Groups
@@ -80,10 +83,8 @@ class DataGenerator(object):
         ics
     ):
         cases = self.compute_solutions(self.runs_dir, ics)
-        data = []
-        for case in cases.values():
-            if not (case[1] < 0).any():
-                data.append(self.convert_solution(case))
+        print("Converting 0D solutions")
+        data = [self.convert_solution(case) for case in cases.values()]
         return data
 
     def convert_solution(
@@ -102,9 +103,15 @@ class DataGenerator(object):
         self.mix.update(X, var='X')
         # Compute mass fractions
         Y = [self.sp_th[self.specie_names[s]].specie.Y.numpy() for s in ('m', 'a')]
-        # Return variables
+        # Compose solution
         y = np.hstack(tf.nest.flatten([Y, T]))
-        return t, y
+        sol = [t, y]
+        # Time limits
+        if self.tlim is not None:
+            indices = np.where((t >= self.tlim[0]) * (t <= self.tlim[1]))[0]
+            sol = tf.nest.map_structure(lambda x: x[indices], sol)
+        # Return solution
+        return sol
 
     # Compute solutions
     ###########################################################################
@@ -113,15 +120,18 @@ class DataGenerator(object):
             # Compute initial conditions for PLATO
             ics = self.compute_plato_ics(ics)
             # Computing solutions
+            print("Computing 0D solutions")
             cases = jl.Parallel(self.nb_jobs)(
                 jl.delayed(self.compute_solution)(
                     self.runs_dir, i, ic
-                ) for i, ic in enumerate(
-                    tqdm(ics, ncols=80, desc="Computing 0D solutions")
-                )
+                ) for i, ic in enumerate(tqdm(ics, ncols=80))
             )
-            cases = dict(ChainMap(*cases))
+            cases = {
+                k: case for (k, case) in cases \
+                    if (case is not None) and (not (case < 0).any())
+            }
             # Saving computed solutions
+            print("Saving 0D solutions")
             os.makedirs(path, exist_ok=True)
             dicttoh5(
                 treedict=cases,
@@ -130,6 +140,7 @@ class DataGenerator(object):
                 create_dataset_args={'compression': "gzip"}
             )
         else:
+            print("Reading 0D solutions")
             cases = h5todict(path + '/cases.hdf5')
         return cases
 
@@ -192,15 +203,19 @@ class DataGenerator(object):
             )
         )
         # Run 0D simulation
-        subprocess.run(
-            "box inputfile.sh 1",
-            shell=True,
-            env=self.env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT
-        )
-        # Read solution
-        sol = {case_id: np.loadtxt("./output_box/box.dat")}
+        try:
+            subprocess.run(
+                "box inputfile.sh 1",
+                shell=True,
+                env=self.env,
+                timeout=1.0,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT
+            )            
+            # Read solution
+            sol = (case_id, np.loadtxt("./output_box/box.dat"))
+        except subprocess.TimeoutExpired:
+            sol = (case_id, None)
         # Delete run folder
         os.chdir(self.cwd)
         shutil.rmtree(case_path)
