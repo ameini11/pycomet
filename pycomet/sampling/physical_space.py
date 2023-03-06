@@ -3,6 +3,7 @@ import pandas as pd
 import tensorflow as tf
 
 from pyDOE import lhs
+from scipy.stats import entropy
 from sklearn.neighbors import KernelDensity
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import StandardScaler
@@ -12,7 +13,7 @@ from pycomet.sampling.sampler import Sampler
 class PhysicalSpace(Sampler):
     
     def __init__(
-        self, 
+        self,
         X,
         xform=None,
         bounds_phys=None,
@@ -23,9 +24,8 @@ class PhysicalSpace(Sampler):
         kde_kernel='gaussian',
         noise_std=None,
         scaling='std',
-        saving=True,
+        saving=False,
         saving_path='./',
-        name=None,
         *args,
         **kwargs
     ):
@@ -57,6 +57,30 @@ class PhysicalSpace(Sampler):
             )
         # Noisy samples
         self.noise_std = noise_std
+
+    # Stats
+    # -------------------------------------------------------------------------
+    def compute_eigenvalues(
+        self,
+        X
+    ):
+        if self.xform is not None:
+            X = self.xform['dir'](X)
+        if self.scaler is not None:
+            X = self.scaler.transform(X)
+        U, S, Vh = np.linalg.svd(X, full_matrices=False)
+        L = S**2 / np.sum(S**2)
+        return L
+
+    def compute_covariance_entropy(
+        self
+    ):
+        C = self.clusterer.covariances_
+        C_diag = [np.diag(c)/np.sum(np.diag(c)) for c in C]
+        C_diag_entr = np.array([entropy(c) for c in C_diag])
+        # k = 3
+        # ind = np.argpartition(C_diag_entr, k)[:k]
+        return C_diag_entr
 
     # Bounds and scaling
     # -------------------------------------------------------------------------
