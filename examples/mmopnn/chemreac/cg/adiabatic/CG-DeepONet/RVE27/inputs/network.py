@@ -161,20 +161,22 @@ def get_opnn_cfg(
 branch_multilay = {
     "lay_id": "MultiLays",
     "kwargs": {
-        0: {
-            "lay_id": "Log",
-            "kwargs": {
-                "base": 'e',
-                "trainable": False
+        "lays_propty": {
+            0: {
+                "lay_id": "Log",
+                "kwargs": {
+                    "base": 'e',
+                    "trainable": False
+                }
             }
-        }
-        1: {
-            "lay_id": "ZeroToOneNormalization",
-            "kwargs": {
-                "xform": np.log,
-                "file": ...,
-                "axis": 1,
-                "trainable": False
+            1: {
+                "lay_id": "ZeroToOneNormalization",
+                "kwargs": {
+                    "xform": np.log,
+                    "file": './datagen/data/bounds.txt',
+                    "axis": 1,
+                    "trainable": False
+                }
             }
         }
     }
