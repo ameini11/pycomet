@@ -143,6 +143,117 @@ class DataGenerator(pcm.data.DataGenerator):
         data_src.update(self.testing_data(samples))
         return data_src
 
+    # Compute solutions
+    ###########################################################################
+    def compute_solutions(self, path, ics):
+        if not os.path.exists(path + '/cases.hdf5'):
+            # Compute initial conditions for PLATO
+            ics = self.compute_plato_ics(ics)
+            # Computing solutions
+            print(">> Computing 0D solutions")
+            cases = jl.Parallel(self.nb_jobs)(
+                jl.delayed(self.compute_solution)(
+                    self.runs_dir, i, ic
+                ) for i, ic in enumerate(tqdm(ics, ncols=80))
+            )
+            # cases = [self.compute_solution(self.runs_dir, i, ic) \
+            #     for i, ic in enumerate(tqdm(ics, ncols=80))]
+            cases = {
+                k: case for (k, case) in cases \
+                    if (case is not None) and (not (case < 0).any())
+            }
+            # Saving computed solutions
+            print(">> Saving 0D solutions")
+            os.makedirs(path, exist_ok=True)
+            dicttoh5(
+                treedict=cases,
+                h5file=path + '/cases.hdf5',
+                overwrite_data=True,
+                create_dataset_args={'compression': "gzip"}
+            )
+        else:
+            print(">> Reading 0D solutions")
+            cases = h5todict(path + '/cases.hdf5')
+        return cases
+
+    def compute_plato_ics(
+        self,
+        ics
+    ):
+        if not isinstance(ics, pd.DataFrame):
+            ics = pd.DataFrame(ics, columns=self.inp_lbl)
+        else:
+            ics.columns = self.inp_lbl
+        # Extract physical variables
+        Y = {}
+        Y['m'] = ics[self.grp_lbl['Y']].to_numpy()
+        Y['a'] = 1.0 - np.sum(Y['m'], axis=1, keepdims=True)
+        Y = {self.specie_names[s]: Y[s] for s in ('a', 'm')}
+        T = ics['T'].to_numpy().reshape(-1,1)
+        rho = ics["rho"].to_numpy().reshape(-1,1)
+        # Update mixture
+        self.mix.update(Y, var='Y')
+        # Compute molar fractions
+        X = []
+        for s in ('a', 'm'):
+            X.append(
+                self.sp_th[self.specie_names[s]].specie.X.numpy()
+            )
+        X = np.hstack(X)
+        # Compute pressure
+        p = self.mix._p(rho, T)
+        # Return variables
+        return np.hstack([X, T, p])
+
+    def compute_solution(
+        self,
+        path,
+        case_nb,
+        ic
+    ):
+        # Create run folder
+        case_id = str(int(case_nb+1)).zfill(6)
+        case_path = shutil.copytree(
+            path + f'/run.bkp',
+            path + f'/run.{pcm.utils.generate_rnd_name(case_id)}',
+            dirs_exist_ok=True
+        )  
+        os.chdir(case_path)
+        # Write initial solution for PLATO
+        X, T, p = ic[:len(ic)-2], ic[-2], ic[-1]
+        with open("./Xi0.dat", "w") as file:
+            np.savetxt(file, X.reshape(-1,1))
+        pcm.utils.replace(
+            file="./inputfile.sh",
+            patterns=(
+                "P0 =",
+                "T_BATH ="
+            ),
+            replaces=(
+                f"P0 = {p}\n",
+                f"T_BATH = {T}\n"
+            )
+        )
+        # Run 0D simulation
+        try:
+            subprocess.run(
+                "box inputfile.sh 1",
+                shell=True,
+                env=self.env,
+                timeout=1.0,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT
+            )            
+            # Read solution
+            sol = (case_id, np.loadtxt("./output_box/box.dat"))
+        except subprocess.TimeoutExpired:
+            sol = (case_id, None)
+        # Delete run folder
+        os.chdir(self.cwd)
+        shutil.rmtree(case_path)
+        # Return solution
+        return sol
+
     # Computing solutions
     ###########################################################################
     def compute_solutions(self, path, ics):

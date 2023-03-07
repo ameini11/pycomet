@@ -83,7 +83,7 @@ class DataGenerator(object):
         ics
     ):
         cases = self.compute_solutions(self.runs_dir, ics)
-        print("Converting 0D solutions")
+        print(">> Converting 0D solutions")
         data = [self.convert_solution(case) for case in cases.values()]
         return data
 
@@ -120,7 +120,7 @@ class DataGenerator(object):
             # Compute initial conditions for PLATO
             ics = self.compute_plato_ics(ics)
             # Computing solutions
-            print("Computing 0D solutions")
+            print(">> Computing 0D solutions")
             cases = jl.Parallel(self.nb_jobs)(
                 jl.delayed(self.compute_solution)(
                     self.runs_dir, i, ic
@@ -131,7 +131,7 @@ class DataGenerator(object):
                     if (case is not None) and (not (case < 0).any())
             }
             # Saving computed solutions
-            print("Saving 0D solutions")
+            print(">> Saving 0D solutions")
             os.makedirs(path, exist_ok=True)
             dicttoh5(
                 treedict=cases,
@@ -140,7 +140,7 @@ class DataGenerator(object):
                 create_dataset_args={'compression': "gzip"}
             )
         else:
-            print("Reading 0D solutions")
+            print(">> Reading 0D solutions")
             cases = h5todict(path + '/cases.hdf5')
         return cases
 

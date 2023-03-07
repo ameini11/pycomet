@@ -3,6 +3,7 @@ import joblib as jl
 import tensorflow as tf
 
 from src import utils
+from src import reduction as red_mod
 
 EPS = 1.e-10
 
@@ -81,4 +82,39 @@ def multicases(
     for e in errors:
         for r in reductions:
             err[e][r] = tf.nest.map_structure(get_red_fn(r), err[e][r])
+    return err
+
+# Error computations for different reconstructions
+# -----------------------------------------------------------------------------
+def compute_err(
+    y,
+    pca,
+    nb_pc,
+    nb_cases,
+    iremoved=None,
+    iretained=None,
+    errors=['mrae', 'mse'],
+    reductions=['max', 'mean'],
+    ms_mep=None,
+    nb_jobs=4
+):
+    # Reconstruct dataset
+    y_rec = red_mod.reconstruct(
+        y,
+        pca,
+        nb_pc,
+        iremoved,
+        iretained
+    )
+    # Compute errors
+    err = multicases(
+        y,
+        y_rec,
+        nb_cases,
+        errors,
+        reductions,
+        ms_mep,
+        nb_jobs
+    )
+    err = tf.nest.map_structure(lambda x: x.reshape(1), err)
     return err

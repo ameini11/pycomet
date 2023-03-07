@@ -25,6 +25,13 @@ def concatenate_list_struct(list_struct):
         )
     return struct
 
+def put(x, indices, values, axis=1):
+    if len(indices) > 0:
+        shape = (1,-1) if axis == 1 else (-1,1)
+        indices = indices.reshape(*shape)
+        np.put_along_axis(x, indices, values, axis)
+    return x
+
 # Splitting
 # -----------------------------------------------------------------------------
 def splitting_indices(ls, indices=[]):
