@@ -115,7 +115,7 @@ class DataGenerator(object):
     # Compute solutions
     ###########################################################################
     def compute_solutions(self, path, ics):
-        if not os.path.exists(path + '/cases2.hdf5'):
+        if not os.path.exists(path + '/cases.hdf5'):
             # Compute initial conditions for PLATO
             ics = self.compute_plato_ics(ics)
             # Computing solutions
