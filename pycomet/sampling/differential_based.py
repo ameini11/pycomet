@@ -36,16 +36,16 @@ class DifferentialBased(Sampler):
         indices = np.arange(n)
         indices = {k: np.roll(indices, -1*int(k)) for k in ('-1','+1')}
         # Compute differential quantities
-        dx, dy = [self.compute_diff(z, i) for z in [x, y]]
+        dx, dy = [self.compute_diff(z, indices) for z in [x, y]]
         if self.method == 'jac':
             # Jacobian-based sampling method
-            norm = self.compute_norm_jac(dx, dy)
+            norm = self.compute_norm_jac(dx, dy, indices)
         elif self.method == 'source':
             # Source-based sampling method
-            norm = self.compute_norm_source(dx, dy, indices)
+            norm = self.compute_norm_source(dx, dy)
         # Limit the sampling domain
         if self.xlim is not None:
-            idx = np.where((x >= self.xlim[0]) * (x <= self.xlim[1]))
+            idx = np.where((x >= self.xlim[0]) * (x <= self.xlim[1]))[0]
             x, norm = x[idx], norm[idx]
         # Sampling
         samples = self.combined_sampling(x, norm, nb_pts)
@@ -75,6 +75,7 @@ class DifferentialBased(Sampler):
     
     # Sampling methods --------------------------------------------------------
     def combined_sampling(self, x, grad_norm, nb_pts):
+        indices = np.arange(len(x))
         # Uniform sampling
         size = int(nb_pts*(1.0-self.grad_split))
         samples = self.uniform_sampling(x, size)

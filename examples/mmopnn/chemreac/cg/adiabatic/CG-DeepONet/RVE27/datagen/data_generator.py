@@ -21,6 +21,8 @@ thermophysics = utils.get_thermophysics_mod()
 sp_th_mod = thermophysics.specie_thermo
 mix_mod = thermophysics.reaction_thermo.mixture
 
+import matplotlib.pyplot as plt
+
 
 class DataGenerator(pcm.data.DataGenerator):
 
@@ -65,6 +67,7 @@ class DataGenerator(pcm.data.DataGenerator):
                 self.valid_pts[k] = 1
 
         # Time sampling -------------------------------------------------------
+        self.tlim = tlim
         self.dyn_sampler = DifferentialBased(
             method='source',
             grad_split=grad_split,
@@ -73,9 +76,10 @@ class DataGenerator(pcm.data.DataGenerator):
 
         # Timescales connectivity ---------------------------------------------
         self.grp_conn = GroupsConnect(groups_graph)
-        self.ts_connect = FastestToCurrentTS(
-            self.grp_conn.fastest_to_current_ts
-        )
+        self.ts_connect = {
+            i: FastestToCurrentTS(indices) \
+                for i, indices in self.grp_conn.fastest_to_current_ts.items()
+        }
 
         # Physics -------------------------------------------------------------
         self.specie_names = specie_names
@@ -319,7 +323,7 @@ class DataGenerator(pcm.data.DataGenerator):
                 else:
                     idx = self.dyn_sampler.sample(
                         x=np.log(t+1.e-15),
-                        y=Y[-2],
+                        y=y[-2],
                         nb_pts=n
                     )
                     tk = t[idx]
@@ -398,15 +402,15 @@ class DataGenerator(pcm.data.DataGenerator):
                 for s in ('a', 'm')
         }
         # Compute timescales
-        Y_ts = tf.nest.map_structure(
-            lambda x: x.numpy(), self.ts_connect.call(Y['m'])
-        )
+        Y_ts = [conn.call(Y['m']) for conn in self.ts_connect.values()]
         Y_ts[0] = np.hstack([Y['a'], Y_ts[0]])
         # Compose solution
-        y = tf.nest.flatten([Y, T])
+        y = tf.nest.flatten([Y_ts, T])
         sol = [t, y]
+        sol = tf.nest.map_structure(np.array, sol)
         # Time limits
         if self.tlim is not None:
             indices = np.where((t >= self.tlim[0]) * (t <= self.tlim[1]))[0]
             sol = tf.nest.map_structure(lambda x: x[indices], sol)
+        sol = tf.nest.map_structure(np.array, sol)
         return sol
