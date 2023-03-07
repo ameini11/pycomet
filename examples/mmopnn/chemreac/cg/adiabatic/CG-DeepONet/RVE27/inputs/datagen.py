@@ -16,3 +16,7 @@ train_pts = {
     'res': 0                # Number of total collocation pts for each scenario
 }
 validation_split = 0.2      # % of Validation pts
+
+load_plato = "module load plato"
+
+nb_jobs = 16

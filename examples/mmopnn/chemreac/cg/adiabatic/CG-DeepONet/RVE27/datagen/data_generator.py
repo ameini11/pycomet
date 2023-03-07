@@ -3,10 +3,10 @@ import shutil
 import subprocess
 import numpy as np
 import pandas as pd
+import joblib as jl
 import tensorflow as tf
 
 from tqdm import tqdm
-from collections import ChainMap
 from silx.io.dictdump import dicttoh5, h5todict
 
 # PyCOMET
@@ -36,6 +36,8 @@ class DataGenerator(pcm.data.DataGenerator):
         process,
         grad_split=0.75,
         specie_names={"m": "O2", "a": "O"},
+        load_plato="module load plato",
+        nb_jobs=4,
         *args,
         **kwargs
     ):
@@ -85,7 +87,6 @@ class DataGenerator(pcm.data.DataGenerator):
                 **sp_th
             ) for index, sp_th in specie_thermo.items()
         }
-        self.sp_th = 
         self.nb_bins = self.sp_th[self.specie_names["m"]].specie.n_comp
         # Mixture
         self.mix = utils.get_class(mix_mod, 'MultiComponent')(self.sp_th)
@@ -105,11 +106,11 @@ class DataGenerator(pcm.data.DataGenerator):
         self.data_lbl_inp = ['rho'] + self.grp_lbl['Y'] + ['T', 't']
         # Output features
         self.data_lbl_out = []
-        for ts, indeces in self.grp_conn.ts_fast_conn.items():
+        for ts, indeces in self.grp_conn.fastest_to_current_ts.items():
             if ts == 0:
                 self.data_lbl_out += [
-                    f'Y_{self.specie_names['m']}',
-                    f'Y_{self.specie_names['a']}'
+                    f"Y_{self.specie_names['m']}",
+                    f"Y_{self.specie_names['a']}"
                 ]
             elif indeces is None:
                 self.data_lbl_out += [
@@ -122,6 +123,11 @@ class DataGenerator(pcm.data.DataGenerator):
         self.data_lbl_out += ['T']
         # Input-Output features
         self.data_lbl = self.data_lbl_inp + self.data_lbl_out
+
+        # Environment for running Plato ---------------------------------------
+        self.env = pcm.utils.load_external_module(load_plato)
+        
+        self.nb_jobs = nb_jobs
 
     # Data source
     ###########################################################################
@@ -150,20 +156,18 @@ class DataGenerator(pcm.data.DataGenerator):
             # Compute initial conditions for PLATO
             ics = self.compute_plato_ics(ics)
             # Computing solutions
-            print(">> Computing 0D solutions")
-            cases = jl.Parallel(self.nb_jobs)(
-                jl.delayed(self.compute_solution)(
-                    self.runs_dir, i, ic
-                ) for i, ic in enumerate(tqdm(ics, ncols=80))
-            )
-            # cases = [self.compute_solution(self.runs_dir, i, ic) \
-            #     for i, ic in enumerate(tqdm(ics, ncols=80))]
+            # cases = jl.Parallel(self.nb_jobs)(
+            #     jl.delayed(self.compute_solution)(
+            #         self.runs_dir, i, ic
+            #     ) for i, ic in enumerate(tqdm(ics, ncols=80))
+            # )
+            cases = [self.compute_solution(self.runs_dir, i, ic) \
+                for i, ic in enumerate(tqdm(ics, ncols=80))]
             cases = {
                 k: case for (k, case) in cases \
                     if (case is not None) and (not (case < 0).any())
             }
             # Saving computed solutions
-            print(">> Saving 0D solutions")
             os.makedirs(path, exist_ok=True)
             dicttoh5(
                 treedict=cases,
@@ -172,7 +176,6 @@ class DataGenerator(pcm.data.DataGenerator):
                 create_dataset_args={'compression': "gzip"}
             )
         else:
-            print(">> Reading 0D solutions")
             cases = h5todict(path + '/cases.hdf5')
         return cases
 
@@ -215,7 +218,7 @@ class DataGenerator(pcm.data.DataGenerator):
         case_id = str(int(case_nb+1)).zfill(6)
         case_path = shutil.copytree(
             path + f'/run.bkp',
-            path + f'/run.{pcm.utils.generate_rnd_name(case_id)}',
+            path + f'/run.{case_id}',
             dirs_exist_ok=True
         )  
         os.chdir(case_path)
@@ -234,8 +237,8 @@ class DataGenerator(pcm.data.DataGenerator):
                 f"T_BATH = {T}\n"
             )
         )
-        # Run 0D simulation
         try:
+            # Run 0D simulation
             subprocess.run(
                 "box inputfile.sh 1",
                 shell=True,
@@ -248,97 +251,6 @@ class DataGenerator(pcm.data.DataGenerator):
             sol = (case_id, np.loadtxt("./output_box/box.dat"))
         except subprocess.TimeoutExpired:
             sol = (case_id, None)
-        # Delete run folder
-        os.chdir(self.cwd)
-        shutil.rmtree(case_path)
-        # Return solution
-        return sol
-
-    # Computing solutions
-    ###########################################################################
-    def compute_solutions(self, path, ics):
-        if not os.path.exists(path + '/cases.hdf5'):
-            # Compute initial conditions for PLATO
-            ics = self.compute_plato_ics(ics)
-            # Computing solutions
-            cases = [self.compute_solution(self.runs_dir, i, ic) \
-                for i, ic in enumerate(tqdm(ics, ncols=80))]
-            cases = dict(ChainMap(*cases))
-            # Saving computed solutions
-            os.makedirs(path, exist_ok=True)
-            dicttoh5(
-                treedict=cases,
-                h5file=path + '/cases.hdf5',
-                overwrite_data=True,
-                create_dataset_args={'compression': "gzip"}
-            )
-        else:
-            cases = h5todict(path + '/cases.hdf5')
-        return cases
-
-    def compute_plato_ics(
-        self,
-        df
-    ):
-        # Extract physical variables
-        Y = {}
-        Y['m'] = df[self.grp_lbl['Y']].to_numpy()
-        Y['a'] = 1.0 - np.sum(Y['m'], axis=1, keepdims=True)
-        Y = {self.specie_names[s]: Y[s] for s in ('a', 'm')}
-        T = df['T'].to_numpy().reshape(-1,1)
-        rho = df["rho"].to_numpy().reshape(-1,1)
-        # Update mixture
-        self.mix.update(Y, var='Y')
-        # Compute molar fractions
-        X = []
-        for s in ('a', 'm'):
-            X.append(
-                self.sp_th[self.specie_names[s]].specie.X.numpy()
-            )
-        X = np.hstack(X)
-        # Compute pressure
-        p = self.mix._p(rho, T)
-        # Return variables
-        return np.hstack([X, T, p])
-
-    def compute_solution(
-        self,
-        path,
-        case_nb,
-        ic
-    ):
-        # Create run folder
-        case_id = str(int(case_nb+1)).zfill(6)
-        case_path = shutil.copytree(
-            path + f'/run.bkp',
-            path + f'/run.{case_id}',
-            dirs_exist_ok=True
-        )  
-        os.chdir(case_path)
-        # Write initial solution for PLATO
-        X, T, p = np.split(ic, [len(ic)-2,1,1])
-        with open("./Xi0.dat", "w") as file:
-            np.savetxt(file, X.reshape(-1,1))
-        pcm.utils.replace(
-            file="./inputfile.sh",
-            patterns=(
-                "P0 =",
-                "T_BATH ="
-            ),
-            replaces=(
-                f"P0 = {p}",
-                f"T_BATH = {T}"
-            )
-        )
-        # Run 0D simulation
-        subprocess.run(
-            "box inputfile.sh 1",
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT
-        )
-        # Read solution
-        sol = {case_id: np.loadtxt("./output_box/box.dat")}
         # Delete run folder
         os.chdir(self.cwd)
         shutil.rmtree(case_path)
@@ -360,11 +272,12 @@ class DataGenerator(pcm.data.DataGenerator):
                 self.runs_dir + f'/data/{k}/', ics_samples[k]
             )
             # Sampling 0D data
+            ics = ics_samples[k].to_numpy()
             for i, case in cases.items():
                 i = int(i)-1
                 case = pd.DataFrame(case, columns=self.box_lbl)
                 # Sample single case
-                data_i = self.sample_data(ics_samples[i], case, pts)
+                data_i = self.sample_data(ics[i], case, pts)
                 # Stack data
                 data = self.stack_data(data, data_i, k)
             
@@ -393,8 +306,7 @@ class DataGenerator(pcm.data.DataGenerator):
     ):
         data = {}
         # Compose output data
-        t, Y, T = self.compute_outputs(df)
-        y = [Y, T]
+        t, y = self.convert_solution(df)
         # Sample indices
         for k, n in pts.items():
             if n == 0 or n is None:
@@ -407,7 +319,7 @@ class DataGenerator(pcm.data.DataGenerator):
                 else:
                     idx = self.dyn_sampler.sample(
                         x=np.log(t+1.e-15),
-                        y=Y[-1],
+                        y=Y[-2],
                         nb_pts=n
                     )
                     tk = t[idx]
@@ -449,15 +361,13 @@ class DataGenerator(pcm.data.DataGenerator):
         path = self.data_dir + f'/{k}/'
         os.makedirs(path, exist_ok=True)
         data = {}
-        for i, ic in enumerate(ics):
-            df = pd.DataFrame(
-                cases[str(int(i+1)).zfill(6)], columns=self.box_lbl
-            )
-            n = df.shape[0]
+        for i, case in cases.items():
+            i = int(i)-1
+            case = pd.DataFrame(case, columns=self.box_lbl)
+            n = case.shape[0]
             # Compose inputs/outputs
-            t, Y, T = self.compute_outputs(df)
-            u = np.tile(ic, (n,1))
-            y = tf.nest.flatten([Y, T])
+            t, y = self.convert_solution(case)
+            u = np.tile(ics[i], (n,1))
             data['case.' + str(i+1).zfill(3)] = [[u, t], y]
         for k, v in data.items():
             pd.DataFrame(
@@ -469,7 +379,7 @@ class DataGenerator(pcm.data.DataGenerator):
 
     # Data
     ###########################################################################
-    def compute_outputs(
+    def convert_solution(
         self,
         df
     ):
@@ -483,9 +393,20 @@ class DataGenerator(pcm.data.DataGenerator):
         # Update mixture
         self.mix.update(X, var='X')
         # Compute mass fractions
-        Y = {s: self.sp_th[self.specie_names[s]].specie.Y.numpy() for s in ('a', 'm')}
+        Y = {
+            s: self.sp_th[self.specie_names[s]].specie.Y.numpy() \
+                for s in ('a', 'm')
+        }
         # Compute timescales
-        Y_ts = self.ts_connect.call(Y['m']).numpy()
+        Y_ts = tf.nest.map_structure(
+            lambda x: x.numpy(), self.ts_connect.call(Y['m'])
+        )
         Y_ts[0] = np.hstack([Y['a'], Y_ts[0]])
-        # Return variables
-        return t, Y, T
+        # Compose solution
+        y = tf.nest.flatten([Y, T])
+        sol = [t, y]
+        # Time limits
+        if self.tlim is not None:
+            indices = np.where((t >= self.tlim[0]) * (t <= self.tlim[1]))[0]
+            sol = tf.nest.map_structure(lambda x: x[indices], sol)
+        return sol

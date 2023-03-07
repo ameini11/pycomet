@@ -13,7 +13,7 @@ tlim = [1.e-10, 1.e-6]
 specie_names = {
     "m": "O2",
     "a": "O"
-},
+}
     
 specie_thermo = {
     0: {

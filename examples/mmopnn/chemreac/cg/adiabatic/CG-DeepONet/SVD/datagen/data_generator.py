@@ -7,7 +7,6 @@ import joblib as jl
 import tensorflow as tf
 
 from tqdm import tqdm
-from collections import ChainMap
 from silx.io.dictdump import dicttoh5, h5todict
 
 # PyCOMET
@@ -116,7 +115,7 @@ class DataGenerator(object):
     # Compute solutions
     ###########################################################################
     def compute_solutions(self, path, ics):
-        if not os.path.exists(path + '/cases.hdf5'):
+        if not os.path.exists(path + '/cases2.hdf5'):
             # Compute initial conditions for PLATO
             ics = self.compute_plato_ics(ics)
             # Computing solutions
@@ -202,8 +201,8 @@ class DataGenerator(object):
                 f"T_BATH = {T}\n"
             )
         )
-        # Run 0D simulation
         try:
+            # Run 0D simulation
             subprocess.run(
                 "box inputfile.sh 1",
                 shell=True,

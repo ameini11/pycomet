@@ -23,7 +23,7 @@ TS = 0.d0
 TE = 1.d-3
 DT_MAX = 1.d-3
 DT_MIN = 1.d-12
-SF = 1.001d0
+SF = 1.005d0
 
 #---------------------------
 #ODE solver settings
