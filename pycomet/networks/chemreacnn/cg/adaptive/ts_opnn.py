@@ -38,8 +38,7 @@ class TimeScaleOpNN(BaseNet):
         self.default_lays_propty.update({
             "input": {
                 "split_ic": {},
-                "multilays": {},
-                "prenet": {}
+                "multilays": {}
             }
         })
         # Layers names
@@ -65,7 +64,7 @@ class TimeScaleOpNN(BaseNet):
             if identifier == "input":
                 lays[identifier] = self.init_input_lay(propty)
             elif identifier == "mmopnn":
-                lays[identifier] = MMOpNN(
+                lays[identifier] = TSMMOpNN(
                     dim=propty["dim"],
                     lays_propty=propty["lays_propty"]
                 )
@@ -75,7 +74,7 @@ class TimeScaleOpNN(BaseNet):
 
     def init_input_lay(self, propty):
         lays = {}
-        for k in ("split_ic", "multilays", "prenet"):
+        for k in ("split_ic", "multilays"):
             if k == "multilays":
                 if (k in propty) and (len(propty[k]) != 0):
                     lays[k] = self.get_lay(propty[k])
@@ -88,14 +87,6 @@ class TimeScaleOpNN(BaseNet):
                         axis=1
                     )
                 lays[k] = nn_elem.Split(**_propty)
-            elif k == "prenet":
-                if (k in propty) and (len(propty[k]) != 0):
-                    lays[k] = self.get_lay(
-                        propty={
-                            'lay_id': 'PreNetBlock',
-                            'kwargs': propty[k]['kwargs']
-                        }
-                    )
         lays["ts_connect"] = FastestToCurrentTS(self.fastest_to_current_ts)
         return lays
 
@@ -110,10 +101,9 @@ class TimeScaleOpNN(BaseNet):
         # Inputs manipulation
         x, T = self._manipulate_input(x, training)
         # Kernel - MMOpNNs
-        if training or (neq_mask is None):
-            y = self.active_lays["mmopnn"](x, training=training)
-        else:
-            y = self._adaptive_call_net(x, neq_mask)
+        y = self.active_lays["mmopnn"](
+            x, training=training, neq_mask=neq_mask
+        )
         # Equilibrium layer
         y = self._manipulate_inout(
             inputs=dict(y=[y, T]), identifier="output", training=training
@@ -133,25 +123,74 @@ class TimeScaleOpNN(BaseNet):
         Y0 = self.active_lays["input"]["ts_connect"](Y0)
         # Recompose ICs
         ic = tf_layers.Concatenate()([rho, Y0, T0])
-        # Transform inputs
+        # Transform ICs
         inp_lay = self.active_lays["input"]
-        # Transform inputs: ICs
         if "multilays" in inp_lay.keys():
             ic = inp_lay["multilays"](ic, training=training)
-        # Transform inputs: Time - Prenet for automatic shifting/scaling
-        if "prenet" in inp_lay.keys():
-            t = inp_lay["prenet"]([ic, t], training=training)
         # Recompose inputs
         return [ic, t], T
 
-    def _adaptive_call_net(self, x, neq_mask):
+
+# =========================================================================== #
+# TSMMOpNN
+# =========================================================================== #
+class TSMMOpNN(MMOpNN):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        dim,
+        lays_name=None,
+        lays_propty=None,
+        *args,
+        **kwargs
+    ):
+        super(TSMMOpNN, self).__init__(
+            dim=dim,
+            lays_name=lays_name,
+            lays_propty=lays_propty,
+            *args,
+            **kwargs
+        )
+
+    # Calling
+    ###########################################################################
+    def call_net(
+        self,
+        x,
+        training=None,
+        neq_mask=None
+    ):
+        if training or (neq_mask is None):
+            return super(TSMMOpNN, self).call_net(x, training)
+        else:
+            return self.adaptive_call_net(x, neq_mask)
+
+    def adaptive_call_net(self, x, neq_mask=None):
+        y = x
+        # Inputs manipulation
+        y = _manipulate_input(self, y)
+        # Global Prenet
+        y = _eval_prenet(self, y, training)
+        # Kernel - OpNNs
+        y = {name: tf.nest.map_structure(tf.identity, y) \
+             for name in self.active_lays['opnns'].keys()}
+        y = self._adaptive_call(y, neq_mask)
+        # Outputs manipulation
+        y = self._manipulate_inout(
+            inputs=dict(x=x, y=y), identifier='output', training=training
+        )
+        return y
+
+    def _adaptive_call(self, x, neq_mask=None):
         y = []
         # Get number of input data
-        n = utils.get_cardinality(x)
+        n = utils.get_cardinality(tf.nest.flatten(x))
         # Split `neq_mask` columnwise and loop over each column
         neq_mask = nn_elem.Split(neq_mask.shape[1], axis=1)(neq_mask)
-        opnns = self.active_lays["mmopnn"].active_lays["opnns"]
-        for i, (name, opnn) in enumerate(opnns.items()):
+        for i, (name, opnn) in enumerate(self.active_lays['opnns'].items()):
+            x_i = x[name]
             # Create a dummy `zeros` tensor
             y_i = tf.zeros((n, self.ouput_dim[i]), dtype=backend.floatx())
             # If any values of `mask_i` is `True`, evaluate the specific
@@ -161,7 +200,7 @@ class TimeScaleOpNN(BaseNet):
                 idx = tf.reshape(tf.where(neq_mask[i])[:,0], shape=[-1])
                 # Extract inputs given specific indices
                 x_i = tf.nest.map_structure(
-                    lambda x: tf.gather(x, idx, axis=0), x
+                    lambda z: tf.gather(z, idx, axis=0), x_i
                 )
                 # Update the dummy `zeros` tensor with the actual
                 # evaluation of the DeepONet `i`

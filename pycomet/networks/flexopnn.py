@@ -77,13 +77,7 @@ class FlexOpNN(OpNN):
     # Calling
     ###########################################################################
     def _eval_kernel(self, x, training):
-        # PreNet
-        y = x
-        if 'prenet' in self.active_lays.keys():
-            lay = self.active_lays['prenet']
-            y[lay['to']] = lay['block'](
-                x=[y[lay['from']], y[lay['to']]], training=training
-            )
+        y = _eval_prenet(self, x, training)
         return super(FlexOpNN, self)._eval_kernel(y, training)
 
     def _tensor_product(self, G_u, G_y):
@@ -95,3 +89,16 @@ class FlexOpNN(OpNN):
             tf_layers.Add()([c[i], tf_layers.Multiply()([d[i], y[i]])]) \
                 for i in range(self.output_dim[-1])
         ]
+
+# Public util functions
+# -----------------------------------------------------------------------------
+def _eval_prenet(opnn_cls, x, training):
+    if 'prenet' in opnn_cls.active_lays.keys():
+        lay = opnn_cls.active_lays['prenet']
+        if isinstance(lay, dict):
+            x[lay['to']] = lay['block'](
+                x=[x[lay['from']], x[lay['to']]], training=training
+            )
+        else:
+            x[1] = lay(x=x, training=training)
+    return x

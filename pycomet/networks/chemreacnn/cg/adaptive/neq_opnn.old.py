@@ -8,93 +8,9 @@ from prode.networks.net import Net
 from tensorflow.python.keras import backend as K
 
 
-class NeqOpNN(BaseNet):
-
-    # Initialization
-    ###########################################################################
-    def __init__(
-        self,
-        dim,
-        lays_name=None,
-        lays_propty=None,
-        force_siso=False,
-        *args,
-        **kwargs
-    ):
-        # Layers names
-        super(NeqOpNN, self).__init__(
-            dim=dim,
-            lays_name=lays_name,
-            lays_propty=lays_propty,
-            force_siso=force_siso,
-            *args,
-            **kwargs
-        )
-        # Layers --------------------------------------------------------------
-        # Default layers
-        self.default_lays_propty.update({
-            "input": {
-                "branch": {
-                    "index": 0,
-                    "xform": None
-                },
-                "trunk": {
-                    "index": 1,
-                    "xform": None
-                }
-            },
-            "output": {
-                "xform": None
-            }
-        })
-        # Layers names
-        if lays_name == None:
-            self.lays_name = self.lays_name + ("mmopnns",)
-        else:
-            self.lays_name = lays_name
-        # Layers properties
-        self.lays_propty = self.check_layers(
-            layers=self.lays_propty,
-            not_opt=("mmopnns",),
-            default=self.default_lays_propty
-        )
-        # Initializing
-        self.active_lays = self.init_layers()
-        self.init_preinput_lay()
-
-    # Layers initialization
-    ###########################################################################
-    def init_layers(self):
-        lays = {}
-        for identifier, propty in self.lays_propty.items():
-            if identifier == 'input':
-                lays[identifier] = _init_input_lay(self, identifier, propty)
-            elif identifier == 'mmopnns':
-                lays[identifier] = self.init_mmopnns_lay(identifier, propty)
-            elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(propty)
-        return lays
-
-    def init_mmopnns_lay(self, propty):
-        if not isinstance(propty, dict):
-            utils.raise_value_err(
-                "The properties for 'mass' layer has to be provided "
-                "as a dictionary of (ts_opnn_name, ts_opnn_args) pairs."
-            )
-        lays = {}
-        for i, (name, ipropty) in enumerate(propty.items()):
-            lays[name] = TimeScaleOpNN(
-                dim=ipropty["dim"],
-                lays_propty=ipropty["lays_propty"],
-                fastest_to_current_ts=self.fastest_to_current_ts[i]
-            )
-        return lays
-
-    
-    
-
-    
-    
+@tf.keras.utils.register_keras_serializable(package='PrODE', name='NeqCtrlNN')
+class NeqCtrlNN(Net):
+    """Multi-Physics Multi-Scale Deep Operator neural network."""
 
     # Initialization
     ###########################################################################
@@ -259,7 +175,7 @@ class NeqOpNN(BaseNet):
                 # First Timescale
                 y.append(mmopnn(x))
             else:
-                # Second to highest Timescales
+                # Second and higher Timescales
                 if i != self.num_mmopnns-1 and all(y[-1] <= tol):
                     y.append(
                         tf.zeros((n, mmopnn.out_dim), dtype=K.floatx())

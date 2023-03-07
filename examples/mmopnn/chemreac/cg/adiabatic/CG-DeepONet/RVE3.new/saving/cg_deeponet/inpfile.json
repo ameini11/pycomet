@@ -1,0 +1,21 @@
+{
+    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/examples/mmopnn/chemreac/cg/adiabatic/CG-DeepONet/RVE3.new/saving/cg_deeponet/SavedModel",
+    "inputs_id": [
+        "serving_default_input_1:0",
+        "serving_default_input_2:0"
+    ],
+    "inputs_dim": [
+        "5",
+        "1"
+    ],
+    "outputs_id": [
+        "StatefulPartitionedCall:0",
+        "StatefulPartitionedCall:1",
+        "StatefulPartitionedCall:2"
+    ],
+    "outputs_dim": [
+        "2",
+        "3",
+        "1"
+    ]
+}

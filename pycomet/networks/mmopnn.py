@@ -4,6 +4,7 @@ import tensorflow as tf
 from pycomet import utils
 from pycomet import networks
 from pycomet.networks.basenet import BaseNet
+from pycomet.networks.flexopnn import _eval_prenet
 from pycomet.networks.opnn import _init_input_lay, _manipulate_input
 
 
@@ -48,7 +49,7 @@ class MMOpNN(BaseNet):
         })
         # Layers names
         if lays_name == None:
-            self.lays_name = self.lays_name + ('opnns',)
+            self.lays_name = self.lays_name + ('prenet', 'opnns')
         else:
             self.lays_name = lays_name
         # Layers properties
@@ -68,6 +69,17 @@ class MMOpNN(BaseNet):
         for identifier, propty in self.lays_propty.items():
             if identifier == 'input':
                 lays[identifier] = _init_input_lay(self, identifier, propty)
+            elif identifier == 'prenet':
+                lays[identifier] = {
+                    'from': propty['from'],
+                    'to': propty['to'],
+                    'block': self.get_lay(
+                        propty={
+                            'lay_id': 'PreNetBlock',
+                            'kwargs': propty['kwargs']
+                        }
+                    )
+                }
             elif identifier == 'opnns':
                 lays[identifier] = self.init_opnns_lay(identifier, propty)
             elif identifier == 'output':
@@ -97,6 +109,8 @@ class MMOpNN(BaseNet):
         y = x
         # Inputs manipulation
         y = _manipulate_input(self, y)
+        # Global preNet
+        y = _eval_prenet(self, y, training)
         # Kernel - OpNNs
         y = {name: tf.nest.map_structure(tf.identity, y) \
              for name in self.active_lays['opnns'].keys()}
