@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
+from tensorflow.python.keras import backend
 from pycomet import utils
 from pycomet.networks import chemreacnn
 from pycomet.networks import elements as nn_elem
@@ -19,6 +20,7 @@ class BaseNet(object):
         lays_name=None,
         lays_propty=None,
         force_siso=False,
+        inference=None,
         name=None,
         *args,
         **kwargs
@@ -28,12 +30,23 @@ class BaseNet(object):
             **kwargs
         )
         # Name
+        # -----------------------------
         self.name = self.__class__.__name__.lower()
         if name is not None:
             self.name = '_'.join((self.name, name))
 
+        # Inference phase
+        # -----------------------------
+        self.inference = inference
+        if self.inference is not None:
+            if not self.inference['active']:
+                self.inference = None
+
         # Dimensions
+        # -----------------------------
         self.dim = dim
+        if self.inference is not None:
+            self.dim = self.inference['dim']
         if not isinstance(self.dim, dict):
             utils.raise_value_err(
                 f"`dim` passed into `{self.name}` network has "
@@ -44,7 +57,18 @@ class BaseNet(object):
             )
         self.input_dim = tf.nest.flatten(self.dim["inp"])
         self.output_dim = tf.nest.flatten(self.dim["out"])
+        # Extra inputs/outputs due to inference phase
+        if self.inference is not None:
+            self.extra_inout = {}
+            for k in ("inp", "out"):
+                l1 = len(tf.nest.flatten(self.inference['dim'][k]))
+                l2 = len(tf.nest.flatten(dim[k]))
+                self.extra_inout[k] = l1-l2
 
+        # Call
+        # -----------------------------
+        if self.inference is not None:
+            self.call_net = self.call_infer
         # Force single-input single-output
         self.force_siso = force_siso
         if self.force_siso:
@@ -54,6 +78,7 @@ class BaseNet(object):
             self.name = self.name + '_siso'
 
         # Layers
+        # -----------------------------
         self.lays_name = lays_name
         if self.lays_name is None:
             self.lays_name = ('preinput', 'input', 'output')
@@ -73,6 +98,21 @@ class BaseNet(object):
             }
         }
 
+        # Inputs
+        # -----------------------------
+        if self.inference is not None:
+            self.inputs = []
+            for i in self.input_dim:
+                self.inputs.append(tf.keras.Input(
+                    tensor=tf.zeros(
+                        (self.inference['size'], i),
+                        dtype=backend.floatx()
+                    )
+                ))
+        else:
+            self.inputs = [tf.keras.Input((i,)) for i in self.input_dim]
+        self.inputs = utils.squeeze_list(tf.nest.flatten(self.inputs))
+        
     # Layers initialization
     ###########################################################################
     def init_inout_lay(self, propty):
@@ -92,29 +132,6 @@ class BaseNet(object):
             else:
                 _propty[k] = None
         return _propty
-    
-    # def init_inout_lay(self, identifier, propty):
-    #     k = 'xform'
-    #     _propty = {}
-    #     if k in propty and propty[k] is not None:
-    #         if callable(propty[k]):
-    #             _propty[k] = propty[k]
-    #         else:
-    #             _propty[k] = self.get_lay(
-    #                 propty=propty[k],
-    #                 default_lay_id='Lambda'
-    #             )
-    #         _propty['signature'] = utils.get_fun_args(_propty[k].call)
-    #         if not any([k in ('x', 'y') for k in _propty['signature']
-    #         ]):
-    #             utils.raise_value_err(
-    #                 f"The function signature passed into {self.name} accepts "
-    #                 "at least 'x', 'y', or both as valid options, where 'x' "
-    #                 "<- model inputs and 'y' <- intermediate layer/model ouputs."
-    #             )
-    #     else:
-    #         _propty[k] = None
-    #     return _propty
 
     def init_preinput_lay(self):
         k = 'preinput'
@@ -125,17 +142,48 @@ class BaseNet(object):
     def __call__(self, x, training=None, *args, **kwargs):
         return self.call(x, training, *args, **kwargs)
     
+    # Training phase
+    # ---------------------------------
     def call(self, x, training=None, *args, **kwargs):
-        y = x
         # Pre-inputs manipulation
-        y = self._manipulate_inout(
-            inputs=dict(x=x, y=y), identifier='preinput', training=training
+        x = self._manipulate_inout(
+            inputs=dict(x=x, y=x), identifier='preinput', training=training
         )
-        return self.call_net(y, training, *args, **kwargs)
+        return self.call_net(x, training, *args, **kwargs)
 
     def call_net(self, x, training=None, *args, **kwargs):
         return x
 
+    # Inference phase
+    # ---------------------------------
+    def call_infer(
+        self,
+        x,
+        training=None,
+        *args,
+        **kwargs
+    ):
+        n = self.extra_inout["inp"]
+        if n == 0:
+            return self.call(
+                x, training=False, *args, **kwargs
+            )
+        else:
+            # Extract inputs
+            x, x_extra = x[:-n], x[-n:]
+            # Pre-inputs manipulation
+            x = self._manipulate_inout(
+                inputs=dict(x=x, y=x), identifier='preinput'
+            )
+            return self.call_net_infer(
+                x, x_extra, training=False, *args, **kwargs
+            )
+
+    def call_net_infer(self, x, training=None, *args, **kwargs):
+        return self.call_net(x, training=False, *args, **kwargs)
+
+    # Sub-operations
+    ###########################################################################
     def _manipulate_inout(self, inputs, lay=None, identifier=None, training=None):
         if lay is None:
             lay = self.active_lays[identifier]
@@ -147,17 +195,6 @@ class BaseNet(object):
             return lay['xform'](_inputs, training=training)
         else:
             return inputs['y']
-
-    # def _manipulate_inout(
-    #     self, x=None, y=None, identifier=None, training=False
-    # ):
-    #     xform = self.active_lays[identifier]['xform']
-    #     if xform is not None:
-    #         if 'x' in self.active_lays[identifier]['signature']:
-    #             y = xform(x=x, y=y, training=training)
-    #         else:
-    #             y = xform(y, training=training)
-    #     return y
 
     def make_siso_call(self, call_fun, input_dim):
         def call(x, training=None):
@@ -209,4 +246,6 @@ class BaseNet(object):
             propty['kwargs'].update(
                 {'name': '_'.join((name, lay.__name__.lower()))}
             )
+        if 'kwargs' not in propty:
+            propty['kwargs'] = {}
         return lay(**propty['kwargs'])

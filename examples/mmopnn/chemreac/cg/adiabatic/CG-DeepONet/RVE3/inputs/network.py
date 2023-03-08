@@ -139,8 +139,8 @@ branch_multilays = [{
                 "lay_id": "ZeroToOneNormalization",
                 "kwargs": {
                     "xform": np.log,
-                    "mn": [2.9e3, 3.0e-3] + [1.0e-14]*nb_bins,
-                    "mx": [9.0e3, 1.7e-2] + [  1.0e0]*nb_bins,
+                    "mn": [3.0e-3] + [1.0e-14]*nb_bins + [2.9e3],
+                    "mx": [1.7e-2] + [  1.0e0]*nb_bins + [9.0e3],
                     "trainable": False
                 }
             }
@@ -163,17 +163,7 @@ def get_ts_opnn_cfg(
         },
         "lays_propty": {
             "input": {
-                "multilays": branch_multilays[index],
-                "prenet": {
-                    "kwargs": {
-                        'layer_size': [dim['inp'][0], 16, 16],
-                        'activation': ['tanh']*2 + ['linear'],
-                        'out_xform': None,
-                        'transformation': 'affine',
-                        'num_coords': 1,
-                        **common
-                    }
-                }
+                "multilays": branch_multilays[index]
             },
             "mmopnn": {
                 "dim": {
@@ -181,6 +171,18 @@ def get_ts_opnn_cfg(
                     "out": dim["out"]
                 },
                 "lays_propty": {
+                    "prenet": {
+                        'from': 'branch',
+                        'to': 'trunk',
+                        "kwargs": {
+                            'layer_size': [dim['inp'][0], 16, 16],
+                            'activation': ['tanh']*2 + ['linear'],
+                            'out_xform': None,
+                            'transformation': 'affine',
+                            'num_coords': 1,
+                            **common
+                        }
+                    },
                     "opnns": {
                         f"opnn_{i+1}": get_opnn_cfg(
                             dim=[dim["inp"], d],

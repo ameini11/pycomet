@@ -1,7 +1,11 @@
 import tensorflow as tf
 
+from keras import layers as tf_layers
+from tensorflow.python.keras import backend
 from pycomet import utils
+from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.basenet import BaseNet
+from pycomet.networks.flexopnn import _eval_prenet
 from pycomet.networks.opnn import _init_input_lay, _manipulate_input
 
 
@@ -15,6 +19,7 @@ class NeqOpNN(BaseNet):
         lays_name=None,
         lays_propty=None,
         force_siso=False,
+        inference=None,
         *args,
         **kwargs
     ):
@@ -24,6 +29,7 @@ class NeqOpNN(BaseNet):
             lays_name=lays_name,
             lays_propty=lays_propty,
             force_siso=force_siso,
+            inference=inference,
             *args,
             **kwargs
         )
@@ -67,7 +73,7 @@ class NeqOpNN(BaseNet):
             if identifier == 'input':
                 lays[identifier] = _init_input_lay(self, identifier, propty)
             elif identifier == 'mmopnns':
-                lays[identifier] = self.init_mmopnns_lay(identifier, propty)
+                lays[identifier] = self.init_mmopnns_lay(propty)
             elif identifier == 'output':
                 lays[identifier] = self.init_inout_lay(propty)
         return lays
@@ -91,32 +97,46 @@ class NeqOpNN(BaseNet):
     def call_net(
         self,
         x,
-        training=False,
-        tol=None
+        training=None
     ):
+        y = x
         # Inputs manipulation
-        x = _manipulate_input(self, x)
+        y = _manipulate_input(self, y)
         # Kernel - MMOpNNs
-        y = []
-        if training or (tol is None):
-            for mmopnn in self.active_lays["mmopnns"].values():
-                y.append(mmopnn(x, training=training))
-        else:
-            lays = self.active_lays["mmopnns"]
-            nb_mmopnns = len(lays)
-            for i, mmopnn in enumerate(lays.values()):
-                if i == 0:
-                    # First Timescale
-                    y_i = mmopnn(x)
-                else:
-                    # Second to highest Timescales
-                    if tf.math.reduce_any(y[-1] > tol):
-                        y_i = mmopnn([x, y[-1]], tol=tol)
-                    else:
-                        y_i = tf.zeros(
-                            (n, mmopnn.output_dim[-1]), dtype=K.floatx()
-                        )
-                y.append(y_i)
+        y_ = []
+        for mmopnn in self.active_lays["mmopnns"].values():
+            y_.append(mmopnn(y, training=training))
+        # Outputs manipulation
+        y = self._manipulate_inout(
+            inputs=dict(x=x, y=y_), identifier='output', training=training
+        )
+        return y
+    
+    def call_net_infer(
+        self,
+        x,
+        x_extra,
+        *args,
+        **kwargs
+    ):
+        # Extract inputs
+        y, tol = x, x_extra[-1]
+        # Inputs manipulation
+        y = _manipulate_input(self, y)
+        # Kernel - MMOpNNs
+        y_ = []
+        for i, mmopnn in enumerate(self.active_lays["mmopnns"].values()):
+            if i == 0:
+                # First Timescale
+                y_i = mmopnn(x=y)
+            else:
+                # Second to highest Timescales
+                y_i = mmopnn(x=[y, y_[-1]], tol=tol)
+            y_.append(y_i)
+        # Outputs manipulation
+        y = self._manipulate_inout(
+            inputs=dict(x=x, y=y_), identifier='output'
+        )
         return y
 
 
@@ -152,60 +172,54 @@ class TSMMOpNN(MMOpNN):
         tol=None
     ):
         if training or (tol is None):
-            return super(TSMMOpNN, self).call_net(x, training)
+            y = super(TSMMOpNN, self).call_net(x, training)
         else:
-            return self.adaptive_call_net(x, tol)
+            y = self.adaptive_call_net(x, tol)
+        return tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
 
     def adaptive_call_net(
         self,
         x,
-        tol=None
+        tol
     ):
         # Extract inputs: input + output previous timescale
-        y, ym1 = x
+        x, ym1 = x
         # Inputs manipulation
-        y = _manipulate_input(self, y)
+        y = _manipulate_input(self, x)
         # Global prenet
-        y = _eval_prenet(self, y, training)
+        y = _eval_prenet(self, y, training=False)
         # Kernel - OpNNs
-        y = {name: tf.nest.map_structure(tf.identity, y) \
-             for name in self.active_lays['opnns'].keys()}
-        y = self._adaptive_call([y, ym1], tol)
+        y = self._adaptive_call(y, ym1, tol)
         # Outputs manipulation
         y = self._manipulate_inout(
-            inputs=dict(x=x, y=y), identifier='output', training=training
+            inputs=dict(x=x, y=y), identifier='output', training=False
         )
         return y
 
     def _adaptive_call(
         self,
         x,
-        tol=None
+        ym1,
+        tol
     ):
         y = []
-        # Extract inputs: input + output previous timescale
-        x, ym1 = x
-        # Get number of input data
-        n = utils.get_cardinality(tf.nest.flatten(x))
         # Get split values from previous Timescale (i-1)
         ym1 = tf.split(ym1, ym1.shape[1], axis=1)
+        # Default zeros
+        zeros = tf.zeros_like(ym1[-1], dtype=backend.floatx())
         # Looping over each OpNN in the current Timescale
         for i, (name, opnn) in enumerate(self.active_lays['opnns'].items()):
             # Create a dummy `zeros` tensor with the i-th OpNN dimensions
-            y_i = tf.zeros((n, opnn.output_dim[-1]), dtype=K.floatx())
+            y_i = tf.repeat(zeros, repeats=[opnn.output_dim[-1]], axis=1)
             # If any values from previuos timescale is greater
             # than the `tol`, evaluates the current timescale
-            if tf.math.reduce_any(ym1[i] > tol):
-                # Get indices for the actual values to be evaluated
-                idx = tf.reshape(tf.where(ym1[i] > tol)[:,0], shape=[-1])
-                # Update the dummy `zeros` tensor with the
-                # actual evaluation of the j-th OpNN
-                x_i = tf.nest.map_structure(
-                    lambda z: tf.gather(z, idx, axis=0), x
-                )
-                y_i = tf.tensor_scatter_nd_update(
-                    y_i, tf.expand_dims(idx, 1), opnn(x_i)
-                )
+            mask = tf.squeeze(ym1[i] >= tol, axis=1)
+            # Update the dummy `zeros` tensor with the
+            # actual evaluation of the j-th OpNN
+            x_i = tf.nest.map_structure(
+                lambda z: tf.boolean_mask(z, mask, axis=0), x
+            )
+            y_i = tf.tensor_scatter_nd_update(y_i, tf.where(mask), opnn(x_i))
             # Append outputs of the j-th OpNN for the current i-th Timescale
             y.append(y_i)
         return y

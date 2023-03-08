@@ -719,6 +719,37 @@ class Split(tf_layers.Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+# # =========================================================================== #
+# # Concatenate Layer
+# # =========================================================================== #
+# @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+# class Concatenate(tf_layers.Concatenate):
+
+#     # Initialization
+#     ###########################################################################
+#     def __init__(
+#         self,
+#         axis=-1,
+#         **kwargs
+#     ):
+#         super(Concatenate, self).__init__(
+#             axis=-1,
+#             **kwargs
+#         )
+
+#     # Calling
+#     ###########################################################################
+#     def call(self, inputs, training=None, mask=None):
+#         y = inputs
+#         if isinstance(y, (list,tuple)):
+#             if len(y) > 1:
+#                 return super(Concatenate, self).call(y)
+#             else:
+#                 return y[-1]
+#         else:
+#             return y
+
+
 # =========================================================================== #
 # Limiter Layer
 # =========================================================================== #
@@ -816,6 +847,8 @@ class MultiLays(object):
             lay = utils.get_class(
                 modules=(sys.modules[__name__], tf_layers), name=lay
             )
+        if 'kwargs' not in propty:
+            propty['kwargs'] = {}
         return lay(**propty['kwargs'])
 
     # Calling

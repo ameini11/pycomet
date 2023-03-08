@@ -128,16 +128,16 @@ class CGThermoEncoder(tf_layers.Layer):
         y['Y_m'] = x['rho_m'] / y['rho']
         # Encode temperature quantities
         y['Th'] = x['Th']
+        # Compose the encoded tensor
+        y_en = [y[self.encoded_tensors_order[i]] for i in range(len(y))]
+        y_en = tf_layers.Concatenate()(y_en) if len(y_en) > 1 else y_en[-1]
         # Compose and return outputs
         outputs = []
-        outputs_i = tf.concat(
-            [y[self.encoded_tensors_order[i]] for i in range(len(y))], 1
-        )
-        for i in range(len(inputs)):
+        for i, x in enumerate(inputs):
             if i == self.tensor_toencode:
-                outputs.append(outputs_i)
+                outputs.append(y_en)
             else:
-                outputs.append(inputs[i])
+                outputs.append(x)
         return outputs
 
     # Configuration
@@ -227,6 +227,7 @@ class CurrentToNextTS(tf_layers.Layer):
                 # Multiply slower and faster timescales
                 y_mul = [tf_layers.Multiply()([ys, yf]) \
                     for ys, yf in zip(y_slow, y_fast)]
+                # Concatenate
                 y[ts+1] = tf_layers.Concatenate()(y_mul) \
                     if len(y_mul) > 1 else y_mul[-1]
         return y

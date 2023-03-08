@@ -96,9 +96,11 @@ def _eval_prenet(opnn_cls, x, training):
     if 'prenet' in opnn_cls.active_lays.keys():
         lay = opnn_cls.active_lays['prenet']
         if isinstance(lay, dict):
-            x[lay['to']] = lay['block'](
-                x=[x[lay['from']], x[lay['to']]], training=training
-            )
+            x1, x2 = x[lay['from']], x[lay['to']]
+            x2 = lay['block'](x=[x1, x2], training=training)
         else:
-            x[1] = lay(x=x, training=training)
-    return x
+            x1, x2 = x
+            x2 = lay(x=[x1, x2], training=training)
+        return [x1, x2]
+    else:
+        return x

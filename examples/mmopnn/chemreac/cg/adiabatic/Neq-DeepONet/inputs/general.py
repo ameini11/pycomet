@@ -6,11 +6,21 @@
 
 # Model/architecture properties
 # =============================================================================
-model_name = 'cg_deeponet'
+model_name = 'neq_deeponet'
 
 dim = {
-    "inp": [2+3, 1],  # Branch-Trunk input dimensionality
-    "out": [2, 3, 1]   # Output dimensionality
+    "inp": [2+27, 1],  # Branch-Trunk input dimensionality
+    "out": [1, 3, 9]   # Output dimensionality
+}
+
+# Inference
+inference = {
+    'active': True,
+    'dim': {
+        "inp": [2+27, 1, 1],
+        "out": [1, 3, 9]
+    },
+    'size': 10
 }
 
 # Execution Flags

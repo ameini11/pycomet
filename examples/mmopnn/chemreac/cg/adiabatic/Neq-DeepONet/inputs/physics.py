@@ -13,15 +13,17 @@ tlim = [1.e-10, 1.e-6]
 specie_names = {
     "m": "O2",
     "a": "O"
-},
-    
+}
+
+nb_bins = 27
+
 specie_thermo = {
     0: {
         'specie': {
             'name': 'O2',
             'model': {
                'levels': 'O3_UMN/O2.csv',
-               'lev_mapping': f'O3_UMN/O2/LevelsMap_RVE3.csv'
+               'lev_mapping': f'O3_UMN/O2/LevelsMap_RVE{nb_bins}.csv'
             }
         },
         'thermo': {

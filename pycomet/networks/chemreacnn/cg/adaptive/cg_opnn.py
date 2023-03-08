@@ -114,35 +114,67 @@ class CGOpNN(BaseNet):
     def call_net(
         self,
         x,
-        training=None,
-        neq_mask=None
+        training=None
     ):
         y = x
         # Inputs manipulation
         y = _manipulate_input(self, y)
         # Kernel - Temperature (OpNN)
-        T = None
         if "temp" in self.active_lays:
-            T = self.active_lays["temp"](
-                tf.nest.map_structure(tf.identity, y), training=training
-            )
-        # Kernel - Mass (TimeScaleOpNNs)
-        kwargs = dict(x=[[y["branch"], y["trunk"]], T], training=training)
-        if training or (neq_mask is None):
-            y = [ts(**kwargs) for ts in self.active_lays["mass"].values()]
+            T = self.active_lays["temp"](y, training=training)
         else:
-            y = []
-            for i, ts in enumerate(self.active_lays["mass"].values()):
-                if i != 0:
-                    kwargs["neq_mask"] = neq_mask[i-1]
-                y.append(ts(**kwargs))
+            T = None
+        # Kernel - Mass (TimeScaleOpNNs)
+        y_ = []
+        x_ts = [[y["branch"], y["trunk"]], T]
+        for ts in self.active_lays["mass"].values():
+            y_.append(ts(x=x_ts, training=training))
         # Outputs manipulation
-        y = self._manipulate_output(y)
+        y = self._manipulate_output(y_)
         if T is not None:
             return tf.nest.flatten([y, T])
         else:
             return y
+    
+    def call_net_infer(
+        self,
+        x,
+        *args,
+        **kwargs
+    ):
+        if self.extra_inputs_start is None:
+            return self.call_net(x)
+        else:
+            # Extract inputs
+            y = x[:self.extra_inputs_start]
+            neq_mask = x[self.extra_inputs_start:]
+            # Inputs manipulation
+            y = _manipulate_input(self, y)
+            # Kernel - Temperature (OpNN)
+            if "temp" in self.active_lays:
+                T = self.active_lays["temp"](y, training=training)
+            else:
+                T = None
+            # Kernel - Mass (TimeScaleOpNNs)
+            y_ = []
+            x_ts = [[y["branch"], y["trunk"]], T]
+            for i, ts in enumerate(self.active_lays["mass"].values()):
+                if i == 0:
+                    # First Timescale
+                    y_i = ts(x=x_ts)
+                else:
+                    # Second to highest Timescales
+                    y_i = ts(x=x_ts, neq_mask=neq_mask[i-1])
+                y_.append(y_i)
+            # Outputs manipulation
+            y = self._manipulate_output(y_)
+            if T is not None:
+                return tf.nest.flatten([y, T])
+            else:
+                return y
 
+    # Sub-operations
+    ###########################################################################
     def _manipulate_output(self, y):
         if len(y) > 1:
             # Connect groups

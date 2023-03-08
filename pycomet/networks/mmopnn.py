@@ -112,12 +112,11 @@ class MMOpNN(BaseNet):
         # Global preNet
         y = _eval_prenet(self, y, training)
         # Kernel - OpNNs
-        y = {name: tf.nest.map_structure(tf.identity, y) \
-             for name in self.active_lays['opnns'].keys()}
-        y = [opnn(y[name], training=training) \
-             for name, opnn in self.active_lays['opnns'].items()]
+        y_ = []
+        for name, opnn in self.active_lays['opnns'].items():
+            y_.append(opnn(y, training=training))
         # Outputs manipulation
         y = self._manipulate_inout(
-            inputs=dict(x=x, y=y), identifier='output', training=training
+            inputs=dict(x=x, y=y_), identifier='output', training=training
         )
         return y

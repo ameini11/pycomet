@@ -85,19 +85,13 @@ class Model(object):
         # Build the network ---------------------------------------------------
         # I/O characterization
         if load_net != 4 and not isinstance(self.net, tf.keras.Model):
-            inputs = [tf.keras.Input((i,)) for i in self.net.input_dim]
-            inputs = utils.squeeze_list(tf.nest.flatten(inputs))
-            outputs = self.net.call(inputs, training=False)
-            func_net = FuncNet(
-                inputs, outputs, name=self.name
-            )
+            outputs = self.net.call(self.net.inputs, training=False)
+            net = FuncNet(self.net.inputs, outputs, name=self.name)
         else:
-            func_net = FuncNet(
-                self.net.inputs, self.net.outputs, name=self.name
-            )
-            func_net.set_weights(self.net.get_weights())
+            net = FuncNet(self.net.inputs, self.net.outputs, name=self.name)
+            net.set_weights(self.net.get_weights())
         del self.net
-        self.net = func_net
+        self.net = net
         
         # Update multi-objective loss function parameters
         if self.data is not None and self.data.multi_obj_loss:

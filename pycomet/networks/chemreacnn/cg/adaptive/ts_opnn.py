@@ -1,7 +1,6 @@
 import tensorflow as tf
 
 from tensorflow.keras import backend
-from keras import layers as tf_layers
 from pycomet import utils
 from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.basenet import BaseNet
@@ -174,8 +173,6 @@ class TSMMOpNN(MMOpNN):
         # Global Prenet
         y = _eval_prenet(self, y, training)
         # Kernel - OpNNs
-        y = {name: tf.nest.map_structure(tf.identity, y) \
-             for name in self.active_lays['opnns'].keys()}
         y = self._adaptive_call(y, neq_mask)
         # Outputs manipulation
         y = self._manipulate_inout(
@@ -190,7 +187,6 @@ class TSMMOpNN(MMOpNN):
         # Split `neq_mask` columnwise and loop over each column
         neq_mask = nn_elem.Split(neq_mask.shape[1], axis=1)(neq_mask)
         for i, (name, opnn) in enumerate(self.active_lays['opnns'].items()):
-            x_i = x[name]
             # Create a dummy `zeros` tensor
             y_i = tf.zeros((n, self.ouput_dim[i]), dtype=backend.floatx())
             # If any values of `mask_i` is `True`, evaluate the specific
@@ -200,7 +196,7 @@ class TSMMOpNN(MMOpNN):
                 idx = tf.reshape(tf.where(neq_mask[i])[:,0], shape=[-1])
                 # Extract inputs given specific indices
                 x_i = tf.nest.map_structure(
-                    lambda z: tf.gather(z, idx, axis=0), x_i
+                    lambda z: tf.gather(z, idx, axis=0), x
                 )
                 # Update the dummy `zeros` tensor with the actual
                 # evaluation of the DeepONet `i`
