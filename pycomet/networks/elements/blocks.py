@@ -17,7 +17,7 @@ from pycomet import utils
 # MultiLayerBlock Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class MultiLayerBlock(tf_layers.Layer):
+class MultiLayerBlock(pcm_layers.Layer):
     """Multi Layer Block."""
 
     # Initialization
@@ -116,7 +116,7 @@ class MultiLayerBlock(tf_layers.Layer):
 # FFBlock Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class FFBlock(tf_layers.Layer):
+class FFBlock(pcm_layers.Layer):
     """Simple Feed-forward block."""
 
     # Initialization
@@ -287,7 +287,7 @@ class ResPIBlock(FFBlock):
 # PreNetBlock Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class PreNetBlock(tf_layers.Layer):
+class PreNetBlock(pcm_layers.Layer):
     """See: https://arxiv.org/pdf/2204.12670.pdf
     """
 

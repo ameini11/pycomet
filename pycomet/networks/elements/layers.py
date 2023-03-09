@@ -11,16 +11,59 @@ from tensorflow.python.keras import constraints
 from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
 from keras import layers as tf_layers
+from keras.utils import generic_utils
 from pycomet import operations as ops
 from pycomet import config as cfg
 from pycomet import utils
 
 
 # =========================================================================== #
+# Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class Layer(tf_layers.Layer):
+    
+    def __init__(
+        self,
+        trainable=True,
+        name=None,
+        dtype=None,
+        dynamic=False,
+        prefix=None,
+        **kwargs
+    ):
+        self.prefix = prefix
+        super(Layer, self).__init__(
+            trainable,
+            name,
+            dtype,
+            dynamic,
+            **kwargs
+        )  
+            
+    def _init_set_name(self, name, zero_based=True):
+        if name is None:
+            name = self.__class__.__name__
+            if self.prefix is not None:
+                name = self.prefix + '_' + name
+            self._name = backend.unique_object_name(
+                generic_utils.to_snake_case(name),
+                zero_based=zero_based,
+            )
+        elif isinstance(name, str):
+            backend.observe_object_name(name)
+            self._name = name
+        else:
+            raise TypeError(
+                f"Expected `name` argument to be a string, but got: {name}"
+            )
+
+
+# =========================================================================== #
 # TrainableActivationFun Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class TrainableActivationFun(tf_layers.Layer):
+class TrainableActivationFun(Layer):
 
     # Initialization
     ###########################################################################
@@ -142,7 +185,7 @@ class TrainableActivationFun(tf_layers.Layer):
 # Scaling Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Scaling(tf_layers.Layer):
+class Scaling(Layer):
 
     # Initialization
     ###########################################################################
@@ -265,7 +308,7 @@ class ZeroToOneNormalization(Scaling):
 # Normalization Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class StdNormalization(tf_layers.Layer):
+class StdNormalization(Layer):
 
     # Initialization
     ###########################################################################
@@ -357,7 +400,7 @@ class StdNormalization(tf_layers.Layer):
 # Logarithmic Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Log(tf_layers.Layer):
+class Log(Layer):
 
     # Initialization
     ###########################################################################
@@ -427,7 +470,7 @@ class Log(tf_layers.Layer):
 # Bias Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Bias(tf_layers.Layer):
+class Bias(Layer):
 
     # Initialization
     ###########################################################################
@@ -543,7 +586,7 @@ class Dropout(tf_layers.Dropout):
 # # IOLambda Layer
 # # =========================================================================== #
 # @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-# class IOLambda(tf_layers.Layer):
+# class IOLambda(Layer):
 
 #     # Initialization
 #     ###########################################################################
@@ -679,7 +722,7 @@ class IOLambda(tf_layers.Lambda):
 # Split Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Split(tf_layers.Layer):
+class Split(Layer):
 
     # Initialization
     ###########################################################################
@@ -754,7 +797,7 @@ class Split(tf_layers.Layer):
 # Limiter Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Limiter(tf_layers.Layer):
+class Limiter(Layer):
 
     # Initialization
     ###########################################################################

@@ -4,6 +4,7 @@
 # --------------------------------------------------------------------------- #
 
 
+import copy
 import numpy as np
 import tensorflow as tf
 
@@ -42,7 +43,7 @@ common = {
 
 # TimeScaleOpNN - Simple properties
 # -------------------------------------
-names = ["TS0", "TS1", "TS2", "TS3"]
+names = ["TS0", "TS1", "TS2", "TS3", "T"]
 
 dims = {
     names[0]: {
@@ -113,6 +114,7 @@ groups_graph = {
 # TimeScaleOpNN - Single OpNN config
 # -------------------------------------
 def get_opnn_cfg(
+    name,
     dim,
     layer_size
 ):
@@ -129,6 +131,7 @@ def get_opnn_cfg(
                 'kwargs': {
                     "layer_size": layer_size["branch"],
                     "activation": ["tanh"]*(nb_lays["branch"]-2) + ["linear"],
+                    "prefix": name,
                     **common
                 }
             } for _ in range(dim[1])],
@@ -137,6 +140,7 @@ def get_opnn_cfg(
                 "kwargs": {
                     "layer_size": layer_size["trunk"],
                     "activation": ["sigmoid"]*(nb_lays["trunk"]-2) + ["linear"],
+                    "prefix": name,
                     **common
                 }
             }
@@ -146,7 +150,7 @@ def get_opnn_cfg(
 
 # TimeScaleOpNN: Full network config
 # -------------------------------------
-prenet = {
+prenet = [{
     'from': 'branch',
     'to': 'trunk',
     "kwargs": {
@@ -155,9 +159,10 @@ prenet = {
         'out_xform': None,
         'transformation': 'affine',
         'num_coords': 1,
+        "prefix": name,
         **common
     }
-}
+} for name in names]
 
 branch_multilays = [{
     "lay_id": "MultiLays",
@@ -168,24 +173,31 @@ branch_multilays = [{
                 "kwargs": {
                     "base": 10,
                     "offset": 1.e-14,
-                    "trainable": False
+                    "trainable": False,
+                    "prefix": name
                 }
             },
             1: {
                 "lay_id": "ZeroToOneNormalization",
                 "kwargs": {
                     "xform": np.log10,
-                    "mn": [3.0e-3] + [1.0e-14]*nb_bins + [2.9e3],
-                    "mx": [1.7e-2] + [9.99e-1]*nb_bins + [9.0e3],
-                    "trainable": False
+                    "mn": [3.0e-3] + [1.0e-14]*bins[i] + [2.9e3],
+                    "mx": [1.7e-2] + [9.99e-1]*bins[i] + [9.0e3],
+                    "trainable": False,
+                    "prefix": name
                 }
             }
         }
     }
-} for nb_bins in bins]
+} for i, name in enumerate(names[:-1])]
+
+# Add branch multilays for Temperature block
+branch_multilays_T = copy.deepcopy(branch_multilays[-1])
+for i in range(2):
+    branch_multilays_T["kwargs"]["lays_propty"][i]["kwargs"]["prefix"] = names[-1]
 
 def get_ts_opnn_cfg(
-    index,
+    i,
     dim,
     layer_size,
     specie_thermo=None
@@ -199,7 +211,7 @@ def get_ts_opnn_cfg(
         },
         "lays_propty": {
             "input": {
-                "multilays": branch_multilays[index]
+                "multilays": branch_multilays[i]
             },
             "mmopnn": {
                 "dim": {
@@ -207,12 +219,13 @@ def get_ts_opnn_cfg(
                     "out": dim["out"]
                 },
                 "lays_propty": {
-                    "prenet": prenet,
+                    "prenet": prenet[i],
                     "opnns": {
-                        f"opnn_{i+1}": get_opnn_cfg(
+                        f"opnn_{j+1}": get_opnn_cfg(
+                            name=names[i],
                             dim=[dim["inp"], d],
                             layer_size=layer_size
-                        ) for i, d in enumerate(dim["out"])
+                        ) for j, d in enumerate(dim["out"])
                     }
                 }
             },
@@ -266,11 +279,11 @@ lays_propty = {
     
     "mass": {
         name: get_ts_opnn_cfg(
-            index=i,
+            i=i,
             dim=dims[name],
             layer_size=layer_sizes[name],
             specie_thermo=specie_thermos[name]
-        ) for i, name in enumerate(names)
+        ) for i, name in enumerate(names[:-1])
     },
     
     "temp": {
@@ -283,19 +296,20 @@ lays_propty = {
             "input": {
                 "branch": {
                     "index": 0,
-                    "xform": branch_multilays[-1]
+                    "xform": branch_multilays_T
                 },
                 "trunk": {
                     "index": 1,
                     "xform": None
                 }
             },
-            "prenet": prenet,
+            "prenet": prenet[-1],
             "branch": {
                 "lay_id": "FFBlock",
                 "kwargs": {
                     "layer_size": [dim["inp"][0], 16, 16, 4],
                     "activation": ["tanh"]*2 + ["linear"],
+                    "prefix": names[-1],
                     **common
                 }
             },
@@ -304,6 +318,7 @@ lays_propty = {
                 "kwargs": {
                     "layer_size": [dim["inp"][0], 16, 16, 4],
                     "activation": ["sigmoid"]*2 + ["linear"],
+                    "prefix": names[-1],
                     **common
                 }
             },
