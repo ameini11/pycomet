@@ -80,7 +80,12 @@ class DifferentialBased(Sampler):
         size = int(nb_pts*(1.0-self.grad_split))
         samples = self.uniform_sampling(x, size)
         # Gradient-based sampling
-        p = grad_norm/grad_norm.sum()
+        s = grad_norm.sum()
+        if s > 0.0:
+            p = grad_norm / s
+        else:
+            p = np.ones_like(grad_norm)
+            p /= p.sum()
         while size > 0:
             grad_samples = np.random.choice(
                 indices, replace=False, p=p, size=size

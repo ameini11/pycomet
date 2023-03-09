@@ -79,6 +79,7 @@ layer_sizes = {
 # MMOpNN - Single OpNN config
 # -------------------------------------
 def get_opnn_cfg(
+    name,
     dim,
     layer_size
 ):
@@ -95,6 +96,7 @@ def get_opnn_cfg(
                 'kwargs': {
                     "layer_size": layer_size["branch"],
                     "activation": ["tanh"]*(nb_lays["branch"]-2) + ["linear"],
+                    "prefix": name,
                     **common
                 }
             } for _ in range(dim[1])],
@@ -103,6 +105,7 @@ def get_opnn_cfg(
                 "kwargs": {
                     "layer_size": layer_size["trunk"],
                     "activation": ["sigmoid"]*(nb_lays["trunk"]-2) + ["linear"],
+                    "prefix": name,
                     **common
                 }
             }
@@ -113,6 +116,7 @@ def get_opnn_cfg(
 # MMOpNN - Full network config
 # -------------------------------------
 def get_mmopnn_cfg(
+    name,
     dim,
     layer_size
 ):
@@ -133,11 +137,13 @@ def get_mmopnn_cfg(
                     'out_xform': None,
                     'transformation': 'affine',
                     'num_coords': 1,
+                    "prefix": name,
                     **common
                 }
             },
             "opnns": {
                 f"opnn_{i+1}": get_opnn_cfg(
+                    name=name,
                     dim=[dim["inp"], d],
                     layer_size=layer_size
                 ) for i, d in enumerate(dim["out"])
@@ -206,6 +212,7 @@ lays_propty = {
 
     "mmopnns": {
         name: get_mmopnn_cfg(
+            name=name,
             dim=dims[name],
             layer_size=layer_sizes[name]
         ) for name in names

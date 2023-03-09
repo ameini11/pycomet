@@ -10,13 +10,34 @@
 tlim = [1.e-10, 1.e-6]
 
 # Thermodynamics - HyperNet code & database
+bins = (1, 3, 9, 27)
+
+groups_graph = {
+    0: {
+        0: {
+            0: [ 0, 1, 2],
+            1: [ 3, 4, 5],
+            2: [ 6, 7, 8]
+        },
+        1: {
+            3: [ 9,10,11],
+            4: [12,13,14],
+            5: [15,16,17]
+        },
+        2: {
+            6: [18,19,20],
+            7: [21,22,23],
+            8: [24,25,26]
+        }
+    }
+}
+    
+# Thermodynamics - HyperNet code & database
 specie_names = {
     "m": "O2",
     "a": "O"
 }
 
-bins = (1, 3, 9, 27)
-    
 specie_thermo = {
     0: {
         'specie': {

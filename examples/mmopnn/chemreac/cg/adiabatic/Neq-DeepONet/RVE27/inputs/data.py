@@ -7,6 +7,9 @@
 import numpy as np
 import tensorflow as tf
 
+from inputs.general import dim
+
+
 
 # Data properties
 # =============================================================================

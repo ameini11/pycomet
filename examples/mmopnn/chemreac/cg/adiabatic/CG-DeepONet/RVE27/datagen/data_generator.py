@@ -397,5 +397,4 @@ class DataGenerator(pcm.data.DataGenerator):
         if self.tlim is not None:
             indices = np.where((t >= self.tlim[0]) * (t <= self.tlim[1]))[0]
             sol = tf.nest.map_structure(lambda x: x[indices], sol)
-        sol = tf.nest.map_structure(np.array, sol)
         return sol

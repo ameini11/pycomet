@@ -14,6 +14,7 @@ import pycomet as pcm
 from pycomet.sampling.differential_based import DifferentialBased
 from pycomet.networks.chemreacnn.cg.adaptive.layers import FastestToCurrentTS
 from pycomet.networks.chemreacnn.cg.adaptive.groups_connect import GroupsConnect
+from pycomet.networks.chemreacnn.cg.adaptive.neq_data import NeqDataGenerator
 
 # HyperNet (v.22.12)
 from hypernet.src.general import utils
@@ -30,10 +31,12 @@ class DataGenerator(pcm.data.DataGenerator):
     ###########################################################################
     def __init__(
         self,
+        dim,
         train_pts,
         validation_split,
         tlim,
         groups_graph,
+        mol_specie_thermos,
         specie_thermo,
         process,
         grad_split=0.75,
@@ -79,6 +82,15 @@ class DataGenerator(pcm.data.DataGenerator):
                 for i, indices in self.grp_conn.fastest_to_current_ts.items()
         }
 
+        # Nonequilibrium controller datagen -----------------------------------
+        self.neq_datagen = NeqDataGenerator(
+            specie_thermos=mol_specie_thermos,
+            process=process,
+            groups_graph=groups_graph,
+            mep_order=0,
+            norm_order=2
+        )
+
         # Physics -------------------------------------------------------------
         self.specie_names = specie_names
         # Specie thermodynamics
@@ -107,22 +119,10 @@ class DataGenerator(pcm.data.DataGenerator):
         # Input features
         self.data_lbl_inp = ['rho'] + self.grp_lbl['Y'] + ['T', 't']
         # Output features
-        self.data_lbl_out = []
-        for ts, indeces in self.grp_conn.fastest_to_current_ts.items():
-            if ts == 0:
-                self.data_lbl_out += [
-                    f"Y_{self.specie_names['m']}",
-                    f"Y_{self.specie_names['a']}"
-                ]
-            elif indeces is None:
-                self.data_lbl_out += [
-                    'Y_'+str(ts)+str(i+1) for i in range(self.nb_bins)
-                ]
-            else:
-                self.data_lbl_out += [
-                    'Y_'+str(ts)+str(i+1) for i in range(len(indeces))
-                ]
-        self.data_lbl_out += ['T']
+        self.data_lbl_out = tf.nest.flatten([
+            [f'D_{i+1}{j+1}' for j in range(d)] \
+                for i, d in enumerate(dim['out'])
+        ])
         # Input-Output features
         self.data_lbl = self.data_lbl_inp + self.data_lbl_out
 
@@ -308,7 +308,7 @@ class DataGenerator(pcm.data.DataGenerator):
                 else:
                     idx = self.dyn_sampler.sample(
                         x=np.log(t+1.e-15),
-                        y=y[-2],
+                        y=y[-1],
                         nb_pts=n
                     )
                     tk = t[idx]
@@ -379,6 +379,7 @@ class DataGenerator(pcm.data.DataGenerator):
         X = {self.specie_names[s]: X[s] for s in ('a', 'm')}
         T = df['T'].to_numpy().reshape(-1,1)
         t = df["t"].to_numpy().reshape(-1,1)
+        rho = df["rho"].to_numpy().reshape(-1,1)[0:1]
         # Update mixture
         self.mix.update(X, var='X')
         # Compute mass fractions
@@ -388,14 +389,13 @@ class DataGenerator(pcm.data.DataGenerator):
         }
         # Compute timescales
         Y_ts = [conn.call(Y['m']) for conn in self.ts_connect.values()]
-        Y_ts[0] = np.hstack([Y['a'], Y_ts[0]])
+        # Evaluate underpredicted noneq. metrics
+        neq = self.neq_datagen.compute_df_norm(data=[rho,Y_ts,T])
+        neq = tf.nest.map_structure(lambda x: np.maximum(x, 1.e-5), neq)
         # Compose solution
-        y = tf.nest.flatten([Y_ts, T])
-        sol = [t, y]
-        sol = tf.nest.map_structure(np.array, sol)
+        sol = [t, neq]
         # Time limits
         if self.tlim is not None:
             indices = np.where((t >= self.tlim[0]) * (t <= self.tlim[1]))[0]
             sol = tf.nest.map_structure(lambda x: x[indices], sol)
-        sol = tf.nest.map_structure(np.array, sol)
         return sol

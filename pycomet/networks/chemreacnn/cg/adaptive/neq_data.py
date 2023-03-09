@@ -35,7 +35,7 @@ class NeqDataGenerator(object):
 
     # Differential MEP reconstruction Norm
     ###########################################################################
-    def eval_df_norm(
+    def compute_df_norm(
         self,
         data=None
     ):
@@ -52,8 +52,8 @@ class NeqDataGenerator(object):
                 norm = tf.norm(
                     f_fast - f_slow, ord=self.norm_order, axis=1, keepdims=1
                 )
-                # Mean
-                norm = norm / f_fast.shape[1]
+                # # Mean
+                # norm = norm / f_fast.shape[1]
                 df_norm_ts.append(norm)
             df_norm.append(tf.concat(df_norm_ts, axis=1).numpy())
         return df_norm
@@ -97,7 +97,7 @@ class NeqDataGenerator(object):
         n,
         Q
     ):
-        alpha = [tf.nest.map_structure(lambda Qi, ni: tf.math.log(Qi/ni), Q, n)
+        alpha = tf.nest.map_structure(lambda Qi, ni: tf.math.log(Qi/ni), Q, n)
         return tf.nest.map_structure(
             lambda a: tf.split(a, a.shape[1], axis=1), alpha
         )
