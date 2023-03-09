@@ -9,12 +9,12 @@ from inputs.postproc import figures
 
 # Training
 # =============================================================================
-epochs = 10000
+epochs = 5000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 2000*300
+decay_steps = 958*200
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 

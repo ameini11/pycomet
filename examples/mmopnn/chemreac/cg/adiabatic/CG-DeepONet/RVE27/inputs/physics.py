@@ -43,4 +43,19 @@ specie_thermo = {
     }
 }
 
+mol_specie_thermos = [
+    {
+        "specie": {
+            "name": "O2",
+            "model": {
+               "levels": "O3_UMN/O2.csv",
+               "lev_mapping": f"O3_UMN/O2/LevelsMap_RVE{nb_bins}.csv"
+            }
+        },
+        "thermo": {
+            "model": "CoupledModes"
+        }
+    } for nb_bins in bins
+]
+
 process = ['adiabatic', 'isochoric']

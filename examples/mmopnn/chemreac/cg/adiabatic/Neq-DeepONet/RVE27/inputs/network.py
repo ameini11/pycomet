@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from inputs.general import dim
-from inputs.physics import nb_bins
+from inputs.physics import bins
 from pycomet import config as cfg
 from keras import layers as tf_layers
 
@@ -156,16 +156,17 @@ branch_multilays = {
             0: {
                 "lay_id": "Log",
                 "kwargs": {
-                    "base": 'e',
+                    "base": 10,
+                    "offset": 1.e-14,
                     "trainable": False
                 }
             },
             1: {
                 "lay_id": "ZeroToOneNormalization",
                 "kwargs": {
-                    "xform": np.log,
-                    "mn": [3.0e-3] + [1.0e-14]*nb_bins + [2.9e3],
-                    "mx": [1.7e-2] + [9.99e-1]*nb_bins + [9.0e3],
+                    "xform": np.log10,
+                    "mn": [3.0e-3] + [1.0e-14]*bins[-1] + [2.9e3],
+                    "mx": [1.7e-2] + [9.99e-1]*bins[-1] + [9.0e3],
                     "trainable": False
                 }
             }
@@ -179,7 +180,7 @@ lays_propty = {
     #     'xform': {
     #         'lay_id': 'CGThermoEncoder',
     #         'kwargs': {
-    #             'nb_bins': 27
+    #             'bins[-1]': 27
     #         }
     #     }
     # },

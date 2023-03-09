@@ -48,6 +48,7 @@ def main():
     if hasattr(args, 'threads'):
         cfg._NUM_THREADS = args.threads
     utils.set_num_threads(cfg._NUM_THREADS)
+    utils.set_gpu_memory()
 
     # Setting seed
     if hasattr(args, 'seed'):

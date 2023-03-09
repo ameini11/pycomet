@@ -32,6 +32,14 @@ def set_random_seed(seed=None):
         tf.random.set_seed(seed)
         os.environ['PYTHONHASHSEED'] = str(seed)
 
+def set_gpu_memory():
+    gpus = tf.config.list_physical_devices('GPU')
+    for gpu in gpus:
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except:
+            pass
+
 def set_num_threads(n):
     tf.config.threading.set_inter_op_parallelism_threads(n)
     tf.config.threading.set_intra_op_parallelism_threads(n)

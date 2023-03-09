@@ -14,7 +14,7 @@ optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 960*200
+decay_steps = 958*200
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 

@@ -10,7 +10,7 @@ import tensorflow as tf
 
 # Data properties
 # =============================================================================
-data_type = 'DataSet'
+data_type = 'ODE'
 
 physics_informed = False
 
@@ -32,25 +32,25 @@ data_src = {
 }
 
 cols = {
-    'x': [np.arange(29),[29]],
-    'y': [[30],31+np.arange(27),[58]]
-    
+    'x': np.split(
+        np.arange(np.sum(dim['inp'])),
+        np.cumsum(dim['inp'])
+    )[:-1],
+    'y': np.split(
+        np.sum(dim['inp']) + np.arange(np.sum(dim['out'])),
+        np.cumsum(dim['out'])
+    )[:-1]
 }
+cols = tf.nest.map_structure(list, cols)
 columns = tf.nest.map_structure(lambda _: cols, data_src)
 
 header = 0
 
-def preproc_fn(x):
-    if x.shape[1] == columns['y'][-1][-1]:
-        s = np.sum(x[:,columns['y'][1]], axis=1, keepdims=1)
-        x[:,columns['y'][0]] = 1.0 - s
-    return x
-
 # Batching --------------------------------------------------------------------
 batch_size = {
     'train': {
-        'ics': 128,
-        'pts': 128,
+        'ics': 256,
+        'pts': 256,
         'res': 512
     },
     'valid': {

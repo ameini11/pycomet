@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from inputs.general import dim
-from inputs.physics import bins
+from inputs.physics import bins, mol_specie_thermos
 
 
 # Architecture properties
@@ -87,20 +87,7 @@ layer_sizes = {
 # -------------------------------------
 specie_thermos = {
     names[0]: None,
-    **{
-        names[i+1]: {
-            "specie": {
-                "name": "O2",
-                "model": {
-                   "levels": "O3_UMN/O2.csv",
-                   "lev_mapping": f"O3_UMN/O2/LevelsMap_RVE{nb_bins}.csv"
-                }
-            },
-            "thermo": {
-                "model": "CoupledModes"
-            }
-        } for i, nb_bins in enumerate(bins[1:])
-    }
+    **{n: sp for (n, sp) in zip(names[1:], mol_specie_thermos[1:])}
 }
 
 groups_graph = {
