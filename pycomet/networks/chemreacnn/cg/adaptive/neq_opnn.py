@@ -175,7 +175,9 @@ class TSMMOpNN(MMOpNN):
             y = super(TSMMOpNN, self).call_net(x, training)
         else:
             y = self.adaptive_call_net(x, tol)
-        return tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+        y = tf.math.exp(y)
+        return y
 
     def adaptive_call_net(
         self,
@@ -187,12 +189,12 @@ class TSMMOpNN(MMOpNN):
         # Inputs manipulation
         y = _manipulate_input(self, x)
         # Global prenet
-        y = _eval_prenet(self, y, training=False)
+        y = _eval_prenet(self, y)
         # Kernel - OpNNs
         y = self._adaptive_call(y, ym1, tol)
         # Outputs manipulation
         y = self._manipulate_inout(
-            inputs=dict(x=x, y=y), identifier='output', training=False
+            inputs=dict(x=x, y=y), identifier='output'
         )
         return y
 

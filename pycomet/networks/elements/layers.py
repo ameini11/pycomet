@@ -364,8 +364,8 @@ class Log(tf_layers.Layer):
     def __init__(
         self,
         base=10.0,
-        slope=0.0,
-        offset=1.0,
+        slope=1.0,
+        offset=0.0,
         **kwargs
     ):
         super(Log, self).__init__(

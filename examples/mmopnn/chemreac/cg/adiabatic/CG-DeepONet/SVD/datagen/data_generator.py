@@ -116,14 +116,14 @@ class DataGenerator(object):
     ###########################################################################
     def compute_solutions(self, path, ics):
         if not os.path.exists(path + '/cases.hdf5'):
-            # Compute initial conditions for PLATO
-            ics = self.compute_plato_ics(ics)
+            # Compute initial solution for PLATO
+            init_sols = self.compute_init_sol(ics)[:20]
             # Computing solutions
             print(">> Computing 0D solutions")
             cases = jl.Parallel(self.nb_jobs)(
                 jl.delayed(self.compute_solution)(
-                    self.runs_dir, i, ic
-                ) for i, ic in enumerate(tqdm(ics, ncols=80))
+                    self.runs_dir, i, sol
+                ) for i, sol in enumerate(tqdm(init_sols, ncols=80))
             )
             cases = {
                 k: case for (k, case) in cases \
@@ -143,7 +143,7 @@ class DataGenerator(object):
             cases = h5todict(path + '/cases.hdf5')
         return cases
 
-    def compute_plato_ics(
+    def compute_init_sol(
         self,
         ics
     ):
@@ -161,46 +161,30 @@ class DataGenerator(object):
         # Update mixture
         self.mix.update(Y, var='Y')
         # Compute molar fractions
-        X = []
-        for s in ('a', 'm'):
-            X.append(
-                self.sp_th[self.specie_names[s]].specie.X.numpy()
-            )
-        X = np.hstack(X)
-        # Compute pressure
+        X = [self.sp_th[self.specie_names[s]].specie.X for s in ('a', 'm')]
+        # Compute pressure and number density
         p = self.mix._p(rho, T)
+        n = self.mix._n(p, T)
         # Return variables
-        return np.hstack([X, T, p])
+        return np.hstack(tf.nest.flatten([X, T, rho, n]))
 
     def compute_solution(
         self,
         path,
         case_nb,
-        ic
+        sol
     ):
         # Create run folder
         case_id = str(int(case_nb+1)).zfill(6)
         case_path = shutil.copytree(
             path + f'/run.bkp',
-            path + f'/run.{pcm.utils.generate_rnd_name(case_id)}',
+            path + f'/run.{case_id}',
             dirs_exist_ok=True
         )  
         os.chdir(case_path)
-        # Write initial solution for PLATO
-        X, T, p = ic[:len(ic)-2], ic[-2], ic[-1]
-        with open("./Xi0.dat", "w") as file:
-            np.savetxt(file, X.reshape(-1,1))
-        pcm.utils.replace(
-            file="./inputfile.sh",
-            patterns=(
-                "P0 =",
-                "T_BATH ="
-            ),
-            replaces=(
-                f"P0 = {p}\n",
-                f"T_BATH = {T}\n"
-            )
-        )
+        # Write initial solution for PLATO: [X_O X_O2_i Th rho n]
+        with open("init_sol.dat", "a") as file:
+            np.savetxt(file, sol.reshape(1,-1))
         try:
             # Run 0D simulation
             subprocess.run(

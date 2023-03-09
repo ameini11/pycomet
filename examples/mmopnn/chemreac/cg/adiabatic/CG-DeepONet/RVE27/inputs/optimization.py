@@ -9,12 +9,12 @@ from inputs.postproc import figures
 
 # Training
 # =============================================================================
-epochs = 10000
+epochs = 5000
 optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 2560*30
+decay_steps = 960*200
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -22,6 +22,7 @@ decay = ["exponential", decay_steps, decay_rate]
 # =============================================================================
 axis = 0 # -1 0 None
 reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
+# loss = 'malpe'
 loss = {
     'ics': 'malpe',
     'pts': 'malpe',
@@ -34,8 +35,8 @@ callbacks = {
 
     'early_stopping': {
        'monitor':              'val_loss',
-       'min_delta':            1.e-4,
-       'patience':             300,
+       'min_delta':            1.e-6,
+       'patience':             500,
        'restore_best_weights': True,
        'verbose':              1
     },

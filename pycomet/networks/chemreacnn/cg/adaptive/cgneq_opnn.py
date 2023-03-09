@@ -118,7 +118,8 @@ class CGOpNN(BaseNet):
     ):
         y, tol = x[:-1], x[-1]
         # Kernel - Neq-DeepONet
-        y_neq = self.active_lays["neq_opnn"](x=y, tol=tol)
+        neq_mask = self.active_lays["neq_opnn"](x)
         # Kernel - CG-DeepONet
-        y_cg = self.active_lays["cg_opnn"](x=y, neq_mask=y_neq)
+        y = tf.nest.flatten([y, neq_mask])
+        y = self.active_lays["cg_opnn"](y)
         return y_cg

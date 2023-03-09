@@ -8,6 +8,7 @@ import numpy as np
 import tensorflow as tf
 
 from inputs.general import dim
+from inputs.physics import bins
 
 
 # Architecture properties
@@ -64,21 +65,21 @@ dims = {
 
 layer_sizes = {
     names[0]: {
-        "branch": [ 2+1, 32, 32, 16],
-        "trunk":  [   1, 32, 32, 16]
+        "branch": [ 2+1, 16, 16, 4],
+        "trunk":  [   1, 16, 16, 4]
     },
     names[1]: {
-        "branch": [ 2+3, 32, 32, 16],
-        "trunk":  [   1, 32, 32, 16]
+        "branch": [ 2+3, 16, 16, 4],
+        "trunk":  [   1, 16, 16, 4]
 
     },
     names[2]: {
-        "branch": [ 2+9, 32, 32, 16],
-        "trunk":  [   1, 32, 32, 16]
+        "branch": [ 2+9, 16, 16, 4],
+        "trunk":  [   1, 16, 16, 4]
     },
     names[3]: {
-        "branch": [2+27, 32, 32, 16],
-        "trunk":  [   1, 32, 32, 16]
+        "branch": [2+27, 16, 16, 4],
+        "trunk":  [   1, 16, 16, 4]
     }
 }
 
@@ -98,7 +99,7 @@ specie_thermos = {
             "thermo": {
                 "model": "CoupledModes"
             }
-        } for i, nb_bins in enumerate([3,9,27])
+        } for i, nb_bins in enumerate(bins[1:])
     }
 }
 
@@ -158,6 +159,19 @@ def get_opnn_cfg(
 
 # TimeScaleOpNN: Full network config
 # -------------------------------------
+prenet = {
+    'from': 'branch',
+    'to': 'trunk',
+    "kwargs": {
+        'layer_size': [dim['inp'][0], 16, 16],
+        'activation': ['tanh']*2 + ['linear'],
+        'out_xform': None,
+        'transformation': 'affine',
+        'num_coords': 1,
+        **common
+    }
+}
+
 branch_multilays = [{
     "lay_id": "MultiLays",
     "kwargs": {
@@ -165,22 +179,23 @@ branch_multilays = [{
             0: {
                 "lay_id": "Log",
                 "kwargs": {
-                    "base": 'e',
+                    "base": 10,
+                    "offset": 1.e-14,
                     "trainable": False
                 }
             },
             1: {
                 "lay_id": "ZeroToOneNormalization",
                 "kwargs": {
-                    "xform": np.log,
-                    "mn": [2.9e3, 3.0e-3] + [1.0e-14]*nb_bins,
-                    "mx": [9.0e3, 1.7e-2] + [  1.0e0]*nb_bins,
+                    "xform": np.log10,
+                    "mn": [3.0e-3] + [1.0e-14]*nb_bins + [2.9e3],
+                    "mx": [1.7e-2] + [9.99e-1]*nb_bins + [9.0e3],
                     "trainable": False
                 }
             }
         }
     }
-} for nb_bins in (1,3,9,27)]
+} for nb_bins in bins]
 
 def get_ts_opnn_cfg(
     index,
@@ -197,17 +212,7 @@ def get_ts_opnn_cfg(
         },
         "lays_propty": {
             "input": {
-                "multilays": branch_multilays[index],
-                "prenet": {
-                    "kwargs": {
-                        'layer_size': [dim['inp'][0], 16, 16],
-                        'activation': ['tanh']*2 + ['linear'],
-                        'out_xform': None,
-                        'transformation': 'affine',
-                        'num_coords': 1,
-                        **common
-                    }
-                }
+                "multilays": branch_multilays[index]
             },
             "mmopnn": {
                 "dim": {
@@ -215,6 +220,7 @@ def get_ts_opnn_cfg(
                     "out": dim["out"]
                 },
                 "lays_propty": {
+                    "prenet": prenet,
                     "opnns": {
                         f"opnn_{i+1}": get_opnn_cfg(
                             dim=[dim["inp"], d],
@@ -262,7 +268,7 @@ lays_propty = {
             "xform": {
                 "lay_id": "Log",
                 "kwargs": {
-                    "base": "e",
+                    "base": 10,
                     "slope": 1.e8,
                     "offset": 1.e-12,
                     "trainable": False
@@ -297,22 +303,11 @@ lays_propty = {
                     "xform": None
                 }
             },
-            'prenet': {
-                'from': 'branch',
-                'to': 'trunk',
-                'kwargs': {
-                    'layer_size': [dim['inp'][0], 16, 16],
-                    'activation': ['tanh']*2 + ['linear'],
-                    'out_xform': None,
-                    'transformation': 'affine',
-                    'num_coords': 1,
-                    **common
-                }
-            },
+            "prenet": prenet,
             "branch": {
                 "lay_id": "FFBlock",
                 "kwargs": {
-                    "layer_size": [dim["inp"][0], 32, 32, 16],
+                    "layer_size": [dim["inp"][0], 16, 16, 4],
                     "activation": ["tanh"]*2 + ["linear"],
                     **common
                 }
@@ -320,7 +315,7 @@ lays_propty = {
             "trunk": {
                 "lay_id": "FFBlock",
                 "kwargs": {
-                    "layer_size": [dim["inp"][1], 32, 32, 16],
+                    "layer_size": [dim["inp"][0], 16, 16, 4],
                     "activation": ["sigmoid"]*2 + ["linear"],
                     **common
                 }

@@ -63,15 +63,15 @@ dims = {
 
 layer_sizes = {
     names[0]: {
-        "branch": [ 2+1, 32, 32, 16],
+        "branch": [2+27, 32, 32, 16],
         "trunk":  [   1, 32, 32, 16]
     },
     names[1]: {
-        "branch": [ 2+3, 32, 32, 16],
+        "branch": [2+27, 32, 32, 16],
         "trunk":  [   1, 32, 32, 16]
     },
     names[2]: {
-        "branch": [ 2+3, 32, 32, 16],
+        "branch": [2+27, 32, 32, 16],
         "trunk":  [   1, 32, 32, 16]
     }
 }
@@ -141,23 +141,10 @@ def get_mmopnn_cfg(
                     dim=[dim["inp"], d],
                     layer_size=layer_size
                 ) for i, d in enumerate(dim["out"])
-            },
-            # "output": {
-            #     "xform": {
-            #         "lay_id": Exp
-            #     }
-            # }
+            }
         }
     }
     return cfg
-
-@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class Exp(tf_layers.Layer):
-    def call(self, inputs, training=None):
-        y = inputs
-        if isinstance(y, (list,tuple)):
-            y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-        return tf.math.exp(y)
 
 # -----------------------------------------------------------------------------
 # Complete network characterization
@@ -197,25 +184,24 @@ lays_propty = {
     #     }
     # },
 
-    # "input": {
-    #     "branch": {
-    #         "index": 0,
-    #         "xform": branch_multilays
-    #     },
-    #     "trunk": {
-    #         "index": 1,
-    #         "xform": None
-    #         "xform": {
-    #             "lay_id": "Log",
-    #             "kwargs": {
-    #                 "base": "e",
-    #                 "slope": 1.e8,
-    #                 "offset": 1.e-12,
-    #                 "trainable": False
-    #             }
-    #         }
-    #     }
-    # },
+    "input": {
+        "branch": {
+            "index": 0,
+            "xform": branch_multilays
+        },
+        "trunk": {
+            "index": 1,
+            "xform": {
+                "lay_id": "Log",
+                "kwargs": {
+                    "base": "e",
+                    "slope": 1.e8,
+                    "offset": 1.e-12,
+                    "trainable": False
+                }
+            }
+        }
+    },
 
     "mmopnns": {
         name: get_mmopnn_cfg(

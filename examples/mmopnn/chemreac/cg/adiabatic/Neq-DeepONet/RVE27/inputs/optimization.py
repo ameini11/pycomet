@@ -14,7 +14,7 @@ optimizer = 'adam'
 
 # Learning rate scheduler -----------------------------------------------------
 lr = 5.e-4
-decay_steps = 2560*30
+decay_steps = 2000*300
 decay_rate = 0.98
 decay = ["exponential", decay_steps, decay_rate]
 
@@ -23,8 +23,8 @@ decay = ["exponential", decay_steps, decay_rate]
 axis = 0 # -1 0 None
 reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
 loss = {
-    'ics': 'malpe',
-    'pts': 'malpe',
+    'ics': 'mape',
+    'pts': 'mape',
     'res': 'mae'
 }
 

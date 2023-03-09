@@ -92,12 +92,13 @@ class FlexOpNN(OpNN):
 
 # Public util functions
 # -----------------------------------------------------------------------------
-def _eval_prenet(opnn_cls, x, training):
+def _eval_prenet(opnn_cls, x, training=None):
     if 'prenet' in opnn_cls.active_lays.keys():
         lay = opnn_cls.active_lays['prenet']
         if isinstance(lay, dict):
             x1, x2 = x[lay['from']], x[lay['to']]
             x2 = lay['block'](x=[x1, x2], training=training)
+            return {lay['from']: x1, lay['to']: x2}
         else:
             x1, x2 = x
             x2 = lay(x=[x1, x2], training=training)

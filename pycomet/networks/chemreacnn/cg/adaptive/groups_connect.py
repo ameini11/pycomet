@@ -15,9 +15,8 @@ class GroupsConnect(object):
         **kwargs
     ):
         self.groups_graph = groups_graph
-        self.fastest_to_current_ts = NoDependency(
+        self.fastest_to_current_ts = \
             self.connect_fastest_to_current_ts(groups_graph)
-        )
         self.current_to_next_ts = NoDependency(
             self.connect_current_to_next_ts(groups_graph)
         )

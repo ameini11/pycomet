@@ -55,12 +55,10 @@ class DataGenerator(pcm.data.DataGenerator):
 
         # Data quantities -----------------------------------------------------
         self.valid_pts = {
-            k: round(validation_split*train_pts[k]) if k != 'ics' \
-                else 1 for k in train_pts
+            k: round(validation_split*train_pts[k]) for k in train_pts
         }
         self.train_pts = {
-            k: train_pts[k] - self.valid_pts[k] if k != 'ics' \
-                else 1 for k in train_pts
+            k: train_pts[k] - self.valid_pts[k] for k in train_pts
         }
         for k in train_pts:
             if self.valid_pts[k] == 0 and self.train_pts[k] != 0:
@@ -141,10 +139,13 @@ class DataGenerator(pcm.data.DataGenerator):
         data_src = {}
         # Reading samples
         pcm.utils.print_fn('Reading sampled input space', lev=1)
-        samples = {
-            k: pd.read_csv(self.runs_dir + f'/data/{k}/inp_space.csv') \
-                for k in ('train', 'valid', 'test')
-        }
+        samples = {}
+        for k in ('train', 'valid', 'test'):
+            samples[k] = pd.read_csv(
+                self.runs_dir + f'/data/{k}/inp_space.csv'
+            )
+            samples[k].columns = self.inp_lbl
+            samples[k] = samples[k][self.data_lbl_inp[:-1]]
         # Running scenarios: training data
         pcm.utils.print_fn('Training/validation data', lev=1)
         data_src.update(self.training_data(samples))
@@ -157,21 +158,23 @@ class DataGenerator(pcm.data.DataGenerator):
     ###########################################################################
     def compute_solutions(self, path, ics):
         if not os.path.exists(path + '/cases.hdf5'):
-            # Compute initial conditions for PLATO
-            ics = self.compute_plato_ics(ics)
+            pcm.utils.print_fn('Computing 0D cases', lev=2)
+            # Compute initial solution for PLATO
+            init_sols = self.compute_init_sol(ics)
             # Computing solutions
             # cases = jl.Parallel(self.nb_jobs)(
             #     jl.delayed(self.compute_solution)(
-            #         self.runs_dir, i, ic
-            #     ) for i, ic in enumerate(tqdm(ics, ncols=80))
+            #         self.runs_dir, i, sol
+            #     ) for i, sol in enumerate(tqdm(init_sols, ncols=80))
             # )
-            cases = [self.compute_solution(self.runs_dir, i, ic) \
-                for i, ic in enumerate(tqdm(ics, ncols=80))]
+            cases = [self.compute_solution(self.runs_dir, i, sol) \
+                for i, sol in enumerate(tqdm(init_sols, ncols=80))]
             cases = {
                 k: case for (k, case) in cases \
                     if (case is not None) and (not (case < 0).any())
             }
             # Saving computed solutions
+            pcm.utils.print_fn('Saving 0D cases', lev=2)
             os.makedirs(path, exist_ok=True)
             dicttoh5(
                 treedict=cases,
@@ -180,10 +183,11 @@ class DataGenerator(pcm.data.DataGenerator):
                 create_dataset_args={'compression': "gzip"}
             )
         else:
+            pcm.utils.print_fn('Reading 0D cases', lev=2)
             cases = h5todict(path + '/cases.hdf5')
         return cases
 
-    def compute_plato_ics(
+    def compute_init_sol(
         self,
         ics
     ):
@@ -201,22 +205,18 @@ class DataGenerator(pcm.data.DataGenerator):
         # Update mixture
         self.mix.update(Y, var='Y')
         # Compute molar fractions
-        X = []
-        for s in ('a', 'm'):
-            X.append(
-                self.sp_th[self.specie_names[s]].specie.X.numpy()
-            )
-        X = np.hstack(X)
-        # Compute pressure
+        X = [self.sp_th[self.specie_names[s]].specie.X for s in ('a', 'm')]
+        # Compute pressure and number density
         p = self.mix._p(rho, T)
+        n = self.mix._n(p, T)
         # Return variables
-        return np.hstack([X, T, p])
+        return np.hstack(tf.nest.flatten([X, T, rho, n]))
 
     def compute_solution(
         self,
         path,
         case_nb,
-        ic
+        sol
     ):
         # Create run folder
         case_id = str(int(case_nb+1)).zfill(6)
@@ -226,21 +226,9 @@ class DataGenerator(pcm.data.DataGenerator):
             dirs_exist_ok=True
         )  
         os.chdir(case_path)
-        # Write initial solution for PLATO
-        X, T, p = ic[:len(ic)-2], ic[-2], ic[-1]
-        with open("./Xi0.dat", "w") as file:
-            np.savetxt(file, X.reshape(-1,1))
-        pcm.utils.replace(
-            file="./inputfile.sh",
-            patterns=(
-                "P0 =",
-                "T_BATH ="
-            ),
-            replaces=(
-                f"P0 = {p}\n",
-                f"T_BATH = {T}\n"
-            )
-        )
+        # Write initial solution for PLATO: [X_O X_O2_i Th rho n]
+        with open("init_sol.dat", "a") as file:
+            np.savetxt(file, sol.reshape(1,-1))
         try:
             # Run 0D simulation
             subprocess.run(
@@ -276,8 +264,9 @@ class DataGenerator(pcm.data.DataGenerator):
                 self.runs_dir + f'/data/{k}/', ics_samples[k]
             )
             # Sampling 0D data
+            pcm.utils.print_fn(f'Sampling 0D cases: {k}', lev=2)
             ics = ics_samples[k].to_numpy()
-            for i, case in cases.items():
+            for i, case in tqdm(cases.items(), ncols=80):
                 i = int(i)-1
                 case = pd.DataFrame(case, columns=self.box_lbl)
                 # Sample single case
@@ -355,14 +344,14 @@ class DataGenerator(pcm.data.DataGenerator):
         self,
         ics_samples
     ):
-        k = "test"
+        key = "test"
         # Computing -----------------------------------------------------------
         cases = self.compute_solutions(
-            self.runs_dir + f'/data/{k}/', ics_samples[k]
+            self.runs_dir + f'/data/{key}/', ics_samples[key]
         )
-        ics = ics_samples[k].to_numpy()
+        ics = ics_samples[key].to_numpy()
         # Saving --------------------------------------------------------------
-        path = self.data_dir + f'/{k}/'
+        path = self.data_dir + f'/{key}/'
         os.makedirs(path, exist_ok=True)
         data = {}
         for i, case in cases.items():
@@ -371,7 +360,7 @@ class DataGenerator(pcm.data.DataGenerator):
             n = case.shape[0]
             # Compose inputs/outputs
             t, y = self.convert_solution(case)
-            u = np.tile(ics[i], (n,1))
+            u = np.tile(ics[i], (t.shape[0],1))
             data['case.' + str(i+1).zfill(3)] = [[u, t], y]
         for k, v in data.items():
             pd.DataFrame(
@@ -379,7 +368,7 @@ class DataGenerator(pcm.data.DataGenerator):
             ).to_csv(
                 path + k + ".csv", index=0, float_format='{:e}'.format
             )
-        return data
+        return {key: data}
 
     # Data
     ###########################################################################

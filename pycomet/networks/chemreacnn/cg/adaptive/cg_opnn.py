@@ -20,6 +20,7 @@ class CGOpNN(BaseNet):
         lays_name=None,
         lays_propty=None,
         force_siso=False,
+        inference=None,
         *args,
         **kwargs
     ):
@@ -29,6 +30,7 @@ class CGOpNN(BaseNet):
             lays_name=lays_name,
             lays_propty=lays_propty,
             force_siso=force_siso,
+            inference=inference,
             *args,
             **kwargs
         )
@@ -119,6 +121,7 @@ class CGOpNN(BaseNet):
         y = x
         # Inputs manipulation
         y = _manipulate_input(self, y)
+        x_ts = [y["branch"], y["trunk"]]
         # Kernel - Temperature (OpNN)
         if "temp" in self.active_lays:
             T = self.active_lays["temp"](y, training=training)
@@ -126,66 +129,58 @@ class CGOpNN(BaseNet):
             T = None
         # Kernel - Mass (TimeScaleOpNNs)
         y_ = []
-        x_ts = [[y["branch"], y["trunk"]], T]
+        x_ts = tf.nest.flatten([x_ts, T])
         for ts in self.active_lays["mass"].values():
             y_.append(ts(x=x_ts, training=training))
         # Outputs manipulation
-        y = self._manipulate_output(y_)
-        if T is not None:
-            return tf.nest.flatten([y, T])
-        else:
-            return y
+        return self._manipulate_output(y_, T)
     
     def call_net_infer(
         self,
         x,
+        x_extra,
         *args,
         **kwargs
     ):
-        if self.extra_inputs_start is None:
-            return self.call_net(x)
+        # Extract inputs
+        y, mask = x, x_extra
+        # Inputs manipulation
+        y = _manipulate_input(self, y)
+        x_ts = [y["branch"], y["trunk"]]
+        # Kernel - Temperature (OpNN)
+        if "temp" in self.active_lays:
+            T = self.active_lays["temp"](y)
         else:
-            # Extract inputs
-            y = x[:self.extra_inputs_start]
-            neq_mask = x[self.extra_inputs_start:]
-            # Inputs manipulation
-            y = _manipulate_input(self, y)
-            # Kernel - Temperature (OpNN)
-            if "temp" in self.active_lays:
-                T = self.active_lays["temp"](y, training=training)
+            T = None
+        # Kernel - Mass (TimeScaleOpNNs)
+        y_ = []
+        x_ts = tf.nest.flatten([x_ts, T])
+        for i, ts in enumerate(self.active_lays["mass"].values()):
+            if i == 0:
+                # First Timescale
+                y_i = ts(x=x_ts)
             else:
-                T = None
-            # Kernel - Mass (TimeScaleOpNNs)
-            y_ = []
-            x_ts = [[y["branch"], y["trunk"]], T]
-            for i, ts in enumerate(self.active_lays["mass"].values()):
-                if i == 0:
-                    # First Timescale
-                    y_i = ts(x=x_ts)
-                else:
-                    # Second to highest Timescales
-                    y_i = ts(x=x_ts, neq_mask=neq_mask[i-1])
-                y_.append(y_i)
-            # Outputs manipulation
-            y = self._manipulate_output(y_)
-            if T is not None:
-                return tf.nest.flatten([y, T])
-            else:
-                return y
+                # Second to highest Timescales
+                y_i = ts(x=x_ts, mask=mask[i-1])
+            y_.append(y_i)
+        # Outputs manipulation
+        return self._manipulate_output(y_, T)
 
     # Sub-operations
     ###########################################################################
-    def _manipulate_output(self, y):
+    def _manipulate_output(self, y, T):
+        # Mass fractions
+        y = tf.nest.flatten(y)
         if len(y) > 1:
-            # Connect groups
             y = self.active_lays["ts_connect"](y)
-        return y
-
-    # def _manipulate_output(self, y):
-    #     if len(y) > 1:
-    #         # Connect groups
-    #         y = self.active_lays["ts_connect"](y)
-    #         # Compose outputs: atom mass fraction + last timescale
-    #         return [tf.gather(y[0], [0], axis=1), y[-1]]
-    #     else:
-    #         return nn_elem.Split(y[-1].shape[1], axis=1)(y[-1])
+        if self.inference is not None:
+            if len(y) > 1:
+                # Compose outputs: atom mass fraction + last timescale
+                y = [tf.gather(y[0], [0], axis=1), y[-1]]
+            else:
+                y = nn_elem.Split(y[-1].shape[1], axis=1)(y[-1])
+        # Temperature
+        if T is not None:
+            return tf.nest.flatten([y, T])
+        else:
+            return y

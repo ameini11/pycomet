@@ -135,10 +135,11 @@ class Data(object):
     ###########################################################################
     def get_data_from_src(self, data, identifier):
         kwargs = {}
-        for k in ('columns', 'preproc_fn'):
-            attr = getattr(self, k)
-            if data is not None and attr is not None:
-                kwargs[k] = attr[identifier]
+        if self.from_file:
+            for k in ('columns', 'preproc_fn'):
+                attr = getattr(self, k)
+                if data is not None and attr is not None:
+                    kwargs[k] = attr[identifier]
         return self.extract_data(data=data, **kwargs)
 
     # Extract data from container

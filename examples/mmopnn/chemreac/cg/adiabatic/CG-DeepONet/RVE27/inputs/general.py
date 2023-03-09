@@ -13,6 +13,16 @@ dim = {
     "out": [2, 3, 9, 27, 1]   # Output dimensionality
 }
 
+# Inference
+inference = {
+    'active': False,
+    'dim': {
+        "inp": [2+27, 1, 1, 3, 9],
+        "out": [1, 27, 1]
+    },
+    'size': 10
+}
+
 # Execution Flags
 # =============================================================================
 flags = {

@@ -1,10 +1,13 @@
 import tensorflow as tf
 
 from tensorflow.keras import backend
+from keras import layers as tf_layers
 from pycomet import utils
 from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
+from pycomet.networks.flexopnn import _eval_prenet
+from pycomet.networks.opnn import _manipulate_input
 from pycomet.networks.chemreacnn.cg.adaptive.layers import FastestToCurrentTS
 
 
@@ -95,13 +98,13 @@ class TimeScaleOpNN(BaseNet):
         self,
         x,
         training=None,
-        neq_mask=None
+        mask=None
     ):
         # Inputs manipulation
         x, T = self._manipulate_input(x, training)
         # Kernel - MMOpNNs
         y = self.active_lays["mmopnn"](
-            x, training=training, neq_mask=neq_mask
+            x, training=training, mask=mask
         )
         # Equilibrium layer
         y = self._manipulate_inout(
@@ -113,7 +116,7 @@ class TimeScaleOpNN(BaseNet):
 
     def _manipulate_input(self, x, training):
         # Extract inputs
-        [ic, t], T = x
+        ic, t, T = x
         # Extract initial physical inputs
         rho, Y0, T0 = self.active_lays["input"]["split_ic"](ic)
         if T is None:
@@ -159,51 +162,54 @@ class TSMMOpNN(MMOpNN):
         self,
         x,
         training=None,
-        neq_mask=None
+        mask=None
     ):
-        if training or (neq_mask is None):
+        if training or (mask is None):
             return super(TSMMOpNN, self).call_net(x, training)
         else:
-            return self.adaptive_call_net(x, neq_mask)
+            return self.adaptive_call_net(x, mask)
 
-    def adaptive_call_net(self, x, neq_mask=None):
+    def adaptive_call_net(
+        self,
+        x,
+        mask=None
+    ):
         y = x
         # Inputs manipulation
         y = _manipulate_input(self, y)
         # Global Prenet
-        y = _eval_prenet(self, y, training)
+        y = _eval_prenet(self, y)
         # Kernel - OpNNs
-        y = self._adaptive_call(y, neq_mask)
+        y = self._adaptive_call(y, mask)
         # Outputs manipulation
         y = self._manipulate_inout(
-            inputs=dict(x=x, y=y), identifier='output', training=training
+            inputs=dict(x=x, y=y), identifier='output'
         )
         return y
 
-    def _adaptive_call(self, x, neq_mask=None):
+    def _adaptive_call(
+        self,
+        x,
+        mask
+    ):
         y = []
-        # Get number of input data
-        n = utils.get_cardinality(tf.nest.flatten(x))
-        # Split `neq_mask` columnwise and loop over each column
-        neq_mask = nn_elem.Split(neq_mask.shape[1], axis=1)(neq_mask)
-        for i, (name, opnn) in enumerate(self.active_lays['opnns'].items()):
+        # Split neq. mask columnwise and loop over each column
+        mask = nn_elem.Split(mask.shape[1], axis=1)(mask)
+        # Default zeros
+        zeros = tf.zeros_like(mask[-1], dtype=backend.floatx())
+        for i, opnn in enumerate(self.active_lays['opnns'].values()):
             # Create a dummy `zeros` tensor
-            y_i = tf.zeros((n, self.ouput_dim[i]), dtype=backend.floatx())
+            y_i = tf.repeat(zeros, repeats=[opnn.output_dim[-1]], axis=1)
             # If any values of `mask_i` is `True`, evaluate the specific
             # data points
-            if tf.math.reduce_any(neq_mask[i]):
-                # Get indices for the actual data to be evaluated
-                idx = tf.reshape(tf.where(neq_mask[i])[:,0], shape=[-1])
-                # Extract inputs given specific indices
-                x_i = tf.nest.map_structure(
-                    lambda z: tf.gather(z, idx, axis=0), x
-                )
-                # Update the dummy `zeros` tensor with the actual
-                # evaluation of the DeepONet `i`
-                y_i = tf.tensor_scatter_nd_update(
-                    y_i,
-                    tf.expand_dims(idx, 1),
-                    opnn(x_i)
-                )
+            mask_i = tf.squeeze(mask[i], axis=1)
+            # Extract inputs given specific indices
+            x_i = tf.nest.map_structure(
+                lambda z: tf.boolean_mask(z, mask_i, axis=0), x
+            )
+            # Update the dummy `zeros` tensor with the
+            # actual evaluation of the j-th OpNN
+            y_i = tf.tensor_scatter_nd_update(y_i, tf.where(mask_i), opnn(x_i))
+            # Append outputs of the j-th OpNN for the current i-th Timescale
             y.append(y_i)
         return y

@@ -14,6 +14,8 @@ specie_names = {
     "m": "O2",
     "a": "O"
 }
+
+bins = (1, 3, 9, 27)
     
 specie_thermo = {
     0: {
@@ -21,7 +23,7 @@ specie_thermo = {
             'name': 'O2',
             'model': {
                'levels': 'O3_UMN/O2.csv',
-               'lev_mapping': f'O3_UMN/O2/LevelsMap_RVE27.csv'
+               'lev_mapping': f'O3_UMN/O2/LevelsMap_RVE{bins[-1]}.csv'
             }
         },
         'thermo': {
