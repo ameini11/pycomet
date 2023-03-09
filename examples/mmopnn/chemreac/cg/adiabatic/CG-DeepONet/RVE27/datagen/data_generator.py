@@ -191,10 +191,6 @@ class DataGenerator(pcm.data.DataGenerator):
         self,
         ics
     ):
-        if not isinstance(ics, pd.DataFrame):
-            ics = pd.DataFrame(ics, columns=self.inp_lbl)
-        else:
-            ics.columns = self.inp_lbl
         # Extract physical variables
         Y = {}
         Y['m'] = ics[self.grp_lbl['Y']].to_numpy()
