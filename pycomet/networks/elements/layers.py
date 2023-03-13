@@ -794,6 +794,40 @@ class Split(Layer):
 
 
 # =========================================================================== #
+# Transform Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class Transform(Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        xform=None,
+        **kwargs
+    ):
+        super(Transform, self).__init__(**kwargs)
+        self.xform = xform
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None):
+        y = inputs
+        if self.xform is not None:
+            y = tf.nest.map_structure(self.xform, y)
+        return y
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'xform': self.xform
+        }
+        base_config = super(Transform, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
 # Limiter Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
@@ -810,8 +844,12 @@ class Limiter(Layer):
     ):
         super(Limiter, self).__init__(**kwargs)
         self.limits = limits
+        # Functions
         self.xform_in = xform_in
         self.xform_out = xform_out
+        # Transform layers
+        self.xform_in_lay = Transform(self.xform_in)
+        self.xform_out_lay = Transform(self.xform_out)
 
     # Building
     ###########################################################################
@@ -837,13 +875,11 @@ class Limiter(Layer):
     ###########################################################################
     def call(self, inputs, training=None):
         y = inputs
-        if self.xform_in is not None:
-            y = self.xform_in(y)
+        y = self.xform_in_lay(y)
         y = tfp.math.clip_by_value_preserve_gradient(
             y, self._weights['lim_0'], self._weights['lim_1']
         )
-        if self.xform_out is not None:
-            y = self.xform_out(y)
+        y = self.xform_out_lay(y)
         return y
 
     # Configuration update

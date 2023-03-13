@@ -111,8 +111,8 @@ class DataGenerator(pcm.data.DataGenerator):
         for ts, indeces in self.grp_conn.fastest_to_current_ts.items():
             if ts == 0:
                 self.data_lbl_out += [
-                    f"Y_{self.specie_names['m']}",
-                    f"Y_{self.specie_names['a']}"
+                    f"Y_{self.specie_names['a']}",
+                    f"Y_{self.specie_names['m']}"
                 ]
             elif indeces is None:
                 self.data_lbl_out += [

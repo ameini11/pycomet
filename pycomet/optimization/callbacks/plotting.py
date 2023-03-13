@@ -21,7 +21,8 @@ class Plotter(cb.Callback):
         test_data=None,
         train_dir=None,
         figures=[],
-        freq=100
+        freq=100,
+        max_nb=None
     ):
         super(Plotter, self).__init__()
 
@@ -38,6 +39,7 @@ class Plotter(cb.Callback):
 
         self.figures = figures
         self.freq = freq
+        self.max_nb = max_nb
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch != 0 and epoch % self.freq == 0:
@@ -83,7 +85,10 @@ class Plotter(cb.Callback):
 
     def testing(self):
         utils.print_fn("- Plotting test cases ...", lev=1)
-        for name, (x, y) in tqdm(copy.deepcopy(self.test_data).items()):
+        data = copy.deepcopy(self.test_data)
+        for i, (name, (x, y)) in enumerate(tqdm(data.items())):
+            if self.max_nb is not None and i+1 > self.max_nb:
+                break
             # Get pred values
             y_pred = self.model.predict(x, verbose=0)
             # Define `testing` directory

@@ -235,6 +235,7 @@ class Model(object):
         loss="mse",
         axis=None,
         reduction='auto',
+        standard_scaler=None,
         metrics=None,
         loss_weights=None,
         weighted_metrics=None,
@@ -248,7 +249,12 @@ class Model(object):
         self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
 
         # Initializing loss functions
-        self.loss = losses_module.get(loss, axis=axis, reduction=reduction)
+        self.loss = losses_module.get(
+            loss,
+            axis=axis,
+            reduction=reduction,
+            standard_scaler=standard_scaler
+        )
 
         # Initializing loss weights
         self.loss_weights = self.get_loss_weights(loss_weights)

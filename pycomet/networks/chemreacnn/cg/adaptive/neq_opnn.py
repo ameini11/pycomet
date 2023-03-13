@@ -86,7 +86,7 @@ class NeqOpNN(BaseNet):
             )
         lays = {}
         for i, (name, ipropty) in enumerate(propty.items()):
-            lays[name] = TSMMOpNN(
+            lays[name] = NeqMMOpNN(
                 dim=ipropty["dim"],
                 lays_propty=ipropty["lays_propty"]
             )
@@ -143,7 +143,7 @@ class NeqOpNN(BaseNet):
 # =========================================================================== #
 # TSMMOpNN
 # =========================================================================== #
-class TSMMOpNN(MMOpNN):
+class NeqMMOpNN(MMOpNN):
 
     # Initialization
     ###########################################################################
@@ -155,7 +155,7 @@ class TSMMOpNN(MMOpNN):
         *args,
         **kwargs
     ):
-        super(TSMMOpNN, self).__init__(
+        super(NeqMMOpNN, self).__init__(
             dim=dim,
             lays_name=lays_name,
             lays_propty=lays_propty,
@@ -172,11 +172,10 @@ class TSMMOpNN(MMOpNN):
         tol=None
     ):
         if training or (tol is None):
-            y = super(TSMMOpNN, self).call_net(x, training)
+            y = super(NeqMMOpNN, self).call_net(x, training)
         else:
             y = self.adaptive_call_net(x, tol)
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-        y = tf.math.exp(y)
         return y
 
     def adaptive_call_net(

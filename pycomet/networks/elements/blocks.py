@@ -31,7 +31,7 @@ class MultiLayerBlock(pcm_layers.Layer):
         regularizer=None,
         weight_norm=False,
         batch_norm=None,
-        dropout_kwargs=dict(rate=0.),
+        dropout_kwargs=dict(rate=0.0),
         **kwargs
     ):
         super(MultiLayerBlock, self).__init__(
@@ -75,7 +75,7 @@ class MultiLayerBlock(pcm_layers.Layer):
                 tf_layers.BatchNormalization(name=self.name+'_batchNorm')
             )
         # Dropout
-        if self.dropout_kwargs['rate'] > 0.:
+        if self.dropout_kwargs['rate'] > 0.0:
             self.lays.append(
                 pcm_layers.Dropout(**dropout_kwargs, name=self.name+'_dropout')
             )
@@ -91,7 +91,7 @@ class MultiLayerBlock(pcm_layers.Layer):
         elif self.batch_norm == "after":
             y = self.lays[1](y, training=training)
         # Dropout
-        if self.dropout_kwargs['rate'] > 0.:
+        if self.dropout_kwargs['rate'] > 0.0:
             y = self.lays[-1](y, training=training)
         return y
 

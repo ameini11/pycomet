@@ -8,10 +8,14 @@ from pycomet import config as cfg
 from pycomet import utils
 
 
+LOSS_IDS = ("mae", "malpe", "mape", "mse", "msle", "gnlll", "zero")
+    
 def get(
     loss='mse',
     axis=0,
-    reduction='auto'
+    reduction='auto',
+    standard_scaler=None,
+    **kwargs
 ):
     # Check `axis` variable
     if axis not in {0, -1, None}:
@@ -19,6 +23,7 @@ def get(
             "`axis` for loss function is not interpretable. Valid "
             "options are: {0, -1, None}."
         )
+    kwargs['axis'] = axis
     # Get `reduction` variable
     reduction = {
         'auto': losses_utils.ReductionV2.AUTO,
@@ -26,17 +31,23 @@ def get(
         'sum': losses_utils.ReductionV2.SUM,
         'sum_over_batch_size': losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE
     }[reduction.lower()]
-
-    return tf.nest.map_structure(
-        lambda l: get_loss_fn(l, axis=axis, reduction=reduction), loss
-    )
-
+    kwargs['reduction'] = reduction
+    # Scaler
+    if standard_scaler is not None:
+        if not isinstance(standard_scaler, dict):
+            utils.raise_value_err(
+                "`standard_scaler` for loss function has to "
+                "be a `dict` with 'mean' and 'std' as keys."
+            )
+        kwargs['standard_scaler'] = standard_scaler
+    # Return losses
+    return tf.nest.map_structure(lambda l: get_loss_fn(l, **kwargs), loss)
 
 def get_loss_fn(
     identifier=None,
     axis=0,
     reduction='auto',
-    *args,
+    standard_scaler=None,
     **kwargs
 ):
     """Get Keras callable/readable object for the specific loss function
@@ -70,17 +81,21 @@ def get_loss_fn(
                 'res': ['mse', 'mse']
             }
     """
-    loss_identifiers = ("mae", "malpe", "mape", "mse", "msle", "gnlll", "zero")
+    kwargs.update({
+        'axis': axis,
+        'reduction': reduction,
+        'standard_scaler': standard_scaler
+    })
     if isinstance(identifier, str):
-        if identifier.lower() in loss_identifiers:
+        if identifier.lower() in LOSS_IDS:
             return {
-                "mae":   MeanAbsoluteError(axis, reduction, *args, **kwargs),
-                "malpe": MeanAbsoluteLogarithmicPercentageError(axis, reduction, *args, **kwargs),
-                "mape":  MeanAbsolutePercentageError(axis, reduction, *args, **kwargs),
-                "mse":   MeanSquaredError(axis, reduction, *args, **kwargs),
-                "msle":  MeanSquaredLogarithmicError(axis, reduction, *args, **kwargs),
-                "gnlll": GaussianNLLLoss(axis, reduction, *args, **kwargs),
-                "zero":  Zero(reduction, *args, **kwargs)
+                "mae":   MeanAbsoluteError(**kwargs),
+                "malpe": MeanAbsoluteLogarithmicPercentageError(**kwargs),
+                "mape":  MeanAbsolutePercentageError(**kwargs),
+                "mse":   MeanSquaredError(**kwargs),
+                "msle":  MeanSquaredLogarithmicError(**kwargs),
+                "gnlll": GaussianNLLLoss(**kwargs),
+                "zero":  Zero(**kwargs)
             }[identifier.lower()]
         else:
             return identifier
@@ -93,6 +108,25 @@ def get_loss_fn(
             f"Could not interpret loss function identifier: `{identifier}`."
         )
 
+def _convert(
+    y_pred,
+    y_true
+):
+    y_pred = tf.convert_to_tensor(y_pred)
+    y_true = tf.cast(y_true, y_pred.dtype)
+    return y_pred, y_true
+
+def _scale(
+    y_pred,
+    y_true,
+    standard_scaler=None
+):
+    if standard_scaler is not None:
+        m, s = standard_scaler['mean'], standard_scaler['std']
+        y_pred = (y_pred - m) / s
+        y_true = (y_true - m) / s
+    return y_pred, y_true
+
 
 # Custom loss functions
 ###############################################################################
@@ -103,16 +137,18 @@ class MeanAbsoluteError(tf_losses.LossFunctionWrapper):
         self,
         axis,
         reduction,
-        name='mean_absolute_error'
+        standard_scaler,
+        name='mean_absolute_error',
+        **kwargs
     ):
-        loss_fn = mean_absolute_error(axis)
+        loss_fn = mean_absolute_error(axis, standard_scaler)
         super().__init__(loss_fn, name=name, reduction=reduction)
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MAE')
-def mean_absolute_error(axis=0):
+def mean_absolute_error(axis=0, standard_scaler=None):
     def loss_fn(y_true, y_pred):
-        y_pred = tf.convert_to_tensor(y_pred)
-        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred, y_true = _convert(y_pred, y_true)
+        y_pred, y_true = _scale(y_pred, y_true, standard_scaler)
         loss = tf.abs(y_true - y_pred)
         return backend.mean(loss, axis=axis) if axis else loss
     return loss_fn
@@ -124,19 +160,23 @@ class MeanAbsoluteLogarithmicPercentageError(tf_losses.LossFunctionWrapper):
         self,
         axis,
         reduction,
-        name='mean_absolute_logarithmic_percentage_error'
+        standard_scaler,
+        name='mean_absolute_logarithmic_percentage_error',
+        **kwargs
     ):
-        loss_fn = mean_absolute_logarithmic_percentage_error(axis)
+        loss_fn = mean_absolute_logarithmic_percentage_error(
+            axis, standard_scaler
+        )
         super().__init__(loss_fn, name=name, reduction=reduction)
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MALPE')
-def mean_absolute_logarithmic_percentage_error(axis=0):
+def mean_absolute_logarithmic_percentage_error(axis=0, standard_scaler=None):
     def loss_fn(y_true, y_pred):
-        y_pred = tf.convert_to_tensor(y_pred)
-        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred, y_true = _convert(y_pred, y_true)
+        y_pred, y_true = _scale(y_pred, y_true, standard_scaler)
         y_pred = tf.math.log(backend.maximum(y_pred, backend.epsilon()))
         y_true = tf.math.log(backend.maximum(y_true, backend.epsilon()))
-        loss = 100. * tf.abs((y_true - y_pred) / y_true)
+        loss = 100 * tf.abs((y_true - y_pred) / y_true)
         return backend.mean(loss, axis=axis) if axis else loss
     return loss_fn
 
@@ -147,18 +187,20 @@ class MeanAbsolutePercentageError(tf_losses.LossFunctionWrapper):
         self,
         axis,
         reduction,
-        name='mean_absolute_percentage_error'
+        standard_scaler,
+        name='mean_absolute_percentage_error',
+        **kwargs
     ):
-        loss_fn = mean_absolute_percentage_error(axis)
+        loss_fn = mean_absolute_percentage_error(axis, standard_scaler)
         super().__init__(loss_fn, name=name, reduction=reduction)
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MAPE')
-def mean_absolute_percentage_error(axis=0):
+def mean_absolute_percentage_error(axis=0, standard_scaler=None):
     def loss_fn(y_true, y_pred):
-        y_pred = tf.convert_to_tensor(y_pred)
-        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred, y_true = _convert(y_pred, y_true)
+        y_pred, y_true = _scale(y_pred, y_true, standard_scaler)
         den = backend.maximum(tf.abs(y_true), backend.epsilon())
-        loss = 100. * tf.abs((y_true - y_pred) / den)
+        loss = 100 * tf.abs((y_true - y_pred) / den)
         return backend.mean(loss, axis=axis) if axis else loss
     return loss_fn
 
@@ -169,16 +211,18 @@ class MeanSquaredError(tf_losses.LossFunctionWrapper):
         self,
         axis,
         reduction,
-        name='mean_squared_error'
+        standard_scaler,
+        name='mean_squared_error',
+        **kwargs
     ):
-        loss_fn = mean_squared_error(axis)
+        loss_fn = mean_squared_error(axis, standard_scaler)
         super().__init__(loss_fn, name=name, reduction=reduction)
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MSE')
-def mean_squared_error(axis=0):
+def mean_squared_error(axis=0, standard_scaler=None):
     def loss_fn(y_true, y_pred):
-        y_pred = tf.convert_to_tensor(y_pred)
-        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred, y_true = _convert(y_pred, y_true)
+        y_pred, y_true = _scale(y_pred, y_true, standard_scaler)
         loss = tf.math.squared_difference(y_pred, y_true)
         return backend.mean(loss, axis=axis) if axis else loss
     return loss_fn
@@ -190,16 +234,18 @@ class MeanSquaredLogarithmicError(tf_losses.LossFunctionWrapper):
         self,
         axis,
         reduction,
-        name='mean_squared_logarithmic_error'
+        standard_scaler,
+        name='mean_squared_logarithmic_error',
+        **kwargs
     ):
-        loss_fn = mean_squared_logarithmic_error(axis)
+        loss_fn = mean_squared_logarithmic_error(axis, standard_scaler)
         super().__init__(loss_fn, name=name, reduction=reduction)
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MSLE')
-def mean_squared_logarithmic_error(axis=0):
+def mean_squared_logarithmic_error(axis=0, standard_scaler=None):
     def loss_fn(y_true, y_pred):
-        y_pred = tf.convert_to_tensor(y_pred)
-        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred, y_true = _convert(y_pred, y_true)
+        y_pred, y_true = _scale(y_pred, y_true, standard_scaler)
         y_pred = tf.math.log(backend.maximum(y_pred, backend.epsilon()))
         y_true = tf.math.log(backend.maximum(y_true, backend.epsilon()))
         loss = tf.math.squared_difference(y_pred, y_true)
@@ -214,7 +260,8 @@ class GaussianNLLLoss(tf_losses.LossFunctionWrapper):
         axis,
         reduction,
         full=False,
-        name='gaussian_nll_loss'
+        name='gaussian_nll_loss',
+        **kwargs
     ):
         loss_fn = gaussian_nll_loss(axis, full)
         super().__init__(loss_fn, name=name, reduction=reduction)
@@ -222,8 +269,7 @@ class GaussianNLLLoss(tf_losses.LossFunctionWrapper):
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='GNLLL')
 def gaussian_nll_loss(axis=0, full=False):
     def loss_fn(y_true, y_pred):
-        y_pred = tf.convert_to_tensor(y_pred)
-        y_true = tf.cast(y_true, y_pred.dtype)
+        y_pred, y_true = _convert(y_pred, y_true)
         # Get mean and variance
         y_pred_mu, y_pred_sigma = tf.split(y_pred, 2, axis=1)
         # Entries of variance must be non-negative
@@ -245,7 +291,8 @@ class Zero(tf_losses.LossFunctionWrapper):
     def __init__(
         self,
         reduction,
-        name='zero'
+        name='zero',
+        **kwargs
     ):
         super().__init__(zero, name=name, reduction=reduction)
 
