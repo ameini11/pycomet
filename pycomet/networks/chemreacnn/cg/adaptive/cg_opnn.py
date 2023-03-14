@@ -21,6 +21,9 @@ class CGOpNN(BaseNet):
         lays_propty=None,
         force_siso=False,
         inference=None,
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        pred_temp=True,
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         *args,
         **kwargs
     ):
@@ -34,6 +37,9 @@ class CGOpNN(BaseNet):
             *args,
             **kwargs
         )
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        self.pred_temp = pred_temp
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Input dimensionality ------------------------------------------------
         if not isinstance(self.input_dim, (list, tuple)):
             utils.raise_value_err(
@@ -118,13 +124,23 @@ class CGOpNN(BaseNet):
         training=None
     ):
         y = x
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        if not self.pred_temp:
+            y, T = y[:-1], y[-1]
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Inputs manipulation
         y = _manipulate_input(self, y)
         x_ts = [y["branch"], y["trunk"]]
         # Kernel - Temperature (OpNN)
-        T = None
-        if "temp" in self.active_lays:
-            T = self.active_lays["temp"](y, training=training)
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        if self.pred_temp:
+            T = None
+            if "temp" in self.active_lays:
+                T = self.active_lays["temp"](y, training=training)
+        # T = None
+        # if "temp" in self.active_lays:
+        #     T = self.active_lays["temp"](y, training=training)
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
         # Kernel - Mass (TimeScaleOpNNs)
         Y = None
         if "mass" in self.active_lays:
@@ -133,7 +149,14 @@ class CGOpNN(BaseNet):
             for ts in self.active_lays["mass"].values():
                 Y.append(ts(x=x_ts, training=training))
         # Outputs manipulation
-        return self._manipulate_output(Y, T)
+        # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        if not self.pred_temp:
+            y = tf.nest.flatten(Y)
+            return y if len(y) > 1 else y[-1]
+        else:
+            return self._manipulate_output(Y, T)
+        # return self._manipulate_output(Y, T)
+        # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
     def call_net_infer(
         self,
@@ -148,10 +171,9 @@ class CGOpNN(BaseNet):
         y = _manipulate_input(self, y)
         x_ts = [y["branch"], y["trunk"]]
         # Kernel - Temperature (OpNN)
+        T = None
         if "temp" in self.active_lays:
             T = self.active_lays["temp"](y)
-        else:
-            T = None
         # Kernel - Mass (TimeScaleOpNNs)
         Y = []
         x_ts = tf.nest.flatten([x_ts, T])

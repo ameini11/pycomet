@@ -176,10 +176,10 @@ class FastestToCurrentTS(tf_layers.Layer):
         y = inputs
         if self.fastest_to_current_ts is not None:
             y_ = []
-            for indeces in self.fastest_to_current_ts:
+            for indices in self.fastest_to_current_ts:
                 y_.append(
                     tf.math.reduce_sum(
-                        tf.gather(y, indeces, axis=1), axis=1, keepdims=1
+                        tf.gather(y, indices, axis=1), axis=1, keepdims=1
                     )
                 )
             y = tf_layers.Concatenate()(y_) if len(y_) > 1 else y_[-1]
@@ -215,22 +215,25 @@ class CurrentToNextTS(tf_layers.Layer):
     # Calling
     ###########################################################################
     def call(self, inputs, training=None):
-        y = tf.nest.map_structure(tf.identity, inputs)
-        for ts, indeces in self.current_to_next_ts.items():
-            if indeces is not None:
-                # Split the current slower timescale
-                y_slow = nn_elem.Split(y[ts].shape[1], axis=1)(y[ts])
-                # Gather the next faster timescale by indeces
-                y_fast = [tf.gather(y[ts+1], idx, axis=1) for idx in indeces]
+        y = inputs
+        y_ = [y[0]]
+        for ts in range(1,len(y)):
+            indices = self.current_to_next_ts[ts-1]
+            if indices is not None:
+                # Split the previous slower timescale
+                y_slow = nn_elem.Split(y[ts-1].shape[1], axis=1)(y[ts-1])
+                # Gather the current faster timescale by indices
+                y_fast = [tf.gather(y[ts], idx, axis=1) for idx in indices]
                 if len(y_slow) != len(y_fast):
                     y_slow = y_slow[-len(y_fast):]
                 # Multiply slower and faster timescales
-                y_mul = [tf_layers.Multiply()([ys, yf]) \
-                    for ys, yf in zip(y_slow, y_fast)]
+                y_ts = [tf_layers.Multiply()(z) for z in zip(y_slow, y_fast)]
                 # Concatenate
-                y[ts+1] = tf_layers.Concatenate()(y_mul) \
-                    if len(y_mul) > 1 else y_mul[-1]
-        return y
+                y_ts = tf_layers.Concatenate()(y_ts) \
+                    if len(y_ts) > 1 else y_ts[-1]
+                # Store the solution
+                y_.append(y_ts)
+        return y_
 
     # Configuration
     ###########################################################################

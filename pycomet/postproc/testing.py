@@ -47,12 +47,12 @@ def plot_test(
         ax.set_ylabel(y_label)
     if y_scale == 'log':
         ax.set_yscale(y_scale)
-        if ylim is None:
-            ax.set_ylim([np.amin(y)*5.e-1, np.amax(y)*5.e+0])
-    else:
-        delta = np.amax(y)*0.1
-        if ylim is None:
-            ax.set_ylim([np.amin(y)-delta, np.amax(y)+delta])
+    #     if ylim is None:
+    #         ax.set_ylim([np.amin(y)*5.e-1, np.amax(y)*5.e+0])
+    # else:
+    #     delta = np.amax(y)*0.1
+    #     if ylim is None:
+    #         ax.set_ylim([np.amin(y)-delta, np.amax(y)+delta])
     if ylim is not None:
         ax.set_ylim(ylim)
     # Check 2nd dim: looping over columns

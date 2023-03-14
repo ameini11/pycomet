@@ -197,8 +197,10 @@ class MeanAbsolutePercentageError(tf_losses.LossFunctionWrapper):
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME, name='MAPE')
 def mean_absolute_percentage_error(axis=0, standard_scaler=None):
     def loss_fn(y_true, y_pred):
-        y_pred, y_true = _convert(y_pred, y_true)
-        y_pred, y_true = _scale(y_pred, y_true, standard_scaler)
+        # y_pred, y_true = _convert(y_pred, y_true)
+        # y_pred, y_true = _scale(y_pred, y_true, standard_scaler)
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = tf.cast(y_true, y_pred.dtype)
         den = backend.maximum(tf.abs(y_true), backend.epsilon())
         loss = 100 * tf.abs((y_true - y_pred) / den)
         return backend.mean(loss, axis=axis) if axis else loss
