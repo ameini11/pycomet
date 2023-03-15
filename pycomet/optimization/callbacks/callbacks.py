@@ -10,6 +10,20 @@ from pycomet.optimization.callbacks import weighted_loss
 from pycomet import utils
 
 
+_CB_LIST = (
+    "early_stopping",
+    "lr_scheduler",
+    "reduce_lr_on_plateau",
+    "lr_tracker",
+    "plotter",
+    "model_ckpt",
+    "tensorboard",
+    "terminator",
+    "timer",
+    "variable",
+    "weighted_loss"
+)
+
 def get_cb_list(model, callbacks=None):
     if callbacks is not None:
         return tf.nest.flatten([
@@ -41,15 +55,29 @@ def get_callback(model, identifier, kwargs):
             )
         elif identifier == "model_ckpt":
             mc = []
-            kwargs['filepath'] = model.dir['ckpt'] + "/{epoch:06d}"
-            formats = tf.nest.flatten(kwargs['formats']) \
-                if 'formats' in kwargs else ['h5']
+            if 'formats' in kwargs:
+                formats = tf.nest.flatten(kwargs['formats'])
+            else:
+                formats = ['h5']
             for k in formats:
-                kwargs['save_weights_only'] = True if k == 'h5' else False
+                if k in ('h5', 'hdf5'):
+                    kwargs.update({
+                        'filepath': model.dir['ckpt'] + "/{epoch:06d}.weights.hdf5",
+                        'save_weights_only': True
+                    })
+                else:
+                    kwargs.update({
+                        'filepath': model.dir['ckpt'] + "/model.ckpt",
+                    })
                 mc.append(model_ckpt.ModelCheckpoint(**kwargs))
             return mc
         elif identifier == "tensorboard":
             return cb.TensorBoard(**kwargs, log_dir=model.dir['logs'])
+        elif identifier == "terminator":
+            return early_stopping.Terminator(
+                filename=model.dir['train']+'/train_ctrl.json',
+                **kwargs
+            )
         elif identifier == "timer":
             return early_stopping.Timer(**kwargs)
         elif identifier == "variable":
@@ -70,5 +98,6 @@ def get_callback(model, identifier, kwargs):
         return identifier
     else:
         utils.raise_value_err(
-            f"Could not interpret callback identifier: '{identifier}'."
+            f"Could not interpret callback identifier: '{identifier}'. "
+            f"The available ones are {_CB_LIST}"
         )

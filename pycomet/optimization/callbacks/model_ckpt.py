@@ -36,9 +36,7 @@ class ModelCheckpoint(cb.ModelCheckpoint):
         )
 
     def _save_model(self, epoch, batch=None, logs={}):
-        
         logs = logs or {}
-
         if (
             isinstance(self.save_freq, int)
             or self.epochs_since_last_save >= self.period
@@ -129,11 +127,9 @@ class ModelCheckpoint(cb.ModelCheckpoint):
                     )
                 # Re-throw the error for any other causes.
                 raise e
-                
 
     def _get_file_path(self, epoch, batch, logs):
         """Returns the file path for checkpoint."""
-
         try:
             # `filepath` may contain placeholders such as
             # `{epoch:02d}`,`{batch:02d}` and `{mape:.2f}`. A mismatch between

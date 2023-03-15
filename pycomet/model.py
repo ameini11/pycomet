@@ -163,30 +163,47 @@ class Model(object):
         weights_to_load=[]
     ):
         """Either restore the latest model, or create a fresh one if there is 
-        no saved model/checkpoint available."""
+        no saved or checkpointed model available."""
         path = None
         if load_net == 0:
             utils.print_fn("Making a new network", lev=1)
         elif load_net == 1:
+            # Loading model from saved weights
+            # -----------------------------------------------------------------
             path = os.path.abspath(self.save_path + '/model_weights.h5')
             utils.print_fn(
                 f"Restoring network from saved file '{path}'", lev=1
             )
         elif load_net == 2:
-            last_ckpt = max(
-                os.listdir(self.dir['ckpt']),
-                key=lambda x: int(x.split('.')[0]) if 'weights' in x else -1
-            )
-            if last_ckpt:
-                path = os.path.abspath(self.dir['ckpt'] + "/" + last_ckpt)
-                utils.print_fn(
-                    f"Restoring network from checkpoint '{path}'", lev=1
+            files = os.listdir(self.dir['ckpt'])
+            if any(['weights' in f for f in files]):
+                # Loading model from checkpointed weights
+                # -------------------------------------------------------------
+                file = max(
+                    files,
+                    key=lambda x: int(x.split('.')[0]) if 'weights' in x else -1
                 )
+                path = os.path.abspath(self.dir['ckpt'] + '/' + file)
+                utils.print_fn(
+                    f"Restoring network from checkpointed weights '{path}'",
+                    lev=1
+                )
+            elif any(['model.ckpt' in file for file in ckpt_files]):
+                # Loading model from checkpoint
+                # -------------------------------------------------------------
+                utils.print_fn(
+                    f"Restoring network from checkpoint '{path}'",
+                    lev=1
+                )
+                self.net.load_weights(model.dir['ckpt'] + "/model.ckpt")
             else:
                 utils.print_fn(
-                    "No checkpoints available: making a new network", lev=1
+                    "No checkpoints available: making a new network",
+                    lev=1
                 )
         elif load_net == 3:
+            # Loading model from multiple saved saved weights
+            # -----------------------------------------------------------------
             path = tf.nest.map_structure(
                 os.path.abspath, tf.nest.flatten(weights_to_load)
             )
@@ -208,6 +225,8 @@ class Model(object):
                 "hdf5 files defined in 'weights_to_load' input variable;\n"
                 "   >> 4: restoring network from TensorFlow SavedModel format."
             )    
+        # Loading
+        # ---------------------------------------------------------------------
         if path is not None:
             path = tf.nest.flatten(path)
             for p in path:
