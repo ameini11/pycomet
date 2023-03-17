@@ -15,11 +15,10 @@ from __future__ import print_function
 
 import os
 
-from pycomet import utils
 from pycomet import config as cfg
+from pycomet.utils.packages import add_package_path
 
 # TensorFlow ------------------------------------------------------------------
-
 # Setting verbosity level
 os.environ.update(cfg._TF['env'])
 import tensorflow as tf
@@ -34,7 +33,7 @@ for k in (be_py, be_ke):
     k.set_epsilon(cfg._TF['setup']['EPSILON'])
 
 # Custom packages -------------------------------------------------------------
-utils.add_package_path(cfg._CUSTOMS_PKG)
+add_package_path(cfg._CUSTOMS_PKG)
 
 # PyCOMET ---------------------------------------------------------------------
 __author__  = "Ivan Zanardi"

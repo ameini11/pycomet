@@ -108,11 +108,11 @@ class CGOpNN(BaseNet):
                 "as a dictionary of (ts_opnn_name, ts_opnn_args) pairs."
             )
         lays = {}
-        for i, (name, ipropty) in enumerate(propty.items()):
+        for name, ipropty in propty.items():
             lays[name] = TimeScaleOpNN(
                 dim=ipropty["dim"],
                 lays_propty=ipropty["lays_propty"],
-                fastest_to_current_ts=self.grp_conn.fastest_to_current_ts[i]
+                fastest_to_current_ts=self.grp_conn.fastest_to_current_ts[name]
             )
         return lays
 

@@ -45,7 +45,7 @@ class NeqDataGenerator(object):
             if ts == len(f)-1:
                 continue
             df_norm_ts = []
-            indices = self.grp_conn.fastest_to_current_ts[ts]
+            indices = self.grp_conn.fastest_to_current_ts[f"TS{ts}"]
             for i, idx in enumerate(indices):
                 f_fast = tf.concat(list(map(f[-1].__getitem__, idx)), axis=1)
                 f_slow = f_ts[i]
