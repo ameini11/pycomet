@@ -3,7 +3,9 @@ import numpy as np
 import tensorflow as tf
 
 from keras import layers as tf_layers
+from tensorflow.python.keras import backend
 from tensorflow_addons import layers as tfa_layers
+from pycomet.math.interpolate_spline import InterpolateSpline
 from pycomet.networks.elements import layers as pcm_layers
 from pycomet.networks.elements import activations
 from pycomet.networks.elements import initializers
@@ -193,6 +195,106 @@ class FFBlock(pcm_layers.Layer):
             'weight_norm': self.weight_norm
         }
         base_config = super(FFBlock, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
+# FFBlock Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class RBFBlock(pcm_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        file=None,
+        columns=None,
+        axis=1,
+        points=None,
+        values=None,
+        order=3,
+        regularization_weight=0.0,
+        xformx=None,
+        xformy=None,
+        dim_out=2,
+        **kwargs
+    ):
+        super(RBFBlock, self).__init__(
+            **kwargs
+        )
+        # Data from file
+        self.file = file
+        self.columns = columns
+        self.axis = int(axis)
+        # Provided data
+        self.points = points
+        self.values = values
+        # RBF 
+        self.order = int(order)
+        self.regularization_weight = float(regularization_weight)
+        # Transformation
+        if ((xformx is not None) and (not isinstance(xformx, dict))) \
+            or ((xformy is not None) and (not isinstance(xformy, dict))):
+            utils.raise_value_err(
+                f"'xformx' and 'xformy' inputs passed to {self.name} "
+                "must be a `dict` with keys ('dir', 'inv') for direct "
+                "and inverse transformations."
+            )
+            # xformx = {'dir': tf.math.log, 'inv': tf.math.exp}
+        self.xformx = xformx
+        self.xformy = xformy
+        self.dim_out = int(dim_out)
+        # Interpolator
+        self.construct_interpolator()
+
+    def construct_interpolator(self):
+        # Get training points
+        if self.points is None:
+            data = np.loadtxt(self.file)
+            self.points = np.take(data, self.columns['x'], axis=self.axis)
+            self.values = np.take(data, self.columns['y'], axis=self.axis)
+            if self.xformx is not None:
+                self.points = self.xformx['dir'](self.points)
+            if self.xformy is not None:
+                self.values = self.xformy['dir'](self.values)
+        self.points = np.array(self.points)
+        self.values = np.array(self.values)
+        # Interpolator
+        self.rbf_inter = InterpolateSpline(
+            points=self.points,
+            values=self.values,
+            order=self.order,
+            regularization_weight=self.regularization_weight
+        )
+
+    # Calling
+    ###########################################################################
+    def call(self, x, training=None):
+        y = x
+        if self.xformx is not None:
+            y = self.xformx['dir'](y)
+        y = self.rbf_inter.apply(y, self.dim_out)
+        if self.xformy is not None:
+            y = self.xformy['inv'](y)
+        return y
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'file': self.file,
+            'columns': self.columns,
+            'axis': self.axis,
+            'points': self.points,
+            'values': self.values,
+            'order': self.order,
+            'regularization_weight': self.regularization_weight,
+            'xformx': self.xformx,
+            'xformy': self.xformy,
+            'dim_out': self.dim_out
+        }
+        base_config = super(RBFBlock, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 

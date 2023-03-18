@@ -67,8 +67,7 @@ class BaseNet(object):
 
         # Call
         # -----------------------------
-        if self.inference is not None:
-            self.call_net = self.call_infer
+        self.call = self._call if self.inference is None else self._call_infer
         # Force single-input single-output
         self.force_siso = force_siso
         if self.force_siso:
@@ -100,14 +99,12 @@ class BaseNet(object):
 
         # Inputs
         # -----------------------------
-        if self.inference is not None:
+        if self.inference is not None and self.inference['size'] is not None:
             self.inputs = []
+            s = self.inference['size']
             for i in self.input_dim:
                 self.inputs.append(tf.keras.Input(
-                    tensor=tf.zeros(
-                        (self.inference['size'], i),
-                        dtype=backend.floatx()
-                    )
+                    tensor=tf.zeros((s, i), dtype=backend.floatx())
                 ))
         else:
             self.inputs = [tf.keras.Input((i,)) for i in self.input_dim]
@@ -144,7 +141,7 @@ class BaseNet(object):
     
     # Training phase
     # ---------------------------------
-    def call(self, x, training=None, *args, **kwargs):
+    def _call(self, x, training=None, *args, **kwargs):
         # Pre-inputs manipulation
         x = self._manipulate_inout(
             inputs=dict(x=x, y=x), identifier='preinput', training=training
@@ -156,18 +153,10 @@ class BaseNet(object):
 
     # Inference phase
     # ---------------------------------
-    def call_infer(
-        self,
-        x,
-        training=None,
-        *args,
-        **kwargs
-    ):
+    def _call_infer(self, x, training=None, *args, **kwargs):
         n = self.extra_inout["inp"]
         if n == 0:
-            return self.call(
-                x, training=False, *args, **kwargs
-            )
+            return self._call(x, training, *args, **kwargs)
         else:
             # Extract inputs
             x, x_extra = x[:-n], x[-n:]
@@ -180,7 +169,18 @@ class BaseNet(object):
             )
 
     def call_net_infer(self, x, training=None, *args, **kwargs):
-        return self.call_net(x, training=False, *args, **kwargs)
+        return self.call_net(x, training=None, *args, **kwargs)
+
+    # Single-Input-Single-Output call
+    # ---------------------------------
+    def make_siso_call(self, call_fun, input_dim):
+        def siso_call(x, training=None):
+            x = nn_elem.Split(input_dim, axis=1)(x)
+            y = call_fun(x, training)
+            y = tf.nest.flatten(y)
+            y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
+            return y
+        return siso_call
 
     # Sub-operations
     ###########################################################################
@@ -195,15 +195,6 @@ class BaseNet(object):
             return lay['xform'](_inputs, training=training)
         else:
             return inputs['y']
-
-    def make_siso_call(self, call_fun, input_dim):
-        def call(x, training=None):
-            x = nn_elem.Split(input_dim, axis=1)(x)
-            y = call_fun(x, training)
-            y = tf.nest.flatten(y)
-            y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
-            return y
-        return call
 
     # Handling layers
     ###########################################################################

@@ -41,7 +41,7 @@ class InterpolateSpline(object):
             regularization_weight=self.regularization_weight
         )
 
-    def apply(self, points):
+    def apply(self, points, dim_out=3):
         query_points = self._reshape_tensor(points, dim=3)
         query_values = _apply_interpolation(
             query_points=query_points,
@@ -50,7 +50,9 @@ class InterpolateSpline(object):
             v=self.rbf[1],
             order=self.order
         )
-        return self.scale[1](query_values)
+        query_values = self.scale[1](query_values)
+        query_values = self._reshape_tensor(query_values, dim=dim_out)
+        return query_values
 
     def grad(self, points, indices=0, order=0):
         raise NotImplementedError

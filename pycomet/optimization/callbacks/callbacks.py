@@ -25,11 +25,14 @@ _CB_LIST = (
 )
 
 def get_cb_list(model, callbacks=None):
+    cb_list = {}
     if callbacks is not None:
-        return tf.nest.flatten([
-            get_callback(model, identifier, kwargs) for identifier, kwargs \
-                in callbacks.items() if kwargs is not None
-        ])
+        for identifier, kwargs in callbacks.items():
+            if kwargs is not None:
+                cb_list[identifier] = get_callback(model, identifier, kwargs)
+    if "terminator" not in cb_list.keys():
+        cb_list["terminator"] = get_callback(model, "terminator", {})
+    return list(cb_list.values())
 
 def get_callback(model, identifier, kwargs):
     if isinstance(identifier, str):
