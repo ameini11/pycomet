@@ -127,7 +127,7 @@ class OpNN(BaseNet):
     def call_net(self, x, training=None):
         y = x
         # Inputs manipulation
-        y = _manipulate_input(self, x)
+        y = _manipulate_input(self, y)
         # Kernel - OpNN
         G_u, G_y = self._eval_kernel(y, training)
         # Outputs manipulation
@@ -214,11 +214,15 @@ def _manipulate_input(opnn_cls, x):
             f"The inputs of `{opnn_cls.name}` network have to "
             "be one of the following: `list`,`tuple`,`dict`."
         )
-    elif isinstance(x, (list, tuple)):
+    if isinstance(x, (list, tuple)):
         x = {
             k: x[v['index']] for k, v in opnn_cls.active_lays['input'].items()
         }
+    # Inputs transformation
+    _x = {}
     for k, v in opnn_cls.active_lays['input'].items():
         if v['xform'] is not None:
-            x[k] = v['xform'](x[k])
-    return x
+            _x[k] = v['xform'](x[k])
+        else:
+            _x[k] = x[k]
+    return _x

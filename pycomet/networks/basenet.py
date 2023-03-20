@@ -143,10 +143,10 @@ class BaseNet(object):
     # ---------------------------------
     def _call(self, x, training=None, *args, **kwargs):
         # Pre-inputs manipulation
-        x = self._manipulate_inout(
-            inputs=dict(x=x, y=x), identifier='preinput', training=training
+        y = self._manipulate_inout(
+            inputs=dict(y=x), identifier='preinput', training=training
         )
-        return self.call_net(x, training, *args, **kwargs)
+        return self.call_net(y, training, *args, **kwargs)
 
     def call_net(self, x, training=None, *args, **kwargs):
         return x
@@ -189,12 +189,13 @@ class BaseNet(object):
             lay = self.active_lays[identifier]
         if lay['xform'] is not None:
             if lay['with_inputs'] is None or not lay['with_inputs']:
-                _inputs = inputs['y']
+                y = inputs['y']
             else:
-                _inputs = [inputs[k] for k in ('x', 'y')]
-            return lay['xform'](_inputs, training=training)
+                y = [inputs[k] for k in ('x', 'y')]
+            y = lay['xform'](y, training=training)
         else:
-            return inputs['y']
+            y = inputs['y']
+        return y
 
     # Handling layers
     ###########################################################################

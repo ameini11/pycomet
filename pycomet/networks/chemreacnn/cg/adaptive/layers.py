@@ -3,6 +3,7 @@ import tensorflow as tf
 
 from keras import layers as tf_layers
 from pycomet import config as cfg
+from pycomet import operations as ops
 from pycomet.networks import elements as nn_elem
 
 # Hypernet (v.22.12)
@@ -76,6 +77,77 @@ class CGEquilibrium(tf_layers.Layer):
             "specie_thermo": specie_thermo_cfg
         }
         base_config = super(CGEquilibrium, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
+# AddIC Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class AddIC(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        out_tensor=None,
+        out_indices=None,
+        out_xform=None,
+        in_tensor=None,
+        in_indices=None,
+        in_xform=None,
+        **kwargs
+    ):
+        super(AddIC, self).__init__(**kwargs)
+        # Index of the output tensor
+        self.out_tensor = 0 if out_tensor is None else int(out_tensor)
+        # Columns indices to be extracted from the output tensor
+        self.out_indices = [0] if out_indices is None \
+            else tf.nest.flatten(out_indices)
+        # Extracted inoutputput transformation
+        self.out_xform = out_xform
+        # Index of the input tensor
+        self.in_tensor = 0 if in_tensor is None else int(in_tensor)
+        # Columns indices to be extracted from the input tensor
+        self.in_indices = [0] if in_indices is None \
+            else tf.nest.flatten(in_indices)
+        # Extracted input transformation
+        self.in_xform = in_xform
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None):
+        # Separate model inputs and outputs
+        x, y = ops.unpack_list(inputs, n_elem=2)
+        x, y = tf.nest.flatten(x), tf.nest.flatten(y)
+        # Extract & tranform model outputs - QoI
+        yi_qoi = tf.gather(y[self.out_tensor], self.out_indices, axis=1)
+        if self.out_xform is not None:
+            yi_qoi = self.out_xform(yi_qoi)
+        # Extract & tranform model inputs  - QoI IC
+        xi_qoi = tf.gather(x[self.in_tensor], self.in_indices, axis=1)
+        if self.in_xform is not None:
+            xi_qoi = self.in_xform(xi_qoi)
+        # Add operation
+        _y = []
+        for i, yi in enumerate(y):
+            if i == self.out_tensor:
+                yi = tf_layers.Add()([xi_qoi, yi_qoi])
+            _y.append(yi)
+        return _y if len(_y) > 1 else _y[-1]
+
+    # Configuration
+    ###########################################################################
+    def get_config(self):
+        config = {
+            "out_tensor": self.out_tensor,
+            "out_indices": self.out_indices,
+            "out_xform": self.out_xform,
+            "in_tensor": self.in_tensor,
+            "in_indices": self.in_indices,
+            "in_xform": self.in_xform
+        }
+        base_config = super(AddIC, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
     
     

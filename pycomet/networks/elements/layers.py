@@ -39,24 +39,27 @@ class Layer(tf_layers.Layer):
             dtype,
             dynamic,
             **kwargs
-        )  
-            
+        )
+        
     def _init_set_name(self, name, zero_based=True):
-        if name is None:
-            name = self.__class__.__name__
-            if self.prefix is not None:
-                name = self.prefix + '_' + name
-            self._name = backend.unique_object_name(
-                generic_utils.to_snake_case(name),
-                zero_based=zero_based,
-            )
-        elif isinstance(name, str):
-            backend.observe_object_name(name)
-            self._name = name
-        else:
-            raise TypeError(
-                f"Expected `name` argument to be a string, but got: {name}"
-            )
+        return _init_set_name(self, name, zero_based)
+
+def _init_set_name(lay_cls, name, zero_based=True):
+    if name is None:
+        name = lay_cls.__class__.__name__
+        if lay_cls.prefix is not None:
+            name = lay_cls.prefix + '_' + name
+        lay_cls._name = backend.unique_object_name(
+            generic_utils.to_snake_case(name),
+            zero_based=zero_based,
+        )
+    elif isinstance(name, str):
+        backend.observe_object_name(name)
+        lay_cls._name = name
+    else:
+        raise TypeError(
+            f"Expected `name` argument to be a string, but got: {name}"
+        )
 
 
 # =========================================================================== #
@@ -304,6 +307,101 @@ class ZeroToOneNormalization(Scaling):
         return dict(list(base_config.items()) + list(config.items()))
 
 
+# # =========================================================================== #
+# # Normalization Layer
+# # =========================================================================== #
+# @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+# class StdNormalization(tf_layers.Normalization):
+
+#     # Initialization
+#     ###########################################################################
+#     def __init__(
+#         self,
+#         mean_var_file=None,
+#         data_files=None,
+#         columns=None,
+#         header=0,
+#         preproc_fn=None,
+#         mean=None,
+#         variance=None,
+#         axis=-1,
+#         save_dir='./saving/',
+#         prefix=None,
+#         name=None,
+#         **kwargs
+#     ):
+#         self.mean_var_file = mean_var_file
+#         self.data_files = data_files
+#         self.columns = columns
+#         self.header = header
+#         self.preproc_fn = preproc_fn
+#         self.save_dir = save_dir
+#         self.prefix = prefix
+#         if mean is None or variance is None:
+#             _init_set_name(self, name)
+#             self.saved_file = self.save_dir + '/' + self.name + '_mean_var.txt'
+#             loaded = False
+#             for f in (self.mean_var_file, self.saved_file):
+#                 if (not loaded):
+#                     if (f is not None) and (os.path.exists(f)):
+#                         mean, variance = self.read_mean_var(f)
+#                         loaded = True
+#             if (not loaded) and self.data_files is not None:
+#                 mean, variance = self.compute_mean_var()
+#         super(StdNormalization, self).__init__(
+#             axis=axis,
+#             mean=mean,
+#             variance=variance,
+#             name=self.name,
+#             **kwargs
+#         )
+
+#     # Handling mean and variance ----------------------------------------------
+#     def compute_mean_var(self):
+#         utils.print_fn(
+#             f"Computing mean and variance of layer '{self.name}'", lev=1
+#         )
+#         data = self.read_datafile(self.data_files)
+#         mean, variance = tf.nn.moments(data, axes=0)
+#         os.makedirs(self.save_dir, exist_ok=True)
+#         np.savetxt(self.saved_file, np.vstack((mean, variance)), fmt='%1.10e')
+#         return mean, variance
+
+#     def read_mean_var(self, file):
+#         array = np.loadtxt(file)
+#         mean, variance = array[0], array[1]
+#         return mean, variance
+
+#     # Reading data from file --------------------------------------------------
+#     def read_datafile(self, files):
+#         files = tf.nest.flatten(files)
+#         data = []
+#         for f in files:
+#             utils.check_file_extension(f, '.csv')
+#             df = pd.read_csv(f, sep=',', header=self.header)
+#             df = df.to_numpy(dtype=backend.floatx())
+#             if callable(self.preproc_fn):
+#                 df = self.preproc_fn(df)
+#             data.append(ops.extract_data_from_array(df, self.columns))
+#         data = tf.convert_to_tensor(np.vstack(data))
+#         return data
+
+#     # Configuration update
+#     ###########################################################################
+#     def get_config(self):
+#         config = {
+#             'mean_var_file': self.mean_var_file,
+#             'data_files': self.data_files,
+#             'columns': self.columns,
+#             'header': self.header,
+#             'preproc_fn': self.preproc_fn,
+#             'save_dir': self.save_dir,
+#             'prefix': self.prefix
+#         }
+#         base_config = super(StdNormalization, self).get_config()
+#         return dict(list(base_config.items()) + list(config.items()))
+
+
 # =========================================================================== #
 # Normalization Layer
 # =========================================================================== #
@@ -314,7 +412,7 @@ class StdNormalization(Layer):
     ###########################################################################
     def __init__(
         self,
-        mu_sigma_file=None,
+        mean_var_file=None,
         data_files=None,
         columns=None,
         header=0,
@@ -328,30 +426,34 @@ class StdNormalization(Layer):
         super(StdNormalization, self).__init__(
             **kwargs
         )
-        self.mu_sigma_file = mu_sigma_file
+        self.mean_var_file = mean_var_file
         self.data_files = data_files
         self.columns = columns
         self.header = header
         self.preproc_fn = preproc_fn
         self.save_dir = save_dir
-
         # Initialize normalization layer
         self.mean = mean
         self.variance = variance
-        if self.mean is None and self.variance is None:
-            self.saved_file = self.save_dir + '/' + self.name + '_mu_sigma.txt'
-            if os.path.exists(self.mu_sigma_file):
-                self.read_mu_sigma(file=self.mu_sigma_file)
-            elif os.path.exists(self.saved_file):
-                self.read_mu_sigma(file=self.saved_file)
-            elif self.data_files is not None:
-                self.compute_mu_sigma()
+        if self.mean is None or self.variance is None:
+            self.saved_file = self.save_dir + '/' + self.name + '_mean_var.txt'
+            loaded = False
+            for f in (self.mean_var_file, self.saved_file):
+                if (not loaded):
+                    if (f is not None) and (os.path.exists(f)):
+                        self.read_mean_var(f)
+                        loaded = True
+            if (not loaded) and self.data_files is not None:
+                self.compute_mean_var()
         self.norm_lay = tf_layers.Normalization(
-            axis=axis, mean=self.mean, variance=self.variance
+            axis=axis,
+            mean=self.mean,
+            variance=self.variance,
+            trainable=self.trainable
         )
 
     # Handling mean and variance ----------------------------------------------
-    def compute_mu_sigma(self):
+    def compute_mean_var(self):
         utils.print_fn(
             f"Computing mean and variance of layer '{self.name}'", lev=1
         )
@@ -361,7 +463,7 @@ class StdNormalization(Layer):
         os.makedirs(self.save_dir, exist_ok=True)
         np.savetxt(self.saved_file, array, fmt='%1.10e')
 
-    def read_mu_sigma(self, file):
+    def read_mean_var(self, file):
         array = np.loadtxt(file)
         self.mean = array[0]
         self.variance = array[1]
@@ -393,7 +495,9 @@ class StdNormalization(Layer):
     # Configuration update
     ###########################################################################
     def get_config(self):
-        return self.norm_lay.get_config()
+        cfg = self.norm_lay.get_config()
+        cfg['name'] = self.name
+        return cfg
 
 
 # =========================================================================== #
