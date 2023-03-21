@@ -155,11 +155,19 @@ def _model(
         architecture=inputs_mod.architecture
     )
     # Build model -------------------------------------------------------------
-    model.build(
-        load_net=inputs_mod.flags['load'],
-        visualize_graph=graph,
-        verbose=verbose
+    build_args = utils.get_fun_args_values(
+        args=utils.get_fun_args(model.build),
+        modules=inputs_mod
     )
+    build_args['load_net'] = inputs_mod.flags['load']
+    build_args['visualize_graph'] = graph
+    build_args['verbose'] = verbose
+    model.build(**build_args)
+    # model.build(
+    #     load_net=inputs_mod.flags['load'],
+    #     visualize_graph=graph,
+    #     verbose=verbose
+    # )
     # Compile model -----------------------------------------------------------
     if inputs_mod.flags['train'] > 0 or not model.net._is_compiled:
         compile_args = utils.get_fun_args_values(

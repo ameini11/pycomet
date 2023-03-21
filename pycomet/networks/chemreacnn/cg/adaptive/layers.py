@@ -293,7 +293,7 @@ class CurrentToNextTS(tf_layers.Layer):
             indices = self.current_to_next_ts[ts-1]
             if indices is not None:
                 # Split the previous slower timescale
-                y_slow = nn_elem.Split(y[ts-1].shape[1], axis=1)(y[ts-1])
+                y_slow = nn_elem.Split(y_[ts-1].shape[1], axis=1)(y_[ts-1])
                 # Gather the current faster timescale by indices
                 y_fast = [tf.gather(y[ts], idx, axis=1) for idx in indices]
                 if len(y_slow) != len(y_fast):

@@ -41,7 +41,7 @@ class Terminator(cb.Callback):
     def __init__(
         self,
         filename,
-        freq=10
+        freq=1
     ):
         super(Terminator, self).__init__()
         self.filename = filename
