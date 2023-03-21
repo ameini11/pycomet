@@ -10,6 +10,8 @@ from tensorflow.python.keras import activations
 from tensorflow.python.keras import constraints
 from tensorflow.python.keras import initializers
 from tensorflow.python.keras import regularizers
+from tensorflow_addons.image.interpolate_spline import _solve_interpolation
+from tensorflow_addons.image.interpolate_spline import _apply_interpolation
 from keras import layers as tf_layers
 from keras.utils import generic_utils
 from pycomet import operations as ops
@@ -183,6 +185,171 @@ class TrainableActivationFun(Layer):
         base_config = super(TrainableActivationFun, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+
+# =========================================================================== #
+# Interpolating Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class Interpolating(Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        file=None,
+        columns=None,
+        axis=1,
+        train=None,
+        order=3,
+        regularization_weight=0.0,
+        xformx=None, # xformx = {'dir': tf.math.log, 'inv': tf.math.exp}
+        xformy=None,
+        dim_out=2,
+        **kwargs
+    ):
+        super(Interpolating, self).__init__(
+            **kwargs
+        )
+        # Data from file
+        self.file = file
+        self.columns = columns
+        self.axis = int(axis)
+        # RBF 
+        self.order = int(order)
+        self.regularization_weight = float(regularization_weight)
+        # Transformation
+        condx = ((xformx is not None) and (not isinstance(xformx, dict)))
+        condy = ((xformy is not None) and (not isinstance(xformy, dict)))
+        if condx or condy:
+            utils.raise_value_err(
+                f"'xformx' and 'xformy' inputs passed to {self.name} "
+                "must be a `dict` with keys ('dir', 'inv') for direct "
+                "and inverse transformations."
+            )
+        self.xformx, self.xformy = xformx, xformy
+        self.xform = {'x': self.xformx , 'y': self.xformy}
+        # Dimensions
+        self.dim_out = int(dim_out)
+        # Training data
+        self.get_train_data(train)
+
+    # Interpolating functions
+    ###########################################################################
+    def get_train_data(self, train):
+        if (train is not None) and (not isinstance(train, dict)):
+            utils.raise_value_err(
+                f"'train' input passed to {self.name} "
+                "must be a `dict` with keys ('x', 'y')."
+            )
+        self.train = train
+        if self.train is None:
+            data = np.loadtxt(self.file)
+            self.train = {}
+            for k in ('x', 'y'):
+                z = np.take(data, self.columns[k], axis=self.axis)
+                if self.xform[k] is not None:
+                    z = self.xform[k]['dir'](z)
+                self.train[k] = np.array(z)
+
+    def reshape_tensor(self, array, dim=3):
+        tensor = tf.convert_to_tensor(array)
+        shape = tuple(tensor.shape)
+        if 1 <= dim <= 3:
+            if int(dim - len(shape)) == 2:
+                for i in (0,-1):
+                    tensor = tf.expand_dims(tensor, i)
+                return tensor
+            elif int(dim - len(shape)) == 1:
+                return tf.expand_dims(tensor, 0)
+            elif int(dim - len(shape)) == 0:
+                return tensor
+            elif int(dim - len(shape)) == -1:
+                return tf.squeeze(tensor, 0)
+            elif int(dim - len(shape)) == -2:
+                for i in (0,-1):
+                    tensor = tf.squeeze(tensor, i)
+                return tensor
+        else:
+            utils.raise_value_err(
+                f'The input tensor in `{self.name}` is more than 3D.'
+            )
+
+    # Building
+    ###########################################################################
+    def build(self, input_shape):
+        dtype = tf.as_dtype(self.dtype or backend.floatx())
+        if not (dtype.is_floating or dtype.is_complex):
+            utils.raise_value_err(
+                "An Interpolating layer can only be built with a "
+                f"floating-point dtype. Received: dtype={dtype}"
+            )
+        input_shape = tf.TensorShape(input_shape)
+        last_dim = tf.compat.dimension_value(input_shape[-1])
+        if last_dim is None:
+            utils.raise_value_err(
+                "The last dimension of the inputs to an Interpolating layer "
+                "should be defined. Found None. "
+                f"Full input shape received: {input_shape}"
+            )
+        # Solve interpolation
+        train_pts = self.reshape_tensor(self.train['x'], dim=3)
+        rbf, lin = _solve_interpolation(
+            train_points=train_pts,
+            train_values=self.reshape_tensor(self.train['y'], dim=3),
+            order=self.order,
+            regularization_weight=self.regularization_weight
+        )
+        # Add weights
+        for (k, v) in (("rbf", rbf), ("lin", lin), ("train_pts", train_pts)):
+            w = self.add_weight(
+                name=k,
+                shape=v.shape,
+                initializer=lambda shape, dtype: v,
+                dtype=self.dtype,
+                trainable=False
+            )
+            setattr(self, k, w)
+        self.built = True
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs):
+        y = inputs
+        if self.xform['x'] is not None:
+            y = self.xform['x']['dir'](y)
+        y = self.apply_interp(y)
+        if self.xform['y'] is not None:
+            y = self.xform['y']['inv'](y)
+        return y
+
+    def apply_interp(self, query_points):
+        query_points = self.reshape_tensor(query_points, dim=3)
+        query_values = _apply_interpolation(
+            query_points=query_points,
+            train_points=self.train_pts,
+            w=self.rbf, # Radial basis function term
+            v=self.lin, # Linear term
+            order=self.order
+        )
+        query_values = self.reshape_tensor(query_values, dim=self.dim_out)
+        return query_values
+
+    # Configuration update
+    ###########################################################################
+    def get_config(self):
+        config = {
+            'file': self.file,
+            'columns': self.columns,
+            'axis': self.axis,
+            'train': self.train,
+            'order': self.order,
+            'regularization_weight': self.regularization_weight,
+            'xformx': self.xformx,
+            'xformy': self.xformy,
+            'dim_out': self.dim_out
+        }
+        base_config = super(Interpolating, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 # =========================================================================== #
 # Scaling Layer
