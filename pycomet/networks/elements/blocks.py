@@ -54,7 +54,6 @@ class MultiLayerBlock(pcm_layers.Layer):
         self.regularizer = regularizers.get(**regularizer)
         self.weight_norm = weight_norm
         self.dropout_kwargs = dropout_kwargs
-
         # Layers Initialization -----------------------------------------------
         self.lays = []
         # Dense
@@ -81,7 +80,7 @@ class MultiLayerBlock(pcm_layers.Layer):
             self.lays.append(
                 pcm_layers.Dropout(**dropout_kwargs, name=self.name+'_dropout')
             )
-
+        
     # Calling
     ###########################################################################
     def call(self, x, training=None):
@@ -132,6 +131,7 @@ class FFBlock(pcm_layers.Layer):
         dropout_kwargs=dict(rate=0.),
         batch_norm=None,
         weight_norm=False,
+        interpolating=None,
         **kwargs
     ):
         super(FFBlock, self).__init__(
@@ -145,6 +145,7 @@ class FFBlock(pcm_layers.Layer):
         self.dropout_kwargs = dropout_kwargs
         self.batch_norm = batch_norm
         self.weight_norm = weight_norm
+        self.interpolating = interpolating
         # Checking
         if not all(
             [isinstance(k, (list, tuple)) for k in (activation, layer_size)]
@@ -154,37 +155,47 @@ class FFBlock(pcm_layers.Layer):
                 "block have to be a `list`/`tuple` of lengths: "
                 "len(activation) = len(layer_size)-1"
             )
-
         # Layers Initialization -----------------------------------------------
-        # Hidden Layers
-        names = [f'hidden_{i}' for i in range(len(self.layer_size)-2)]
-        names = names + ['output']
-        self.multi_lays = [
-            MultiLayerBlock(
-                units=self.layer_size[i+1],
-                activation=self.activation[i],
-                kernel_initializer=self.kernel_initializer,
-                regularizer=self.regularizer,
-                weight_norm=self.weight_norm,
-                batch_norm=self.batch_norm,
-                dropout_kwargs=self.dropout_kwargs,
-                name=self.name+'_'+names[i]
-            ) for i in range(len(self.layer_size)-1)
-        ]
+        if self.interpolating is not None:
+            self.interpolating['name'] = self.name
+            self.interp_lay = pcm_layers.Interpolating(**self.interpolating)
+        else:
+            # Hidden Layers
+            names = [f'hidden_{i}' for i in range(len(self.layer_size)-2)]
+            names = names + ['output']
+            self.multi_lays = [
+                MultiLayerBlock(
+                    units=self.layer_size[i+1],
+                    activation=self.activation[i],
+                    kernel_initializer=self.kernel_initializer,
+                    regularizer=self.regularizer,
+                    weight_norm=self.weight_norm,
+                    batch_norm=self.batch_norm,
+                    dropout_kwargs=self.dropout_kwargs,
+                    name=self.name+'_'+names[i]
+                ) for i in range(len(self.layer_size)-1)
+            ]
 
     # Calling
     ###########################################################################
     def call(self, x, training=None):
-        # Input layer
-        y = x
-        # Hidden/Output layers
-        for i in range(len(self.layer_size)-1):
-            y = self.multi_lays[i](y, training=training)
-        return y
+        if self.interpolating is not None:
+            # Interpolating layer
+            return self.interp_lay(x)
+        else:
+            # Input layer
+            y = x
+            # Hidden/Output layers
+            for i in range(len(self.layer_size)-1):
+                y = self.multi_lays[i](y, training=training)
+            return y
 
     # Configuration update
     ###########################################################################
     def get_config(self):
+        interp_cfg = None
+        if self.interpolating is not None:
+            interp_cfg = self.interp_lay.get_config()
         config = {
             'layer_size': self.layer_size,
             'activation': self.activation,
@@ -192,7 +203,8 @@ class FFBlock(pcm_layers.Layer):
             'regularizer': self.regularizer,
             'dropout_kwargs': self.dropout_kwargs,
             'batch_norm': self.batch_norm,
-            'weight_norm': self.weight_norm
+            'weight_norm': self.weight_norm,
+            'interpolating': interp_cfg
         }
         base_config = super(FFBlock, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

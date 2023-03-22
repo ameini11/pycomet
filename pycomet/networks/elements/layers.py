@@ -243,6 +243,8 @@ class Interpolating(Layer):
             )
         self.train = train
         if self.train is None:
+            if os.path.isdir(self.file):
+                self.file = f'{self.file}/{self.name}.txt'
             data = np.loadtxt(self.file)
             self.train = {}
             for k in ('x', 'y'):
