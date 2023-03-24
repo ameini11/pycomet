@@ -64,6 +64,7 @@ class BaseNet(object):
                 l1 = len(tf.nest.flatten(self.inference['dim'][k]))
                 l2 = len(tf.nest.flatten(dim[k]))
                 self.extra_inout[k] = l1-l2
+            self.name = self.name + '_infer'
 
         # Call
         # -----------------------------

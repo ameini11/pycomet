@@ -190,26 +190,28 @@ class TSMMOpNN(MMOpNN):
     def _adaptive_call(
         self,
         x,
-        mask
+        ym1,
+        ratio,
+        tol
     ):
         y = []
-        # Split neq. mask columnwise and loop over each column
-        mask = nn_elem.Split(mask.shape[1], axis=1)(mask)
+        # Get split values from previous Timescale (i-1)
+        ym1 = tf.split(ym1, ym1.shape[1], axis=1)
         # Default zeros
-        zeros = tf.zeros_like(mask[-1], dtype=backend.floatx())
-        for i, opnn in enumerate(self.active_lays['opnns'].values()):
-            # Create a dummy `zeros` tensor
+        zeros = tf.zeros_like(ym1[-1], dtype=backend.floatx())
+        # Looping over each OpNN in the current Timescale
+        for i, (name, opnn) in enumerate(self.active_lays['opnns'].items()):
+            # Create a dummy `zeros` tensor with the i-th OpNN dimensions
             y_i = tf.repeat(zeros, repeats=[opnn.output_dim[-1]], axis=1)
-            # If any values of `mask_i` is `True`, evaluate the specific
-            # data points
-            mask_i = tf.squeeze(mask[i], axis=1)
-            # Extract inputs given specific indices
-            x_i = tf.nest.map_structure(
-                lambda z: tf.boolean_mask(z, mask_i, axis=0), x
-            )
+            # If any values from previuos timescale is greater
+            # than the `tol`, evaluates the current timescale
+            mask = tf.squeeze(ym1[i] > tol * len(ratio[i]), axis=1)
             # Update the dummy `zeros` tensor with the
             # actual evaluation of the j-th OpNN
-            y_i = tf.tensor_scatter_nd_update(y_i, tf.where(mask_i), opnn(x_i))
+            x_i = tf.nest.map_structure(
+                lambda z: tf.boolean_mask(z, mask, axis=0), x
+            )
+            y_i = tf.tensor_scatter_nd_update(y_i, tf.where(mask), opnn(x_i))
             # Append outputs of the j-th OpNN for the current i-th Timescale
             y.append(y_i)
         return y

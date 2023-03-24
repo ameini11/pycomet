@@ -39,6 +39,7 @@ class Model(object):
         self.net = net
         self.architecture = architecture
         self.force_siso = self.net.force_siso
+        self.inference = self.net.inference
 
         # Attributes for optimization
         self.optimizer = None
@@ -67,8 +68,7 @@ class Model(object):
         self.save_format = tf.nest.flatten(save_format)
         self.save_path = self.dir['save'] + self.name
         os.makedirs(self.save_path, exist_ok=True)
-        if self.force_siso:
-            os.makedirs(self.save_path + '_siso', exist_ok=True)
+        os.makedirs(self.set_save_path(), exist_ok=True)
 
     # Building Model
     ###########################################################################
@@ -430,8 +430,7 @@ class Model(object):
         utils.print_fn("Saving model ...")
         utils.close_all_hdf5()
         # Set saving path
-        if self.force_siso:
-            self.save_path = self.save_path + '_siso'
+        self.save_path = self.set_save_path()
         path = self.save_path + '/SavedModel'
         if 'tf' in self.save_format:
             utils.print_fn("SavedModel format", lev=1)
@@ -529,6 +528,18 @@ class Model(object):
             inputs[k+'_id'] = [v['name'] for v in s.values()]
             inputs[k+'_dim'] = [v['shape'][1] for v in s.values()]
         json.dump(inputs, open(self.save_path+'/inpfile.json', 'w'), indent=4)
+
+    def set_save_path(
+        self
+    ):
+        suffix = ''
+        if self.inference is not None:
+            suffix += '_infer'
+            if self.inference['size'] is not None:
+                suffix += f"_n{int(self.inference['size'])}"
+        if self.force_siso:
+            suffix += '_siso'
+        return self.save_path + suffix
 
     # Postprocessing
     ###########################################################################
