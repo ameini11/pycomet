@@ -7,7 +7,7 @@ from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks.flexopnn import _eval_prenet
 from pycomet.networks.opnn import _init_input_lay, _manipulate_input
-from pycomet.networks.chemreacnn.cg.adaptive.groups_connect import GroupsConnect
+from pycomet.networks.chemreacnn.cg.adaptive.tools.groups_connect import GroupsConnect
 
 
 class NeqOpNN(BaseNet):
