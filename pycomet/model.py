@@ -445,8 +445,7 @@ class Model(object):
                     options=None,
                     save_traces=True
                 )
-                signature = self.get_inputs_outputs_signature()
-                self.generate_api_inpfile(signature)
+                _generate_api_inpfile(self.save_path)
             except Exception as e:
                 utils.warning(
                     "Unable to save the full model in TensorFlow " \
@@ -489,45 +488,6 @@ class Model(object):
         for weight in self.net.weights:
             dset.create_dataset(weight.name, data=weight.numpy())
         dset.close()
-
-    def get_inputs_outputs_signature(
-        self,
-        tag_set='serve',
-        signature_def_key='serving_default',
-        dumping=True
-    ):
-        path = self.save_path + '/SavedModel/'
-        # Get meta graph
-        meta_graph_def = sm_utils.get_meta_graph_def(path, tag_set)
-        # Get inputs/outputs tensor info
-        tensor_info = {
-            'inputs': meta_graph_def.signature_def[signature_def_key].inputs,
-            'outputs': meta_graph_def.signature_def[signature_def_key].outputs
-        }
-        # Save inputs/outputs tensor signature info
-        signature = {}
-        for ki, ti in tensor_info.items():
-            signature[ki] = {}
-            for kj, tj in sorted(ti.items()):
-                signature[ki][kj] = {
-                    'shape': [str(dim.size) for dim in tj.tensor_shape.dim],
-                    'name': tj.name
-                }
-        if dumping:
-            json.dump(signature, open(path+'inout_sign.json', 'w'), indent=4)
-        return signature
-
-    def generate_api_inpfile(
-        self,
-        signature
-    ):
-        inputs = {
-            "path_to_model": os.path.abspath(self.save_path + '/SavedModel/')
-        }
-        for k, s in signature.items():
-            inputs[k+'_id'] = [v['name'] for v in s.values()]
-            inputs[k+'_dim'] = [v['shape'][1] for v in s.values()]
-        json.dump(inputs, open(self.save_path+'/inpfile.json', 'w'), indent=4)
 
     def set_save_path(
         self
@@ -597,3 +557,44 @@ class Model(object):
             return pd.DataFrame.from_dict(history.history)
         else:
             utils.raise_value_err("'history' input variable is not valid.")
+
+# Public functions
+###########################################################################
+def _generate_api_inpfile(
+    save_path
+):
+    inputs = {
+        "path_to_model": os.path.abspath(save_path + '/SavedModel/')
+    }
+    signature = _get_inputs_outputs_signature(save_path)
+    for k, s in signature.items():
+        inputs[k+'_id'] = [v['name'] for v in s.values()]
+        inputs[k+'_dim'] = [v['shape'][1] for v in s.values()]
+    json.dump(inputs, open(save_path+'/inpfile.json', 'w'), indent=4)
+    
+def _get_inputs_outputs_signature(
+    save_path,
+    tag_set='serve',
+    signature_def_key='serving_default',
+    dumping=True
+):
+    path = save_path + '/SavedModel/'
+    # Get meta graph
+    meta_graph_def = sm_utils.get_meta_graph_def(path, tag_set)
+    # Get inputs/outputs tensor info
+    tensor_info = {
+        'inputs': meta_graph_def.signature_def[signature_def_key].inputs,
+        'outputs': meta_graph_def.signature_def[signature_def_key].outputs
+    }
+    # Save inputs/outputs tensor signature info
+    signature = {}
+    for ki, ti in tensor_info.items():
+        signature[ki] = {}
+        for kj, tj in sorted(ti.items()):
+            signature[ki][kj] = {
+                'shape': [str(dim.size) for dim in tj.tensor_shape.dim],
+                'name': tj.name
+            }
+    if dumping:
+        json.dump(signature, open(path+'inout_sign.json', 'w'), indent=4)
+    return signature
