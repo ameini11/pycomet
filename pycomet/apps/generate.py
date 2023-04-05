@@ -56,8 +56,6 @@ def main(args):
 
     # Inizialization
     ###########################################################################
-    if args.graph:
-        args.verbose = 1
     os.chdir(args.dir)
     # Environment
     utils.environment()
