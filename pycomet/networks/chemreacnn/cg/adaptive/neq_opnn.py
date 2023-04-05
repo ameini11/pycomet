@@ -108,7 +108,7 @@ class NeqOpNN(BaseNet):
         y_ = []
         for mmopnn in self.active_lays["mmopnns"].values():
             y_.append(mmopnn(y, training=training))
-        return y
+        return y_
     
     def call_net_infer(
         self,
