@@ -43,7 +43,7 @@ class Boltzmann(tf_layers.Layer):
         # Partition functions
         Q = self.sp_th.pf.int.spline['Q'].apply(points=T)
         # Boltzmann avarage
-        Ym = (Ym * Q) / tf.math.reduce_sum(Q, axis=1)
+        Ym = (Ym * Q) / tf.math.reduce_sum(Q, axis=1, keepdims=True)
         # Return
         return Ya, Ym, T
 
