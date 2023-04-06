@@ -13,6 +13,52 @@ sp_th_mod = thermophysics.specie_thermo.specie_thermo
 
 
 # =========================================================================== #
+# Boltzmann Layer
+# =========================================================================== #
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class Boltzmann(tf_layers.Layer):
+
+    # Initialization
+    ###########################################################################
+    def __init__(
+        self,
+        specie_thermo=None,
+        process=None,
+        **kwargs
+    ):
+        super(Boltzmann, self).__init__(**kwargs)
+        # Specie thermodynamics
+        self.process = process
+        if "config" in specie_thermo:
+            args = specie_thermo
+        else:
+            args = {**specie_thermo, **dict(index=0, process=self.process)}
+        self.sp_th = sp_th_mod.SpecieThermo(**args)
+
+    # Calling
+    ###########################################################################
+    def call(self, inputs, training=None):
+        # Extract mass fractions and temperature
+        Ya, Ym, T = inputs
+        # Partition functions
+        Q = self.sp_th.pf.int.spline['Q'].apply(points=T)
+        # Boltzmann avarage
+        Ym = (Ym * Q) / tf.math.reduce_sum(Q, axis=1)
+        # Return
+        return Ya, Ym, T
+
+    # Configuration
+    ###########################################################################
+    def get_config(self):
+        config = {
+            "specie_thermo": {"config": self.sp_th.get_config()},
+            "process": self.process
+        }
+        base_config = super(Boltzmann, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+# =========================================================================== #
 # CGEquilibrium Layer
 # =========================================================================== #
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
@@ -32,13 +78,14 @@ class CGEquilibrium(tf_layers.Layer):
         # Output dimensions
         self.output_dim = tf.nest.flatten(output_dim)
         # Partition functions
+        self.process = process
         self.use_pf_int = use_pf_int
         if self.use_pf_int:
             # Specie thermodynamics
             if "config" in specie_thermo:
                 args = specie_thermo
             else:
-                args = {**specie_thermo, **dict(index=0, process=process)}
+                args = {**specie_thermo, **dict(index=0, process=self.process)}
             self.sp_th = sp_th_mod.SpecieThermo(**args)
 
     # Calling
@@ -74,7 +121,8 @@ class CGEquilibrium(tf_layers.Layer):
         config = {
             "output_dim": self.output_dim,
             "use_pf_int": self.use_pf_int,
-            "specie_thermo": specie_thermo_cfg
+            "specie_thermo": specie_thermo_cfg,
+            "process": self.process
         }
         base_config = super(CGEquilibrium, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

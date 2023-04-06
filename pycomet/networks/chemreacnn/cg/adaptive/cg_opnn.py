@@ -2,9 +2,11 @@ import tensorflow as tf
 
 from pycomet import utils
 from pycomet import networks
+from pycomet.networks import elements as nn_elem
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks.opnn import _init_input_lay, _manipulate_input
 from pycomet.networks.chemreacnn.cg.adaptive.ts_opnn import TimeScaleOpNN
+from pycomet.networks.chemreacnn.cg.adaptive.layers import Boltzmann
 from pycomet.networks.chemreacnn.cg.adaptive.layers import CurrentToNextTS
 from pycomet.networks.chemreacnn.cg.adaptive.tools.groups_connect import GroupsConnect
 
@@ -86,10 +88,12 @@ class CGOpNN(BaseNet):
         for identifier, propty in self.lays_propty.items():
             if identifier == "input":
                 lays[identifier] = _init_input_lay(self, identifier, propty)
-            if identifier == "temp":
+            elif identifier == "temp":
                 lays[identifier] = self.init_temp_lay(propty)
             elif identifier == "mass":
                 lays[identifier] = self.init_mass_lay(propty)
+            elif identifier == 'output':
+                lays[identifier] = self.init_inout_lay(propty)
         lays["ts_connect"] = CurrentToNextTS(self.grp_conn.current_to_next_ts)
         return lays
 
@@ -155,7 +159,6 @@ class CGOpNN(BaseNet):
             return y if len(y) > 1 else y[-1]
         else:
             return self._manipulate_output(Y, T)
-        # return self._manipulate_output(Y, T)
         # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
     
     def call_net_infer(
@@ -190,23 +193,25 @@ class CGOpNN(BaseNet):
 
     # Sub-operations
     ###########################################################################
-    def _manipulate_output(self, y, T):
+    def _manipulate_output(self, Y, T):
+        y = []
         # Mass fractions
-        if y is not None:
-            y = tf.nest.flatten(y)
-            if len(y) > 1:
-                y = self.active_lays["ts_connect"](y)
+        if Y is not None:
+            Y = tf.nest.flatten(Y)
+            if len(Y) > 1:
+                Y = self.active_lays["ts_connect"](Y)
             if self.inference is not None:
-                if len(y) > 1:
+                if len(Y) > 1:
                     # Compose outputs: atom mass fraction + last timescale
-                    y = [tf.gather(y[0], [0], axis=1), y[-1]]
+                    Y = [tf.gather(Y[0], [0], axis=1), Y[-1]]
                 else:
-                    y = nn_elem.Split(y[-1].shape[1], axis=1)(y[-1])
-        else:
-            y = []
+                    Y = nn_elem.Split(Y[-1].shape[1], axis=1)(Y[-1])
+            y.append(Y)
         # Temperature
         if T is not None:
-            y.append(T)
-        # Return
+            Y.append(T)
+        # Flattening
         y = tf.nest.flatten(y)
-        return y if len(y) > 1 else y[-1]
+        y = y if len(y) > 1 else y[-1]
+        # Output transformation
+        return self._manipulate_inout(inputs=dict(y=y), identifier='output')
