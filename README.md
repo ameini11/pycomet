@@ -1,13 +1,12 @@
 # PyCOMET
 **Physics-informed machine learning for scientific computing and operator discovery**
 
-[![Build Status](https://travis-ci.org/ivanZanardi/pycomet.svg?branch=main)](https://travis-ci.org/github/ivanZanardi/pycomet)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
 
 PyCOMET is a deep learning library API, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyCOMET currently includes the following algorithms:
 - solving forward and inverse partial differential equations (PDEs) via neural networks;
 - approximating nonlinear operators via Neural Operators (e.g., DeepONets);
-- multi-objectives function loss optimization (data-driven and physics-informed learning) with weights.
+- multi-objectives function loss optimization (data-driven and physics-informed learning) with adaptive weighting.
 
 ## Features
 
