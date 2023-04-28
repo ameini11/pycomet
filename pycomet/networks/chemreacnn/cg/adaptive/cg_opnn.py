@@ -209,7 +209,7 @@ class CGOpNN(BaseNet):
             y.append(Y)
         # Temperature
         if T is not None:
-            Y.append(T)
+            y.append(T)
         # Flattening
         y = tf.nest.flatten(y)
         y = y if len(y) > 1 else y[-1]
