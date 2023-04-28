@@ -15,6 +15,7 @@ class DifferentialBased(Sampler):
         grad_split=0.75,
         xlim=None,
         name=None,
+        eps=1.e-5,
         *args,
         **kwargs
     ):
@@ -26,6 +27,7 @@ class DifferentialBased(Sampler):
         self.method = method
         self.grad_split = grad_split
         self.xlim = xlim
+        self.eps = eps
 
     # Sampling ----------------------------------------------------------------
     def sample(self, x, y, nb_pts):
@@ -80,12 +82,11 @@ class DifferentialBased(Sampler):
         size = int(nb_pts*(1.0-self.grad_split))
         samples = self.uniform_sampling(x, size)
         # Gradient-based sampling
-        s = grad_norm.sum()
-        if s > 0.0:
-            p = grad_norm / s
+        if grad_norm.sum() > 0.0:
+            p = grad_norm + self.eps
         else:
             p = np.ones_like(grad_norm)
-            p /= p.sum()
+        p /= p.sum()
         while size > 0:
             grad_samples = np.random.choice(
                 indices, replace=False, p=p, size=size
