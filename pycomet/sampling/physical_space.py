@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 from pyDOE import lhs
 from scipy.stats import entropy
@@ -17,6 +18,7 @@ class PhysicalSpace(Sampler):
         X,
         xform=None,
         bounds_phys=None,
+        bounds_only_phys=False,
         bounds_extra_perc=0.0,
         round_bounds=False,
         kde_samples_perc=0.0,
@@ -45,7 +47,7 @@ class PhysicalSpace(Sampler):
         # Bounds
         self.round_bounds = round_bounds
         self.bounds = self.compute_bounds(
-            self.X, bounds_phys, bounds_extra_perc
+            self.X, bounds_phys, bounds_only_phys, bounds_extra_perc
         )
         if saving:
             self.save_bounds(bounds_phys)
@@ -122,9 +124,12 @@ class PhysicalSpace(Sampler):
         if bounds_phys is not None:
             if isinstance(bounds_phys, dict):
                 bounds_phys = np.array(list(bounds_phys.values())).T
-            d = bounds_phys.shape[1]
-            bounds[0,:d] = np.maximum(bounds[0,:d], bounds_phys[0])
-            bounds[1,:d] = np.minimum(bounds[1,:d], bounds_phys[1])
+            if bounds_only_phys:
+                bounds = bounds_phys
+            else:
+                d = bounds_phys.shape[1]
+                bounds[0,:d] = np.maximum(bounds[0,:d], bounds_phys[0])
+                bounds[1,:d] = np.minimum(bounds[1,:d], bounds_phys[1])
         # Round bounds
         if self.round_bounds:
             order = np.floor(np.log10(np.absolute(bounds)))
@@ -164,15 +169,7 @@ class PhysicalSpace(Sampler):
             samples.append(
                 self.iterative_sample(self.sample_kde, nb_samples_kde)
             )
-        # Concatenate
-        samples = np.vstack(samples)
-        # Add noise
-        if self.noise_std is not None:
-            samples = np.random.normal(
-                loc=samples, scale=self.noise_std*samples
-            )
-        return samples
-        
+        return np.vstack(samples)
 
     def iterative_sample(self, sampling, nb_samples, **kwargs):
         samples = []
@@ -181,6 +178,11 @@ class PhysicalSpace(Sampler):
                 nb_samples=nb_samples,
                 **kwargs
             )
+            # Add noise
+            if self.noise_std is not None:
+                samples_i = np.random.normal(
+                    loc=samples_i, scale=np.absolute(self.noise_std*samples_i)
+                )
             samples_i, nb_samples = self.check_samples(samples_i)
             samples.append(samples_i)
         return np.vstack(samples)
@@ -240,3 +242,57 @@ class PhysicalSpace(Sampler):
             samples = np.absolute(samples - self.bounds[0]) + self.bounds[0]
             samples = -np.absolute(-samples + self.bounds[1]) + self.bounds[1]
         return samples
+
+
+# Plotting
+###############################################################################
+def plot_pairwise(
+    X,
+    names,
+    scales=None,
+    figname=None,
+    figsize=(8.0, 8.0),
+    show=False
+):
+    X = tf.nest.flatten(X)
+    n = len(X[0])-1
+    fig, axs = plt.subplots(
+        n,
+        n,
+        sharex='col',
+        sharey='row',
+        figsize=figsize
+    )
+    axs = np.array(axs).reshape(n,n)
+    for i in range(n):
+        for j in range(n):
+            if i < j:
+                axs[i, j].axis('off')
+            else:
+                if j == 0:
+                    axs[i,j].set_ylabel(names[i+1], fontsize=12)
+                if i == n-1:
+                    axs[i,j].set_xlabel(names[j], fontsize=12)
+                if scales is not None:
+                    axs[i,j].set_xscale(scales[j])
+                    axs[i,j].set_yscale(scales[i+1])
+                else:
+                    axs[i,j].ticklabel_format(
+                        axis='both',
+                        style='sci',
+                        scilimits=(0,0)
+                    )
+                for x in X:
+                    axs[i,j].plot(
+                        x[j],
+                        x[i+1],
+                        marker='o',
+                        markersize=1,
+                        ls='',
+                        fillstyle='full'
+                    )
+    plt.tight_layout()
+    fig.savefig(figname)
+    if show:
+        plt.show()
+    plt.close()
