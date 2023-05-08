@@ -169,7 +169,10 @@ class PhysicalSpace(Sampler):
             samples.append(
                 self.iterative_sample(self.sample_kde, nb_samples_kde)
             )
-        return np.vstack(samples)
+        if len(samples) > 0:
+            return np.vstack(samples)
+        else:
+            return samples
 
     def iterative_sample(self, sampling, nb_samples, **kwargs):
         samples = []
