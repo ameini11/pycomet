@@ -21,6 +21,7 @@ dependencies:
   - pygments
   - pyqt
   - python=3.8.13
+  - scipy=1.11.1
   - silx
   - sqlite
   - tensorflow-gpu=2.10.0
@@ -29,10 +30,10 @@ dependencies:
     - joblib
     - matplotlib
     - netron
-    - pandas
+    - pandas==1.5.3
     - pydoe
     - scikit-learn
-    - scipy
     - tensorflow-addons==0.17.1
+    - tensorflow-probability==0.17.0
     - threadpoolctl
     - tqdm
