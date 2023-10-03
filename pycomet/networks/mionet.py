@@ -80,7 +80,7 @@ class MIONet(FlexOpNN):
             elif identifier == 'end_scale':
                 lays[identifier] = self.init_end_scale_lay(identifier, propty)
             elif identifier == 'output':
-                lays[identifier] = self.init_inout_lay(identifier, propty)
+                lays[identifier] = self.init_inout_lay(propty)
         return lays
 
     # Calling
@@ -105,7 +105,7 @@ class MIONet(FlexOpNN):
 
     def _tensor_product(self, G_u, G_y):
         y = []
-        for i in range(self.output_dim):
+        for i in range(self.output_dim[-1]):
             G_u_i, G_y_i = [
                 [g[i] if len(g) > 1 else g[-1] for k, g in G.items()] \
                     for G in [G_u, G_y]

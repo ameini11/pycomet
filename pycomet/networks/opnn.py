@@ -72,11 +72,12 @@ class OpNN(BaseNet):
         self.nb_branches = len(self.active_lays['branch'])
         self.nb_trunks = len(self.active_lays['trunk'])
         max_nb_blocks = max(self.nb_branches, self.nb_trunks)
-        if max_nb_blocks != 1 and max_nb_blocks != self.output_dim[-1]:
-            utils.raise_value_err(
-                "The number of trunks/branches do "
-                "not match the number of outputs"
-            )
+        # if (max_nb_blocks != 1) \
+        #     and (max_nb_blocks != self.output_dim[-1]):
+        #     utils.raise_value_err(
+        #         "The number of trunks/branches do "
+        #         "not match the number of outputs"
+        #     )
 
     # Layers initialization
     ###########################################################################

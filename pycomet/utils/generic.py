@@ -1,5 +1,6 @@
 import os
 import gc
+import copy
 import h5py
 import random
 import signal
@@ -40,9 +41,29 @@ def set_gpu_memory():
         except:
             pass
 
-def set_num_threads(n):
-    tf.config.threading.set_inter_op_parallelism_threads(n)
-    tf.config.threading.set_intra_op_parallelism_threads(n)
+def set_num_threads(n, env=None):
+    n = int(n)
+    # TensorFlow
+    try:
+        tf.config.threading.set_inter_op_parallelism_threads(n)
+        tf.config.threading.set_intra_op_parallelism_threads(n)
+    except:
+        pass
+    # Environmental variables
+    n = str(n)
+    for k in (
+        "OMP_NUM_THREADS", 
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS"
+    ):
+        if env is None:
+            os.environ[k] = n
+        else:
+            env[k] = n
+    if env is not None:
+        return env
 
 def generate_init_mod_file(path=''):
     path = os.path.abspath(path)
@@ -60,7 +81,8 @@ def generate_init_mod_file(path=''):
 def load_external_module(
     load_cmd='module load plato',
     shell='/bin/bash',
-    env_keys=("PATH", "LD_LIBRARY_PATH")
+    env_keys=("PATH", "LD_LIBRARY_PATH"),
+    nb_threads=4
 ):
     # Initialize process
     p = subprocess.Popen(
@@ -77,7 +99,8 @@ def load_external_module(
     out = [i for i in out if i]
     out = out[-len(env_keys):]
     # Update environment
+    env = copy.deepcopy(os.environ)
     for i, k in enumerate(env_keys):
-        os.environ[k] = out[i]
-    return os.environ
-
+        env[k] = out[i]
+    env = set_num_threads(nb_threads, env)
+    return env
