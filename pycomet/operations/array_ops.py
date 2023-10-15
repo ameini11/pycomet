@@ -11,8 +11,6 @@ def convert_struct_to_tensor(x):
         lambda y: tf.convert_to_tensor(y, dtype=backend.floatx()), x
     )
 
-def get_cardinality(x):
-    return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
 
 def get_struct_shape(structure=None, axis=None):
     if structure is not None:
@@ -150,3 +148,50 @@ def reshape(x=None, dim=1, fmt='np'):
             utils.raise_value_err('Array format not recognized.')
     else:
         utils.raise_value_err('The input array is more than 3D.')
+
+
+
+
+
+
+def squeeze_list(
+  iterable
+):
+  """
+  Squeeze a list by removing its outer list structure.
+
+  :param iterable: An iterable (e.g., list, tuple) to be squeezed.
+  :type iterable: list, tuple, or any iterable
+
+  :return: The squeezed iterable if it contains only one element;
+           otherwise, the original iterable is returned.
+  :rtype: any
+
+  This function takes an iterable and removes its outer list structure if it
+  contains only one element. If the iterable contains multiple elements or is
+  empty, it returns the original iterable.
+  """
+  iterable = list(iterable)
+  if len(iterable) == 1:
+    return iterable[-1]
+  else:
+    return iterable
+
+
+def get_cardinality(
+  x
+):
+  """
+  Get the cardinality, meaning the number of points, of arrays or
+  structured arrays.
+
+  :param x: Input array or structured arrays.
+  :type x: list, tuple, numpy.ndarray, or similar
+
+  This function calculates the cardinality, which represents the number of
+  points in an array or structured array. If the input is a list or tuple,
+  it recursively calculates the cardinality for the first element. If it's a
+  numpy array or similar, it returns the shape's first dimension (number of
+  rows) as the cardinality.
+  """
+  return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]

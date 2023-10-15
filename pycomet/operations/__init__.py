@@ -1,6 +1,6 @@
-from pycomet.operations.array_ops import *
-from pycomet.operations.gradients import Gradients
-from pycomet.operations.welford import Welford
+from .array_ops import *
+from .gradients import Gradients
+from .welford import Welford
 
 __all__ = [
     "Gradients",

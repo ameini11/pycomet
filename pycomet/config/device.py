@@ -127,6 +127,7 @@ def set_default_device(
   # TensorFlow
   device = device.upper()
   devices = tf.config.list_physical_devices(device)
+  devices = tf.nest.flatten(devices)
   try:
     tf.config.set_visible_devices(devices[0], device)
   except:

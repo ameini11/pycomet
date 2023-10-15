@@ -2,8 +2,8 @@ import os
 import numpy as np
 import tensorflow as tf
 
-from pycomet import utils
-_cfg = utils.read_config()
+from pycomet.config.configure import read_config
+_cfg = read_config()
 
 
 # Module global variables

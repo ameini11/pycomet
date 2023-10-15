@@ -9,8 +9,8 @@ import tensorflow as tf
 from pathlib import Path
 from pycomet.config.device import set_cpu_threads_env
 
-from pycomet import utils
-_cfg = utils.read_config()
+from pycomet.config.configure import read_config
+_cfg = read_config()
 
 
 def append_mod_dir(

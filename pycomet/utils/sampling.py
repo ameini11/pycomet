@@ -49,7 +49,7 @@ def set_random_seed(seed=None):
   achieving reproducible results in data processing and machine learning
   tasks. If `seed` is provided, all random generators will use the same seed.
   """
-  if seed is not None:
+  if (seed is not None):
     random.seed(seed)
     np.random.seed(seed)
     os.environ["TF_DETERMINISTIC_OPS"] = "1"
