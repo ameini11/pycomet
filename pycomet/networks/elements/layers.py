@@ -1,5 +1,6 @@
 import os
 import sys
+import keras
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -13,6 +14,7 @@ from tensorflow.python.keras import regularizers
 from tensorflow_addons.image.interpolate_spline import _solve_interpolation
 from tensorflow_addons.image.interpolate_spline import _apply_interpolation
 from keras import layers as tf_layers
+from keras.utils import tf_utils
 from keras.utils import generic_utils
 from pycomet import operations as ops
 from pycomet import config as cfg
@@ -1210,3 +1212,143 @@ class MultiLays(object):
         for i, lay in self.layers.items():
             y = self.layers[i](y, training=training, *args, **kwargs)
         return y
+
+
+
+# @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+# class BaseRandomLayer(Layer):
+#     """A layer handle the random number creation and savemodel behavior."""
+    
+#     def __init__(
+#         self, seed=None, force_generator=False, rng_type=None, **kwargs
+#     ):
+#         """Initialize the BaseRandomLayer.
+
+#         Note that the constructor is annotated with
+#         @no_automatic_dependency_tracking. This is to skip the auto
+#         tracking of self._random_generator instance, which is an AutoTrackable.
+#         The backend.RandomGenerator could contain a tf.random.Generator instance
+#         which will have tf.Variable as the internal state. We want to avoid
+#         saving that state into model.weights and checkpoints for backward
+#         compatibility reason. In the meantime, we still need to make them
+#         visible to SavedModel when it is tracing the tf.function for the
+#         `call()`.
+#         See _list_extra_dependencies_for_serialization below for more details.
+
+#         Args:
+#           seed: optional integer, used to create RandomGenerator.
+#           force_generator: boolean, default to False, whether to force the
+#             RandomGenerator to use the code branch of tf.random.Generator.
+#           rng_type: string, the rng type that will be passed to backend
+#             RandomGenerator. Default to `None`, which will allow RandomGenerator
+#             to choose types by itself. Valid values are "stateful", "stateless",
+#             "legacy_stateful".
+#           **kwargs: other keyword arguments that will be passed to the parent
+#             *class
+#         """
+#         super().__init__(**kwargs)
+#         self._random_generator = keras.backend.RandomGenerator(
+#             seed, force_generator=force_generator, rng_type=rng_type
+#         )
+
+#     def build(self, input_shape):
+#         super().build(input_shape)
+#         self._random_generator._maybe_init()
+
+#     def _trackable_children(self, save_type="checkpoint", **kwargs):
+#         if save_type == "savedmodel":
+#             cache = kwargs["cache"]
+#             # TODO(b/213628533): This must be called before super() to ensure
+#             # that any input shape changes are applied before getting the config
+#             # of the model.
+#             children = self._trackable_saved_model_saver.trackable_children(
+#                 cache
+#             )
+#             # This method exposes the self._random_generator to SavedModel only
+#             # (not layer.weights and checkpoint).
+#             children["_random_generator"] = self._random_generator
+#         else:
+#             children = {}
+#         children.update(super()._trackable_children(save_type, **kwargs))
+#         return children
+
+#     def _lookup_dependency(self, name):
+#         # When loading from a Keras SavedModel load, make sure that the loader
+#         # can find the random generator, otherwise the loader will assume that
+#         # it does not exist, and will try to create a new generator.
+#         if name == "_random_generator":
+#             return self._random_generator
+#         else:
+#             return super()._lookup_dependency(name)
+
+
+@tf.keras.utils.register_keras_serializable(package=cfg._NAME)
+class GaussianNoise(Layer):
+    """Apply additive zero-centered Gaussian noise.
+
+    This is useful to mitigate overfitting
+    (you could see it as a form of random data augmentation).
+    Gaussian Noise (GS) is a natural choice as corruption process
+    for real valued inputs.
+
+    As it is a regularization layer, it is only active at training time.
+
+    Args:
+      stddev: Float, standard deviation of the noise distribution.
+      seed: Integer, optional random seed to enable deterministic behavior.
+
+    Call arguments:
+      inputs: Input tensor (of any rank).
+      training: Python boolean indicating whether the layer should behave in
+        training mode (adding noise) or in inference mode (doing nothing).
+
+    Input shape:
+      Arbitrary. Use the keyword argument `input_shape`
+      (tuple of integers, does not include the samples axis)
+      when using this layer as the first layer in a model.
+
+    Output shape:
+      Same shape as input.
+    """
+
+    def __init__(self, stddev, seed=None, force_generator=False, rng_type=None, **kwargs):
+        super().__init__(**kwargs)
+        self._random_generator = keras.backend.RandomGenerator(
+            seed, force_generator=force_generator, rng_type=rng_type
+        )
+        self.supports_masking = True
+        self.stddev = stddev
+        self.seed = seed
+
+    def build(self, input_shape):
+        super().build(input_shape)
+        self._random_generator._maybe_init()
+
+    def call(self, inputs, training=None):
+        return backend.in_train_phase(self.noised, inputs, training=training)
+
+    def noised(self, inputs):
+        if isinstance(inputs, (list, tuple)):
+            y = [self.randomgen(i) for i in inputs]
+        elif isinstance(inputs, dict):
+            y = {k: self.randomgen(i) for k, i in inputs.values()}
+        else:
+            y = self.randomgen(inputs)
+        return y
+
+    def randomgen(self, inputs):
+        return inputs * (1 + self._random_generator.random_normal(
+            shape=tf.shape(inputs),
+            mean=0.0,
+            stddev=self.stddev,
+            dtype=inputs.dtype,
+        ))
+
+    def get_config(self):
+        config = {"stddev": self.stddev, "seed": self.seed}
+        base_config = super().get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @tf_utils.shape_type_conversion
+    def compute_output_shape(self, input_shape):
+        return input_shape

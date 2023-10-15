@@ -20,6 +20,7 @@ class BaseNet(object):
         lays_name=None,
         lays_propty=None,
         force_siso=False,
+        noisy_io=None,
         inference=None,
         name=None,
         *args,
@@ -98,6 +99,18 @@ class BaseNet(object):
             }
         }
 
+        # Input/Output noise
+        self.noisy_lay = None
+        self.noisy_io = noisy_io
+        if (self.noisy_io is not None):
+            if isinstance(self.noisy_io, dict):
+                self.noisy_lay = {}
+                for k in self.noisy_io.keys():
+                    if (self.noisy_io[k] is not None) and (k in ("inputs", "outputs")):
+                        self.noisy_lay[k] = self.get_lay(self.noisy_io[k])
+            else:
+                utils.raise_value_err("Error with noisy I/O.")
+            
         # Inputs
         # -----------------------------
         if self.inference is not None and self.inference['size'] is not None:
@@ -143,11 +156,26 @@ class BaseNet(object):
     # Training phase
     # ---------------------------------
     def _call(self, x, training=None, *args, **kwargs):
+        # Noisy inputs
+        if (self.noisy_lay is not None) and ("inputs" in self.noisy_lay):
+            x = self.noisy_lay["inputs"](inputs=x, training=training)
         # Pre-inputs manipulation
         y = self._manipulate_inout(
-            inputs=dict(y=x), identifier='preinput', training=training
+            inputs=dict(y=x),
+            identifier='preinput',
+            training=training
         )
-        return self.call_net(y, training, *args, **kwargs)
+        # Network architecture
+        y = self.call_net(
+            y,
+            training,
+            *args,
+            **kwargs
+        )
+        # Noisy outputs
+        if (self.noisy_lay is not None) and ("outputs" in self.noisy_lay):
+            y = self.noisy_lay["outputs"](inputs=y, training=training)
+        return y
 
     def call_net(self, x, training=None, *args, **kwargs):
         return x
