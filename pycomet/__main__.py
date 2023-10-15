@@ -1,66 +1,56 @@
-# *************************************************************************** #
-#                                   PyCOMET                                   #
-# --------------------------------------------------------------------------- #
-#                    Physics-informed machine learning for                    #
-#                 scientific computing and operator discovery                 #
-#                                                                             #
-# *************************************************************************** #
-
-# -------------------------------- MAIN FILE -------------------------------- #
-
-
 import os
 import argparse
 import threadpoolctl
 
-from pycomet.utils import decorators
-from pycomet import config as cfg
-from pycomet import utils
 from pycomet import apps
+from pycomet import utils
+from pycomet.config.device import set_device
+from pycomet.config.configure import read_config
+
 apps_mod = [
-    __import__(
-        f'pycomet.apps.{app}', globals(), locals(), [app], 0
-    ) for app in apps.__all__
+  __import__(
+    f"pycomet.apps.{app}", globals(), locals(), [app], 0
+  ) for app in apps.__all__
 ]
 
 
 def main():
 
-    utils.pkg_header()
+  utils.pkg_header()
 
-    cwd = os.getcwd()
+  cwd = os.getcwd()
 
-    # Initializing argument parser
-    ap = argparse.ArgumentParser(
-        prog=cfg._NAME.lower(),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=utils.EPILOG
-    )
-    
-    # Adding subparsers
-    sp = ap.add_subparsers(dest='command')
-    subparsers = [app.get_parser(sp) for app in apps_mod]
+  # Initializing argument parser
+  cfg = read_config()
+  ap = argparse.ArgumentParser(
+    prog=cfg.name.lower(),
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog=utils.EPILOG
+  )
 
-    # Parsing args
-    args = ap.parse_args()
+  # Adding subparsers
+  sp = ap.add_subparsers(dest="command")
+  subparsers = [app.get_parser(sp) for app in apps_mod]
 
-    # Setting number of threads
-    if hasattr(args, 'threads'):
-        cfg._NUM_THREADS = args.threads
-    utils.set_num_threads(cfg._NUM_THREADS)
-    utils.set_gpu_memory()
+  # Parsing args
+  args = ap.parse_args()
 
-    # Setting seed
-    if hasattr(args, 'seed'):
-        utils.set_random_seed(args.seed)
+  # Setting device
+  set_device(args)
 
-    # Setting seed
-    if hasattr(args, 'dir'):
-        args.dir = os.path.abspath(args.dir)
+  # Setting seed
+  if hasattr(args, "seed"):
+    utils.set_random_seed(args.seed)
 
-    # Running process
-    threadpoolctl_args = dict(limits=cfg._NUM_THREADS, user_api="blas")
-    with threadpoolctl.threadpool_limits(**threadpoolctl_args):
-        args.process(name=args.command, args=args)
+  # Defining working directory
+  if hasattr(args, "dir"):
+    args.dir = os.path.abspath(args.dir)
 
-    os.chdir(cwd)
+  # Running process
+  cfg = read_config()
+  with threadpoolctl.threadpool_limits(
+    limits=cfg.cpu_threads, user_api="blas"
+  ):
+    args.process(name=args.command, args=args)
+
+  os.chdir(cwd)

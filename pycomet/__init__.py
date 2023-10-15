@@ -1,41 +1,34 @@
-# *************************************************************************** #
-#                                   PyCOMET                                   #
-# --------------------------------------------------------------------------- #
-#                    Physics-informed machine learning for                    #
-#                 scientific computing and operator discovery                 #
-#                                                                             #
-# *************************************************************************** #
-
-# --------------------------- INITIALIZATION FILE --------------------------- #
-
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+
+# Configure
+from pycomet.config import *
+create_config()
+cfg = read_config()
+
+# Environment
 import os
+os.environ.update(cfg.env)
 
-from pycomet import config as cfg
-from pycomet.utils.packages import add_package_path
+# Backend
+from pycomet import backend
+backend.set_floatx(cfg.floatx)
+backend.set_epsilon()
 
-# TensorFlow ------------------------------------------------------------------
-# Setting verbosity level
-os.environ.update(cfg._TF['env'])
+# Logging
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
-import absl.logging
-absl.logging.set_verbosity(absl.logging.ERROR)
-# Setting backend
-from tensorflow.python.keras import backend as be_py
-from tensorflow.keras import backend as be_ke
-for k in (be_py, be_ke):
-    k.set_floatx(cfg._TF['setup']['FLOATX'])
-    k.set_epsilon(cfg._TF['setup']['EPSILON'])
+from absl import logging
+logging.set_verbosity(absl.logging.ERROR)
 
-# Custom packages -------------------------------------------------------------
-add_package_path(cfg._CUSTOMS_PKG)
+# Custom packages
+from pycomet.utils.modules import append_mod_dir
+append_mod_dir(cfg.custom_pkg)
 
-# PyCOMET ---------------------------------------------------------------------
+# PyCOMET
+# -------------------------------------
 __author__  = "Ivan Zanardi"
 __email__   = "zanardi3@illinois.edu"
 __url__     = "https://github.com/ivanZanardi/pycomet"
@@ -44,6 +37,7 @@ __version__ = "0.1"
 
 # Import all modules
 from pycomet import apps
+from pycomet import backend
 from pycomet import config
 from pycomet import data
 from pycomet import math
@@ -53,12 +47,11 @@ from pycomet import operations
 from pycomet import optimization
 from pycomet import physics
 from pycomet import postproc
-from pycomet import sampling
 from pycomet import utils
-from pycomet.apps import import_inputs, load_model
 
 __all__ = [
     "apps",
+    "backend",
     "config",
     "data",
     "math",

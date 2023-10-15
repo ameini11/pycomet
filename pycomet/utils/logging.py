@@ -2,76 +2,106 @@ import os
 import numpy as np
 import tensorflow as tf
 
-from pycomet import config as cfg
+from pycomet import utils
+_cfg = utils.read_config()
 
 
-EPILOG = '\n' + '='*cfg._DISPLAY_LEN + '\n '
-_TABS = np.arange(5)*min(cfg._TAB, 2)
+# Module global variables
+# =====================================
+EPILOG = "\n" + '='*_cfg.display_len + "\n "
+TABS = np.arange(5)*min(_cfg.tab, 2)
+HEADERS = {
+  "main":  '['+_cfg.name+"]: ",
+  "warning": '['+_cfg.name+"]:   WARNING! ",
+  "err":   "from "+_cfg.name+"\n>>> "
+}
 
-# Printing --------------------------------------------------------------------
-def print_fn(text, start='\n', lev=0, verbose=True, end='\n'):
-    if verbose:
-        if lev > 0:
-            start=''
-        print(start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text, end=end)
 
-def input_fn(text, start='', lev=0):
-    return input(start + cfg._HEADERS['main'] + ' '*_TABS[lev] + text)
+# Printing
+# =====================================
+def print_fn(
+  text,
+  start='\n',
+  lev=0,
+  verbose=True,
+  end='\n'
+):
+  if verbose:
+    if lev > 0:
+      start=''
+    print(start + HEADERS['main'] + ' '*TABS[lev] + text, end=end)
 
-def warning(text, start='', *args, **kwargs):
-    print(start + cfg._HEADERS['warning'] + text, *args, **kwargs)
+def input_fn(
+  text,
+  start='',
+  lev=0
+):
+  return input(start + HEADERS['main'] + ' '*TABS[lev] + text)
 
-def raise_value_err(text):
-    message = ''.join([cfg._HEADERS['err'], text])
-    raise ValueError(message)
+def warning(
+  text,
+  *args,
+  **kwargs
+):
+  print_fn(text="WARNING! " + text, *args, **kwargs)
 
-def raise_module_not_found_error(text):
-    message = ''.join([cfg._HEADERS['err'], text])
-    raise ModuleNotFoundError(message)
+def raise_err(
+  error,
+  text
+):
+  message = ''.join([HEADERS['err'], text])
+  raise error(message)
 
-# Environment -----------------------------------------------------------------
+
+# Environment
+# =====================================
 def environment():
-    num_threads = min([
-        os.cpu_count(),
-        tf.config.threading.get_inter_op_parallelism_threads(),
-        tf.config.threading.get_intra_op_parallelism_threads()
-    ])
-    print(
-        cfg._HEADERS['main'] + "Environment setup" + \
-        "\n" + "-" * cfg._DISPLAY_LEN + \
-        "\n > TensorFlow version:      {}".format(tf.__version__) + \
-        "\n > Num. of GPUs available:  {}".format(
-            len(tf.config.list_physical_devices('GPU'))
-        ) + \
-        "\n > Num. of CPUs available:  {}".format(
-            len(tf.config.list_physical_devices('CPU'))
-        ) + \
-        "\n > Num. of threads:         {}\n".format(num_threads) + \
-        "-"*cfg._DISPLAY_LEN
-    )
+  nb_gpus = len(tf.config.list_physical_devices("GPU"))
+  nb_cpus = len(tf.config.list_physical_devices("CPU"))
+  delimiter = '-' * _cfg.display_len
+  text = HEADERS["main"] + "Environment setup" + \
+    "\n" + delimiter + \
+		"\n > TensorFlow version:          {}".format(tf.__version__) + \
+    "\n > Nb. of CPUs available:       {}".format(nb_cpus) + \
+    "\n   >> Nb. of threads available: {}".format(os.cpu_count()) + \
+    "\n   >> Nb. of threads used:      {}".format(_cfg.cpu_threads) + \
+    "\n > Nb. of GPUs available:       {}".format(nb_gpus) + \
+    "\n   >> GPU memory growth:        {}".format(_cfg.gpu_memory_growth) + \
+    "\n" + delimiter
+  print(text)
 
-# Package header --------------------------------------------------------------
-def _compose(text='', start='', between=' '):
-    end = ''.join(reversed(start))
-    l = len(text)
-    return start + between*int((cfg._DISPLAY_LEN-len(start)*2-l)/2) + \
-        text + between*int((cfg._DISPLAY_LEN-len(start)*2-l)/2) + end
 
-def _compute_blanks(text):
-    return ' '*((cfg._DISPLAY_LEN-len(text))%2)
-
+# Package header
+# =====================================
 def pkg_header():
-    info = ''.join([
-        "\n" + _compose(
-            text=line+_compute_blanks(line), start='# '
-        ) for line in cfg._DESCR_LINES
-    ])
-    print(
-        "\n" + _compose(start='# ', between='*') + \
-        "\n" + _compose(
-            text=cfg._NAME+_compute_blanks(cfg._NAME), start='# '
-        ) + \
-        "\n" + _compose(start='# ', between='-') + info + \
-        "\n" + _compose(start='# ') + \
-        "\n" + _compose(start='# ', between='*') + '\n'
-    )
+  info = ''.join([
+    "\n" + _compose(
+      text=line+_compute_blanks(line), start="# "
+    ) for line in _cfg.descr_lines
+  ])
+  text = "\n" + _compose(start="# ", between="*") + \
+    "\n" + _compose(
+      text=_cfg.name+_compute_blanks(_cfg.name), start="# "
+    ) + \
+    "\n" + _compose(start="# ", between="-") + info + \
+    "\n" + _compose(start="# ") + \
+    "\n" + _compose(start="# ", between="*") + "\n"
+  print(text)
+
+def _compose(
+	text='',
+  start='',
+  between=' '
+):
+  l = len(text)
+  ftext = start
+  ftext += between*int((_cfg.display_len-len(start)*2-l)/2)
+  ftext += text
+  ftext += between*int((_cfg.display_len-len(start)*2-l)/2)
+  ftext += ''.join(reversed(start))
+  return ftext
+
+def _compute_blanks(
+  text
+):
+  return ' '*((_cfg.display_len-len(text))%2)

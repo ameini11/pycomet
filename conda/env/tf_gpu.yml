@@ -4,8 +4,8 @@ channels:
   - numba
   - defaults
 dependencies:
-  - cudatoolkit=11.7.0
-  - cudnn=8.4.1.50
+  - cudatoolkit #=11.7.0
+  - cudnn #=8.4.1.50
   - cupy
   - graphviz
   - h5py
@@ -21,7 +21,7 @@ dependencies:
   - pygments
   - pyqt
   - python=3.8.13
-  - scipy=1.11.1
+  - scipy #=1.11.1
   - silx
   - sqlite
   - tensorflow-gpu=2.10.0
@@ -30,7 +30,7 @@ dependencies:
     - joblib
     - matplotlib
     - netron
-    - pandas==1.5.3
+    - pandas #==1.5.3
     - pydoe
     - scikit-learn
     - tensorflow-addons==0.17.1

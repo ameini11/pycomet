@@ -1,4 +1,5 @@
 import os
+import sys
 import pycomet
 import argparse
 import tensorflow as tf
@@ -66,9 +67,10 @@ def _data(
     else:
         utils.print_fn("Generating data with 'DataGenerator' ...")
         try:
-            utils.generate_init_mod_file(path=wdir + '/datagen/')
-            utils.load_mod_from_path('datagen', wdir + '/datagen/__init__.py')
-            from datagen.data_generator import DataGenerator
+            path_to_mod = wdir + '/datagen/'
+            utils.generate_init_mod_file(path=path_to_mod)
+            utils.append_mod_dir(modules={"data_generator": path_to_mod})
+            from data_generator import DataGenerator
         except:
             utils.raise_module_not_found_error(
                 "To compute user-generated data define a `DataGenerator` "
@@ -91,9 +93,10 @@ def _data(
     if getattr(inputs_mod, 'physics_informed', False):
         utils.print_fn("Initializing physical model ...")
         try:
-            utils.generate_init_mod_file(path=wdir + '/physics/')
-            utils.load_mod_from_path('physics', wdir + '/physics/__init__.py')
-            from physics.physical_model import PhysicalModel
+            path_to_mod = wdir + '/physics/'
+            utils.generate_init_mod_file(path=path_to_mod)
+            utils.append_mod_dir(modules={"physical_model": path_to_mod})
+            from physical_model import PhysicalModel
         except:
             utils.raise_module_not_found_error(
                 "The model is physics-informed, but no "

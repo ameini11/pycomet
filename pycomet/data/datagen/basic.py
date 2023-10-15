@@ -1,7 +1,7 @@
 import abc
 
 
-class DataGenerator(metaclass=abc.ABCMeta):
+class BaseDataGenerator(metaclass=abc.ABCMeta):
 
     # Initialization
     ###########################################################################

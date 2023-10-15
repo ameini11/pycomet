@@ -1,5 +1,5 @@
-from pycomet.data.datagen.data_generator import DataGenerator
+from pycomet.data.datagen.basic import BaseDataGenerator
 
 __all__ = [
-    "DataGenerator"
+    "BaseDataGenerator"
 ]
