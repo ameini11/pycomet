@@ -17,8 +17,10 @@ class AugOpNN(OpNN):
         dim,
         lays_name=None,
         lays_propty=None,
-        force_siso=False,
         noisy_io=None,
+        inference=None,
+        masking=False,
+        force_siso=False,
         *args,
         **kwargs
     ):
@@ -26,8 +28,10 @@ class AugOpNN(OpNN):
             dim=dim,
             lays_name=lays_name,
             lays_propty=lays_propty,
-            force_siso=force_siso,
             noisy_io=noisy_io,
+            inference=inference,
+            masking=masking,
+            force_siso=force_siso,
             *args,
             **kwargs
         )

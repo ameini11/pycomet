@@ -19,9 +19,10 @@ class BaseNet(object):
         dim,
         lays_name=None,
         lays_propty=None,
-        force_siso=False,
         noisy_io=None,
         inference=None,
+        masking=False,
+        force_siso=False,
         name=None,
         *args,
         **kwargs
@@ -70,6 +71,12 @@ class BaseNet(object):
         # Call
         # -----------------------------
         self.call = self._call if self.inference is None else self._call_infer
+        # Masked called
+        self.masking = masking
+        if self.masking:
+            self.call = self.make_masked_call(self.call, self.output_dim)
+            self.input_dim = tf.nest.flatten(self.input_dim + [1])
+            self.name = self.name + '_masked'
         # Force single-input single-output
         self.force_siso = force_siso
         if self.force_siso:
@@ -152,7 +159,7 @@ class BaseNet(object):
     ###########################################################################
     def __call__(self, x, training=None, *args, **kwargs):
         return self.call(x, training, *args, **kwargs)
-    
+
     # Training phase
     # ---------------------------------
     def _call(self, x, training=None, *args, **kwargs):
@@ -184,7 +191,7 @@ class BaseNet(object):
     # ---------------------------------
     def _call_infer(self, x, training=None, *args, **kwargs):
         n = self.extra_inout["inp"]
-        if n == 0:
+        if (n == 0):
             return self._call(x, training, *args, **kwargs)
         else:
             # Extract inputs
@@ -199,6 +206,33 @@ class BaseNet(object):
 
     def call_net_infer(self, x, training=None, *args, **kwargs):
         return self.call_net(x, training=None, *args, **kwargs)
+
+    # Masked called
+    # ---------------------------------
+    def make_masked_call(self, call_fun, output_dim):
+        def masked_call(x, training=None):
+            # Unpack inputs and mask
+            x, m = x[:-1], x[-1]
+            # Default zeros
+            z = tf.zeros_like(m, dtype=backend.floatx())
+            m = tf.reshape(m, [-1])
+            # Create a dummy `zeros` output tensor/s
+            y = tf.nest.map_structure(
+                lambda d: tf.repeat(z, repeats=[d], axis=1), output_dim
+            )
+            # Perform inference only for not masked out points
+            x_m = tf.nest.map_structure(
+                lambda xi: tf.boolean_mask(xi, m, axis=0), x
+            )
+            y_m = tf.nest.flatten(call_fun(x_m, training=training))
+            # Update the dummy `zeros` tensor with the
+            # actual evaluation of the model
+            i = tf.where(m)
+            y = tf.nest.map_structure(
+                lambda yi, yi_m: tf.tensor_scatter_nd_update(yi, i, yi_m), y, y_m
+            )
+            return y
+        return masked_call
 
     # Single-Input-Single-Output call
     # ---------------------------------

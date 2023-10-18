@@ -38,8 +38,9 @@ class Model(object):
         self.data = data
         self.net = net
         self.architecture = architecture
-        self.force_siso = self.net.force_siso
         self.inference = self.net.inference
+        self.masking = self.net.masking
+        self.force_siso = self.net.force_siso
 
         # Attributes for optimization
         self.optimizer = None
@@ -497,6 +498,8 @@ class Model(object):
             suffix += '_infer'
             if self.inference['size'] is not None:
                 suffix += f"_n{int(self.inference['size'])}"
+        if self.masking:
+            suffix += '_masked'
         if self.force_siso:
             suffix += '_siso'
         return self.save_path + suffix

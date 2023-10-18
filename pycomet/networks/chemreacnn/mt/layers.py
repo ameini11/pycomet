@@ -84,11 +84,11 @@ class TwoTempThermoLay(tf_layers.Layer):
         elif self.coding_type == 'decode_temperature':
             return self.decode_temperature(inputs, training)
         elif self.coding_type == 'encode':
-            return self.encode(inputs, training)
+            return self.encode(inputs)
         else:
             utils.raise_value_err("Input 'coding_type' not valid.")
 
-    def encode(self, inputs, training=None):
+    def encode(self, inputs):
         # Extracting inputs quantities to encode
         x = {k: tf.gather(inputs[self.inp_tensor_toencode], [index], axis=1) \
             for k, index in self.inp_indices_toencode.items()}
