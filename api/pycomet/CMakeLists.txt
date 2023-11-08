@@ -113,7 +113,7 @@ include(SetFortranFlags)
 # It might be a good idea to add d suffix to debug binaries - that way you’ll
 # get lib<name>.a with Debug configuration and lib<name>.a with Release. To do
 # that you need to set the DEBUG_POSTFIX property.
-# set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 
 
 # External libraries
