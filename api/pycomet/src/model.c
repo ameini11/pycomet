@@ -37,6 +37,18 @@ pycomet::model::model(
   this->out_tot_dim = std::accumulate(
     this->outputs_dim.begin(), this->outputs_dim.end(), 0
   );
+  // Check if batched inference is allowed
+  if (this->batch_size > 0) {
+    bool c1 = (this->inputs_dim.size() > 1);
+    bool c2 = (this->outputs_dim.size() > 1);
+    if (c1 || c2) {
+      std::ostringstream message;
+      message << "\nFrom pycomet::model::model():"
+              << "\n> Multi-input-multi-output models are "
+              << "currently not supported for batched inference.";
+      throw std::runtime_error(message.str());
+    }
+  }
 }
 
 // Util functions
@@ -51,8 +63,8 @@ void pycomet::model::parse_inputs(
   this->path_to_model = inputs["path_to_model"];
   this->inputs_id = inputs["inputs_id"];
   this->outputs_id = inputs["outputs_id"];
-  this->batch_size = inputs.value("batch_size", this->batch_size);
   this->rowmajor = inputs.value("rowmajor", this->rowmajor);
+  this->batch_size = inputs.value("batch_size", this->batch_size);
   if (inputs.contains("config")) {
     std::vector<std::string> cfg = inputs["config"];
     this->config = &cfg;
@@ -123,16 +135,16 @@ std::vector<std::int32_t> pycomet::model::check_io_ops(
 // Inputs/Outputs manipulations
 // ====================================
 template <typename T>
-std::vector<std::vector<T>> pycomet::model::compose_inputs(
+pycomet::data::list_tuple_tensor pycomet::model::compose_inputs(
   const std::vector<T>& inputs,
   const std::int32_t nb_pts
 ) {
   // Get the number of inputs (single-/multi-inputs)
-  const size_t nb_inp = this->inputs_dim.size();
-  std::vector<std::vector<T>> x(nb_inp);
+  const std::size_t nb_inp = this->inputs_dim.size();
+  pycomet::data::list_tuple_tensor x;
   // Loop over inputs
   std::int32_t delta, start = 0;
-  for (size_t i = 0; i < nb_inp; ++i) {
+  for (std::size_t i = 0; i < nb_inp; ++i) {
     // > Extract i-th input
     delta = this->inputs_dim[i] * nb_pts;
     std::vector<T> xi(inputs.begin() + start, inputs.begin() + start + delta);
@@ -140,29 +152,12 @@ std::vector<std::vector<T>> pycomet::model::compose_inputs(
     if (!this->rowmajor) {
       pycomet::ops::invert_major<T>(xi, this->inputs_dim[i], nb_pts, true);
     }
-    // > Store the i-th input as a view into the original input vector
-    x[i] = std::move(xi);
-    // > Update the counter
-    start += delta;
-  }
-  return x;
-}
-
-template <typename T>
-std::vector<std::tuple<std::string, cppflow::tensor>> pycomet::model::convert_inputs(
-  const std::vector<std::vector<T>>& inputs,
-  const std::int32_t nb_pts
-) {
-  // Get the number of inputs (single-/multi-inputs)
-  const size_t nb_inp = this->inputs_dim.size();
-  std::vector<std::tuple<std::string, cppflow::tensor>> x;//(nb_inp);
-  // Loop over inputs
-  auto dtype = cppflow::deduce_tf_type<T>();
-  for (size_t i = 0; i < nb_inp; ++i) {
     // Convert std::vector to cppflow::tensor with the proper shape
-    cppflow::tensor tf_xi(inputs[i], {nb_pts, this->inputs_dim[i]});
+    cppflow::tensor tf_xi(xi, {nb_pts, this->inputs_dim[i]});
     // Make and append the tuple for i-th input
     x.emplace_back(this->inputs_id[i], std::move(tf_xi));
+    // > Update the counter
+    start += delta;
   }
   return x;
 }
@@ -174,10 +169,10 @@ void pycomet::model::compose_outputs(
   const std::int32_t nb_pts
 ) {
   // Get the number of outputs (single-/multi-outputs)
-  const size_t nb_out = this->outputs_dim.size();
+  const std::size_t nb_out = this->outputs_dim.size();
   // Loop over outputs
-  size_t index = 0;
-  for (size_t i = 0; i < nb_out; ++i) {
+  std::size_t index = 0;
+  for (std::size_t i = 0; i < nb_out; ++i) {
     // Extract data from i-th output (row-major ordering)
     std::vector<T> yi = tf_outputs[i].get_data<T>();
     // > If column-major, reorder the input
@@ -193,18 +188,64 @@ void pycomet::model::compose_outputs(
 // Calling
 // ====================================
 template <typename T>
-void pycomet::model::call(
+void pycomet::model::evaluate(
   const std::vector<T>& inputs,
   std::vector<T>& outputs,
   const std::int32_t nb_pts
 ) {
   // Inputs manipulation
   auto x = pycomet::model::compose_inputs<T>(inputs, nb_pts);
-  auto tf_x = pycomet::model::convert_inputs<T>(x, nb_pts);
   // Perform inference
-  auto tf_y = (*this->tfmodel)(tf_x, this->outputs_id);
+  auto y = (*this->tfmodel)(x, this->outputs_id);
   // Outputs manipulation
-  pycomet::model::compose_outputs<T>(outputs, tf_y, nb_pts);
+  pycomet::model::compose_outputs<T>(outputs, y, nb_pts);
+}
+
+template <typename T>
+void pycomet::model::call(
+  const std::vector<T>& inputs,
+  std::vector<T>& outputs,
+  const std::int32_t nb_pts
+) {
+  if (this->batch_size < 0) {
+    this->evaluate<T>(inputs, outputs, nb_pts);
+  } else {
+    if (this->rowmajor) {
+      // Initialize inputs and outputs start/end indices
+      std::int32_t is = 0, ie = 0, os = 0;
+      // Calculate the number of batches
+      std::int32_t size = this->batch_size;
+      std::int32_t nb_batches = nb_pts / size;
+      std::int32_t last_batch_size = nb_pts % size;
+      if (last_batch_size > 0) {
+        nb_batches += 1;
+      }
+      // Initialize batched outputs
+      std::vector<T> yb(size * this->out_tot_dim);
+      // Loop over batches and perform inference
+      for (std::int32_t i = 0; i < nb_batches; ++i) {
+        if ((last_batch_size > 0) && (i == nb_batches - 1)) {
+          size = last_batch_size;
+          yb.resize(size * this->out_tot_dim);
+        }
+        // Extract the batched inputs
+        ie += size * this->inp_tot_dim;
+        std::vector<T> xb(inputs.begin() + is, inputs.begin() + ie);
+        is = ie;
+        // Perform batched inference
+        this->evaluate<T>(xb, yb, size);
+        // Move the batched outputs back to the main outputs vector
+        std::move(yb.begin(), yb.end(), outputs.begin() + os);
+        os += size * this->out_tot_dim;
+      }
+    } else {
+      std::ostringstream message;
+      message << "\nFrom pycomet::model::call():"
+              << "\n> Column-major ordered input data are "
+              << "currently not supported for batched inference.";
+      throw std::runtime_error(message.str());
+    }
+  }
 }
 
 template <typename T>
@@ -233,70 +274,24 @@ std::vector<std::vector<T>> pycomet::model::call(
   return pycomet::ops::reshape<T>(y, shape, true);
 }
 
-// template <typename T>
-// std::vector<T> pycomet::model::call(
-//   std::vector<T> inputs,
-//   const std::int32_t nb_pts
-// )
-// {
-//   // Inputs manipulation
-//   std::clock_t c_start = std::clock();
-//   std::vector<std::vector<T>> I;
-//   std::clock_t c_end = std::clock();
-//   long double time = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
-//   std::cout << "  Create vector I:        " << time << " milliseconds" << std::endl;
-
-//   c_start = std::clock();
-//   I = pycomet::model::compose_inputs(inputs, nb_pts);
-//   c_end = std::clock();
-//   time = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
-//   std::cout << "  Call 'compose_inputs':  " << time << " milliseconds" << std::endl;
-
-//   c_start = std::clock();
-//   std::vector<std::tuple<std::string, cppflow::tensor>> X;
-//   c_end = std::clock();
-//   time = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
-//   std::cout << "  Create vector X:        " << time << " milliseconds" << std::endl;
-
-//   c_start = std::clock();
-//   X = pycomet::model::convert_inputs(I, nb_pts);
-//   c_end = std::clock();
-//   time = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
-//   std::cout << "  Call 'convert_inputs':  " << time << " milliseconds" << std::endl;
-
-//   // Perform inference
-//   c_start = std::clock();
-//   std::vector<cppflow::tensor> outputs = (*this->tfmodel)(X, this->outputs_id);
-//   c_end = std::clock();
-//   time = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
-//   std::cout << "  Perform inference:      " << time << " milliseconds" << std::endl;
-
-//   // Outputs manipulation
-//   c_start = std::clock();
-//   std::vector<T> Y = pycomet::model::compose_outputs<T>(outputs, nb_pts);
-//   c_end = std::clock();
-//   time = 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC;
-//   std::cout << "  Call 'compose_outputs': " << time << " milliseconds" << std::endl;
-//   return Y;
-// }
-
 // Explicit templates instantiation
 // ====================================
 // Single-precision floating-point format
 // ------------------------------------
-template std::vector<std::vector<float>> pycomet::model::compose_inputs(
+template pycomet::data::list_tuple_tensor pycomet::model::compose_inputs(
   const std::vector<float>& inputs,
-  const std::int32_t nb_pts
-);
-
-template std::vector<std::tuple<std::string, cppflow::tensor>> pycomet::model::convert_inputs(
-  const std::vector<std::vector<float>>& inputs,
   const std::int32_t nb_pts
 );
 
 template void pycomet::model::compose_outputs(
   std::vector<float>& outputs,
   const std::vector<cppflow::tensor>& tf_outputs,
+  const std::int32_t nb_pts
+);
+
+template void pycomet::model::evaluate(
+  const std::vector<float>& inputs,
+  std::vector<float>& outputs,
   const std::int32_t nb_pts
 );
 
@@ -318,19 +313,20 @@ template std::vector<std::vector<float>> pycomet::model::call(
 
 // Double-precision floating-point format
 // ------------------------------------
-template std::vector<std::vector<double>> pycomet::model::compose_inputs(
+template pycomet::data::list_tuple_tensor pycomet::model::compose_inputs(
   const std::vector<double>& inputs,
-  const std::int32_t nb_pts
-);
-
-template std::vector<std::tuple<std::string, cppflow::tensor>> pycomet::model::convert_inputs(
-  const std::vector<std::vector<double>>& inputs,
   const std::int32_t nb_pts
 );
 
 template void pycomet::model::compose_outputs(
   std::vector<double>& outputs,
   const std::vector<cppflow::tensor>& tf_outputs,
+  const std::int32_t nb_pts
+);
+
+template void pycomet::model::evaluate(
+  const std::vector<double>& inputs,
+  std::vector<double>& outputs,
   const std::int32_t nb_pts
 );
 

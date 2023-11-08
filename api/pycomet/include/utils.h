@@ -3,10 +3,21 @@
 
 
 #include "includes.h"
+#include <cppflow/cppflow.h>
 
 
 namespace pycomet
 {
+
+  // Custom data structure
+  // ==================================
+  namespace data
+  {
+    using list_tuple_tensor = std::vector<std::tuple<std::string, cppflow::tensor>>;
+
+    template <typename T>
+    using list_tuple_vector = std::vector<std::tuple<std::string, std::vector<T>>>;
+  }
 
   // Vector operations
   // ==================================

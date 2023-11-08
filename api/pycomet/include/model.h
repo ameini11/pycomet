@@ -3,6 +3,7 @@
 
 
 #include "includes.h"
+#include "utils.h"
 #include <cppflow/cppflow.h>
 
 
@@ -25,12 +26,14 @@ namespace pycomet
       const std::string outputs_id_prefix = "StatefulPartitionedCall";
       const std::int32_t max_nb_io = 100;
 
-      // Evaluating parameters
-      std::int32_t batch_size = -1;
+      // Data major ordering
       bool rowmajor = true;
 
+      // Batched inference
+      std::int32_t batch_size = -1;
+
       // IO operations
-      std::vector<std::tuple<std::string, std::vector<int64_t>>> ops;
+      pycomet::data::list_tuple_vector<int64_t> ops;
 
       void get_ops_info();
 
@@ -42,14 +45,8 @@ namespace pycomet
 
       // Inputs/Outputs manipulations
       template <typename T>
-      std::vector<std::vector<T>> compose_inputs(
+      pycomet::data::list_tuple_tensor compose_inputs(
         const std::vector<T>& inputs,
-        const std::int32_t nb_pts
-      );
-
-      template <typename T>
-      std::vector<std::tuple<std::string, cppflow::tensor>> convert_inputs(
-        const std::vector<std::vector<T>>& inputs,
         const std::int32_t nb_pts
       );
 
@@ -79,6 +76,13 @@ namespace pycomet
       std::int32_t out_tot_dim;
 
       // Call functions
+      template <typename T>
+      void evaluate(
+        const std::vector<T>& inputs,
+        std::vector<T>& outputs,
+        const std::int32_t nb_pts
+      );
+
       template <typename T>
       void call(
         const std::vector<T>& inputs,
