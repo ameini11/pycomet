@@ -2,7 +2,7 @@
 
 
 // External bindings
-/* ========================================================================= */
+// ====================================
 pycomet::model *pycomet::init_model(char *inpfile)
 {
   std::string file(inpfile);
@@ -24,17 +24,34 @@ void pycomet::delete_model(pycomet::model *mdl)
   mdl->~model();
 }
 
-void pycomet::call_model(
+void pycomet::call_model_float(
+  pycomet::model *mdl,
+  std::int32_t *n,
+  float *inputs,
+  float *outputs
+)
+{
+  // Convert input and output arrays to vectors
+  std::vector<float> x(inputs, inputs + mdl->inp_tot_dim * (*n));
+  std::vector<float> y(outputs, outputs + mdl->out_tot_dim * (*n));
+  // Perform in-place inference
+  mdl->call(x, y, *n);
+  // Copy the updated outputs back to the 'outputs' array
+  std::copy(y.begin(), y.end(), outputs);
+}
+
+void pycomet::call_model_double(
   pycomet::model *mdl,
   std::int32_t *n,
   double *inputs,
   double *outputs
 )
 {
-  // Convert inputs from array to std::vector
-  std::vector<double> X(inputs, inputs + mdl->inp_tot_dim*(*n));
-  // Perform inference
-  std::vector<double> Y = mdl->call(X, *n);
-  // Convert outputs from std::vector to array
-  std::copy(Y.begin(), Y.end(), outputs);
+  // Convert input and output arrays to vectors
+  std::vector<double> x(inputs, inputs + mdl->inp_tot_dim * (*n));
+  std::vector<double> y(outputs, outputs + mdl->out_tot_dim * (*n));
+  // Perform in-place inference
+  mdl->call(x, y, *n);
+  // Copy the updated outputs back to the 'outputs' array
+  std::copy(y.begin(), y.end(), outputs);
 }

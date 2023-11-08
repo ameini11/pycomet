@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 
 # Global
-# -----------------------------------------------------------------------------
+# =====================================
 project(pycomet
   VERSION 1.0
   LANGUAGES C CXX Fortran
@@ -11,7 +11,7 @@ project(pycomet
 
 
 # Include cmake modules
-# -----------------------------------------------------------------------------
+# =====================================
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(GNUInstallDirs)
 include(EnsureOutOfSourceBuild)
@@ -21,7 +21,7 @@ setLogsOn()
 
 
 # Set c++ version
-# -----------------------------------------------------------------------------
+# =====================================
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 endif()
@@ -30,20 +30,15 @@ if(CMAKE_CXX_STANDARD LESS 17)
 endif()
 
 
-# Set fortran flags
-# -----------------------------------------------------------------------------
-include(SetFortranFlags)
-
-
 # Find external packages
-# -----------------------------------------------------------------------------
+# =====================================
 find_package(tensorflow REQUIRED)
 find_package(cppflow REQUIRED)
 find_package(json REQUIRED)
 
 
 # Installation path
-# -----------------------------------------------------------------------------
+# =====================================
 # note that it is not CMAKE_INSTALL_PREFIX we are checking here
 if(DEFINED CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   LogMessage("CMAKE_INSTALL_PREFIX is not set")
@@ -61,7 +56,7 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_INSTALL_PREFIX}/mod)
 
 
 # Target
-# -----------------------------------------------------------------------------
+# =====================================
 add_library(${PROJECT_NAME} SHARED)
 file(GLOB_RECURSE SOURCE_FILES_C RELATIVE ${CMAKE_SOURCE_DIR} "src/*.c")
 file(GLOB_RECURSE SOURCE_FILES_F RELATIVE ${CMAKE_SOURCE_DIR} "src/model.f90" "src/utils.f90")
@@ -74,7 +69,7 @@ set_source_files_properties(${SOURCE_FILES_C} PROPERTIES LANGUAGE CXX)
 
 
 # Include directories
-# -----------------------------------------------------------------------------
+# =====================================
 target_include_directories(${PROJECT_NAME}
   PRIVATE
     # where the library itself will look for its internal headers
@@ -91,7 +86,7 @@ target_include_directories(${PROJECT_NAME}
 
 
 # Public headers
-# -----------------------------------------------------------------------------
+# =====================================
 # Next thing you need to do is to declare PUBLIC_HEADER property
 file(GLOB_RECURSE INCLUDE_FILES RELATIVE ${CMAKE_SOURCE_DIR} "include/*.h")
 set(PUBLIC_HEADERS ${INCLUDE_FILES})
@@ -99,27 +94,30 @@ set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${PUBLIC_HEADERS
 
 
 # Build type
-# -----------------------------------------------------------------------------
+# =====================================
 # Two buid types are available:
-# - "debug":    Uses debug compiler options
-# - "release":  Uses optimized compiler options
-# The default build type is "release".
+# - "Debug":     Uses debug compiler options
+# - "Release":   Uses optimized compiler options
+# The default build type is "Release".
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release" FORCE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug, Release" FORCE)
 endif()
 LogMessage("Build type: ${CMAKE_BUILD_TYPE}")
+# Set flags
+include(SetCXXFlags)
+include(SetFortranFlags)
 
 
 # Debug suffix
-# -----------------------------------------------------------------------------
+# =====================================
 # It might be a good idea to add d suffix to debug binaries - that way you’ll
 # get lib<name>.a with Debug configuration and lib<name>.a with Release. To do
 # that you need to set the DEBUG_POSTFIX property.
-set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
+# set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 
 
 # External libraries
-# -----------------------------------------------------------------------------
+# =====================================
 target_link_libraries(${PROJECT_NAME}
   PRIVATE
     ${tensorflow_LIBRARY}
@@ -127,7 +125,7 @@ target_link_libraries(${PROJECT_NAME}
 
 
 # Destinations
-# -----------------------------------------------------------------------------
+# =====================================
 # Install the target and create export-set
 install(TARGETS ${PROJECT_NAME}
   EXPORT "${PROJECT_NAME}Targets"
@@ -137,7 +135,7 @@ install(TARGETS ${PROJECT_NAME}
 
 
 # Build examples
-# -----------------------------------------------------------------------------
+# =====================================
 option(BUILD_EXAMPLES "Build examples" OFF)
 if(BUILD_EXAMPLES)
   add_subdirectory(examples)
@@ -145,35 +143,35 @@ endif()
 
 
 # Configs
-# -----------------------------------------------------------------------------
+# =====================================
 # Generate and install export file
 install(EXPORT "${PROJECT_NAME}Targets"
-    FILE "${PROJECT_NAME}Targets.cmake"
-    NAMESPACE ${namespace}::
-    DESTINATION cmake
+  FILE "${PROJECT_NAME}Targets.cmake"
+  NAMESPACE ${namespace}::
+  DESTINATION cmake
 )
 
 include(CMakePackageConfigHelpers)
 
 # Generate the version file for the config file
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-    VERSION "${version}"
-    COMPATIBILITY AnyNewerVersion
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  VERSION "${version}"
+  COMPATIBILITY AnyNewerVersion
 )
 # Create config file
 configure_package_config_file(${CMAKE_MODULE_PATH}/${PROJECT_NAME}Config.cmake.in
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-    INSTALL_DESTINATION cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION cmake
 )
 # Install config files
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
-    DESTINATION cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION cmake
 )
 # Generate the export targets for the build tree
 export(EXPORT "${PROJECT_NAME}Targets"
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/${PROJECT_NAME}Targets.cmake"
-    NAMESPACE ${namespace}::
+  FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/${PROJECT_NAME}Targets.cmake"
+  NAMESPACE ${namespace}::
 )

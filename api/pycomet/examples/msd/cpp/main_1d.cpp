@@ -3,14 +3,19 @@
 
 int main() {
 
+  std::cout << "Started!" << std::endl;
+
+  // Global inputs
   std::string prefix = "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/pycomet/examples/msd/";
   int n = 100;
 
   // Load model from file
+  std::cout << "> Loading model" << std::endl;
   auto model = pycomet::model(prefix + "cpp/inpfile.json");
 
   // Read and flatten input data
-  std::vector<float> inp_vec;
+  std::cout << "> Loading input data" << std::endl;
+  std::vector<float> inputs;
   int d = 0;
   for (std::uint16_t i = 0; i < model.inputs_dim.size(); ++i)
     {
@@ -21,38 +26,23 @@ int main() {
       );
       d += d_i;
       // Append the i-th input
-      auto inp_flt = pycomet::vec_ops::flatten(inp);
+      auto inp_flt = pycomet::ops::flatten(inp);
       // Append inputs
-      inp_vec.insert(inp_vec.end(), inp_flt.begin(), inp_flt.end());
+      inputs.insert(inputs.end(), inp_flt.begin(), inp_flt.end());
     }
 
   // Perform inference
-  auto out_vec = model.call(inp_vec, n);
-
-  // Reorder and reshape outputs
-  std::vector<float> outputs;
-  int start = 0;
-  int end = 0;
-  int delta;
-  for (std::uint16_t i = 0; i < model.outputs_dim.size(); ++i)
-  {
-    // Extract i-th output
-    delta = model.outputs_dim[i] * n;
-    end = start + delta;
-    std::vector<float> y(out_vec.begin() + start, out_vec.begin() + end);
-    start = end;
-    // Append output
-    std::vector<float> y_ = pycomet::vec_ops::invert_major(
-      y, n, model.outputs_dim[i], true
-    );
-    outputs.insert(outputs.end(), y_.begin(), y_.end());
-  }
+  std::cout << "> Performing inference" << std::endl;
+  auto outputs = model.call(inputs, n);
 
   // Write outputs to file
-  auto out_arr = pycomet::vec_ops::reshape(
-    outputs, {model.out_tot_dim, n}, true
+  std::cout << "> Saving predictions" << std::endl;
+  auto out_arr = pycomet::ops::reshape(
+    outputs, {n, model.out_tot_dim}, false
   );
   pycomet::csv::write(prefix + "cpp/pred.csv", out_arr);
+
+  std::cout << "Done!" << std::endl;
 
   return 0;
 }

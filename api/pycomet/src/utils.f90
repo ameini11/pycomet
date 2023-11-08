@@ -24,12 +24,12 @@ module pcm_utils
     character(*), intent(in) :: delimiter
     integer :: delimiter_idx, count
     ! Function core
-    delimiter_idx = index(line, delimiter)
+    delimiter_idx = index(line, trim(delimiter))
     if (delimiter_idx .eq. 0) then
       count = 1
     else
-      count = 1 + columns_count(line(delimiter_idx+1:), delimiter)
-    end if
+      count = 1 + columns_count(line(delimiter_idx+1:), trim(delimiter))
+    endif
   end function columns_count
 
 #define t int

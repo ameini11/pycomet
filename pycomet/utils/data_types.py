@@ -299,7 +299,7 @@ def replace(
   :type replaces: list[str]
 
   :param use_startswith: If True, match patterns at the beginning of lines;
-                     otherwise, match anywhere in lines.
+                         otherwise, match anywhere in lines.
   :type use_startswith: bool
 
   This function reads a file, searches for lines that match the specified

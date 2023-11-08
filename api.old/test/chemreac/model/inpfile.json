@@ -1,0 +1,16 @@
+{
+    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/test/chemreac/model/SavedModel",
+    "inputs_id": [
+        "serving_default_input_1:0"
+    ],
+    "inputs_dim": [
+        "5"
+    ],
+    "outputs_id": [
+        "StatefulPartitionedCall:0"
+    ],
+    "outputs_dim": [
+        "4"
+    ],
+    "rowmajor": false
+}

@@ -43,14 +43,26 @@ module pcm_model
     end subroutine c_delete_model
 
     ! Evaluate
-    subroutine c_call_model(this, n, inputs, outputs) bind(c, name="call_model")
+    subroutine c_call_model_float(this, nb_pts, inputs, outputs) bind(c, name="call_model_float")
       import
       type(c_ptr), value :: this
-      integer(c_int32_t) :: n
+      integer(c_int32_t) :: nb_pts
       type(c_ptr), value :: inputs
       type(c_ptr), value :: outputs
-    end subroutine c_call_model
+    end subroutine c_call_model_float
 
+    subroutine c_call_model_double(this, nb_pts, inputs, outputs) bind(c, name="call_model_double")
+      import
+      type(c_ptr), value :: this
+      integer(c_int32_t) :: nb_pts
+      type(c_ptr), value :: inputs
+      type(c_ptr), value :: outputs
+    end subroutine c_call_model_double
+
+  end interface
+
+  interface call_model
+    module procedure :: call_model_float, call_model_double
   end interface
 
   contains
@@ -68,20 +80,30 @@ module pcm_model
   subroutine delete_model(this)
     ! Declare in-out variables
     type(model_type), intent(inout) :: this
-    ! Call c++ destructor
+    ! Call C++ destructor
     call c_delete_model(this%object)
     ! Re-initialize the `model_type%object` to null pointer
     this%object = c_null_ptr
   end subroutine delete_model
 
-  subroutine call_model(this, n, inputs, outputs)
+  subroutine call_model_float(this, nb_pts, inputs, outputs)
     ! Declare in-out variables
     type(model_type), intent(in) :: this
-    integer(c_int32_t), intent(in) :: n
-    real(c_double), intent(in), target :: inputs(n*this%inp_tot_dim)
-    real(c_double), intent(out), target :: outputs(n*this%out_tot_dim)
+    integer(c_int32_t), intent(in) :: nb_pts
+    real(c_float), intent(in), target :: inputs(nb_pts*this%inp_tot_dim)
+    real(c_float), intent(inout), target :: outputs(nb_pts*this%out_tot_dim)
     ! Get outputs with model call function
-    call c_call_model(this%object, n, c_loc(inputs), c_loc(outputs))
-  end subroutine call_model
+    call c_call_model_float(this%object, nb_pts, c_loc(inputs), c_loc(outputs))
+  end subroutine call_model_float
+
+  subroutine call_model_double(this, nb_pts, inputs, outputs)
+    ! Declare in-out variables
+    type(model_type), intent(in) :: this
+    integer(c_int32_t), intent(in) :: nb_pts
+    real(c_double), intent(in), target :: inputs(nb_pts*this%inp_tot_dim)
+    real(c_double), intent(inout), target :: outputs(nb_pts*this%out_tot_dim)
+    ! Get outputs with model call function
+    call c_call_model_double(this%object, nb_pts, c_loc(inputs), c_loc(outputs))
+  end subroutine call_model_double
 
 end module pcm_model

@@ -15,7 +15,7 @@ namespace pycomet
       // TensorFlow model
       std::string path_to_model;
       std::unique_ptr<cppflow::model> tfmodel;
-      std::vector<std::string> *config = nullptr;
+      std::vector<std::string>* config = nullptr;
 
       // Inputs/Outputs
       std::vector<std::int32_t> check_io_ops(
@@ -23,7 +23,7 @@ namespace pycomet
       );
       const std::string inputs_id_prefix = "serving_default";
       const std::string outputs_id_prefix = "StatefulPartitionedCall";
-      const std::int32_t max_num_io = 10;
+      const std::int32_t max_nb_io = 100;
 
       // Evaluating parameters
       std::int32_t batch_size = -1;
@@ -38,25 +38,26 @@ namespace pycomet
       void parse_inputs(const std::string inpfile);
 
       // Set global TF context
-      void set_global_context(std::vector<std::string> *config);
+      void set_global_context(const std::vector<std::string>& config);
 
       // Inputs/Outputs manipulations
       template <typename T>
-      std::vector<T> compose_outputs(
-        std::vector<cppflow::tensor> outputs,
-        const std::int32_t n
-      );
-      
-      template <typename T>
       std::vector<std::vector<T>> compose_inputs(
-        std::vector<T> inputs,
-        const std::int32_t n
+        const std::vector<T>& inputs,
+        const std::int32_t nb_pts
       );
 
       template <typename T>
       std::vector<std::tuple<std::string, cppflow::tensor>> convert_inputs(
-        std::vector<std::vector<T>> inputs,
-        const std::int32_t n
+        const std::vector<std::vector<T>>& inputs,
+        const std::int32_t nb_pts
+      );
+
+      template <typename T>
+      void compose_outputs(
+        std::vector<T>& outputs,
+        const std::vector<cppflow::tensor>& tf_outputs,
+        const std::int32_t nb_pts
       );
 
     public:
@@ -79,16 +80,24 @@ namespace pycomet
 
       // Call functions
       template <typename T>
+      void call(
+        const std::vector<T>& inputs,
+        std::vector<T>& outputs,
+        const std::int32_t nb_pts
+      );
+
+      template <typename T>
       std::vector<T> call(
-        std::vector<T> inputs,
-        const std::int32_t n
+        const std::vector<T>& inputs,
+        const std::int32_t nb_pts
       );
 
       template <typename T>
       std::vector<std::vector<T>> call(
-        std::vector<std::vector<T>> inputs,
-        const std::int32_t n
+        const std::vector<std::vector<T>>& inputs,
+        const std::int32_t nb_pts
       );
+
   };
 }
 

@@ -2,101 +2,175 @@
 #define pycomet_utils_h_
 
 
-#include <limits>
 #include "includes.h"
 
 
 namespace pycomet
 {
-  namespace vec_ops
+
+  // Vector operations
+  // ==================================
+  namespace ops
   {
-    // Transpose a 2D array ---------------------------------------------------
+    // Printing
+    // --------------------------------
+    template <typename T>
+    void print(
+      const std::vector<std::vector<T>>& array
+    ) {
+      for (const std::vector<T>& vector : array) {
+        for (const T& value : vector) {
+          std::cout << value << ' ';
+        }
+        std::cout << std::endl;
+      }
+    }
+
+    template <typename T>
+    void print(
+      const std::vector<T>& vector
+    ) {
+      for (const T& value : vector) {
+        std::cout << value << std::endl;
+      }
+    }
+
+    // Transpose a 2D array
+    // --------------------------------
     template <typename T>
     std::vector<std::vector<T>> transpose(
-      const std::vector<std::vector<T>> &vec
-    )
-    {
-      std::vector<std::vector<T>> vec_trans(vec[0].size(), std::vector<T>());
-      for (int i = 0; i < vec.size(); i++)
-      {
-        for (int j = 0; j < vec[i].size(); j++)
-        {
-          vec_trans[j].push_back(vec[i][j]);
-        };
-      };
-      return vec_trans;
+      const std::vector<std::vector<T>>& array
+    ) {
+      // Handle empty input array
+      if (array.empty() || array[0].empty()) {
+        return std::vector<std::vector<T>>();
+      }
+      // Get dimensions
+      const size_t rows = array.size();
+      const size_t cols = array[0].size();
+      // Perform transposition
+      std::vector<std::vector<T>> transposed(cols, std::vector<T>(rows));
+      for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+          transposed[j][i] = array[i][j];
+        }
+      }
+      return transposed;
     }
 
-    // Flatten a 2D array into 1D array ---------------------------------------
+    // Transpose a flattened 2D array
+    // --------------------------------
+    template <typename T>
+    std::vector<T> transpose(
+      const std::vector<T>& array,
+      const std::int32_t rows,
+      const std::int32_t cols
+    ) {
+      // Ensure the size of the input array
+      // matches the size defined by 'rows' and 'cols'
+      if (array.size() != rows * cols) {
+        std::ostringstream message;
+        message << "\nFrom pycomet::ops::transpose():"
+                << "\n> Input array size doesn't match specified dimensions.";
+        throw std::invalid_argument(message.str());
+      }
+      // Perform transposition
+      std::vector<T> transposed(rows * cols);
+      for (std::int32_t i = 0; i < rows; i++) {
+        for (std::int32_t j = 0; j < cols; j++) {
+          transposed[j * rows + i] = array[i * cols + j];
+        }
+      }
+      return transposed;
+    }
+
+    // Flatten a 2D array
+    // --------------------------------
     template <typename T>
     std::vector<T> flatten(
-      const std::vector<std::vector<T>> &vec2D,
+      const std::vector<std::vector<T>>& array,
       const bool transpose_in = false
-    )
-    {
-      std::vector<T> vec1D;
-      auto _vec2D = (transpose_in == true) ? transpose(vec2D) : vec2D;
-      for (auto const &v: _vec2D)
-        vec1D.insert(vec1D.end(), v.begin(), v.end());
-      return vec1D;
+    ) {
+      // Handle empty input array
+      if (array.empty() || array[0].empty()) {
+        return std::vector<T>();
+      }
+      // Get dimensions
+      const size_t rows = array.size();
+      const size_t cols = array[0].size();
+      // Perform flattening
+      std::vector<T> flattened(rows * cols);
+      for (size_t i = 0; i < rows; ++i) {
+        for (size_t j = 0; j < cols; ++j) {
+          if (transpose_in) {
+            flattened[j * rows + i] = array[i][j];
+          } else {
+            flattened[i * cols + j] = array[i][j];
+          }
+        }
+      }
+      return flattened;
     }
 
-    // Reshape a 1D array into 2D array ---------------------------------------
+    // Reshape a 1D array into 2D array
+    // --------------------------------
     template <typename T>
     std::vector<std::vector<T>> reshape(
-      const std::vector<T> &vec1D,
-      const std::vector<int> shape,
+      const std::vector<T>& vector,
+      const std::vector<std::int32_t> shape,
       const bool transpose_out = false
     )
     {
-      std::vector<std::vector<T>> vec2D;
-      int start = 0;
-      int end = 0;
-      for (int i = 0; i < shape[0]; ++i)
-      {
-        end = start + shape[1];
-        std::vector<T> vec(vec1D.begin() + start, vec1D.begin() + end);
-        start = end;
-        vec2D.push_back(vec);
-      };
-      auto _vec2D = (transpose_out == true) ? transpose(vec2D) : vec2D;
-      return _vec2D;
-    }
-
-    // Reordering 1D array (flattened 2D array) -------------------------------
-    template <typename T>
-    std::vector<T> invert_major(
-      std::vector<T> x,
-      const std::int32_t i,
-      const std::int32_t j,
-      const bool row2col
-    )
-    {
-      std::vector<std::int32_t> shape_ij = {i, j};
-      std::vector<std::int32_t> shape_ji = {j, i};
-      auto shape = (row2col == true) ? shape_ij : shape_ji;
-      std::vector<T> vec = flatten(reshape(x, shape), true);
-      return vec;
-    }
-
-    template <typename T>
-    std::vector<T> reorder_vec(
-      std::vector<T> x,
-      const std::int32_t i,
-      const std::int32_t j,
-      const bool row2col,
-      const bool rowmajor
-    )
-    {
-      if ((j > 1) && (rowmajor == false))
-      {
-        std::vector<T> x_vec = invert_major(x, i, j, row2col);
-        x.assign(x_vec.begin(), x_vec.end());
+      // Error message
+      std::ostringstream message;
+      message << "From pycomet::ops::reshape(): ";
+      // Ensure shape is of size 2
+      if (shape.size() != 2) {
+        message << "\n> Shape argument must be a 2-element vector.";
+        throw std::invalid_argument(message.str());
       }
-      return x;
+      // Get dimensions
+      const std::int32_t rows = shape[0];
+      const std::int32_t cols = shape[1];
+      // Ensure the size of the input vector
+      // matches the size defined by the shape
+      if (rows * cols != vector.size()) {
+        message << "\n> Input array size doesn't match specified dimensions.";
+        throw std::invalid_argument(message.str());
+      }
+      // Perform reshaping
+      std::vector<std::vector<T>> array(rows, std::vector<T>(cols));
+      for (std::int32_t i = 0; i < rows; ++i) {
+        for (std::int32_t j = 0; j < cols; ++j) {
+          if (transpose_out) {
+            array[i][j] = vector[j * rows + i];
+          } else {
+            array[i][j] = vector[i * cols + j];
+          }
+        }
+      }
+      return array;
+    }
+
+    // Change the major order of a flattened 2D array
+    // --------------------------------
+    template <typename T>
+    void invert_major(
+      std::vector<T>& x,
+      const std::int32_t rows,
+      const std::int32_t cols,
+      const bool col2row
+    ) {
+      if ((cols > 1 && col2row) || (rows > 1 && !col2row)) {
+        // Transpose the matrix to convert
+        // between row-major and column-major
+        x = std::move(transpose<T>(x, rows, cols));
+      }
     }
   }
 
+  // CSV Files
+  // ==================================
   namespace csv
   {
     template <typename T>
@@ -108,22 +182,17 @@ namespace pycomet
     {
       std::ifstream file(filename);
       std::vector<std::vector<T>> array;
-      if (file)
-      {
+      if (file) {
         int row = 0;
         std::string line;
-        while (std::getline(file, line))
-        {
-          if (row_lim[0] <= row && row < row_lim[1])
-          {
+        while (std::getline(file, line)) {
+          if (row_lim[0] <= row && row < row_lim[1]) {
             std::stringstream sep(line);
             std::string field;
             array.push_back(std::vector<T>());
             int col = 0;
-            while (std::getline(sep, field, ','))
-            {
-              if (col_lim[0] <= col && col < col_lim[1])
-              {
+            while (std::getline(sep, field, ',')) {
+              if (col_lim[0] <= col && col < col_lim[1]) {
                 array.back().push_back(std::stod(field));
               }
               col++;
@@ -138,21 +207,17 @@ namespace pycomet
     template <typename T>
     void write(
       const std::string filename,
-      const std::vector<T> &vec,
+      const std::vector<T>& vec,
       const std::vector<int> shape,
       const bool rowmajor = true,
       const int precision = 6
-    )
-    {
+    ) {
       std::ofstream file(filename);
-      for (int i = 0; i < shape[0]; ++i)
-      {
-        for (int j = 0; j < shape[1]; ++j)
-        {
+      for (int i = 0; i < shape[0]; ++i) {
+        for (int j = 0; j < shape[1]; ++j) {
           auto v = (rowmajor == true) ? vec[i*shape[1]+j] : vec[j*shape[0]+i];
           file << std::setprecision(precision) << v;
-          if (j != shape[1]-1)
-          {
+          if (j != shape[1]-1) {
             file << ",";
           }
         }
@@ -164,18 +229,14 @@ namespace pycomet
     template <typename T>
     void write(
       const std::string filename,
-      const std::vector<std::vector<T>> &vec,
+      const std::vector<std::vector<T>>& vec,
       const int precision = 6
-    )
-    {
+    ) {
       std::ofstream file(filename);
-      for (int i = 0; i < vec.size(); i++)
-      {
-        for (int j = 0; j < vec[i].size(); j++)
-        {
+      for (int i = 0; i < vec.size(); i++) {
+        for (int j = 0; j < vec[i].size(); j++) {
           file << std::setprecision(precision) << vec[i][j];
-          if (j != vec[i].size()-1)
-          {
+          if (j != vec[i].size()-1) {
             file << ",";
           }
         }
@@ -184,6 +245,7 @@ namespace pycomet
       file.close();
     }
   }
+
 }
 
 
