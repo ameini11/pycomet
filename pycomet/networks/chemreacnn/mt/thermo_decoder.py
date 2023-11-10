@@ -47,7 +47,10 @@ class ThermoDecoderMT(tf_layers.Layer):
     self.mix = mix_mod.MultiComponent(self.sp_th)
     # Temperature limiter
     self.T_min = T_min
-    if (self.mix.nb_temp > 2):
+    # Number of variables
+    self.nb_comp = self.mix.n_comp
+    self.nb_temp = 2  # Force 2T model
+    if (self.nb_temp > 2):
       utils.raise_err(
         NotImplementedError,
         f"The current version of '{self.name}' " \
@@ -86,9 +89,9 @@ class ThermoDecoderMT(tf_layers.Layer):
     # Extract inputs/outputs quantities
     y, e = self._extract_io_qoi(inputs)
     # Enforce conservation of mass
-    y["mass"] = self._decode_mass(y["mass"])
+    y["mass"] = self._conserve_mass(y["mass"])
     # Enforce conservation of energy
-    y["temp"] = self._decode_temp(y["temp"], e)
+    y["temp"] = self._conserve_energy(y["temp"], e)
     # Compose outputs
     if (self.out_indices_out is not None):
       y = [y[self.out_index_to_key[i]] for i in range(2)]
@@ -109,11 +112,11 @@ class ThermoDecoderMT(tf_layers.Layer):
     )
     return y, e
 
-  def _decode_mass(self, x):
+  def _conserve_mass(self, x):
     # Enforce mass fractions to be between 0 and 1
     yi = tf.math.sigmoid(x)
     # Enforce conservation of mass
-    if (self.mix.nb_comp > 2):
+    if (self.nb_comp > 2):
       # Simple and normalized sum
       ss = tf.math.reduce_sum(yi, axis=1, keepdims=True)
       sn = tf.math.sigmoid(ss)
@@ -129,7 +132,7 @@ class ThermoDecoderMT(tf_layers.Layer):
     # Return mass fractions
     return y
 
-  def _decode_temp(self, x, e):
+  def _conserve_energy(self, x, e):
     # Enforce temperature to be positive
     T_ve = tf.nn.relu(x) + self.T_min
     # Formation energy

@@ -45,17 +45,20 @@ class ThermoEncoderMT(tf_layers.Layer):
       self.sp_th[sp_th.specie.name] = sp_th
     # Mixture
     self.mix = mix_mod.MultiComponent(self.sp_th)
-    # QoIs indices to keep
-    self.keep_indices = {
-      "mass": np.arange(self.mix.nb_comp-1).tolist(),
-      "temp": np.arange(self.mix.nb_temp-1).tolist(),
-    }
-    if (self.mix.nb_temp > 2):
+    # Number of variables
+    self.nb_comp = self.mix.n_comp
+    self.nb_temp = 2  # Force 2T model
+    if (self.nb_temp > 2):
       utils.raise_err(
         NotImplementedError,
         f"The current version of '{self.name}' " \
         "layer only supports Park's 2T model."
       )
+    # QoIs indices to keep
+    self.keep_indices = {
+      "mass": np.arange(self.nb_comp-1).tolist(),
+      "temp": np.arange(self.nb_temp-1).tolist(),
+    }
     # Encoding parameters
     # -----------------------
     # Inputs encoding
