@@ -1,18 +1,27 @@
-from pycomet.networks.augopnn import AugOpNN
-from pycomet.networks.chemreacnn import *
-from pycomet.networks.ffnn import FFNN
-from pycomet.networks.flexopnn import FlexOpNN
-from pycomet.networks.mionet import MIONet
-from pycomet.networks.mixednet import MixedNet
-from pycomet.networks.mmopnn import MMOpNN
-from pycomet.networks.opnn import OpNN
+# Generic models
+# =====================================
+from .augopnn import AugOpNN
+from .ffnn import FFNN
+from .flexopnn import FlexOpNN
+from .mionet import MIONet
+from .mixednet import MixedNet
+from .mmopnn import MMOpNN
+from .opnn import OpNN
 
 __all__ = [
-    "AugOpNN",
-    "FFNN",
-    "FlexOpNN",
-    "MIONet",
-    "MixedNet",
-    "MMOpNN",
-    "OpNN"
+  "AugOpNN",
+  "FFNN",
+  "FlexOpNN",
+  "MIONet",
+  "MixedNet",
+  "MMOpNN",
+  "OpNN"
 ]
+
+# Thermochemistry-specific models
+# =====================================
+import importlib
+# Check if external library 'hypernet' exists
+lib = importlib.util.find_spec("hypernet")
+if (lib is not None):
+  from .chemreacnn import *

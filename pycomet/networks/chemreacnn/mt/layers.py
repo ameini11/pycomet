@@ -28,7 +28,7 @@ class TwoTempThermoLay(tf_layers.Layer):
         inp_indices_toencode=None,
         inp_tensor_toencode=0,
         coding_type=None,
-        T_min=100.,
+        T_min=100.0,
         **kwargs
     ):
         super(TwoTempThermoLay, self).__init__(**kwargs)

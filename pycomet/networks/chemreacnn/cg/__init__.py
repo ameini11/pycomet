@@ -1,1 +1,1 @@
-from pycomet.networks.chemreacnn.cg.adaptive import *
+from .adaptive import *
