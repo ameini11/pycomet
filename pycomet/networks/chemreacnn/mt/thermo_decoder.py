@@ -26,7 +26,7 @@ class ThermoDecoderMT(tf_layers.Layer):
     inp_energy_index=-1,
     out_indices_in=None,
     out_indices_out=None,
-    T_min=100.0,
+    T_lim=[250.0, 20000.0],
     **kwargs
   ):
     super(ThermoDecoderMT, self).__init__(**kwargs)
@@ -46,7 +46,7 @@ class ThermoDecoderMT(tf_layers.Layer):
     # Mixture
     self.mix = mix_mod.MultiComponent(self.sp_th)
     # Temperature limiter
-    self.T_min = T_min
+    self.T_lim = T_lim
     # Number of variables
     self.nb_comp = self.mix.n_comp
     self.nb_temp = 2  # Force 2T model
@@ -134,14 +134,14 @@ class ThermoDecoderMT(tf_layers.Layer):
 
   def _conserve_energy(self, x, e):
     # Enforce temperature to be positive
-    T_ve = tf.nn.relu(x) + self.T_min
+    T_ve = tf.math.sigmoid(x)*self.T_lim[1] + self.T_lim[0]
     # Formation energy
     e_f = self.mix._e_f()
     # Vibro-electronic energy mode
     e_ve = self._e_ve(T_ve)
     # Roto-translational energy mode
     cv_rt = self._cv_rt()
-    e_rt_min = cv_rt * self.T_min
+    e_rt_min = cv_rt * self.T_lim[0]
     e_rt = tf.nn.relu(e - e_f - e_ve - e_rt_min) + e_rt_min
     # Compose temperatures
     T = tf.concat([e_rt / cv_rt, T_ve], 1)

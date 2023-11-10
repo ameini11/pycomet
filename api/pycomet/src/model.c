@@ -207,7 +207,7 @@ void pycomet::model::call(
   std::vector<T>& outputs,
   const std::int32_t nb_pts
 ) {
-  if (this->batch_size < 0) {
+  if ((this->batch_size < 1) || (this->batch_size > nb_pts)) {
     this->evaluate<T>(inputs, outputs, nb_pts);
   } else {
     if (this->rowmajor) {
