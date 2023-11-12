@@ -24,7 +24,7 @@ program test
   call init_model(trim(cwd) // trim(inpfile), model)
 
   ! Read input data
-  call read_csv(trim(cwd) // trim(datafile), row_lim, col_lim, data=data)
+  call read_csv(trim(cwd) // trim(datafile), row_lim, col_lim, dset=data)
 
   ! Flatten input data
   n = row_lim(2)-row_lim(1)
@@ -37,7 +37,7 @@ program test
   data = reshape(outputs, (/n, model%out_tot_dim/))
 
   ! Write outputs to file
-  call write_csv(trim(cwd) // trim(predfile), n, data=data)
+  call write_csv(trim(cwd) // trim(predfile), n, dset=data)
 
   ! Delete model
   call delete_model(model)

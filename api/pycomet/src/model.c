@@ -59,6 +59,14 @@ void pycomet::model::parse_inputs(
   // Initialize JSON object reader
   std::ifstream file(inpfile);
   json inputs = json::parse(file);
+  // Environmental variables
+  if (inputs.contains("env")) {
+    for (const auto& item : inputs["env"].items()) {
+      const std::string k = item.key();
+      const std::string v = item.value();
+      setenv(k.c_str(), v.c_str(), 1);
+    }
+  }
   // Extract inputs
   this->path_to_model = inputs["path_to_model"];
   this->inputs_id = inputs["inputs_id"];

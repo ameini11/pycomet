@@ -1,16 +1,12 @@
-#!/bin/bash
+#!/bin/bash -i
+set -e
 
-# Two options:
+# Loading the PyCOMET module
+module load pycomet/1.0-gcc-9.3.0-cuda-11.2.0-tf-2.10.0-gpu
 
-# a) Exporting installing directories for PyCOMET and TensorFlow
-# -----------------------------------------------------------------------------
-# export TENSORFLOW_DIR=$CODES_PATH/ML/TensorFlow/v.2.9.1/
-# export PYCOMET_DIR=$CODES_PATH/ML/PyCOMET/pycomet/api/install
-# export LD_LIBRARY_PATH=$PYCOMET_DIR/lib:$TENSORFLOW_DIR/lib:${LD_LIBRARY_PATH}
-
-# b) Loading the PyCOMET module
-# -----------------------------------------------------------------------------
-module load pycomet
-
-export TF_NUM_INTEROP_THREADS=4
-export TF_NUM_INTRAOP_THREADS=4
+# Set proper environmental variables
+export TF_CPP_MIN_LOG_LEVEL=0
+export TF_ENABLE_ONEDNN_OPTS=1
+export TF_NUM_INTEROP_THREADS=1
+export TF_NUM_INTRAOP_THREADS=1
+export CUDA_VISIBLE_DEVICES=1

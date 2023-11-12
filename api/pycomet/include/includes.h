@@ -4,10 +4,12 @@
 
 #include <stdexcept>
 #include <iostream>
+#include <typeinfo>
 #include <iomanip>
 #include <fstream>
 #include <cstdint>
 #include <sstream>
+#include <cstdlib>
 #include <limits>
 #include <string>
 #include <vector>
