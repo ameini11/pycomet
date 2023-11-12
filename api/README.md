@@ -56,6 +56,6 @@ make install
 
 The code has been tested with the following configuration:
 
-| Compiler   | cuDNN | CUDA |
-|------------|-------|------|
-| GCC 9.3.0  | 8.1   | 11.2 |
+| Compiler   | cuDNN | CUDA | TensorFlow C API |
+|------------|-------|------|------------------|
+| GCC 9.3.0  | 8.1   | 11.2 | 2.10.0           |
