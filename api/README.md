@@ -52,7 +52,7 @@ make -j 4
 make install
 ```
 
-### GPU Support
+### GPU support
 
 The code has been tested with the following configuration:
 
