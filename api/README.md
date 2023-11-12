@@ -39,6 +39,7 @@ cd $BUILD_DIR
 4. Configure CMake
 ```
 cmake $SRC_DIR \
+  -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
   -DBUILD_EXAMPLES=OFF \
   -Djson_INCLUDE_DIR=$Json_DIR/include \
