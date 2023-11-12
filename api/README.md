@@ -1,42 +1,42 @@
 # PyCOMET-API
 **Physics-informed machine learning for scientific computing and operator discovery**
 
-Run PyCOMET models in C++/Fortran without TensorFlow installation and compilation. You can take a look to the [examples](https://github.com/ivanZanardi/pycomet/tree/main/api/pycomet/examples) to see how to load a TensorFlow `tf.Model` in your C++/Fortran project.
 
-PyCOMET-API uses [CppFlow](https://github.com/serizba/cppflow/) and [TensorFlow C API](https://www.tensorflow.org/install/lang_c) to run the models. With this project you can manage and run your models in C++/Fortran without worrying about void, malloc or free. With PyCOMET-API you easily can:
+PyCOMET-API enables the integration of PyCOMET models into C++/Fortran projects seamlessly, without the need for TensorFlow installation or compilation. Explore the [examples](https://github.com/ivanZanardi/pycomet/tree/main/api/pycomet/examples) to understand how to incorporate a TensorFlow `tf.Model` into your C++/Fortran project.
 
+PyCOMET-API utilizes [CppFlow](https://github.com/serizba/cppflow/) and the [TensorFlow C API](https://www.tensorflow.org/install/lang_c) to execute models. This project simplifies the management and execution of models in C++/Fortran, handling concerns about void, malloc, or free operations. With PyCOMET-API, you can effortlessly:
 * Open saved models created with PyCOMET
 * Execute TensorFlow neural networks in C++/Fortran
 * Perform tensor manipulation directly from C++
 
 ### Dependencies
 
-  - [TensorFlow C API](https://www.tensorflow.org/install/lang_c/) = 2.9.1
-  - [CppFlow](https://github.com/serizba/cppflow/)
-  - [Json](https://github.com/nlohmann/json/)
+* [TensorFlow C API](https://www.tensorflow.org/install/lang_c/) = 2.10.0
+* [CppFlow](https://github.com/serizba/cppflow/) = 2.0.0
+* [Json](https://github.com/nlohmann/json/)
 
 ### Installation
 
-To install PyCOMET-API, you just have to download the abovementioned dependencies and then follow these steps:
-- Define installation directories
+To install PyCOMET-API, follow these steps after downloading the dependencies:
+1. Define installation directories
 ```
 export SRC_DIR=<path-to-PyCOMET-API-source-dir>
 export BUILD_DIR=<path-to-build-dir>
 export INSTALL_DIR=<path-to-install-dir>
 ```
-- Define dependencies directories
+2. Define dependencies directories
 ```
 export TensorFlow_DIR=<path-to-tensorflow-dir>
 export CppFlow_DIR=<path-to-cppflow-dir>
 export Json_DIR=<path-to-json-dir>
 ```
-- Prepare installation directories
+3. Prepare installation directories
 ```
 rm -rf $BUILD_DIR $INSTALL_DIR
 mkdir $BUILD_DIR
 cd $BUILD_DIR
 ```
-- Configure CMake
+4. Configure CMake
 ```
 cmake $SRC_DIR \
   -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
@@ -46,8 +46,16 @@ cmake $SRC_DIR \
   -Dtensorflow_INCLUDE_DIR=$TensorFlow_DIR/include \
   -Dtensorflow_LIBRARY=$TensorFlow_DIR/lib/libtensorflow.so
 ```
-- Install
+5. Install
 ```
 make -j 4
 make install
 ```
+
+### GPU Support
+
+The code has been tested with the following configuration:
+
+| Compiler   | cuDNN | CUDA |
+|------------|-------|------|
+| GCC 9.3.0  | 8.1   | 11.2 |
