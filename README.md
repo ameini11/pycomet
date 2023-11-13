@@ -94,6 +94,7 @@ If you use this code or find this work useful in your research, please cite us:
   issn      = {2045-2322},
   doi       = {10.1038/s41598-023-41039-y}
 }
+
 @article{Priyadarshini_PCCP_2023,
   author    = {Priyadarshini, Maitreyee Sharma and Venturi, Simone and Zanardi, Ivan and Panesi, Marco},
   title     = {Efficient quasi-classical trajectory calculations by means of neural operator architectures},
