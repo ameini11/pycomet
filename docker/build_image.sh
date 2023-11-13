@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/bash -i
+set -e
 
 # =========================================================================== #
 # Build `pycomet` docker image
@@ -10,15 +11,19 @@ parent=tensorflow/tensorflow    # Parent image on top of which the new one is cr
 tag=latest-gpu                  # Tag of the parent image
 # =========================================================================== #
 
+# Set the name of the docker image
+# -------------------------------------
 img_name=pycomet
 
-# Check if the image already exists -------------------------------------------
+# Check if the image already exists
+# -------------------------------------
 if [[ "$(docker images -q $img_name:latest 2> /dev/null)" != "" ]]; then
-        img=`docker images -q $img_name:latest`
-    docker image rm -f $img
+    img=`docker images -q $img_name:latest`
+  docker image rm -f $img
 fi
 
-# Create the Dockerfile -------------------------------------------------------
+# Create the Dockerfile
+# -------------------------------------
 cat << EOF > ../Dockerfile
 
 FROM ${parent}:${tag}
@@ -36,12 +41,14 @@ RUN python3.8 setup.py bdist_wheel && pip3 install dist/*.whl
 
 EOF
 
-# Build the new image ---------------------------------------------------------
+# Build the new image
+# -------------------------------------
 docker build \
-    -t ${img_name} \
-    -f ../Dockerfile \
-    --cgroup-parent ${parent} \
-    ./
+  -t ${img_name} \
+  -f ../Dockerfile \
+  --cgroup-parent ${parent} \
+  ./
 
-# Remove the Dockerfile -------------------------------------------------------
+# Remove the Dockerfile
+# -------------------------------------
 rm -rf ../Dockerfile

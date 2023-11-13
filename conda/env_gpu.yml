@@ -1,11 +1,10 @@
 name: pycomet.gpu
 channels:
   - conda-forge
-  - numba
   - defaults
 dependencies:
-  - cudatoolkit #=11.7.0
-  - cudnn #=8.4.1.50
+  - cudatoolkit
+  - cudnn
   - cupy
   - graphviz
   - h5py
@@ -15,25 +14,25 @@ dependencies:
   - markupsafe
   - notebook
   - numpy
-  - numba
   - pip
   - pydot
   - pygments
   - pyqt
   - python=3.8.13
-  - scipy #=1.11.1
+  - scipy
   - silx
   - sqlite
   - tensorflow-gpu=2.10.0
   - varname
   - pip:
+    - absl-py
     - joblib
     - matplotlib
     - netron
-    - pandas #==1.5.3
+    - pandas
     - pydoe
     - scikit-learn
-    - tensorflow-addons==0.17.1
-    - tensorflow-probability==0.17.0
+    - tensorflow-addons==0.19.0
+    - tensorflow-probability==0.18.0
     - threadpoolctl
     - tqdm
