@@ -24,62 +24,34 @@ The components of PyCOMET are loosely coupled, resulting in a well-structured an
 
 ## Installation
 
-### Conda (preferred)
-
-To install PyCOMET using Conda, follow these steps:
+To install PyCOMET, follow these steps:
 
 1. Clone the repository:
-
-  ```bash
-  git clone https://github.com/ivanZanardi/pycomet.git
-  cd pycomet
-  ```
-
-2. Create the Conda environment (choose either `cpu` or `gpu`):
-
-  ```bash
-  conda env create -f conda/env_<processor>.yml
-  ```
-
-3. Install the package:
-
-  ```bash
-  conda activate pycomet.<processor>
-  python setup.py bdist_wheel
-  pip install dist/*.whl
-  ```
-
-4. Activate the Conda environment whenever using PyCOMET:
-
-  ```bash
-  conda activate pycomet.<processor>
-  ```
-
-### Pip
-
-To install PyCOMET using Pip, run the following commands:
 
 ```bash
 git clone https://github.com/ivanZanardi/pycomet.git
 cd pycomet
-./allinstall -a install
 ```
 
-## Dependencies
+2. Create a Conda environment (choose either `cpu` or `gpu`):
 
-* [h5py](https://docs.h5py.org/en/stable/)
-* [Joblib](https://joblib.readthedocs.io/en/latest/)
-* [Matplotlib](https://matplotlib.org/)
-* [Netron](https://netron.app/)
-* [NumPy](http://www.numpy.org/)
-* [pandas](https://pandas.pydata.org/)
-* [pyDOE](https://pythonhosted.org/pyDOE/)
-* [scikit-learn](https://scikit-learn.org)
-* [SciPy](https://www.scipy.org/)
-* [TensorFlow](https://www.tensorflow.org/)>=2.9.1
-* [TensorFlow Addons](https://www.tensorflow.org/addons/)>=0.17.1
-* [Thread-pool](https://github.com/joblib/threadpoolctl/)
-* [tqdm](https://tqdm.github.io/)
+```bash
+conda env create -f conda/env_<processor>.yml
+```
+
+3. Install the package:
+
+```bash
+conda activate pycomet.<processor>
+python setup.py bdist_wheel
+pip install dist/*.whl
+```
+
+4. Activate the Conda environment whenever using PyCOMET:
+
+```bash
+conda activate pycomet.<processor>
+```
 
 ## Usage
 
@@ -101,9 +73,40 @@ For application-specific help:
 pycomet <app-name> -h
 ```
 
-## Use with Docker
+### Use with Docker
 
 If you have a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), build a PyCOMET image by following the instructions in `docker/build_image.sh`. Then, run your case using the built image with the instructions in `docker/run_script.sh`.
+
+## Citation
+
+If you use this code or find this work useful in your research, please cite us:
+
+```bibtex
+@article{Zanardi_SciRep_2023,
+  author    = {Zanardi, Ivan and Venturi, Simone and Panesi, Marco},
+  title     = {Adaptive physics-informed neural operator for coarse-grained non-equilibrium flows},
+  journal   = {Scientific Reports},
+  year      = {2023},
+  month     = {9},
+  day       = {19},
+  volume    = {13},
+  number    = {1},
+  issn      = {2045-2322},
+  doi       = {10.1038/s41598-023-41039-y}
+}
+@article{Priyadarshini_PCCP_2023,
+  author    = {Priyadarshini, Maitreyee Sharma and Venturi, Simone and Zanardi, Ivan and Panesi, Marco},
+  title     = {Efficient quasi-classical trajectory calculations by means of neural operator architectures},
+  journal   = {Physical Chemistry Chemical Physics},
+  year      = {2023},
+  month     = {11},
+  day       = {25},
+  volume    = {25},
+  issue     = {20},
+  publisher = {The Royal Society of Chemistry},
+  doi       = {10.1039/D2CP05506F}
+}
+```
 
 ## Explore more
 
