@@ -4,49 +4,49 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
 
 PyCOMET is a deep learning library API, written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyCOMET currently includes the following algorithms:
-- solving forward and inverse partial differential equations (PDEs) via neural networks;
-- approximating nonlinear operators via Neural Operators (e.g., DeepONets);
-- multi-objectives function loss optimization (data-driven and physics-informed learning) with adaptive weighting.
+* Solving forward and inverse partial differential equations (PDEs) using neural networks.
+* Approximating nonlinear operators through Neural Operators (e.g., DeepONets).
+* Multi-objective function loss optimization, supporting both data-driven and physics-informed learning with adaptive weighting.
 
 ## Features
 
-PyCOMET supports
+PyCOMET boasts a range of features, including:
+* Support for various neural network architectures such as FNN, DeepONet, ResNet, and more.
+* Diverse options for losses, metrics, optimizers, learning rate schedules, initializations, and regularizations.
+* Incorporation of essential techniques like dropout and batch normalization.
+* Callbacks to monitor internal states and statistics of the model during training.
+* A design that allows user code to be concise, closely resembling mathematical formulations.
 
-- different types of neural networks, such as FNN, DeepONet, ResNet, etc.;
-- many different losses, metrics, optimizers, learning rate schedules, initializations, regularizations, etc.;
-- useful techniques, such as dropout and batch normalization;
-- callbacks to monitor the internal states and statistics of the model during training;
-- enables the user code to be compact, resembling closely the mathematical formulation.
-
-All the components of PyCOMET are loosely coupled, and thus PyCOMET is well-structured and highly configurable. It is easy to customize PyCOMET to meet new demands.
+The components of PyCOMET are loosely coupled, resulting in a well-structured and highly configurable library. Customization to meet specific requirements is made easy.
 
 ## Installation
 
 ### Conda (preferred)
+To install PyCOMET using Conda, follow these steps:
 
-To install PyCOMET with Conda, first create the Conda enviroment by simply typing the following commands in your Unix shell:
-```
-$ git clone https://github.com/ivanZanardi/pycomet.git
-$ cd pycomet
-$ conda env create -f conda/env/tf_<processor>.yml
-```
-where `<processor>` is either `cpu` or `gpu`.
-You can install both enveiroment to better manage your jobs.
-Then, install the pacakge by typing
-```
-$ conda activate pycomet.<processor>
-$ python setup.py bdist_wheel
-$ pip install dist/*.whl
-```
-Whenever you want to use PyCOMET, activate first the Conda environment:
-```
-$ conda activate pycomet.<processor>
-```
+1. Clone the repository:
+    ```bash
+    $ git clone https://github.com/ivanZanardi/pycomet.git
+    $ cd pycomet
+    ```
+2. Create the Conda environment (choose either `cpu` or `gpu`):
+    ```bash
+    $ conda env create -f conda/env/tf_<processor>.yml
+    ```
+3. Install the package:
+    ```bash
+    $ conda activate pycomet.<processor>
+    $ python setup.py bdist_wheel
+    $ pip install dist/*.whl
+    ```
+4. Activate the Conda environment whenever using PyCOMET:
+    ```bash
+    $ conda activate pycomet.<processor>
+    ```
 
 ### Pip
-
-To install PyCOMET with Pip simply type:
-```
+To install PyCOMET using Pip, run the following commands:
+```bash
 $ git clone https://github.com/ivanZanardi/pycomet.git
 $ cd pycomet
 $ ./allinstall -a install
