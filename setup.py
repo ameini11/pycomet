@@ -5,9 +5,13 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-# PyCOMET version
+# PyCOMET info
 file = open('pycomet/__init__.py').read()
-version = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", file, re.M).group(1)
+info = {}
+for k in ("author", "email", "url", "license", "version"):
+  info[k] = re.search(
+    r"^__{0}__ = ['\"]([^'\"]*)['\"]".format(k), file, re.M
+  ).group(1)
 
 # Description
 description = "Physics-informed machine learning for scientific " \
@@ -56,14 +60,14 @@ keywords = [
 
 setup(
   name="pycomet",
-  version=version,
+  version=info["version"],
   description=description,
   long_description=long_description,
   long_description_content_type="text/markdown",
-  author="Ivan Zanardi",
-  author_email="zanardi3@illinois.edu",
-  url="https://github.com/ivanZanardi/pycomet",
-  license="Apache-2.0",
+  author=info["author"],
+  author_email=info["email"],
+  url=info["url"],
+  license=info["license"],
   install_requires=install_requires,
   entry_points ={'console_scripts': console_scripts},
   classifiers=classifiers,

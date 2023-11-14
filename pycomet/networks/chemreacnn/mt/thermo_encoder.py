@@ -22,11 +22,11 @@ class ThermoEncoderMT(tf_layers.Layer):
     self,
     process=[],
     specie_thermo={},
-    inp_tensor=None,
+    inp_to_encode=None,
     inp_indices=None,
-    reordering={"mass": False, "temp": False},
-    order=None,
-    out_indices=None,
+    inp_indices_ordered={"mass": None, "temp": None},
+    inp_indices_to_model=None,
+    out_qoi_ordered=None,
     **kwargs
   ):
     super(ThermoEncoderMT, self).__init__(**kwargs)
@@ -46,94 +46,109 @@ class ThermoEncoderMT(tf_layers.Layer):
     # Mixture
     self.mix = mix_mod.MultiComponent(self.sp_th)
     # Number of variables
+    # >> Species
     self.nb_comp = self.mix.n_comp
-    self.nb_temp = 2  # Force 2T model
+    # >> Temperatures: force 2T model
+    self.nb_temp = 2
     if (self.nb_temp > 2):
       utils.raise_err(
         NotImplementedError,
         f"The current version of '{self.name}' " \
         "layer only supports Park's 2T model."
       )
-    # QoIs indices to keep
-    self.keep_indices = {
-      "mass": np.arange(self.nb_comp-1).tolist(),
-      "temp": np.arange(self.nb_temp-1).tolist(),
-    }
     # Encoding parameters
     # -----------------------
     # Inputs encoding
-    self.inp_tensor = inp_tensor
+    self.inp_to_encode = inp_to_encode
+    if (self.inp_to_encode is None):
+      self.inp_to_encode = 0
     self.inp_indices = inp_indices
+    if (self.inp_indices is None):
+      self.inp_indices = {
+        "mass": np.arange(self.nb_comp).tolist(),
+        "temp": (self.nb_comp + np.arange(self.nb_temp)).tolist()
+      }
     if (not self._is_inp_dict_correct(self.inp_indices)):
       utils.raise_err(
         ValueError,
-        "Input 'inp_indices' must be a dictionary with " \
-        "keys ('mass', 'temp') and values as lists of " \
-        "integers indicating the indices of the tensor " \
-        "to extract the corresponding physical quantities from."
+        "The 'inp_indices' input should be a dictionary comprising " \
+        "keys ('mass', 'temp') and values as lists of integers, " \
+        "specifying the indices for extracting the corresponding " \
+        "physical quantities, i.e., partial densities and temperatures."
       )
-    self.inp_indices = {
-      k: tf.nest.flatten(v) for (k, v) in self.inp_indices.items()
-    }
-    # Reordering quantities
-    self.reordering = reordering
-    if (not self._is_inp_dict_correct(self.reordering)):
+    # Reordering input quantities
+    self.inp_indices_ordered = inp_indices_ordered
+    if (not self._is_inp_dict_correct(self.inp_indices_ordered)):
       utils.raise_err(
         ValueError,
-        "Input 'reordering' must be a dictionary with keys " \
-        "('mass', 'temp') and values as boolean indicating " \
-        "whether the physical quantities must be reordered or not."
+        "The 'inp_indices_ordered' input should be a dictionary " \
+        "containing keys ('mass', 'temp') and values represented " \
+        "as lists of integers, indicating the accurate sequence " \
+        "of physical quantities (Y_i and T_i) to input to the model."
       )
-    self.order = order
-    # Inputs decoding
-    self.out_indices = out_indices
-    if (self.out_indices is not None):
-      self.out_index_to_key = {
-        i: k for k, i in self.out_indices.items()
+    # Extracting input quantities to feed into the model
+    self.inp_indices_to_model = inp_indices_to_model
+    if (inp_indices_to_model is None):
+      self.inp_indices_to_model = {
+        "mass": np.arange(self.nb_comp - 1).tolist(),
+        "temp": np.arange(self.nb_temp - 1).tolist()
       }
+    if (not self._is_inp_dict_correct(self.inp_indices_to_model)):
+      utils.raise_err(
+        ValueError,
+        "The 'inp_indices_to_model' input should be a dictionary " \
+        "containing keys ('mass', 'temp') with corresponding values " \
+        "as lists of integers. These lists indicate the indices of " \
+        "the inputs (Yi and Ti) that you intend to input to the model."
+      )
+    # Inputs decoding
+    self.out_qoi_ordered = out_qoi_ordered
+    if (self.out_qoi_ordered is None):
+      self.out_qoi_ordered = {"Y": 0, "rho": 1, "T": 2, "e": 3}
+    self.out_index_to_qoi = {
+      i: k for k, i in self.out_qoi_ordered.items()
+    }
 
   # Calling
   # ===================================
   def call(self, inputs):
+    # Flatten inputs
+    inputs = tf.nest.flatten(inputs)
     # Extract partial densities and temperatures
     x = {}
-    xi = inputs if (self.inp_tensor is None) else inputs[self.inp_tensor]
     for (k, indices) in self.inp_indices.items():
-      x[k] = tf.gather(xi, indices, axis=1)
+      x[k] = tf.gather(inputs[self.inp_to_encode], indices, axis=1)
     # Compute mass fractions
     rho = tf.math.reduce_sum(x["mass"], axis=1, keepdims=True)
     x["mass"] /= rho
     # Reorder mass fractions and temperatures
-    for k in x.keys():
-      if self.reordering[k]:
-        x[k] = tf.gather(x[k], self.order[k], axis=1)
+    for (k, indices) in self.inp_indices_ordered.items():
+      if (indices is not None):
+        x[k] = tf.gather(x[k], indices, axis=1)
     # Update thermodynamics
     for st in self.sp_th.values():
       st.update(x["temp"])
     self.mix.update(x["mass"], var='Y')
     # Collect encoded input tensor
     y = {
-      "Y": tf.gather(x["mass"], self.keep_indices["mass"], axis=1),
       "rho": rho,
-      "T": tf.gather(x["temp"], self.keep_indices["temp"], axis=1),
       "e": self.mix._he()
     }
+    for (k, name) in (("Y", "mass"), ("T", "temp")):
+      y[k] = tf.gather(x[name], self.inp_indices_to_model[name], axis=1)
     # Compose encoded input tensor
-    if (self.out_indices is not None):
-      outputs_i = []
-      for i in range(4):
-        outputs_i.append(y[self.out_index_to_key[i]])
-    else:
-      outputs_i = list(y.values())
+    outputs_i = []
+    for i in range(len(self.out_qoi_ordered)):
+      outputs_i.append(y[self.out_index_to_qoi[i]])
     outputs_i = tf.concat(outputs_i, axis=1)
     # Replace encoded input tensor
     outputs = []
     for i in range(len(inputs)):
-      if (i == self.inp_tensor):
+      if (i == self.inp_to_encode):
         outputs.append(outputs_i)
       else:
         outputs.append(inputs[i])
-    return outputs
+    return outputs if len(outputs) > 1 else outputs[-1]
 
   # Utils
   # ===================================
@@ -153,11 +168,11 @@ class ThermoEncoderMT(tf_layers.Layer):
     }
     config = {
       "specie_thermo": specie_thermo_cfg,
-      "inp_tensor": self.inp_tensor,
+      "inp_to_encode": self.inp_to_encode,
       "inp_indices": self.inp_indices,
-      "reordering": self.reordering,
-      "order": self.order,
-      "out_indices": self.out_indices
+      "inp_indices_ordered": self.inp_indices_ordered,
+      "inp_indices_to_model": self.inp_indices_to_model,
+      "out_qoi_ordered": self.out_qoi_ordered
     }
     base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
