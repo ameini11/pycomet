@@ -80,12 +80,12 @@ class ThermoDecoderMT(pcm_layers.Layer):
     self.inp_encoded_indices = inp_encoded_indices
     if (self.inp_encoded_indices is None):
       self.inp_encoded_indices = {
-        "rho": self.nb_comp,
-        "Th": self.nb_comp + 1,
-        "e": self.nb_comp + 2
+        "rho": self.nb_comp - 1,
+        "Th": self.nb_comp,
+        "e": self.nb_comp + 1
       }
       order = self.mix_model_param["order"]["mass"]
-      for (i, k) in enumerate(order.keys()):
+      for (i, k) in order.items():
         if (i != self.nb_comp-1):
           self.inp_encoded_indices[f"Y_{k}"] = i
     self.inp_encoded_indices = self._flatten_dict_values(
@@ -116,7 +116,7 @@ class ThermoDecoderMT(pcm_layers.Layer):
 
   # Calling
   # ===================================
-  def call(self, inputs):
+  def call(self, inputs, training=None):
     y = {}
     # Extract inputs/outputs quantities
     qoi = self._extract_io_qoi(inputs)
@@ -126,7 +126,7 @@ class ThermoDecoderMT(pcm_layers.Layer):
     y["temp"] = self._conserve_energy(qoi)
     # Compose outputs
     if (self.out_qoi_order_out is not None):
-      y = [y[self.out_index_to_key[i]] for i in range(2)]
+      y = [y[self.out_index_to_qoi_out[i]] for i in range(2)]
     # Return outputs
     return y
 
@@ -215,8 +215,11 @@ class ThermoDecoderMT(pcm_layers.Layer):
         y_tot = y_tot + yi
       y["O2"] = 1.0 - y_tot
       # Compose mass fractions
-      y = [y[k] for k in self.mix_model_param["order"]["mass"]]
-      y = tf.concat(y, axis=1)
+      yl = []
+      for i in range(self.nb_comp):
+        k = self.mix_model_param["order"]["mass"][i]
+        yl.append(y[k])
+      y = tf.concat(yl, axis=1)
     # Return mass fractions
     return y
 
@@ -239,8 +242,11 @@ class ThermoDecoderMT(pcm_layers.Layer):
     e_rt = tf.nn.relu(e - e_f - e_ve - e_rt_min) + e_rt_min
     # Compose temperatures
     T = {"Th": e_rt / cv_rt, "Tv": T_ve}
-    T = [T[k] for k in self.mix_model_param["order"]["temp"]]
-    T = tf.concat(T, axis=1)
+    Tl = []
+    for i in range(self.nb_temp):
+      k = self.mix_model_param["order"]["temp"][i]
+      Tl.append(T[k])
+    T = tf.concat(Tl, axis=1)
     # Return temperatures
     return T
 
@@ -291,8 +297,7 @@ class ThermoDecoderMT(pcm_layers.Layer):
       "inp_encoded": self.inp_encoded,
       "inp_encoded_indices": self.inp_encoded_indices,
       "out_qoi_order_in": self.out_qoi_order_in,
-      "out_qoi_order_out": self.out_qoi_order_out,
-      "T_min": self.T_min
+      "out_qoi_order_out": self.out_qoi_order_out
     }
     base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))

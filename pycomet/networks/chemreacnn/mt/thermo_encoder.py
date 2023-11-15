@@ -24,7 +24,7 @@ class ThermoEncoderMT(pcm_layers.Layer):
     specie_thermo={},
     inp_to_encode=0,
     inp_indices=None,
-    inp_indices_ordered={"mass": None, "temp": None},
+    inp_indices_ordered=None,
     inp_indices_to_model=None,
     out_qoi_order={"Y": 0, "rho": 1, "T": 2, "e": 3},
     **kwargs
@@ -76,14 +76,14 @@ class ThermoEncoderMT(pcm_layers.Layer):
       )
     # Reordering input quantities
     self.inp_indices_ordered = inp_indices_ordered
-    if (not self._is_inp_dict_correct(self.inp_indices_ordered)):
-      utils.raise_err(
-        ValueError,
-        "The 'inp_indices_ordered' input should be a dictionary " \
-        "containing keys ('mass', 'temp') and values represented " \
-        "as lists of integers, indicating the accurate sequence " \
-        "of physical quantities (Y_i and T_i) to input to the model."
-      )
+    if (self.inp_indices_ordered is not None):
+      if (not self._is_inp_dict_correct(self.inp_indices_ordered)):
+        utils.raise_value_err(
+          "The 'inp_indices_ordered' input should be a dictionary " \
+          "containing keys ('mass', 'temp') and values represented " \
+          "as lists of integers, indicating the accurate sequence " \
+          "of physical quantities (Y_i and T_i) to input to the model."
+        )
     # Extracting input quantities to feed into the model
     self.inp_indices_to_model = inp_indices_to_model
     if (inp_indices_to_model is None):
@@ -106,8 +106,9 @@ class ThermoEncoderMT(pcm_layers.Layer):
       "inp_indices_to_model"
     ):
       d = getattr(self, k)
-      d = self._flatten_dict_values(d)
-      setattr(self, k, d)
+      if (d is not None):
+        d = self._flatten_dict_values(d)
+        setattr(self, k, d)
     # Inputs decoding
     self.out_qoi_order = out_qoi_order
     self.out_index_to_qoi = {
@@ -116,7 +117,7 @@ class ThermoEncoderMT(pcm_layers.Layer):
 
   # Calling
   # ===================================
-  def call(self, inputs):
+  def call(self, inputs, training=None):
     # Flatten inputs
     inputs = tf.nest.flatten(inputs)
     # Extract partial densities and temperatures
@@ -127,8 +128,8 @@ class ThermoEncoderMT(pcm_layers.Layer):
     rho = tf.math.reduce_sum(x["mass"], axis=1, keepdims=True)
     x["mass"] /= rho
     # Reorder mass fractions and temperatures
-    for (k, indices) in self.inp_indices_ordered.items():
-      if (indices is not None):
+    if (self.inp_indices_ordered is not None):
+      for (k, indices) in self.inp_indices_ordered.items():
         x[k] = tf.gather(x[k], indices, axis=1)
     # Update thermodynamics
     for st in self.sp_th.values():
