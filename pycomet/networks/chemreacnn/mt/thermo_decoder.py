@@ -16,6 +16,7 @@ class ThermoDecoderMT(ThermoLayerMT):
     process=[],
     specie_thermo={},
     apply_cons=True,
+    apply_mass_limiter=True,
     mix_model="air5",
     mix_model_param=None,
     Tv_lim=(200.0, 15000.0),
@@ -31,6 +32,7 @@ class ThermoDecoderMT(ThermoLayerMT):
       **kwargs
     )
     self.apply_cons = apply_cons
+    self.apply_mass_limiter = apply_mass_limiter
     # Mixture model parameters
     # -----------------------
     self.mix_model = mix_model.lower()
@@ -43,7 +45,7 @@ class ThermoDecoderMT(ThermoLayerMT):
     # Outputs decoding
     # >> From model inference
     self.out_qoi_order_in = out_qoi_order_in
-    # >> To external codes (i.e., CFD)
+    # >> To external codes (e.g., CFD)
     self.out_qoi_order_out = out_qoi_order_out
     self.out_index_to_qoi_out = {
       i: k for k, i in self.out_qoi_order_out.items()
@@ -225,20 +227,21 @@ class ThermoDecoderMT(ThermoLayerMT):
       # Extract predicted species
       y = tf.split(y, num_or_size_splits=3, axis=1)
       y = {k: y[i] for (i, k) in enumerate(pred_sp)}
-      # Enforce conservation of nitrogen
-      y = self._apply_mass_limit(
-        y,
-        species=("N2", "NO"),
-        weigths=(1.0, mn),
-        limit=yn_tot
-      )
-      # Enforce conservation of oxygen
-      y = self._apply_mass_limit(
-        y,
-        species=("O2", "NO"),
-        weigths=(1.0, 1.0-mn),
-        limit=yo_tot
-      )
+      if self.apply_mass_limiter:
+        # Enforce conservation of nitrogen
+        y = self._limit_mass(
+          y,
+          species=("N2", "NO"),
+          weigths=(1.0, mn),
+          limit=yn_tot
+        )
+        # Enforce conservation of oxygen
+        y = self._limit_mass(
+          y,
+          species=("O2", "NO"),
+          weigths=(1.0, 1.0-mn),
+          limit=yo_tot
+        )
       # Retrieve the remaining species
       y["N"] = yn_tot - y["N2"] - mn * y["NO"]
       y["O"] = yo_tot - y["O2"] - (1-mn) * y["NO"]
@@ -251,7 +254,7 @@ class ThermoDecoderMT(ThermoLayerMT):
     # Return mass fractions
     return y
   
-  def _apply_mass_limit(self, y, species, weigths, limit):
+  def _limit_mass(self, y, species, weigths, limit):
     # Sum species masses
     s = 0.0
     for (i, k) in enumerate(species):
