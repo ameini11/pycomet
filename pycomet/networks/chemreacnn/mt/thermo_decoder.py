@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
@@ -68,6 +69,9 @@ class ThermoDecoderMT(ThermoLayerMT):
         m = {k: self.sp_th[k].specie.M for k in ("N", "O")}
         mn = float(m["N"] / (m["O"] + m["N"]))
         mix_model_param["no_ratio"] = mn
+        # Weights for computing input total mass fraction of nitrogen
+        wn = np.array([1,0,1,mn]).reshape(1,-1)
+        mix_model_param["weigths_n"] = tf.constant(wn)
         # Predicted species
         mix_model_param["pred_species"] = ("N2", "NO", "O2")
       elif (self.mix_model == "oxygen"):
@@ -100,10 +104,12 @@ class ThermoDecoderMT(ThermoLayerMT):
         "Th": self.nb_comp,
         "e": self.nb_comp + 1
       }
+      inp_encoded_indices["Y"] = []
       order = self.mix_model_param["order"]["mass"]
       for (i, k) in order.items():
         if (i != self.nb_comp-1):
           inp_encoded_indices[f"Y_{k}"] = i
+          inp_encoded_indices["Y"].append(i)
     inp_encoded_indices = self._flatten_dict_values(inp_encoded_indices)
     # Set 'inp_encoded_indices'
     self.inp_encoded_indices = inp_encoded_indices
@@ -168,18 +174,16 @@ class ThermoDecoderMT(ThermoLayerMT):
     )
     # >> Total masses of chemical elements
     if (self.mix_model == "air5"):
-      # Total nitrogen mass
-      yn_tot = 0.0
-      for k in ("N", "N2", "NO"):
-        yi = tf.gather(
-          inputs[self.inp_encoded],
-          self.inp_encoded_indices[f"Y_{k}"],
-          axis=1
-        )
-        if (k == "NO"):
-          yi *= self.mix_model_param["no_ratio"]
-        yn_tot = yn_tot + yi
-      qoi["yn_tot"] = yn_tot
+      # Get input mass fractions
+      y = tf.gather(
+        inputs[self.inp_encoded],
+        self.inp_encoded_indices["Y"],
+        axis=1
+      )
+      # Get weights for computing total nitrogen mass
+      w = self.mix_model_param["weigths_n"]
+      # Compute total nitrogen mass
+      qoi["yn_tot"] = tf.math.reduce_sum(y*w, axis=1, keepdims=True)
     return qoi
 
   def _extract_out_qoi(self, outputs):
@@ -199,7 +203,7 @@ class ThermoDecoderMT(ThermoLayerMT):
   def _get_temp(self, qoi):
     # Get useful parameters
     Tv_lim = self.mix_model_param["Tv_lim"]
-    # Enforce temperature to be positive
+    # Enforce temperature to be positive and limited
     Tv = tf.math.sigmoid(qoi["out"]["temp"])
     Tv = Tv * (Tv_lim[1] - Tv_lim[0]) + Tv_lim[0]
     return Tv
@@ -220,26 +224,26 @@ class ThermoDecoderMT(ThermoLayerMT):
     if (self.mix_model == "air5"):
       # Get useful parameters
       mn = self.mix_model_param["no_ratio"]
-      pred_sp = self.mix_model_param["pred_species"]
+      sp = self.mix_model_param["pred_species"]
       # Conserved masses
       yn_tot = qoi["inp"]["yn_tot"]
       yo_tot = 1.0 - yn_tot
       # Extract predicted species
       y = tf.split(y, num_or_size_splits=3, axis=1)
-      y = {k: y[i] for (i, k) in enumerate(pred_sp)}
+      y = {k: y[i] for (i, k) in enumerate(sp)}
       if self.apply_mass_limiter:
         # Enforce conservation of nitrogen
         y = self._limit_mass(
           y,
           species=("N2", "NO"),
-          weigths=(1.0, mn),
+          weights=(1.0, mn),
           limit=yn_tot
         )
         # Enforce conservation of oxygen
         y = self._limit_mass(
           y,
           species=("O2", "NO"),
-          weigths=(1.0, 1.0-mn),
+          weights=(1.0, 1.0-mn),
           limit=yo_tot
         )
       # Retrieve the remaining species
@@ -254,11 +258,11 @@ class ThermoDecoderMT(ThermoLayerMT):
     # Return mass fractions
     return y
   
-  def _limit_mass(self, y, species, weigths, limit):
+  def _limit_mass(self, y, species, weights, limit):
     # Sum species masses
     s = 0.0
     for (i, k) in enumerate(species):
-      s = s + weigths[i] * y[k]
+      s = s + weights[i] * y[k]
     # Apply limit to sum
     f = (limit - tf.nn.relu(limit - s)) / s
     # Refactorization
@@ -318,6 +322,7 @@ class ThermoDecoderMT(ThermoLayerMT):
   def get_config(self):
     config = {
       "apply_cons": self.apply_cons,
+      "apply_mass_limiter": self.apply_mass_limiter,
       "mix_model": self.mix_model,
       "mix_model_param": self.mix_model_param,
       "inp_encoded": self.inp_encoded,
