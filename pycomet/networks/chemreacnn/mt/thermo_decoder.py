@@ -71,7 +71,7 @@ class ThermoDecoderMT(ThermoLayerMT):
         mix_model_param["mn_in_no"] = mn
         # Weights for computing input total mass fraction of nitrogen
         wn = np.array([1,0,1,mn]).reshape(1,-1)
-        mix_model_param["weigths_n"] = tf.constant(wn)
+        mix_model_param["weigths_n"] = wn
         # Predicted species
         mix_model_param["pred_species"] = ("N2", "NO", "O2")
       elif (self.mix_model == "oxygen"):
