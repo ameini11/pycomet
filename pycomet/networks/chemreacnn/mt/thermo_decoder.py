@@ -215,7 +215,7 @@ class ThermoDecoderMT(ThermoLayerMT):
   def _conserve_mass(self, y, qoi):
     if (self.nb_comp > 2):
       y = self._conserve_mass_multi_comp(y, qoi)
-    else:
+    elif (self.nb_comp == 2):
       y = tf.concat([1.0 - y, y], 1)
     # Update mixture
     self.mix.update(y, var='Y')
@@ -247,17 +247,13 @@ class ThermoDecoderMT(ThermoLayerMT):
         y["N2"] *= dyn
       y["N"] = dyn - y["N2"]
       # Enforce conservation of oxygen
-      dyo = yo_tot - (1-mn) * y["NO"]
+      dyo = yo_tot - (1 - mn) * y["NO"]
       # >> Limit O2
       if self.apply_mass_limiter:
         y["O2"] *= dyo
       y["O"] = dyo - y["O2"]
       # Compose mass fractions
-      yl = []
-      for i in range(self.nb_comp):
-        k = self.mix_model_param["order"]["mass"][i]
-        yl.append(y[k])
-      y = tf.nn.relu(tf.concat(yl, axis=1))
+      y = self._compose_outputs(y, self.nb_comp, "mass")
     # Return mass fractions
     return y
 
@@ -278,11 +274,7 @@ class ThermoDecoderMT(ThermoLayerMT):
     e_rt = tf.nn.relu(e - e_f - e_ve - e_rt_min) + e_rt_min
     # Compose temperatures
     T = {"Th": e_rt / cv_rt, "Tv": Tv}
-    Tl = []
-    for i in range(self.nb_temp):
-      k = self.mix_model_param["order"]["temp"][i]
-      Tl.append(T[k])
-    T = tf.concat(Tl, axis=1)
+    T = self._compose_outputs(T, self.nb_temp, "temp")
     # Return temperatures
     return T
 
@@ -307,6 +299,15 @@ class ThermoDecoderMT(ThermoLayerMT):
           # Rotational energy
           cv_rt = cv_rt + st.thermo.th_int.rr._cv() * st.specie.Y
     return cv_rt
+
+  # Utils
+  # ===================================
+  def _compose_outputs(self, y, dim, identifier="mass"):
+    yl = []
+    for i in range(dim):
+      k = self.mix_model_param["order"][identifier][i]
+      yl.append(y[k])
+    return tf.concat(yl, axis=1)
 
   # Configuration
   # ===================================
