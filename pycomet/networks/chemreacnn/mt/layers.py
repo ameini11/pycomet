@@ -1,11 +1,11 @@
 import tensorflow as tf
 
-from tensorflow.python.training.tracking.data_structures import NoDependency
-from tensorflow.keras import backend
-from keras import layers as tf_layers
-from pycomet import operations as ops
-from pycomet import config as cfg
 from pycomet import utils
+from pycomet import config as cfg
+from pycomet import operations as ops
+from pycomet.networks.elements import layers as pcm_layers
+from tensorflow.keras import backend
+from tensorflow.python.training.tracking.data_structures import NoDependency
 
 # Hypernet (Version v.22.12)
 from hypernet.src.general import utils as hyp_utils
@@ -15,7 +15,7 @@ sp_th_mod = thermophysics.specie_thermo.specie_thermo
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class TwoTempThermoLay(tf_layers.Layer):
+class TwoTempThermoLay(pcm_layers.Layer):
 
     # Initialization
     ###########################################################################

@@ -3,7 +3,7 @@ import tensorflow as tf
 
 from pycomet import utils
 from pycomet import config as cfg
-from keras import layers as tf_layers
+from pycomet.networks.elements import layers as pcm_layers
 from tensorflow.python.training.tracking.data_structures import NoDependency
 
 # Hypernet (Version v.22.12)
@@ -14,7 +14,7 @@ sp_th_mod = thermophysics.specie_thermo.specie_thermo
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class ThermoEncoderMT(tf_layers.Layer):
+class ThermoEncoderMT(pcm_layers.Layer):
 
   # Initialization
   # ===================================
@@ -22,11 +22,11 @@ class ThermoEncoderMT(tf_layers.Layer):
     self,
     process=[],
     specie_thermo={},
-    inp_to_encode=None,
+    inp_to_encode=0,
     inp_indices=None,
     inp_indices_ordered={"mass": None, "temp": None},
     inp_indices_to_model=None,
-    out_qoi_ordered=None,
+    out_qoi_order={"Y": 0, "rho": 1, "T": 2, "e": 3},
     **kwargs
   ):
     super(ThermoEncoderMT, self).__init__(**kwargs)
@@ -59,9 +59,7 @@ class ThermoEncoderMT(tf_layers.Layer):
     # Encoding parameters
     # -----------------------
     # Inputs encoding
-    self.inp_to_encode = inp_to_encode
-    if (self.inp_to_encode is None):
-      self.inp_to_encode = 0
+    self.inp_to_encode = int(inp_to_encode)
     self.inp_indices = inp_indices
     if (self.inp_indices is None):
       self.inp_indices = {
@@ -101,12 +99,19 @@ class ThermoEncoderMT(tf_layers.Layer):
         "as lists of integers. These lists indicate the indices of " \
         "the inputs (Yi and Ti) that you intend to input to the model."
       )
+    # Flattening
+    for k in (
+      "inp_indices",
+      "inp_indices_ordered",
+      "inp_indices_to_model"
+    ):
+      d = getattr(self, k)
+      d = self._flatten_dict_values(d)
+      setattr(self, k, d)
     # Inputs decoding
-    self.out_qoi_ordered = out_qoi_ordered
-    if (self.out_qoi_ordered is None):
-      self.out_qoi_ordered = {"Y": 0, "rho": 1, "T": 2, "e": 3}
+    self.out_qoi_order = out_qoi_order
     self.out_index_to_qoi = {
-      i: k for k, i in self.out_qoi_ordered.items()
+      i: k for k, i in self.out_qoi_order.items()
     }
 
   # Calling
@@ -138,7 +143,7 @@ class ThermoEncoderMT(tf_layers.Layer):
       y[k] = tf.gather(x[name], self.inp_indices_to_model[name], axis=1)
     # Compose encoded input tensor
     outputs_i = []
-    for i in range(len(self.out_qoi_ordered)):
+    for i in range(len(self.out_qoi_order)):
       outputs_i.append(y[self.out_index_to_qoi[i]])
     outputs_i = tf.concat(outputs_i, axis=1)
     # Replace encoded input tensor
@@ -159,6 +164,9 @@ class ThermoEncoderMT(tf_layers.Layer):
       c2 = all([(k in idict) for k in ("mass", "temp")])
     return (c1 and c2)
 
+  def _flatten_dict_values(self, idict):
+    return {k: tf.nest.flatten(v) for (k, v) in idict.items()}
+
   # Configuration
   # ===================================
   def get_config(self):
@@ -172,7 +180,7 @@ class ThermoEncoderMT(tf_layers.Layer):
       "inp_indices": self.inp_indices,
       "inp_indices_ordered": self.inp_indices_ordered,
       "inp_indices_to_model": self.inp_indices_to_model,
-      "out_qoi_ordered": self.out_qoi_ordered
+      "out_qoi_order": self.out_qoi_order
     }
     base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
