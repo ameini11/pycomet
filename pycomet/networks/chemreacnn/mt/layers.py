@@ -155,8 +155,8 @@ class TwoTempThermoLay(pcm_layers.Layer):
         # Update mixture
         self.mix.update(y['Y'], var='Y')
         # Formation energy
-        e_f_max = e * (1. - backend.epsilon())
-        e_f = - tf.nn.relu(e_f_max - self.mix._e_f()) + e_f_max
+        e_f_max = e * (1.0 - backend.epsilon())
+        e_f = e_f_max - tf.nn.relu(e_f_max - self.mix._e_f())
         # Roto-translational & Vibrational energy
         e_rt, e_v = tf.split(y['T']*(e-e_f), 2, axis=1)
         e_v = e_v/self.sp_th[self.molecule].specie.Y

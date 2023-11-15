@@ -3,18 +3,11 @@ import tensorflow as tf
 
 from pycomet import utils
 from pycomet import config as cfg
-from pycomet.networks.elements import layers as pcm_layers
-from tensorflow.python.training.tracking.data_structures import NoDependency
-
-# Hypernet (Version v.22.12)
-from hypernet.src.general import utils as hyp_utils
-thermophysics = hyp_utils.get_thermophysics_mod()
-mix_mod = thermophysics.reaction_thermo.mixture
-sp_th_mod = thermophysics.specie_thermo.specie_thermo
+from .thermo_layer import ThermoLayerMT
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class ThermoEncoderMT(pcm_layers.Layer):
+class ThermoEncoderMT(ThermoLayerMT):
 
   # Initialization
   # ===================================
@@ -29,33 +22,11 @@ class ThermoEncoderMT(pcm_layers.Layer):
     out_qoi_order={"Y": 0, "rho": 1, "T": 2, "e": 3},
     **kwargs
   ):
-    super(ThermoEncoderMT, self).__init__(**kwargs)
-    # Thermodynamics
-    # -----------------------
-    # Do not track 'specie_thermo' dictionary
-    self.specie_thermo = NoDependency(specie_thermo)
-    # Specie thermodynamics
-    self.sp_th = {}
-    for (index, st) in self.specie_thermo.items():
-      if ('config' in st):
-        args = st
-      else:
-        args = {**st, **dict(index=index, process=process)}
-      sp_th = sp_th_mod.SpecieThermo(**args)
-      self.sp_th[sp_th.specie.name] = sp_th
-    # Mixture
-    self.mix = mix_mod.MultiComponent(self.sp_th)
-    # Number of variables
-    # >> Species
-    self.nb_comp = self.mix.n_comp
-    # >> Temperatures: force 2T model
-    self.nb_temp = 2
-    if (self.nb_temp > 2):
-      utils.raise_err(
-        NotImplementedError,
-        f"The current version of '{self.name}' " \
-        "layer only supports Park's 2T model."
-      )
+    super(ThermoEncoderMT, self).__init__(
+      process=process,
+      specie_thermo=specie_thermo,
+      **kwargs
+    )
     # Encoding parameters
     # -----------------------
     # Inputs encoding
@@ -66,6 +37,24 @@ class ThermoEncoderMT(pcm_layers.Layer):
         "mass": np.arange(self.nb_comp).tolist(),
         "temp": (self.nb_comp + np.arange(self.nb_temp)).tolist()
       }
+    # Reordering input quantities
+    self.inp_indices_ordered = inp_indices_ordered
+    # Extracting input quantities to feed into the model
+    self.inp_indices_to_model = inp_indices_to_model
+    if (inp_indices_to_model is None):
+      self.inp_indices_to_model = {
+        "mass": np.arange(self.nb_comp - 1).tolist(),
+        "temp": np.arange(self.nb_temp - 1).tolist()
+      }
+    # Inputs decoding
+    self.out_qoi_order = out_qoi_order
+    self.out_index_to_qoi = {
+      i: k for k, i in self.out_qoi_order.items()
+    }
+    # Checking input dicts
+    self._check_inp_dicts()
+
+  def _check_inp_dicts(self):
     if (not self._is_inp_dict_correct(self.inp_indices)):
       utils.raise_err(
         ValueError,
@@ -74,23 +63,15 @@ class ThermoEncoderMT(pcm_layers.Layer):
         "specifying the indices for extracting the corresponding " \
         "physical quantities, i.e., partial densities and temperatures."
       )
-    # Reordering input quantities
-    self.inp_indices_ordered = inp_indices_ordered
     if (self.inp_indices_ordered is not None):
       if (not self._is_inp_dict_correct(self.inp_indices_ordered)):
-        utils.raise_value_err(
+        utils.raise_err(
+          ValueError,
           "The 'inp_indices_ordered' input should be a dictionary " \
           "containing keys ('mass', 'temp') and values represented " \
           "as lists of integers, indicating the accurate sequence " \
           "of physical quantities (Y_i and T_i) to input to the model."
         )
-    # Extracting input quantities to feed into the model
-    self.inp_indices_to_model = inp_indices_to_model
-    if (inp_indices_to_model is None):
-      self.inp_indices_to_model = {
-        "mass": np.arange(self.nb_comp - 1).tolist(),
-        "temp": np.arange(self.nb_temp - 1).tolist()
-      }
     if (not self._is_inp_dict_correct(self.inp_indices_to_model)):
       utils.raise_err(
         ValueError,
@@ -109,11 +90,6 @@ class ThermoEncoderMT(pcm_layers.Layer):
       if (d is not None):
         d = self._flatten_dict_values(d)
         setattr(self, k, d)
-    # Inputs decoding
-    self.out_qoi_order = out_qoi_order
-    self.out_index_to_qoi = {
-      i: k for k, i in self.out_qoi_order.items()
-    }
 
   # Calling
   # ===================================
@@ -156,32 +132,15 @@ class ThermoEncoderMT(pcm_layers.Layer):
         outputs.append(inputs[i])
     return outputs if len(outputs) > 1 else outputs[-1]
 
-  # Utils
-  # ===================================
-  def _is_inp_dict_correct(self, idict):
-    c1 = isinstance(idict, dict)
-    c2 = False
-    if c1:
-      c2 = all([(k in idict) for k in ("mass", "temp")])
-    return (c1 and c2)
-
-  def _flatten_dict_values(self, idict):
-    return {k: tf.nest.flatten(v) for (k, v) in idict.items()}
-
   # Configuration
   # ===================================
   def get_config(self):
-    specie_thermo_cfg = {
-      st.specie.index: {'config': st.get_config()} \
-        for st in self.sp_th.values()
-    }
     config = {
-      "specie_thermo": specie_thermo_cfg,
       "inp_to_encode": self.inp_to_encode,
       "inp_indices": self.inp_indices,
       "inp_indices_ordered": self.inp_indices_ordered,
       "inp_indices_to_model": self.inp_indices_to_model,
       "out_qoi_order": self.out_qoi_order
     }
-    base_config = super().get_config()
+    base_config = super(ThermoEncoderMT, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

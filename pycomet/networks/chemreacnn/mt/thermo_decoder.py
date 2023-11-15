@@ -3,18 +3,11 @@ import tensorflow as tf
 from pycomet import utils
 from pycomet import config as cfg
 from pycomet import operations as ops
-from pycomet.networks.elements import layers as pcm_layers
-from tensorflow.python.training.tracking.data_structures import NoDependency
-
-# Hypernet (Version v.22.12)
-from hypernet.src.general import utils as hyp_utils
-thermophysics = hyp_utils.get_thermophysics_mod()
-mix_mod = thermophysics.reaction_thermo.mixture
-sp_th_mod = thermophysics.specie_thermo.specie_thermo
+from .thermo_layer import ThermoLayerMT
 
 
 @tf.keras.utils.register_keras_serializable(package=cfg._NAME)
-class ThermoDecoderMT(pcm_layers.Layer):
+class ThermoDecoderMT(ThermoLayerMT):
 
   # Initialization
   # ===================================
@@ -22,75 +15,31 @@ class ThermoDecoderMT(pcm_layers.Layer):
     self,
     process=[],
     specie_thermo={},
+    apply_cons=True,
+    mix_model="air5",
     mix_model_param=None,
+    Tv_lim=(200.0, 15000.0),
     inp_encoded=0,
     inp_encoded_indices=None,
     out_qoi_order_in={"mass": 0, "temp": 1},
     out_qoi_order_out={"mass": 0, "temp": 1},
     **kwargs
   ):
-    super(ThermoDecoderMT, self).__init__(**kwargs)
-    # Thermodynamics
-    # -----------------------
-    # Do not track 'specie_thermo' dictionary
-    self.specie_thermo = NoDependency(specie_thermo)
-    # Specie thermodynamics
-    self.sp_th = {}
-    for (index, st) in self.specie_thermo.items():
-      if ('config' in st):
-        args = st
-      else:
-        args = {**st, **dict(index=index, process=process)}
-      sp_th = sp_th_mod.SpecieThermo(**args)
-      self.sp_th[sp_th.specie.name] = sp_th
-    # Mixture
-    self.mix = mix_mod.MultiComponent(self.sp_th)
-    # Number of variables
-    # >> Species
-    self.nb_comp = self.mix.n_comp
-    # >> Temperatures: force 2T model
-    self.nb_temp = 2
-    if (self.nb_temp > 2):
-      utils.raise_err(
-        NotImplementedError,
-        f"The current version of '{self.name}' " \
-        "layer only supports Park's 2T model."
-      )
+    super(ThermoDecoderMT, self).__init__(
+      process=process,
+      specie_thermo=specie_thermo,
+      **kwargs
+    )
+    self.apply_cons = apply_cons
     # Mixture model parameters
     # -----------------------
-    self.mix_model_param = mix_model_param
-    if (self.mix_model_param is None):
-      # The default one is Air-5
-      mass = ("N", "O", "N2", "NO", "O2")
-      temp = ("Th", "Tv")
-      M = {k: self.sp_th[k].specie.M for k in ("N", "O")}
-      self.mix_model_param = {
-        "name": "air5",
-        "order": {
-          "mass": {i: k for (i, k) in enumerate(mass)},
-          "temp": {i: k for (i, k) in enumerate(temp)}
-        },
-        "temp_lim": (200.0, 30000.0),
-        "no_ratio": float(M["N"] / (M["O"] + M["N"]))
-      }
+    self.mix_model = mix_model.lower()
+    self._set_mix_model_param(mix_model_param, Tv_lim)
     # Decoding parameters
     # -----------------------
     # Encoded inputs
     self.inp_encoded = int(inp_encoded)
-    self.inp_encoded_indices = inp_encoded_indices
-    if (self.inp_encoded_indices is None):
-      self.inp_encoded_indices = {
-        "rho": self.nb_comp - 1,
-        "Th": self.nb_comp,
-        "e": self.nb_comp + 1
-      }
-      order = self.mix_model_param["order"]["mass"]
-      for (i, k) in order.items():
-        if (i != self.nb_comp-1):
-          self.inp_encoded_indices[f"Y_{k}"] = i
-    self.inp_encoded_indices = self._flatten_dict_values(
-      self.inp_encoded_indices
-    )
+    self._set_inp_encoded_indices(inp_encoded_indices)
     # Outputs decoding
     # >> From model inference
     self.out_qoi_order_in = out_qoi_order_in
@@ -99,6 +48,65 @@ class ThermoDecoderMT(pcm_layers.Layer):
     self.out_index_to_qoi_out = {
       i: k for k, i in self.out_qoi_order_out.items()
     }
+    self._check_inp_dicts()
+
+  def _set_mix_model_param(
+    self,
+    mix_model_param=None,
+    Tv_lim=(200.0, 15000.0)
+  ):
+    if (mix_model_param is None):
+      mix_model_param = {}
+      # Temperatures list
+      temp = ("Th", "Tv")
+      if (self.mix_model == "air5"):
+        # Species list
+        mass = ("N", "O", "N2", "NO", "O2")
+        # Mass fraction of nitrogen in NO
+        m = {k: self.sp_th[k].specie.M for k in ("N", "O")}
+        mn = float(m["N"] / (m["O"] + m["N"]))
+        mix_model_param["no_ratio"] = mn
+        # Predicted species
+        mix_model_param["pred_species"] = ("N2", "NO", "O2")
+      elif (self.mix_model == "oxygen"):
+        # Species list
+        mass = ("O", "O2")
+        # Predicted species
+        mix_model_param["pred_species"] = ("O2",)
+      else:
+        utils.raise_err(
+          ValueError,
+          f"The specified mixture model '{self.mix_model}' is " \
+          "unrecognized. The available options are: ['air5', 'oxygen']."
+        )
+      # Shared parameters
+      mix_model_param["order"] = {
+        "mass": {i: k for (i, k) in enumerate(mass)},
+        "temp": {i: k for (i, k) in enumerate(temp)}
+      }
+      mix_model_param["Tv_lim"] = Tv_lim
+    # Set 'mix_model_param'
+    self.mix_model_param = mix_model_param
+
+  def _set_inp_encoded_indices(
+    self,
+    inp_encoded_indices=None
+  ):
+    if (inp_encoded_indices is None):
+      inp_encoded_indices = {
+        "rho": self.nb_comp - 1,
+        "Th": self.nb_comp,
+        "e": self.nb_comp + 1
+      }
+      order = self.mix_model_param["order"]["mass"]
+      for (i, k) in order.items():
+        if (i != self.nb_comp-1):
+          inp_encoded_indices[f"Y_{k}"] = i
+    inp_encoded_indices = self._flatten_dict_values(inp_encoded_indices)
+    # Set 'inp_encoded_indices'
+    self.inp_encoded_indices = inp_encoded_indices
+
+  def _check_inp_dicts(self):
     if (not self._is_inp_dict_correct(self.out_qoi_order_in)):
       utils.raise_err(
         ValueError,
@@ -120,10 +128,14 @@ class ThermoDecoderMT(pcm_layers.Layer):
     y = {}
     # Extract inputs/outputs quantities
     qoi = self._extract_io_qoi(inputs)
-    # Enforce conservation of mass
-    y["mass"] = self._conserve_mass(qoi)
-    # Enforce conservation of energy
-    y["temp"] = self._conserve_energy(qoi)
+    # Get predicted variables
+    y["mass"] = self._get_mass(qoi)
+    y["temp"] = self._get_temp(qoi)
+    if self.apply_cons:
+      # Enforce conservation of mass
+      y["mass"] = self._conserve_mass(y["mass"], qoi)
+      # Enforce conservation of energy
+      y["temp"] = self._conserve_energy(y["temp"], qoi)
     # Compose outputs
     if (self.out_qoi_order_out is not None):
       y = [y[self.out_index_to_qoi_out[i]] for i in range(2)]
@@ -137,7 +149,8 @@ class ThermoDecoderMT(pcm_layers.Layer):
     # Separate model inputs/outputs
     x, y = ops.unpack_list(inputs, n_elem=2)
     # Extract model inputs QoIs
-    qoi["inp"] = self._extract_inp_qoi(x)
+    if self.apply_cons:
+      qoi["inp"] = self._extract_inp_qoi(x)
     # Extract model outputs QoIs
     qoi["out"] = self._extract_out_qoi(y)
     return qoi
@@ -152,7 +165,7 @@ class ThermoDecoderMT(pcm_layers.Layer):
       axis=1
     )
     # >> Total masses of chemical elements
-    if (self.mix_model_param["name"].lower() == "air5"):
+    if (self.mix_model == "air5"):
       # Total nitrogen mass
       yn_tot = 0.0
       for k in ("N", "N2", "NO"):
@@ -175,13 +188,23 @@ class ThermoDecoderMT(pcm_layers.Layer):
       qoi[k] = outputs[self.out_qoi_order_in[k]]
     return qoi
 
+  # Predicted variables
+  # -----------------------------------
+  def _get_mass(self, qoi):
+    # Enforce mass fractions to be between 0 and 1
+    return tf.math.sigmoid(qoi["out"]["mass"])
+
+  def _get_temp(self, qoi):
+    # Get useful parameters
+    Tv_lim = self.mix_model_param["Tv_lim"]
+    # Enforce temperature to be positive
+    Tv = tf.math.sigmoid(qoi["out"]["temp"])
+    Tv = Tv * (Tv_lim[1] - Tv_lim[0]) + Tv_lim[0]
+    return Tv
+
   # Mass conservation
   # -----------------------------------
-  def _conserve_mass(self, qoi):
-    # Enforce mass fractions to be between 0 and 1
-    y = qoi["out"]["mass"]
-    y = tf.math.sigmoid(y)
-    # Enforce conservation of mass
+  def _conserve_mass(self, y, qoi):
     if (self.nb_comp > 2):
       y = self._conserve_mass_multi_comp(y, qoi)
     else:
@@ -192,28 +215,33 @@ class ThermoDecoderMT(pcm_layers.Layer):
     return y
 
   def _conserve_mass_multi_comp(self, y, qoi):
-    if (self.mix_model_param["name"].lower() == "air5"):
-      # Total nitrogen mass
+    if (self.mix_model == "air5"):
+      # Get useful parameters
+      mn = self.mix_model_param["no_ratio"]
+      pred_sp = self.mix_model_param["pred_species"]
+      # Conserved masses
       yn_tot = qoi["inp"]["yn_tot"]
+      yo_tot = 1.0 - yn_tot
       # Extract predicted species
       y = tf.split(y, num_or_size_splits=3, axis=1)
-      y = {k: y[i] for (i, k) in enumerate(("N", "N2", "O"))}
-      # Enforce conservation of oxygen
-      y["O"] *= (1.0 - yn_tot)
+      y = {k: y[i] for (i, k) in enumerate(pred_sp)}
       # Enforce conservation of nitrogen
-      yn = y["N"] + y["N2"]
-      yn = (yn_tot - tf.nn.relu(yn_tot - yn)) / yn
-      for k in ("N", "N2"):
-        y[k] *= yn
-      # Compute the remaining species
-      # >> NO
-      y["NO"] = yn_tot - y["N"] - y["N2"]
-      y["NO"] *= (1 / self.mix_model_param["no_ratio"])
-      # >> O2
-      y_tot = 0.0
-      for yi in y.values():
-        y_tot = y_tot + yi
-      y["O2"] = 1.0 - y_tot
+      y = self._apply_mass_limit(
+        y,
+        species=("N2", "NO"),
+        weigths=(1.0, mn),
+        limit=yn_tot
+      )
+      # Enforce conservation of oxygen
+      y = self._apply_mass_limit(
+        y,
+        species=("O2", "NO"),
+        weigths=(1.0, 1.0-mn),
+        limit=yo_tot
+      )
+      # Retrieve the remaining species
+      y["N"] = yn_tot - y["N2"] - mn * y["NO"]
+      y["O"] = yo_tot - y["O2"] - (1-mn) * y["NO"]
       # Compose mass fractions
       yl = []
       for i in range(self.nb_comp):
@@ -222,26 +250,36 @@ class ThermoDecoderMT(pcm_layers.Layer):
       y = tf.concat(yl, axis=1)
     # Return mass fractions
     return y
+  
+  def _apply_mass_limit(self, y, species, weigths, limit):
+    # Sum species masses
+    s = 0.0
+    for (i, k) in enumerate(species):
+      s = s + weigths[i] * y[k]
+    # Apply limit to sum
+    f = (limit - tf.nn.relu(limit - s)) / s
+    # Refactorization
+    for (i, k) in enumerate(species):
+      y[k] = y[k] * f
+    return y
 
   # Energy conservation
   # -----------------------------------
-  def _conserve_energy(self, qoi):
+  def _conserve_energy(self, Tv, qoi):
     # Get useful parameters
+    Tv_lim = self.mix_model_param["Tv_lim"]
+    # Conserved total energy
     e = qoi["inp"]["e"]
-    T_lim = self.mix_model_param["temp_lim"]
-    # Enforce temperature to be positive
-    T_ve = qoi["out"]["temp"]
-    T_ve = tf.math.sigmoid(T_ve) * (T_lim[1] - T_lim[0]) + T_lim[0]
     # Formation energy
     e_f = self.mix._e_f()
     # Vibro-electronic energy mode
-    e_ve = self._e_ve(T_ve)
+    e_ve = self._e_ve(Tv)
     # Roto-translational energy mode
     cv_rt = self._cv_rt()
-    e_rt_min = cv_rt * T_lim[0]
+    e_rt_min = cv_rt * Tv_lim[0]
     e_rt = tf.nn.relu(e - e_f - e_ve - e_rt_min) + e_rt_min
     # Compose temperatures
-    T = {"Th": e_rt / cv_rt, "Tv": T_ve}
+    T = {"Th": e_rt / cv_rt, "Tv": Tv}
     Tl = []
     for i in range(self.nb_temp):
       k = self.mix_model_param["order"]["temp"][i]
@@ -272,32 +310,17 @@ class ThermoDecoderMT(pcm_layers.Layer):
           cv_rt = cv_rt + st.thermo.th_int.rr._cv() * st.specie.Y
     return cv_rt
 
-  # Utils
-  # ===================================
-  def _is_inp_dict_correct(self, idict):
-    c1 = isinstance(idict, dict)
-    c2 = False
-    if c1:
-      c2 = all([(k in idict) for k in ("mass", "temp")])
-    return (c1 and c2)
-
-  def _flatten_dict_values(self, idict):
-    return {k: tf.nest.flatten(v) for (k, v) in idict.items()}
-
   # Configuration
   # ===================================
   def get_config(self):
-    specie_thermo_cfg = {
-      st.specie.index: {'config': st.get_config()} \
-        for st in self.sp_th.values()
-    }
     config = {
-      "specie_thermo": specie_thermo_cfg,
+      "apply_cons": self.apply_cons,
+      "mix_model": self.mix_model,
       "mix_model_param": self.mix_model_param,
       "inp_encoded": self.inp_encoded,
       "inp_encoded_indices": self.inp_encoded_indices,
       "out_qoi_order_in": self.out_qoi_order_in,
       "out_qoi_order_out": self.out_qoi_order_out
     }
-    base_config = super().get_config()
+    base_config = super(ThermoDecoderMT, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
