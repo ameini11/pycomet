@@ -3,24 +3,20 @@
 
 // External bindings
 // ====================================
-pycomet::model *pycomet::init_model(char *inpfile)
-{
+pycomet::model *pycomet::init_model(char *inpfile) {
   std::string file(inpfile);
   return new pycomet::model(file);
 }
 
-std::int32_t pycomet::get_inp_tot_dim(pycomet::model *mdl)
-{
+std::int32_t pycomet::get_inp_tot_dim(pycomet::model *mdl) {
   return mdl->inp_tot_dim;
 }
 
-std::int32_t pycomet::get_out_tot_dim(pycomet::model *mdl)
-{
+std::int32_t pycomet::get_out_tot_dim(pycomet::model *mdl) {
   return mdl->out_tot_dim;
 }
 
-void pycomet::delete_model(pycomet::model *mdl)
-{
+void pycomet::delete_model(pycomet::model *mdl) {
   mdl->~model();
 }
 
@@ -29,8 +25,7 @@ void pycomet::call_model_float(
   std::int32_t *n,
   float *inputs,
   float *outputs
-)
-{
+) {
   // Convert input and output arrays to vectors
   std::vector<float> x(inputs, inputs + mdl->inp_tot_dim * (*n));
   std::vector<float> y(outputs, outputs + mdl->out_tot_dim * (*n));
@@ -45,8 +40,7 @@ void pycomet::call_model_double(
   std::int32_t *n,
   double *inputs,
   double *outputs
-)
-{
+) {
   // Convert input and output arrays to vectors
   std::vector<double> x(inputs, inputs + mdl->inp_tot_dim * (*n));
   std::vector<double> y(outputs, outputs + mdl->out_tot_dim * (*n));

@@ -116,7 +116,8 @@ def set_gpu_memory_growth(
       pass
 
 def set_default_device(
-  device
+  device,
+  index=0
 ):
   """
   Set the default physical device for TensorFlow operations.
@@ -129,7 +130,7 @@ def set_default_device(
   devices = tf.config.list_physical_devices(device)
   devices = tf.nest.flatten(devices)
   try:
-    tf.config.set_visible_devices(devices[0], device)
+    tf.config.set_visible_devices(devices[index], device)
   except:
     pass
   # Set global variable

@@ -588,6 +588,7 @@ class StdNormalization(Layer):
         columns=None,
         header=0,
         preproc_fn=None,
+        xform=None,
         mean=None,
         variance=None,
         axis=-1,
@@ -602,6 +603,7 @@ class StdNormalization(Layer):
         self.columns = columns
         self.header = header
         self.preproc_fn = preproc_fn
+        self.xform = xform
         self.save_dir = save_dir
         # Initialize normalization layer
         self.mean = mean
@@ -629,6 +631,8 @@ class StdNormalization(Layer):
             f"Computing mean and variance of layer '{self.name}'", lev=1
         )
         data = self.read_datafile(self.data_files)
+        if self.xform is not None:
+            data = self.xform(data)
         self.mean, self.variance = tf.nn.moments(data, axes=0)
         array = np.vstack((self.mean, self.variance))
         os.makedirs(self.save_dir, exist_ok=True)
@@ -661,6 +665,8 @@ class StdNormalization(Layer):
     # Calling
     ###########################################################################
     def call(self, inputs):
+        if self.xform is not None:
+            inputs = self.xform(inputs)
         return self.norm_lay.call(inputs)
 
     # Configuration update
@@ -668,6 +674,7 @@ class StdNormalization(Layer):
     def get_config(self):
         cfg = self.norm_lay.get_config()
         cfg['name'] = self.name
+        cfg['xform'] = self.xform
         return cfg
 
 
