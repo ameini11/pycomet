@@ -6,8 +6,6 @@
 
 namespace pycomet {
 
-  // External C bindings
-  // ==================================
   #ifdef __cplusplus
   extern "C" {
   #endif // __cplusplus
@@ -44,31 +42,31 @@ namespace pycomet {
     void delete_model(pycomet::model* mdl);
 
     /**
-     * @brief Call the PyCOMET model with float inputs.
+     * @brief Call the PyCOMET model with single-precision inputs/outputs.
      *
      * @param mdl Pointer to the PyCOMET model.
-     * @param n Total number of evaluated points.
+     * @param nb_pts Total number of evaluated points.
      * @param inputs 1D array of float inputs (row-/column-major).
      * @param outputs Empty 1D array of float outputs.
      */
     void call_model_float(
       pycomet::model* mdl,
-      std::int32_t* n,
+      std::int32_t* nb_pts,
       float* inputs,
       float* outputs
     );
 
     /**
-     * @brief Call the PyCOMET model with double inputs.
+     * @brief Call the PyCOMET model with double-precision inputs/outputs.
      *
      * @param mdl Pointer to the PyCOMET model.
-     * @param n Total number of evaluated points.
+     * @param nb_pts Total number of evaluated points.
      * @param inputs 1D array of double inputs (row-/column-major).
      * @param outputs Empty 1D array of double outputs.
      */
     void call_model_double(
       pycomet::model* mdl,
-      std::int32_t* n,
+      std::int32_t* nb_pts,
       double* inputs,
       double* outputs
     );

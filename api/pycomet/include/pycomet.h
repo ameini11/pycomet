@@ -2,10 +2,10 @@
 #define pycomet_pycomet_h_
 
 // PyCOMET headers
-#include "includes.h"  // Include necessary headers for the project
-#include "utils.h"     // Utility functions
-#include "model.h"     // Machine learning model-related functionality
-#include "interface.h" // Interface-related functionality
+#include "includes.h"
+#include "utils/utils.h"
+#include "model.h"
+#include "interface.h"
 
 namespace pycomet {
 
