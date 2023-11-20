@@ -1,5 +1,5 @@
 {
-    "path_to_model": "/home/zanardi/Codes/ML/PyCOMET/pycomet/api/test/chemreac/model/SavedModel",
+    "path_to_model": "./model/SavedModel",
     "inputs_id": [
         "serving_default_input_1:0"
     ],
@@ -13,12 +13,6 @@
         "4"
     ],
     "rowmajor": false,
-    "env": {
-        "TF_CPP_MIN_LOG_LEVEL": "0",
-        "CUDA_VISIBLE_DEVICES": "0",
-        "TF_NUM_INTEROP_THREADS": "4",
-        "TF_NUM_INTRAOP_THREADS": "4"
-    },
     "config": [
         "0x10",
         "0x8",

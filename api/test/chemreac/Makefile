@@ -1,7 +1,7 @@
 FCOMP = gfortran
 FCFLAGS = -g -O3
 LDFLAGS = -I${PYCOMET_INC} -I${PYCOMET_MOD} -L${PYCOMET_LIB} -lpycomet
-PROGRAM = test
+PROGRAM = test.x
 SRCS = test.f90
 OBJECTS = $(SRCS:.f90=.o)
 

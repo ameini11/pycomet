@@ -2,6 +2,7 @@
 #define pycomet_utils_ops_h_
 
 #include "../includes.h"
+#include "data.h"
 
 namespace pycomet {
 
@@ -9,6 +10,9 @@ namespace pycomet {
    * @brief Utility functions for vector operations.
    */
   namespace ops {
+
+    // Print
+    /* ============================= */
 
     /**
      * @brief Print a 2D array.
@@ -47,70 +51,155 @@ namespace pycomet {
       }
     }
 
+    // Transpose
+    /* ============================= */
+
     /**
-     * @brief Transpose a 2D array.
+     * @brief Transpose a 3D array according to the specified order.
      *
-     * This function transposes a given 2D array.
+     * This function transposes a 3D array based on the
+     * provided order of dimensions. The resulting transposed
+     * array has the same dimensions as the original array.
      *
      * @tparam T The type of the array elements.
-     * @param array The 2D array to be transposed.
-     * @return The transposed 2D array.
+     * @param array The 3D array to be transposed.
+     * @param order The order of dimensions for transposing (default: {0, 2, 1}).
+     * @return A transposed 3D array.
+     *
+     * @note The default order {0, 2, 1} corresponds to transposing the
+     *       second and third dimensions. For example, if the input array
+     *       has dimensions (A, B, C), the resulting transposed array
+     *       will have dimensions (A, C, B).
+     *
+     * @warning If the input array is empty, a corresponding empty
+     *          array will be returned.
      */
     template <typename T>
-    std::vector<std::vector<T>> transpose(
-      const std::vector<std::vector<T>>& array
+    pycomet::data::vector_3d<T> transpose(
+      const pycomet::data::vector_3d<T>& array,
+      const pycomet::data::vector_1d<T>& order = {0,2,1}
     ) {
       // Handle empty input array
-      if (array.empty() || array[0].empty()) {
-        return std::vector<std::vector<T>>();
+      if (array.empty() || array[0].empty() || array[0][0].empty()) {
+        return pycomet::data::vector_3d<T>();
       }
       // Get dimensions
-      const size_t rows = array.size();
-      const size_t cols = array[0].size();
-      // Perform transposition
-      std::vector<std::vector<T>> transposed(cols, std::vector<T>(rows));
-      for (size_t i = 0; i < rows; i++) {
-        for (size_t j = 0; j < cols; j++) {
-          transposed[j][i] = array[i][j];
+      const size_t dim1 = array.size();
+      const size_t dim2 = array[0].size();
+      const size_t dim3 = array[0][0].size();
+      // Create a transposed array with the same dimensions
+      pycomet::data::vector_3d<T> transposed(
+        dim1, pycomet::data::vector_2d<T>(
+          dim2, pycomet::data::vector_1d<T>(
+            dim3
+          )
+        )
+      );
+      // Transpose the original array
+      for (size_t i = 0; i < dim1; ++i) {
+        for (size_t j = 0; j < dim2; ++j) {
+          for (size_t k = 0; k < dim3; ++k) {
+            auto ti = order[0] == 0 ? i : (order[0] == 1 ? j : k);
+            auto tj = order[1] == 0 ? i : (order[1] == 1 ? j : k);
+            auto tk = order[2] == 0 ? i : (order[2] == 1 ? j : k);
+            transposed[ti][tj][tk] = array[i][j][k];
+          }
         }
       }
       return transposed;
     }
 
     /**
-     * @brief Transpose a flattened 2D array.
+     * @brief Transpose a 2D array.
      *
-     * This function transposes a flattened 2D array with specified dimensions.
+     * This function transposes a 2D array by converting
+     * it to a temporary 3D array, transposing the 3D array,
+     * and then converting it back to a 2D array.
      *
      * @tparam T The type of the array elements.
-     * @param array The flattened 2D array to be transposed.
-     * @param rows The number of rows in the original 2D array.
-     * @param cols The number of columns in the original 2D array.
-     * @return The transposed flattened 2D array.
+     * @param array The 2D array to be transposed.
+     * @return A transposed 2D array.
+     *
+     * @note This function internally converts the 2D array
+     *       to a 3D array, transposes it, and then converts
+     *       it back to a 2D array. The resulting transposed
+     *       2D array has the same dimensions as the original array.
+     *
+     * @warning If the input array is empty, a corresponding empty
+     *          array will be returned.
+     */
+    template <typename T>
+    pycomet::data::vector_2d<T> transpose(
+      const pycomet::data::vector_2d<T>& array
+    ) {
+      // Handle empty input array
+      if (array.empty() || array[0].empty()) {
+        return pycomet::data::vector_2d<T>();
+      }
+      // Convert the 2D array to a 3D array
+      pycomet::data::vector_3d<T> array_3d;
+      array_3d.push_back(array);
+      // Transpose the original array
+      auto transposed_3d = transpose<T>(array_3d);
+      // Convert the 3D array to a 2D array
+      return transposed_3d[0];
+    }
+
+    /**
+     * @brief Transpose a flattened 3D array.
+     *
+     * This function transposes a 3D array represented by a 1D 
+     * vector, where the array has dimensions dim1 x dim2 x dim3.
+     * The transposed array is returned as a 1D vector.
+     *
+     * @tparam T The type of elements in the array.
+     * @param array The input 1D vector representing the 3D array.
+     * @param dim1 The size of the first dimension.
+     * @param dim2 The size of the second dimension.
+     * @param dim3 The size of the third dimension (default is 1).
+     * @return A 1D vector representing the transposed array.
+     * @thdim1 std::invalid_argument If the dimensions are invalid or the
+     *         input array size doesn't match the specified dimensions.
      */
     template <typename T>
     std::vector<T> transpose(
       const std::vector<T>& array,
-      const std::int32_t rows,
-      const std::int32_t cols
+      const std::int32_t dim1,
+      const std::int32_t dim2,
+      const std::int32_t dim3 = 1
     ) {
-      // Ensure the size of the input array
-      // matches the size defined by 'rows' and 'cols'
-      if (array.size() != rows * cols) {
+      // Check if the dimensions are valid
+      if (dim1 <= 0 || dim2 <= 0 || dim3 <= 0) {
+        std::ostringstream message;
+        message << "\nFrom pycomet::ops::transpose():"
+                << "\n> Invalid dimensions.";
+        throw std::invalid_argument(message.str());
+      }
+      // Ensure the size of the input array matches 
+      // the size defined by the dimensions
+      auto size = dim1 * dim2 * dim3;
+      if (array.size() != size) {
         std::ostringstream message;
         message << "\nFrom pycomet::ops::transpose():"
                 << "\n> Input array size doesn't match specified dimensions.";
         throw std::invalid_argument(message.str());
       }
       // Perform transposition
-      std::vector<T> transposed(rows * cols);
-      for (std::int32_t i = 0; i < rows; i++) {
-        for (std::int32_t j = 0; j < cols; j++) {
-          transposed[j * rows + i] = array[i * cols + j];
+      std::vector<T> transposed(size);
+      for (std::int32_t i = 0; i < dim1; ++i) {
+        for (std::int32_t j = 0; j < dim2; ++j) {
+          for (std::int32_t k = 0; k < dim3; ++k) {
+            auto ijk = i * dim2 * dim3 + j * dim3 + k;
+            auto kji = k * dim1 * dim2 + j * dim1 + i;
+            transposed[kji] = array[ijk];
+          }
         }
       }
       return transposed;
     }
+
+    // Flatten
+    /* ============================= */
 
     /**
      * @brief Flatten a 2D array.
@@ -134,21 +223,24 @@ namespace pycomet {
         return std::vector<T>();
       }
       // Get dimensions
-      const size_t rows = array.size();
-      const size_t cols = array[0].size();
+      const size_t dim1 = array.size();
+      const size_t dim2 = array[0].size();
       // Perform flattening
-      std::vector<T> flattened(rows * cols);
-      for (size_t i = 0; i < rows; ++i) {
-        for (size_t j = 0; j < cols; ++j) {
+      std::vector<T> flattened(dim1 * dim2);
+      for (size_t i = 0; i < dim1; ++i) {
+        for (size_t j = 0; j < dim2; ++j) {
           if (transpose_in) {
-            flattened[j * rows + i] = array[i][j];
+            flattened[j * dim1 + i] = array[i][j];
           } else {
-            flattened[i * cols + j] = array[i][j];
+            flattened[i * dim2 + j] = array[i][j];
           }
         }
       }
       return flattened;
     }
+
+    // Reshape
+    /* ============================= */
 
     /**
      * @brief Reshape a 1D array into a 2D array.
@@ -168,8 +260,7 @@ namespace pycomet {
       const std::vector<T>& vector,
       const std::vector<std::int32_t> shape,
       const bool transpose_out = false
-    )
-    {
+    ) {
       // Error message
       std::ostringstream message;
       message << "From pycomet::ops::reshape(): ";
@@ -179,27 +270,30 @@ namespace pycomet {
         throw std::invalid_argument(message.str());
       }
       // Get dimensions
-      const std::int32_t rows = shape[0];
-      const std::int32_t cols = shape[1];
+      const std::int32_t dim1 = shape[0];
+      const std::int32_t dim2 = shape[1];
       // Ensure the size of the input vector
       // matches the size defined by the shape
-      if (rows * cols != vector.size()) {
+      if (dim1 * dim2 != vector.size()) {
         message << "\n> Input array size doesn't match specified dimensions.";
         throw std::invalid_argument(message.str());
       }
       // Perform reshaping
-      std::vector<std::vector<T>> array(rows, std::vector<T>(cols));
-      for (std::int32_t i = 0; i < rows; ++i) {
-        for (std::int32_t j = 0; j < cols; ++j) {
+      std::vector<std::vector<T>> array(dim1, std::vector<T>(dim2));
+      for (std::int32_t i = 0; i < dim1; ++i) {
+        for (std::int32_t j = 0; j < dim2; ++j) {
           if (transpose_out) {
-            array[i][j] = vector[j * rows + i];
+            array[i][j] = vector[j * dim1 + i];
           } else {
-            array[i][j] = vector[i * cols + j];
+            array[i][j] = vector[i * dim2 + j];
           }
         }
       }
       return array;
     }
+
+    // Major ordering
+    /* ============================= */
 
     /**
      * @brief Invert the major order of a flattened 2D array.
@@ -210,22 +304,22 @@ namespace pycomet {
      *
      * @tparam T The type of the array elements.
      * @param x The flattened 2D array to be inverted.
-     * @param rows The number of rows in the original 2D array.
-     * @param cols The number of columns in the original 2D array.
+     * @param dim1 The size of the first dimension.
+     * @param dim2 The size of the second dimension.
      * @param col2row Flag indicating the order preference
      *                (true for column-major to row-major).
      */
     template <typename T>
     void invert_major(
       std::vector<T>& x,
-      const std::int32_t rows,
-      const std::int32_t cols,
+      const std::int32_t dim1,
+      const std::int32_t dim2,
       const bool col2row
     ) {
-      if ((cols > 1 && col2row) || (rows > 1 && !col2row)) {
+      if ((dim2 > 1 && col2row) || (dim1 > 1 && !col2row)) {
         // Transpose the matrix to convert
         // between row-major and column-major
-        x = std::move(transpose<T>(x, rows, cols));
+        x = std::move(transpose<T>(x, dim1, dim2));
       }
     }
 

@@ -18,9 +18,9 @@ make
 
 text="> Running ..."
 print_text "\${text}" "="
-./test
+./test.x
 
-# text="> Cleaning ..."
-# print_text "\${text}" "="
-# make clean
-# rm -rf model
+text="> Cleaning ..."
+print_text "\${text}" "="
+make clean
+rm -rf model

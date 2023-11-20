@@ -13,6 +13,8 @@ if [ ! -d "${model_path}" ]; then
   unzip ${model_path}.zip
   cd ${cwd}
 fi
+rm -rf output
+mkdir output
 
 text="> Compiling ..."
 print_text "\${text}" "="
@@ -22,7 +24,13 @@ make
 
 text="> Running ..."
 print_text "\${text}" "="
-./test
+./test.x
+
+text="> Postprocessing ..."
+print_text "\${text}" "="
+cd data
+python postproc.py
+cd ../
 
 text="> Cleaning ..."
 print_text "\${text}" "="

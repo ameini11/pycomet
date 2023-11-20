@@ -9,7 +9,7 @@ program test
   character(64) :: cwd
   character(32) :: inpfile = "/model/inpfile.json"
   character(16) :: datafile = "/data/true.csv"
-  character(16) :: predfile = "/data/pred.csv"
+  character(16) :: predfile = "/output/pred.csv"
   real(8), allocatable, dimension(:,:) :: data
   real(8), allocatable, dimension(:) :: inputs, outputs
   integer, dimension(2) :: row_lim = (/2,2318/)

@@ -3,7 +3,7 @@
 
 // PyCOMET headers
 #include "includes.h"
-#include "utils/utils.h"
+#include "utils.h"
 #include "model.h"
 #include "interface.h"
 

@@ -41,6 +41,39 @@ namespace pycomet {
     template <typename T>
     using list_tuple_vector = std::vector<std::tuple<std::string, std::vector<T>>>;
 
+    /**
+     * @brief Alias for a 1D vector of type T.
+     *
+     * The vector_3d is used to represent a 3D vector
+     * containing elements of type T.
+     *
+     * @tparam T The type of elements in the vector.
+     */
+    template <typename T>
+    using vector_1d = std::vector<T>;
+
+    /**
+     * @brief Alias for a 2D vector of type T.
+     *
+     * The vector_3d is used to represent a 3D vector
+     * containing elements of type T.
+     *
+     * @tparam T The type of elements in the vector.
+     */
+    template <typename T>
+    using vector_2d = std::vector<std::vector<T>>;
+
+    /**
+     * @brief Alias for a 3D vector of type T.
+     *
+     * The vector_3d is used to represent a 3D vector
+     * containing elements of type T.
+     *
+     * @tparam T The type of elements in the vector.
+     */
+    template <typename T>
+    using vector_3d = std::vector<std::vector<std::vector<T>>>;
+
   } // namespace data
 
 } // namespace pycomet

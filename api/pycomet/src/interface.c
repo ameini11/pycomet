@@ -1,8 +1,6 @@
 #include "interface.h"
 
 
-// External bindings
-// ====================================
 pycomet::model *pycomet::init_model(char *inpfile) {
   std::string file(inpfile);
   return new pycomet::model(file);

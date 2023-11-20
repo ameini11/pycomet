@@ -2,6 +2,7 @@
 #define pycomet_model_h
 
 #include "includes.h"
+#include "utils.h"
 #include <cppflow/cppflow.h>
 
 namespace pycomet {
