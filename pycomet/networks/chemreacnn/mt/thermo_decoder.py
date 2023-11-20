@@ -73,12 +73,12 @@ class ThermoDecoderMT(ThermoLayerMT):
         wn = np.array([1,0,1,mn]).reshape(1,-1)
         mix_model_param["weigths_n"] = wn
         # Predicted species
-        mix_model_param["pred_species"] = ("N", "O", "NO")
+        mix_model_param["pred_species"] = ("N2", "NO", "O2")
       elif (self.mix_model == "oxygen"):
         # Species list
         mass = ("O", "O2")
         # Predicted species
-        mix_model_param["pred_species"] = ("O",)
+        mix_model_param["pred_species"] = ("O2",)
       else:
         utils.raise_err(
           ValueError,
@@ -103,17 +103,13 @@ class ThermoDecoderMT(ThermoLayerMT):
         "rho": self.nb_comp - 1,
         "Tv": self.nb_comp,
         "e": self.nb_comp + 1,
-        "Y": [],
-        "Y_pred": []
+        "Y": []
       }
       order = self.mix_model_param["order"]["mass"]
       for (i, k) in order.items():
         if (i != self.nb_comp-1):
           inp_encoded_indices[f"Y_{k}"] = i
           inp_encoded_indices["Y"].append(i)
-      for k in self.mix_model_param["pred_species"]:
-        i = inp_encoded_indices[f"Y_{k}"]
-        inp_encoded_indices["Y_pred"].append(i)
     inp_encoded_indices = self._flatten_dict_values(inp_encoded_indices)
     # Set 'inp_encoded_indices'
     self.inp_encoded_indices = inp_encoded_indices
@@ -171,11 +167,6 @@ class ThermoDecoderMT(ThermoLayerMT):
     qoi = {}
     inputs = tf.nest.flatten(inputs)
     # >> Total energy of the mixture
-    qoi["Tv"] = tf.gather(
-      inputs[self.inp_encoded],
-      self.inp_encoded_indices["Tv"],
-      axis=1
-    )
     if self.apply_cons["temp"]:
       qoi["e"] = tf.gather(
         inputs[self.inp_encoded],
@@ -183,12 +174,6 @@ class ThermoDecoderMT(ThermoLayerMT):
         axis=1
       )
     # >> Total masses of chemical elements
-    # Get initial mass fractions of predicted species
-    qoi["y_pred"] = tf.gather(
-      inputs[self.inp_encoded],
-      self.inp_encoded_indices["Y_pred"],
-      axis=1
-    )
     if self.apply_cons["mass"]:
       if (self.mix_model == "air5"):
         # Get input mass fractions
@@ -197,10 +182,12 @@ class ThermoDecoderMT(ThermoLayerMT):
           self.inp_encoded_indices["Y"],
           axis=1
         )
-        # Get weights for computing total nitrogen mass
-        w = self.mix_model_param["weigths_n"]
         # Compute total nitrogen mass
-        qoi["yn_tot"] = tf.math.reduce_sum(y*w, axis=1, keepdims=True)
+        qoi["yn_tot"] = tf.math.reduce_sum(
+          y * self.mix_model_param["weigths_n"],
+          axis=1,
+          keepdims=True
+        )
     return qoi
 
   def _extract_out_qoi(self, outputs):
@@ -215,32 +202,15 @@ class ThermoDecoderMT(ThermoLayerMT):
   # -----------------------------------
   def _get_mass(self, qoi):
     # Enforce mass fractions to be between 0 and 1
-    dy = tf.math.tanh(qoi["out"]["mass"])
-    y = qoi["inp"]["y_pred"] + dy
-    return tf.clip_by_value(y, 0, 1)
+    return tf.math.sigmoid(qoi["out"]["mass"])
 
   def _get_temp(self, qoi):
     # Get useful parameters
     Tv_lim = self.mix_model_param["Tv_lim"]
-    dTv_lim = Tv_lim[1] - Tv_lim[0]
     # Enforce temperature to be positive and limited
-    dTv = tf.math.tanh(qoi["out"]["temp"]) * dTv_lim
-    Tv = qoi["inp"]["Tv"] + dTv
-    return tf.clip_by_value(Tv, *Tv_lim)
-
-  # # Predicted variables
-  # # -----------------------------------
-  # def _get_mass(self, qoi):
-  #   # Enforce mass fractions to be between 0 and 1
-  #   return tf.math.sigmoid(qoi["out"]["mass"])
-
-  # def _get_temp(self, qoi):
-  #   # Get useful parameters
-  #   Tv_lim = self.mix_model_param["Tv_lim"]
-  #   # Enforce temperature to be positive and limited
-  #   Tv = tf.math.sigmoid(qoi["out"]["temp"])
-  #   Tv = Tv * (Tv_lim[1] - Tv_lim[0]) + Tv_lim[0]
-  #   return Tv
+    Tv = tf.math.sigmoid(qoi["out"]["temp"])
+    Tv = Tv * (Tv_lim[1] - Tv_lim[0]) + Tv_lim[0]
+    return Tv
 
   # Mass conservation
   # -----------------------------------
@@ -274,18 +244,18 @@ class ThermoDecoderMT(ThermoLayerMT):
         y["NO"] = yo_tot_no - tf.nn.relu(yo_tot_no - y["NO"])
       # Enforce conservation of nitrogen
       dyn = yn_tot - mn * y["NO"]
-      # >> Limit N
+      # >> Limit N2
       if self.apply_mass_limiter:
-        y["N"] *= dyn
-      # >> Compute N2
-      y["N2"] = dyn - y["N"]
+        y["N2"] *= dyn
+      # >> Compute N
+      y["N"] = dyn - y["N2"]
       # Enforce conservation of oxygen
       dyo = yo_tot - (1 - mn) * y["NO"]
-      # >> Limit O
+      # >> Limit O2
       if self.apply_mass_limiter:
-        y["O"] *= dyo
-      # >> Compute O2
-      y["O2"] = dyo - y["O"]
+        y["O2"] *= dyo
+      # >> Compute O
+      y["O"] = dyo - y["O2"]
       # Compose mass fractions
       y = self._compose_outputs(y, self.nb_comp, "mass")
     # Return mass fractions
