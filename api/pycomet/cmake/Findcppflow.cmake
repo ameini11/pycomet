@@ -41,16 +41,19 @@ set(cppflow_SOURCE_DIR ${CMAKE_SOURCE_DIR}/third-party/cppflow)
 # Add the cppflow project using ExternalProject_Add
 ExternalProject_Add(cppflow
   SOURCE_DIR ${cppflow_SOURCE_DIR}
-  PREFIX "${CMAKE_CURRENT_BINARY_DIR}/cppflow"
-  INSTALL_COMMAND ""  # Disable install step, as this is a header-only library
-  BUILD_COMMAND ""    # Disable build step, as this is a header-only library
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/third-party/cppflow
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+    -DBUILD_EXAMPLES=OFF
+    -Dtensorflow_INCLUDE_DIRS=${tensorflow_INCLUDE_DIR}
+    -Dtensorflow_LIBRARIES=${tensorflow_LIBRARY}
 )
 
 # Set cppflow_INCLUDE_DIR based on the source directory
-set(cppflow_INCLUDE_DIR "${cppflow_SOURCE_DIR}/include")
+set(cppflow_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include)
 
 # Set cppflow_FOUND based on the existence of the include directory
-if(EXISTS "${cppflow_INCLUDE_DIR}")
+if(EXISTS ${cppflow_INCLUDE_DIR})
   set(cppflow_FOUND 1)
 else()
   set(cppflow_FOUND 0)
