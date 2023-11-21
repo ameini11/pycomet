@@ -46,23 +46,19 @@
 
 namespace cppflow {
 
-/**
- * Version of TensorFlow and CppFlow
- * @return A string containing the version of TensorFow and CppFlow
- */
-std::string version();
+  /**
+   * Version of TensorFlow and CppFlow
+   * @return A string containing the version of TensorFow and CppFlow
+   */
+  std::string version();
 
 }  // namespace cppflow
 
-/******************************
- *   IMPLEMENTATION DETAILS   *
- ******************************/
-
 namespace cppflow {
 
-inline std::string version() {
-  return "TensorFlow: " + std::string(TF_Version()) + " CppFlow: 2.0.0";
-}
+  inline std::string version() {
+    return "TensorFlow: " + std::string(TF_Version()) + " CppFlow: 2.0.0";
+  }
 
 }  // namespace cppflow
 

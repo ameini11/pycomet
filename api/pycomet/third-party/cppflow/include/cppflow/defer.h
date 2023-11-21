@@ -34,23 +34,26 @@
 
 namespace cppflow {
 
-class defer {
- public:
-  typedef std::function<void ()> Func;
+  class defer {
 
-  explicit defer(const Func& func) : _func(func) {}
-  ~defer() {
-    _func();
-  }
+  public:
 
-  defer(const defer&) = delete;
-  defer(defer&&) = delete;
-  defer& operator=(const defer&) = delete;
-  void* operator new (size_t) = delete;
-  void operator delete (void*) = delete;
+    typedef std::function<void ()> Func;
 
- private:
+    explicit defer(const Func& func) : _func(func) {}
+    ~defer() {
+      _func();
+    }
+
+    defer(const defer&) = delete;
+    defer(defer&&) = delete;
+    defer& operator=(const defer&) = delete;
+    void* operator new (size_t) = delete;
+    void operator delete (void*) = delete;
+
+  private:
+
     Func _func;
-};  // Class defer
+  };  // Class defer
 
 }  // namespace cppflow

@@ -381,5 +381,5 @@ for op_name in sorted(dir(tf.raw_ops)):
             print('    ', err)
 
 
-with open('../raw_ops.h', 'w') as f:
+with open('./../../include/cppflow/raw_ops.h', 'w') as f:
     f.write(ops_file.format(ops_code))
