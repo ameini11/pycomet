@@ -1,6 +1,6 @@
 find_package(PkgConfig)
 
-# Allow the user can specify the include directory manually
+# The user can specify the include directory manually
 if(NOT EXISTS "${json_INCLUDE_DIR}")
   find_path(json_INCLUDE_DIR
     NAMES nlohmann/json.hpp
