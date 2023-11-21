@@ -104,8 +104,8 @@ namespace pycomet {
       const int precision = 6
     ) {
       std::ofstream file(filename);
-      for (int i = 0; i < vec.size(); i++) {
-        for (int j = 0; j < vec[i].size(); j++) {
+      for (auto i = 0; i < vec.size(); i++) {
+        for (auto j = 0; j < vec[i].size(); j++) {
           file << std::setprecision(precision) << vec[i][j];
           if (j != vec[i].size()-1) {
             file << ",";

@@ -2,7 +2,6 @@
 #include <numeric>
 #include <nlohmann/json.hpp>
 #include <tensorflow/c/c_api.h>
-#include "utils.h"
 #include "model.h"
 
 using json = nlohmann::json;
@@ -162,6 +161,11 @@ pycomet::data::list_tuple_tensor pycomet::model::compose_inputs(
     }
     // Convert std::vector to cppflow::tensor with the proper shape
     cppflow::tensor tf_xi(xi, {nb_pts, this->inputs_dim[i]});
+    // Move to GPU if CUDA available
+    int on_gpu = tf_xi.device(true).find("GPU");
+    if ((this->tfmodel->is_cuda_available) && (on_gpu == -1)) {
+      tf_xi = cppflow::bitcast(tf_xi, tf_xi.dtype());
+    }
     // Make and append the tuple for i-th input
     x.emplace_back(this->inputs_id[i], std::move(tf_xi));
     // > Update the counter

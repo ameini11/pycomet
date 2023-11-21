@@ -84,9 +84,9 @@ namespace pycomet {
         return pycomet::data::vector_3d<T>();
       }
       // Get dimensions
-      const size_t dim1 = array.size();
-      const size_t dim2 = array[0].size();
-      const size_t dim3 = array[0][0].size();
+      const std::size_t dim1 = array.size();
+      const std::size_t dim2 = array[0].size();
+      const std::size_t dim3 = array[0][0].size();
       // Create a transposed array with the same dimensions
       pycomet::data::vector_3d<T> transposed(
         dim1, pycomet::data::vector_2d<T>(
@@ -96,9 +96,9 @@ namespace pycomet {
         )
       );
       // Transpose the original array
-      for (size_t i = 0; i < dim1; ++i) {
-        for (size_t j = 0; j < dim2; ++j) {
-          for (size_t k = 0; k < dim3; ++k) {
+      for (std::size_t i = 0; i < dim1; ++i) {
+        for (std::size_t j = 0; j < dim2; ++j) {
+          for (std::size_t k = 0; k < dim3; ++k) {
             auto ti = order[0] == 0 ? i : (order[0] == 1 ? j : k);
             auto tj = order[1] == 0 ? i : (order[1] == 1 ? j : k);
             auto tk = order[2] == 0 ? i : (order[2] == 1 ? j : k);
@@ -223,12 +223,12 @@ namespace pycomet {
         return std::vector<T>();
       }
       // Get dimensions
-      const size_t dim1 = array.size();
-      const size_t dim2 = array[0].size();
+      const std::size_t dim1 = array.size();
+      const std::size_t dim2 = array[0].size();
       // Perform flattening
       std::vector<T> flattened(dim1 * dim2);
-      for (size_t i = 0; i < dim1; ++i) {
-        for (size_t j = 0; j < dim2; ++j) {
+      for (std::size_t i = 0; i < dim1; ++i) {
+        for (std::size_t j = 0; j < dim2; ++j) {
           if (transpose_in) {
             flattened[j * dim1 + i] = array[i][j];
           } else {

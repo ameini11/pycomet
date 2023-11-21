@@ -318,10 +318,11 @@ namespace cppflow {
       );
       out_ops[i].index = op_idx;
 
-      if (!out_ops[i].oper)
+      if (!out_ops[i].oper) {
         throw std::runtime_error(
           "No operation named \"" + op_name + "\" exists"
         );
+      }
     }
 
     TF_SessionRun(
