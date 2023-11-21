@@ -15,17 +15,17 @@ else()
   ExternalProject_Add(json
     GIT_REPOSITORY https://github.com/nlohmann/json
     TIMEOUT 5
-    CMAKE_ARGS -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
-    PREFIX "${CMAKE_CURRENT_BINARY_DIR}"
-    INSTALL_COMMAND "" # Disable install step, this is a header-only library
-    BUILD_COMMAND "" # Disable build step, this is a header-only library
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/third-party/json
+    CMAKE_ARGS
+      -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+      -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+      -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
   )
   # Specify include directory
-  ExternalProject_Get_Property(json source_dir)
-  set(json_INCLUDE_DIRS ${source_dir}/include)
+  set(json_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include)
 endif()
 
-if(EXISTS "${json_INCLUDE_DIR}")
+if(EXISTS ${json_INCLUDE_DIR})
   set(json_FOUND 1)
 else()
   set(json_FOUND 0)

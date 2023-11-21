@@ -29,6 +29,7 @@ print_text "\${text}" "="
 text="> Postprocessing ..."
 print_text "\${text}" "="
 cd data
+load_python
 python postproc.py
 cd ../
 

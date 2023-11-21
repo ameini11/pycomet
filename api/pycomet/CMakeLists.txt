@@ -66,9 +66,9 @@ target_sources(${PROJECT_NAME}
     ${SOURCE_FILES_F}
 )
 set_source_files_properties(${SOURCE_FILES_C} PROPERTIES LANGUAGE CXX)
-# Make the library depend on cppflow
+# Make the library depends on external libraries
 add_dependencies(${PROJECT_NAME} cppflow)
-
+add_dependencies(${PROJECT_NAME} json)
 
 # Include directories
 # =====================================

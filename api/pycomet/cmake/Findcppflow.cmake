@@ -43,13 +43,15 @@ ExternalProject_Add(cppflow
   SOURCE_DIR ${cppflow_SOURCE_DIR}
   PREFIX ${CMAKE_CURRENT_BINARY_DIR}/third-party/cppflow
   CMAKE_ARGS
+    -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+    -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
     -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
     -DBUILD_EXAMPLES=OFF
     -Dtensorflow_INCLUDE_DIRS=${tensorflow_INCLUDE_DIR}
     -Dtensorflow_LIBRARIES=${tensorflow_LIBRARY}
 )
 
-# Set cppflow_INCLUDE_DIR based on the source directory
+# Specify include directory
 set(cppflow_INCLUDE_DIR ${CMAKE_INSTALL_PREFIX}/include)
 
 # Set cppflow_FOUND based on the existence of the include directory

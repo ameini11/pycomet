@@ -13,8 +13,6 @@ PyCOMET-API utilizes [CppFlow](https://github.com/serizba/cppflow/) and the [Ten
 ## Dependencies
 
 * [TensorFlow C API](https://www.tensorflow.org/install/lang_c/) = 2.10.0
-* [CppFlow](https://github.com/serizba/cppflow/) = 2.0.0
-* [Json](https://github.com/nlohmann/json/) = 3.11.2
 
 ### GPU support
 
@@ -40,8 +38,6 @@ To install PyCOMET-API, follow these steps after downloading the dependencies:
 
   ```bash
   export TensorFlow_DIR=<path-to-tensorflow-dir>
-  export CppFlow_DIR=<path-to-cppflow-dir>
-  export Json_DIR=<path-to-json-dir>
   ```
 
 3. Prepare installation directories
@@ -59,8 +55,6 @@ To install PyCOMET-API, follow these steps after downloading the dependencies:
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
     -DBUILD_EXAMPLES=OFF \
-    -Djson_INCLUDE_DIR=$Json_DIR/include \
-    -Dcppflow_INCLUDE_DIR=$CppFlow_DIR/include \
     -Dtensorflow_INCLUDE_DIR=$TensorFlow_DIR/include \
     -Dtensorflow_LIBRARY=$TensorFlow_DIR/lib/libtensorflow.so
   ```
