@@ -61,7 +61,6 @@ def get_class(
     text=f"Class `{name}` not found in modules: {names}."
   )
 
-
 def get_class_name(
   cls
 ):
@@ -72,7 +71,6 @@ def get_class_name(
   :type cls: class
   """
   return cls.__class__.__name__
-
 
 # Functions
 # =====================================
@@ -107,7 +105,6 @@ def get_fun_args(
       args.remove(arg)
   return args
 
-
 def get_fun_args_values(
   modules,
   args
@@ -140,7 +137,6 @@ def get_fun_args_values(
         found_args.update({arg: getattr(module, arg)})
         break
   return found_args
-
 
 # Processes
 # =====================================

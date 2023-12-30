@@ -4,14 +4,7 @@ import threadpoolctl
 
 from pycomet import apps
 from pycomet import utils
-from pycomet.config.device import set_device
-from pycomet.config.configure import read_config
-
-apps_mod = [
-  __import__(
-    f"pycomet.apps.{app}", globals(), locals(), [app], 0
-  ) for app in apps.__all__
-]
+from pycomet.config import get_config, update_config
 
 
 def main():
@@ -21,22 +14,24 @@ def main():
   cwd = os.getcwd()
 
   # Initializing argument parser
-  cfg = read_config()
+  _CFG = get_config()
   ap = argparse.ArgumentParser(
-    prog=cfg.name.lower(),
+    prog=_CFG.name.lower(),
     formatter_class=argparse.RawDescriptionHelpFormatter,
     epilog=utils.EPILOG
   )
 
   # Adding subparsers
   sp = ap.add_subparsers(dest="command")
-  subparsers = [app.get_parser(sp) for app in apps_mod]
+  subparsers = []
+  for app in apps.enabled:
+    subparsers.append(app.get_parser(sp))
 
   # Parsing args
   args = ap.parse_args()
 
-  # Setting device
-  set_device(args)
+  # Updating configuration
+  update_config(args)
 
   # Setting seed
   if hasattr(args, "seed"):
@@ -47,9 +42,10 @@ def main():
     args.dir = os.path.abspath(args.dir)
 
   # Running process
-  cfg = read_config()
+  _CFG = get_config()
   with threadpoolctl.threadpool_limits(
-    limits=cfg.cpu_threads, user_api="blas"
+    limits=getattr(_CFG, "cpu_threads", 4),
+    user_api="blas"
   ):
     args.process(name=args.command, args=args)
 

@@ -2,8 +2,8 @@ import sys
 import time
 import datetime
 
-from functools import wraps
 from pycomet import utils
+from functools import wraps
 
 
 def timing(fun):
@@ -19,7 +19,6 @@ def timing(fun):
     sys.stdout.flush()
     return result
   return wrapper
-
 
 def app_dec(name=None):
   def dec(fun):
@@ -42,16 +41,3 @@ def app_dec(name=None):
       return result
     return wrapper
   return dec
-
-
-def lambda_lay_dec(fun):
-  @wraps(fun)
-  def wrapper(inputs, **kwargs):
-    if isinstance(inputs, dict):
-      result = fun(**inputs, **kwargs)
-    elif isinstance(inputs, (list,tuple)):
-      result = fun(*inputs, **kwargs)
-    else:
-      result = fun(inputs, **kwargs)
-    return result
-  return wrapper

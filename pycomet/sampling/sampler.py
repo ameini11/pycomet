@@ -1,25 +1,28 @@
 import abc
 
+from pycomet import utils
+
 
 class Sampler(object):
 
-    # Initialization
-    ###########################################################################
-    def __init__( 
-        self,
-        name=None,
-        *args,
-        **kwargs
-    ):
-        super(Sampler, self).__init__(
-            *args,
-            **kwargs
-        )
-        self.name = self.__class__.__name__.lower()
-        if name is not None:
-            self.name = '_'.join((self.name, name))
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    name=None,
+    *args,
+    **kwargs
+  ):
+    super(Sampler, self).__init__(
+      *args,
+      **kwargs
+    )
+    self.name = utils.get_class_name(self).lower()
+    if (name is not None):
+      self.name = '_'.join((self.name, name))
 
-    # Sampling ----------------------------------------------------------------
-    @abc.abstractmethod
-    def sample(self, *args, **kwargs):
-        pass
+  # Sampling
+  # ===================================
+  @abc.abstractmethod
+  def sample(self, *args, **kwargs):
+    pass

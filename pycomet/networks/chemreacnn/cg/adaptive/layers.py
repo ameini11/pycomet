@@ -115,13 +115,13 @@ class CGEquilibrium(tf_layers.Layer):
     ###########################################################################
     def get_config(self):
         if self.use_pf_int:
-            specie_thermo_cfg = {"config": self.sp_th.get_config()}
+            specie_thermo_CFG = {"config": self.sp_th.get_config()}
         else:
-            specie_thermo_cfg = None
+            specie_thermo_CFG = None
         config = {
             "output_dim": self.output_dim,
             "use_pf_int": self.use_pf_int,
-            "specie_thermo": specie_thermo_cfg,
+            "specie_thermo": specie_thermo_CFG,
             "process": self.process
         }
         base_config = super(CGEquilibrium, self).get_config()

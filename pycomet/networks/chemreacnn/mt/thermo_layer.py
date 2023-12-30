@@ -65,12 +65,12 @@ class ThermoLayerMT(pcm_layers.Layer):
   # Configuration
   # ===================================
   def get_config(self):
-    specie_thermo_cfg = {
+    specie_thermo_CFG = {
       st.specie.index: {'config': st.get_config()} \
         for st in self.sp_th.values()
     }
     config = {
-      "specie_thermo": specie_thermo_cfg
+      "specie_thermo": specie_thermo_CFG
     }
     base_config = super(ThermoLayerMT, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

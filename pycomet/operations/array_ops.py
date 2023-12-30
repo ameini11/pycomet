@@ -195,3 +195,13 @@ def get_cardinality(
   rows) as the cardinality.
   """
   return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
+
+
+
+
+def cast(structure, bkd="tf"):
+  if (bkd == "tf"):
+    fn = lambda x: tf.cast(x, get_floatx(bkd))
+  else:
+    fn = lambda x: x.astype(get_floatx(bkd))
+  return tf.nest.map_structure(fn, structure)

@@ -195,12 +195,12 @@ class TwoTempThermoLay(pcm_layers.Layer):
     # Configuration
     ###########################################################################
     def get_config(self):
-        specie_thermo_cfg = {
+        specie_thermo_CFG = {
             sp_th.specie.index: {'config': sp_th.get_config()} \
                 for sp_th in self.sp_th.values()
         }
         config = {
-            "specie_thermo": specie_thermo_cfg,
+            "specie_thermo": specie_thermo_CFG,
             "out_indices_todecode": self.out_indices_todecode,
             "inp_indices_encoded": self.inp_indices_encoded,
             "inp_indices_toencode": self.inp_indices_toencode,

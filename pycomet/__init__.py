@@ -1,45 +1,61 @@
+# Future imports
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+# Package
+__author__ = "Ivan Zanardi"
+__email__ = "zanardi3@illinois.edu"
+__url__ = "https://github.com/ivanZanardi/pycomet"
+__license__ = "Apache-2.0"
+__version__ = "0.0.1"
 
-# Configure
-from pycomet.config import *
-create_config()
-cfg = read_config()
+__all__ = [
+  "apps",
+  "backend",
+  "config",
+  "data",
+  "device",
+  "math",
+  "model",
+  "networks",
+  "operations",
+  "optimization",
+  "physics",
+  "postproc",
+  "sampling",
+  "utils"
+]
+
+# Configuration
+from pycomet import config
+config.read_config()
+_CFG = config.get_config()
 
 # Environment
 import os
-os.environ.update(cfg.env)
+os.environ.update(_CFG.env)
+
+# Backend library
+import tensorflow as tf
 
 # Backend
 from pycomet import backend
-backend.set_floatx(cfg.floatx)
-backend.set_epsilon()
+backend.set(_CFG)
 
 # Logging
-import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 from absl import logging
-logging.set_verbosity(absl.logging.ERROR)
+logging.set_verbosity(logging.ERROR)
 
 # Custom packages
-from pycomet.utils.modules import append_mod_dir
-append_mod_dir(cfg.custom_pkg)
+from pycomet import utils
+utils.append_mod_dir(getattr(_CFG, "custom_pkg", {}))
 
-# PyCOMET
-# -------------------------------------
-__author__  = "Ivan Zanardi"
-__email__   = "zanardi3@illinois.edu"
-__url__     = "https://github.com/ivanZanardi/pycomet"
-__license__ = "Apache-2.0"
-__version__ = "0.1"
-
-# Import all modules
+# Remaining modules
 from pycomet import apps
-from pycomet import backend
-from pycomet import config
 from pycomet import data
+from pycomet import device
 from pycomet import math
 from pycomet import model
 from pycomet import networks
@@ -47,19 +63,9 @@ from pycomet import operations
 from pycomet import optimization
 from pycomet import physics
 from pycomet import postproc
-from pycomet import utils
+from pycomet import sampling
 
-__all__ = [
-    "apps",
-    "backend",
-    "config",
-    "data",
-    "math",
-    "model",
-    "networks",
-    "operations",
-    "optimization",
-    "physics",
-    "postproc",
-    "utils"
-]
+# Checking
+res = config.check_config()
+if (res is not None):
+  utils.raise_err(**res)

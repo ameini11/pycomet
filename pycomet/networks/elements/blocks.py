@@ -193,9 +193,9 @@ class FFBlock(pcm_layers.Layer):
     # Configuration update
     ###########################################################################
     def get_config(self):
-        interp_cfg = None
+        interp_CFG = None
         if self.interpolating is not None:
-            interp_cfg = self.interp_lay.get_config()
+            interp_CFG = self.interp_lay.get_config()
         config = {
             'layer_size': self.layer_size,
             'activation': self.activation,
@@ -204,7 +204,7 @@ class FFBlock(pcm_layers.Layer):
             'dropout_kwargs': self.dropout_kwargs,
             'batch_norm': self.batch_norm,
             'weight_norm': self.weight_norm,
-            'interpolating': interp_cfg
+            'interpolating': interp_CFG
         }
         base_config = super(FFBlock, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

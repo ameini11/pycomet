@@ -36,7 +36,6 @@ def stratified_sampling(
   assert np.intersect1d(x_1, x_2).size == 0
   return x_2, x_1
 
-
 def set_random_seed(seed=None):
   """
   Set random number generator seeds for reproducibility.

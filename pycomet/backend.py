@@ -1,45 +1,24 @@
 import numpy as np
 import tensorflow as tf
 
-from pycomet import utils
-from pycomet.config import device as device_mod
-from tensorflow.keras import backend as be_ke
-from tensorflow.python.keras import backend as be_py
+from tensorflow.keras import backend as bkd_ke
+from tensorflow.python.keras import backend as bkd_py
+from pycomet.config import VALID_FLOATXS, get_config
 
 
-# Device
+def set(cfg=None):
+  if (cfg is None):
+    cfg = get_config()
+  _set_floatx(getattr(cfg, "floatx", "float32"))
+  _set_epsilon()
+
+# Precision
 # -------------------------------------
-def device():
-  return device_mod.device()
+def finfo():
+  return tf.experimental.numpy.finfo(get_floatx())
 
-def set_device(parsed_args):
-  return device_mod.set_device(parsed_args)
-
-# Epsilon
-# -------------------------------------
-def machine_eps():
-  return float(np.finfo(
-    {
-      "float16": np.float16,
-      "float32": np.float32,
-      "float64": np.float64
-    }[_FLOATX]
-  ).eps)
-
-def epsilon():
-  return _EPSILON
-
-def set_epsilon():
-  global _EPSILON
-  _EPSILON = machine_eps()
-  # TensorFlow
-  for k in (be_py, be_ke):
-    k.set_epsilon(_EPSILON)
-
-# Float
-# -------------------------------------
-def floatx(fmt="tf"):
-  if fmt == "tf":
+def get_floatx(bkd="tf"):
+  if (bkd == "tf"):
     return _FLOATX
   else:
     return {
@@ -48,23 +27,24 @@ def floatx(fmt="tf"):
       "float64": np.float64
     }[_FLOATX]
 
-def set_floatx(value):
+def _set_floatx(value):
   global _FLOATX
-  accepted_dtypes = {"float16", "float32", "float64"}
-  if value not in accepted_dtypes:
-    utils.raise_err(
-      error=ValueError,
-      text=f"Unknown `floatx` value: {value}." \
-        " Expected one of {accepted_dtypes}"
-    )
-  _FLOATX = str(value)
-  # TensorFlow
-  for k in (be_py, be_ke):
-    k.set_floatx(floatx(fmt="tf"))
+  _FLOATX = str(value).lower()
+  if (_FLOATX not in VALID_FLOATXS):
+    _FLOATX = "float32"
+  for k in (bkd_py, bkd_ke):
+    k.set_floatx(_FLOATX)
 
-def recast(structure, fmt="tf"):
-  if fmt == "tf":
-    fn = lambda x: tf.cast(x, floatx(fmt))
-  else:
-    fn = lambda x: x.astype(floatx(fmt))
-  return tf.nest.map_structure(fn, structure)
+# Epsilon
+# -------------------------------------
+def get_epsilon():
+  return _EPSILON
+
+def _machine_eps():
+  return float(finfo().eps)
+
+def _set_epsilon():
+  global _EPSILON
+  _EPSILON = _machine_eps()
+  for k in (bkd_py, bkd_ke):
+    k.set_epsilon(_EPSILON)

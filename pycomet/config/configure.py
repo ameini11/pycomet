@@ -1,63 +1,54 @@
 import os
 import json
-import shutil
 import argparse
 import pycomet
 
-PATH_TO_CONFIG = os.path.dirname(pycomet.__file__) + "/config/"
 
+# Global variables
+# -------------------------------------
+VALID_FLOATXS = (
+  "float16",
+  "float32",
+  "float64"
+)
 
-def create_config():
-  """
-  Creates a temporary configuration file.
+EDITABLE_KEYS = (
+  "device",
+  "cpu_threads",
+  "gpu_memory_growth",
+  "dev_index"
+)
 
-  This function creates a temporary copy of the configuration
-  file, allowing for temporary modifications or experimentation
-  without affecting the original configuration.
-  """
-  shutil.copyfile(
-    PATH_TO_CONFIG + "/configfile.json",
-    PATH_TO_CONFIG + "/configfile_tmp.json"
-  )
+# Public functions
+# -------------------------------------
+def check_config():
+  if (_CFG.floatx not in VALID_FLOATXS):
+    return dict(
+      error=ValueError,
+      text="Unknown 'floatx' value in the configuration file: " \
+        f"'{_CFG.floatx}'. Expected one of {VALID_FLOATXS}."
+    )
 
+def get_config():
+  return _CFG
 
 def read_config():
-  """
-  Reads the configuration file and returns it as an argparse.Namespace object.
-
-  This function reads the JSON configuration file and converts its
-  contents into an argparse.Namespace object. It is designed for
-  handling configuration settings in your application.
-
-  :return: An argparse.Namespace object containing the configuration data.
-  :rtype: argparse.Namespace
-  """
-  with open(PATH_TO_CONFIG + "/configfile_tmp.json", 'r') as file:
-    cfg = argparse.Namespace(**json.load(file))
-  return cfg
-
+  global _CFG
+  # Default configuration
+  cfgfile = os.path.dirname(pycomet.__file__) + "/config/configfile.json"
+  with open(cfgfile, "r") as file:
+    cfg = json.load(file)
+  # User-defined configuration
+  for k in ("PYCOMET_CONFIGFILE", "PYCOMETCONFIGFILE"):
+    if (k in os.environ):
+      with open(os.getenv(k), "r") as file:
+        cfg.update(json.load(file))
+      break
+  _CFG = argparse.Namespace(**cfg)
 
 def update_config(
-  key,
-  value
+  args
 ):
-  """
-  Update a temporary configuration file with a new key-value pair.
-
-  :param key: The configuration key to be updated or added.
-  :type key: str
-
-  :param value: The value associated with the specified key.
-  :type value: any
-
-  This function reads an existing temporary configuration file, updates or
-  adds a new key-value pair, and saves the changes back to the same file.
-  If the specified key already exists, its value is replaced with the new
-  value. If the key is not present, a new key-value pair is added.
-  """
-  with open(PATH_TO_CONFIG + "/configfile_tmp.json", "r+") as file:
-    data = json.load(file)
-    data[key] = value
-    file.seek(0)
-    json.dump(data, file, indent=2)
-    file.truncate()
+  for k in EDITABLE_KEYS:
+    if hasattr(args, k):
+      setattr(_CFG, k, getattr(args, k))

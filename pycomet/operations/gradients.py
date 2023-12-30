@@ -79,8 +79,8 @@ class Gradients(object):
     """
     Build and store the gradient for the specified key.
 
-    For details about the input parameters,
-    see the Gradient object initialization.
+    For details about the input parameters, see the Gradient object 
+    initialization.
 
     :param key: A unique identifier for this gradient computation.
     :type key: str

@@ -1,5 +1,5 @@
-from pycomet.physics.physical_model import PhysicalModel
-
 __all__ = [
-    "PhysicalModel"
+  "PhysicalModel"
 ]
+
+from .physical_model import PhysicalModel

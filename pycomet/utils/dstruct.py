@@ -42,7 +42,6 @@ def make_dict(
     return dict(zip(keys, values))
   return {keys: values}
 
-
 def compute_dict_depth(
   dictionary
 ):
@@ -64,7 +63,6 @@ def compute_dict_depth(
       max(map(compute_dict_depth, dictionary.values())) if dictionary else 0
     )
   return 0
-
 
 def value_to_dict(
   value,
@@ -88,7 +86,6 @@ def value_to_dict(
   """
   return value if isinstance(value, dict) else {k: value for k in keys}
 
-
 def zip_dict_of_lists(
   dictionary
 ):
@@ -109,7 +106,6 @@ def zip_dict_of_lists(
   return tuple(
     dict(zip(keys, v)) for v in zip(*(dictionary[k] for k in keys))
   )
-
 
 def get_key_from_value(
   dictionary,
@@ -140,7 +136,6 @@ def get_key_from_value(
     text=f"A key for value `{value}` doesn't exist in the dictionary."
   )
 
-
 def get_keys_from_dict(
   dictionary
 ):
@@ -168,7 +163,6 @@ def get_keys_from_dict(
     else:
       result.append(key)
   return result
-
 
 def check_dicts_consistency(
   list_of_dicts=[],
@@ -206,7 +200,6 @@ def check_dicts_consistency(
               f"'{list_of_dicts[idx_ref_dict][0]}' dictionaries " \
               "has been found."
           )
-
 
 # HDF5 files
 # =====================================
@@ -256,7 +249,6 @@ class H5DataSet(object):
         name_ = name
       self.data[name_] = self.df[name][()]
 
-
 def close_all_hdf5():
   """
   Close all opened HDF5 files.
@@ -276,7 +268,6 @@ def close_all_hdf5():
         obj.close()
       except:
         pass
-
 
 # Text files
 # =====================================
@@ -326,7 +317,6 @@ def replace(
   file_old.close()
   os.rename(file+'_new', file)
 
-
 def generate_rnd_name(
   ref_name,
   rnd_num=1.e6
@@ -340,8 +330,9 @@ def generate_rnd_name(
   :param rnd_num: An upper limit for generating random numbers.
   :type rnd_num: int or float
 
-  This function generates a random name by appending an underscore and a random
-  integer, obtained by using `np.random.randint`, to the provided reference name.
+  This function generates a random name by appending an underscore 
+  and a random integer, obtained by using `np.random.randint`, 
+  to the provided reference name.
 
   The `rnd_num` parameter specifies the upper limit for generating the random
   integer, which is truncated to an integer if it's a float. The result is
@@ -378,7 +369,6 @@ def check_file_extension(
         text=f"The file '{file}' has to be a '{extension}' one."
       )
 
-
 def search_string(
   file,
   string
@@ -400,7 +390,6 @@ def search_string(
     for (i, line) in enumerate(f):
       if (string +' ' in line):
         return i, line
-
 
 # Miscellanea
 # =====================================
