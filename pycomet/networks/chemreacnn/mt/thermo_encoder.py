@@ -44,7 +44,7 @@ class ThermoEncoderMT(ThermoLayerMT):
     if (inp_indices_to_model is None):
       self.inp_indices_to_model = {
         "mass": np.arange(self.nb_comp - 1).tolist(),
-        "temp": np.arange(self.nb_temp - 1).tolist()
+        "temp": [1]
       }
     # Inputs decoding
     self.out_qoi_order = out_qoi_order
