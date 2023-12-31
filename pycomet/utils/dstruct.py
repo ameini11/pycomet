@@ -391,6 +391,43 @@ def search_string(
       if (string +' ' in line):
         return i, line
 
+# Lists
+# =====================================
+def unpack_list(data, nb_elem=3):
+  if isinstance(data, tuple):
+    data = list(data)
+  if (not isinstance(data, list)):
+    return ([data] + [None]*(nb_elem-1))
+  elif (len(data) <= nb_elem):
+    return (data + [None]*(nb_elem-len(data)))
+  else:
+    utils.raise_err(
+      ValueError,
+      "The number of elements in the container " \
+      "has to be less or equal than 'nb_elem'."
+    )
+
+def squeeze_list(iterable):
+  """
+  Squeeze a list by removing its outer list struct.
+
+  :param iterable: An iterable (e.g., list, tuple) to be squeezed.
+  :type iterable: list, tuple, or any iterable
+
+  :return: The squeezed iterable if it contains only one element;
+       otherwise, the original iterable is returned.
+  :rtype: any
+
+  This function takes an iterable and removes its outer list struct if it
+  contains only one element. If the iterable contains multiple elements or is
+  empty, it returns the original iterable.
+  """
+  iterable = list(iterable)
+  if (len(iterable) == 1):
+    return iterable[-1]
+  else:
+    return iterable
+
 # Miscellanea
 # =====================================
 def num_to_str(

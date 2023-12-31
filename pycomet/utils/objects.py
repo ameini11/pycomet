@@ -153,3 +153,9 @@ def kill_process():
   invoking it.
   """
   os.kill(os.getpid(), signal.SIGTERM)
+
+
+class DefObject(object):
+
+  def __init__(self):
+    self.__name__ = get_class_name(self)

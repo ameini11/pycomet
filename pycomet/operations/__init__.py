@@ -1,8 +1,11 @@
-from .array_ops import *
-from .gradients import Gradients
-from .welford import Welford
-
 __all__ = [
-    "Gradients",
-    "Welford"
+  "Gradients",
+  "Welford",
+  "interpolant"
 ]
+
+from .dstruct import *
+from .gradients import Gradients
+from .tensor import *
+from .welford import Welford
+from . import interpolant

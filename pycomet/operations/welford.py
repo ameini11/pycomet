@@ -1,4 +1,4 @@
-import numpy as np
+import tensorflow as tf
 
 
 class Welford(object):
@@ -13,16 +13,12 @@ class Welford(object):
   :attribute std: The current standard deviation.
   :type std: float
   """
-
   def __init__(self):
     self.count = 0
     self._mean = 0.0
     self._var = 0.0
 
-  def update(
-    self,
-    x=None
-  ):
+  def update(self, x=None):
     """
     Update the running mean and variance with a new value.
 
@@ -48,4 +44,4 @@ class Welford(object):
     """Get the running standard deviation."""
     if (self.count == 1):
       return 0.0
-    return np.sqrt(self._var / (self.count - 1))
+    return tf.sqrt(self._var / (self.count - 1))

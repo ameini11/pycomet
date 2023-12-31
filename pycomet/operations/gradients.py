@@ -26,15 +26,7 @@ class Gradients(object):
 
   # Calling
   # ===================================
-  def __call__(
-    self,
-    y,
-    x,
-    j=[],
-    i=[],
-    order=1,
-    key=None
-  ):
+  def __call__(self, y, x, j=[], i=[], order=1, key=None):
     """
     Compute and return the gradient using the specified key.
 
@@ -67,15 +59,7 @@ class Gradients(object):
       self.build(y, x, j, i, order, key)
     return self.grads[key](y, x)
 
-  def build(
-    self,
-    y,
-    x,
-    j,
-    i,
-    order,
-    key
-  ):
+  def build(self, y, x, j, i, order, key):
     """
     Build and store the gradient for the specified key.
 
@@ -119,14 +103,7 @@ class Gradient(object):
 
   # Initialization
   # ===================================
-  def __init__(
-    self,
-    y,
-    x,
-    j,
-    i,
-    order
-  ):
+  def __init__(self, y, x, j, i, order):
     # Tensor dimensions
     self.dim_y, self.dim_x = tf.nest.map_structure(
       lambda x: x.shape[1], [y, x]
@@ -136,11 +113,7 @@ class Gradient(object):
     # Gradient order
     self.order = order
 
-  def build_indices(
-    self,
-    j,
-    i
-  ):
+  def build_indices(self, j, i):
     """
     Build the indices.
 
@@ -174,11 +147,7 @@ class Gradient(object):
 
   # Calling
   # ===================================
-  def __call__(
-    self,
-    y,
-    x
-  ):
+  def __call__(self, y, x):
     """
     Compute and return the gradient.
 
@@ -211,12 +180,7 @@ class Gradient(object):
     dydx = [tf.gather(g, self.j, axis=1) for g in dydx]
     return ops.squeeze_list([dydx[k] for k in self.i])
 
-  def compute_grad(
-    self,
-    y,
-    x,
-    order
-  ):
+  def compute_grad(self, y, x,order):
     """
     Compute and return the gradient using tf.gradients.
 

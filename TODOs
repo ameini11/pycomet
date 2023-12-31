@@ -1,4 +1,2 @@
-- Implement animation
 - Fix `SoftAttentionWeightsAdapter` and `NTKWeightsAdapter`
-- Jupyter notebook for postprocessing
-- Implement on-fly sampler
+- Review optimization, networks, model, apps

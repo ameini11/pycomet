@@ -1,13 +1,13 @@
-from pycomet.data.data import Data
-from pycomet.data.datagen import *
-from pycomet.data.dataset import DataSet
-from pycomet.data.multi_obj import *
+__all__ = [
+  "BaseDataGenerator",
+  "DataSet",
+  "ODE"
+]
 
 physics_informed = [
-    "ODE"
+  "ODE"
 ]
 
-__all__ = [
-    "Data",
-    "DataSet"
-]
+from .datagen import BaseDataGenerator
+from .dataset import DataSet
+from .multi_obj import ODE
