@@ -1,11 +1,11 @@
-from pycomet.optimization import callbacks
-from pycomet.optimization import losses
-from pycomet.optimization import metrics
-from pycomet.optimization import optimizers
-
 __all__ = [
-    "callbacks",
-    "losses",
-    "metrics",
-    "optimizers"
+  "callbacks",
+  "losses",
+  "metrics",
+  "optimizers"
 ]
+
+from . import callbacks
+from . import losses
+from . import metrics
+from . import optimizers
