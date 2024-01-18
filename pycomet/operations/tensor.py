@@ -16,7 +16,10 @@ def tensor_split(tensor, indices_or_sections, axis=0):
   except TypeError:
     nsec = int(indices_or_sections)
     if (nsec <= 0):
-      utils.raise_err(ValueError, "Number of sections must be larger than 0.")
+      utils.raise_err(
+        error=ValueError,
+        text="Number of sections must be larger than 0."
+      )
     neach, extras = ntot // nsec, ntot % nsec
     section_sizes = tf.nest.flatten(
       [0] + extras * [neach+1] + (nsec-extras) * [neach]

@@ -117,29 +117,29 @@ class MultiObjSequence(keras.utils.Sequence):
           )
     self.data = ops.remove_none_from_struct(self.data)
 
-  def init_sample_weight(
-    self,
-    initializer=None,
-    trainable=False,
-    rank=2
-  ):
-    for obj in self.objectives:
-      # Get initializers
-      init_fn = initializer[obj] if initializer else tf.ones
-      # Define shape
-      if (rank == 1):
-        fun = lambda x: init_fn(shape=(x.shape[0],1), dtype=bkd.get_floatx())
-      else:
-        fun = lambda x: init_fn(shape=x.shape, dtype=bkd.get_floatx())
-      # Construct weights
-      sample_weight = tf.nest.map_structure(fun, self.data[obj][1])
-      # Make them tf.Variable if trainable
-      if trainable:
-        sample_weight =  tf.nest.map_structure(
-          lambda w: tf.Variable(w), sample_weight
-        )
-      # Add sample weights to the data set
-      self.data[obj][2] = sample_weight
+  # def init_sample_weight(
+  #   self,
+  #   initializer=None,
+  #   trainable=False,
+  #   rank=2
+  # ):
+  #   for obj in self.objectives:
+  #     # Get initializers
+  #     init_fn = initializer[obj] if initializer else tf.ones
+  #     # Define shape
+  #     if (rank == 1):
+  #       fun = lambda x: init_fn(shape=(x.shape[0],1), dtype=bkd.get_floatx())
+  #     else:
+  #       fun = lambda x: init_fn(shape=x.shape, dtype=bkd.get_floatx())
+  #     # Construct weights
+  #     sample_weight = tf.nest.map_structure(fun, self.data[obj][1])
+  #     # Make them tf.Variable if trainable
+  #     if trainable:
+  #       sample_weight =  tf.nest.map_structure(
+  #         lambda w: tf.Variable(w), sample_weight
+  #       )
+  #     # Add sample weights to the data set
+  #     self.data[obj][2] = sample_weight
 
   # Sequencing
   # ===================================

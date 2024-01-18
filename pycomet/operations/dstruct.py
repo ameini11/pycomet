@@ -69,8 +69,8 @@ def extract_data(container, indices=None, axis=1):
     if isinstance(container, (list, tuple)):
       if (not isinstance(indices, dict)):
         utils.raise_err(
-          ValueError,
-          "With container as 'list'/'tuple', the indices " \
+          error=ValueError,
+          text="With container as 'list'/'tuple', the indices " \
           "must be a 'dict' with keys-values as integers."
         )
       k = list(indices.keys())[0]
@@ -79,8 +79,8 @@ def extract_data(container, indices=None, axis=1):
       return extract_data_from_tensor(container, indices, axis)
     else:
       utils.raise_err(
-        ValueError,
-        "Container not valid. Valid options: " \
+        error=ValueError,
+        text="Container not valid. Valid options: " \
         "['np.ndarray', 'tf.Tensor'] or 'list'/'tuple' of them."
       )
   else:

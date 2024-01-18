@@ -36,7 +36,7 @@ def get_class(
   raised.
   """
   # Check class name
-  if (name is None) and (kwargs is not None):
+  if ((name is None) and (kwargs is not None)):
     if ("name" in kwargs.keys()):
       name = kwargs.pop("name")
     else:
@@ -101,7 +101,7 @@ def get_fun_args(
   else:
     args = list(dict(inspect.signature(obj).parameters).keys())
   for arg in rm_args:
-    if arg in args:
+    if (arg in args):
       args.remove(arg)
   return args
 
@@ -128,7 +128,7 @@ def get_fun_args_values(
   If an argument is not found in any of the modules, it won't be included in
   the result.
   """
-  if not isinstance(modules, list):
+  if (not isinstance(modules, list)):
     modules = [modules]
   found_args = {}
   for arg in args:

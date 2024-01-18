@@ -49,7 +49,7 @@ class Gradients(object):
         text="Set a key (one for each different gradient call) " \
           "to identify the specific gradient computation."
       )
-    if not any([isinstance(z, (tf.Tensor, np.ndarray)) for z in [y, x]]):
+    if (not any([isinstance(z, (tf.Tensor, np.ndarray)) for z in [y, x]])):
       utils.raise_err(
         error=ValueError,
         text="'y' and 'x' must be a tf.Tensor/np.ndarray " \
@@ -180,7 +180,7 @@ class Gradient(object):
     dydx = [tf.gather(g, self.j, axis=1) for g in dydx]
     return ops.squeeze_list([dydx[k] for k in self.i])
 
-  def compute_grad(self, y, x,order):
+  def compute_grad(self, y, x, order):
     """
     Compute and return the gradient using tf.gradients.
 

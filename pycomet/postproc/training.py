@@ -21,7 +21,7 @@ def plot_loss(
   fig = plt.figure()
   plt.yscale(scale)
   for (i, ivar) in enumerate(variables):
-    if ivar in history:
+    if (ivar in history):
       plt.plot(
         _moving_average(history[ivar], w=window),
         lw=1,
@@ -64,7 +64,7 @@ def plot_composite_loss(
   )
   composite_loss = {'var': [], 'label': []}
   for c in history.columns:
-    if (c.endswith('loss') and (not c.startswith('val'))):
+    if ((c.endswith('loss') and (not c.startswith('val')))):
       if (c not in ('loss', 'weighted_loss')):
         composite_loss['variables'].append(c)
         composite_loss['label'].append(identifiers[c])

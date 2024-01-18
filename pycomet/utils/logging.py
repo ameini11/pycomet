@@ -11,9 +11,9 @@ _CFG = get_config()
 EPILOG = "\n" + '='*_CFG.display_len + "\n "
 TABS = np.arange(5)*min(_CFG.tab, 2)
 HEADERS = {
-  "main":  '['+_CFG.name+"]: ",
+  "main": '['+_CFG.name+"]: ",
   "warning": '['+_CFG.name+"]:   WARNING! ",
-  "err":   "from "+_CFG.name+"\n>>> "
+  "err": "from "+_CFG.name+"\n>>> "
 }
 
 # Printing
@@ -26,7 +26,7 @@ def print_fn(
   end='\n'
 ):
   if verbose:
-    if lev > 0:
+    if (lev > 0):
       start=''
     print(start + HEADERS['main'] + ' '*TABS[lev] + text, end=end)
 

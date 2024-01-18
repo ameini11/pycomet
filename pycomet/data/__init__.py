@@ -4,7 +4,7 @@ __all__ = [
   "ODE"
 ]
 
-physics_informed = [
+__physics_informed__ = [
   "ODE"
 ]
 
