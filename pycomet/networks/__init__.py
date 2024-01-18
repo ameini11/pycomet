@@ -1,13 +1,5 @@
 # Generic models
 # =====================================
-from .augopnn import AugOpNN
-from .ffnn import FFNN
-from .flexopnn import FlexOpNN
-from .mionet import MIONet
-from .mixednet import MixedNet
-from .mmopnn import MMOpNN
-from .opnn import OpNN
-
 __all__ = [
   "AugOpNN",
   "FFNN",
@@ -17,6 +9,10 @@ __all__ = [
   "MMOpNN",
   "OpNN"
 ]
+
+from .don import *
+from .ffnn import FFNN
+from .mixednet import MixedNet
 
 # Thermochemistry-specific models
 # =====================================
