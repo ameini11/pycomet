@@ -1,74 +1,76 @@
-from pycomet.networks.basenet import BaseNet
+from .basenet import BaseNet
 
 
 class FFNN(BaseNet):
-    """Feed-Forward neural network."""
+  """Feed-Forward neural network."""
 
-    # Initialization
-    ###########################################################################
-    def __init__(
-        self,
-        dim,
-        lays_name=None,
-        lays_propty=None,
-        noisy_io=None,
-        inference=None,
-        masking=False,
-        force_siso=False,
-        *args,
-        **kwargs
-    ):
-        super(FFNN, self).__init__(
-            dim=dim,
-            lays_name=lays_name,
-            lays_propty=lays_propty,
-            noisy_io=noisy_io,
-            inference=inference,
-            masking=masking,
-            force_siso=force_siso,
-            *args,
-            **kwargs
-        )
-        # Layers names
-        if lays_name == None:
-            self.lays_name = self.lays_name + ('hidden_block',)
-        else:
-            self.lays_name = lays_name
-        # Layers properties
-        self.lays_propty = self.check_layers(
-            layers=self.lays_propty,
-            not_opt=('hidden_block',),
-            default=self.default_lays_propty
-        )
-        # Initializing layers
-        self.active_lays = self.init_layers()
-        self.init_preinput_lay()
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    dim,
+    lays_name=None,
+    lays_propty=None,
+    noisy_io=None,
+    inference=None,
+    masking=False,
+    force_siso=False,
+    *args,
+    **kwargs
+  ):
+    super(FFNN, self).__init__(
+      dim=dim,
+      lays_name=lays_name,
+      lays_propty=lays_propty,
+      noisy_io=noisy_io,
+      inference=inference,
+      masking=masking,
+      force_siso=force_siso,
+      *args,
+      **kwargs
+    )
+    # Layers names
+    if (lays_name == None):
+      self.lays_name = self.lays_name + ('hidden_block',)
+    else:
+      self.lays_name = lays_name
+    # Layers properties
+    self.lays_propty = self.check_layers(
+      layers=self.lays_propty,
+      not_opt=('hidden_block',),
+      default=self.default_lays_propty
+    )
+    # Initializing layers
+    self.active_lays = self.init_layers()
+    self.init_preinput_lay()
 
-    # Layers initialization
-    ###########################################################################
-    def init_layers(self):
-        lays = {}
-        for identifier, propty in self.lays_propty.items():
-            if identifier in ('input', 'output'):
-                lays[identifier] = self.init_inout_lay(propty)
-            elif identifier == 'hidden_block':
-                lays[identifier] = self.get_lay(
-                    propty=propty, default_lay_id='FFBlock'
-                )
-        return lays
+  # Layers initialization
+  # ===================================
+  def init_layers(self):
+    lays = {}
+    for (identifier, propty) in self.lays_propty.items():
+      if (identifier in ('input', 'output')):
+        lays[identifier] = self.init_inout_lay(propty)
+      elif (identifier == 'hidden_block'):
+        lays[identifier] = self.get_lay(
+          propty=propty, default_lay_id='FFBlock'
+        )
+    return lays
 
-    # Calling
-    ###########################################################################
-    def call_net(self, x, training=None):
-        y = x
-        # Inputs manipulation
-        y = self._manipulate_inout(
-            inputs=dict(x=x, y=y), identifier='input', training=training
-        )
-        # Kernel
-        y = self.active_lays['hidden_block'](y, training=training)
-        # Outputs manipulation
-        y = self._manipulate_inout(
-            inputs=dict(x=x, y=y), identifier='output', training=training
-        )
-        return y
+  # Calling
+  # ===================================
+  def forward(self, x, training=None, *args, **kwargs):
+    y = x
+    # Inputs manipulation
+    y = self._manipulate_inout(
+      inputs=dict(x=x, y=y), identifier='input', training=training
+    )
+    # Kernel
+    y = self.active_lays['hidden_block'](
+      y, training=training, *args, **kwargs
+    )
+    # Outputs manipulation
+    y = self._manipulate_inout(
+      inputs=dict(x=x, y=y), identifier='output', training=training
+    )
+    return y

@@ -12,7 +12,7 @@ from silx.io.dictdump import dicttoh5, h5todict
 # PyCOMET
 import pycomet as pcm
 from pycomet.sampling.differential_based import DifferentialBased
-from pycomet.networks.chemreacnn.cg.adaptive.layers import FastestToCurrentTS
+from pycomet.networks.chem.cg.adaptive.layers import FastestToCurrentTS
 from pycomet.networks.chemreacnn.cg.adaptive.groups_connect import GroupsConnect
 
 # HyperNet (v.22.12)

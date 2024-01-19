@@ -8,7 +8,7 @@ from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
 from pycomet.networks.flexopnn import _eval_prenet
 from pycomet.networks.opnn import _manipulate_input
-from pycomet.networks.chemreacnn.cg.adaptive.layers import FastestToCurrentTS
+from pycomet.networks.chem.cg.adaptive.layers import FastestToCurrentTS
 
 
 class TimeScaleOpNN(BaseNet):
@@ -39,8 +39,8 @@ class TimeScaleOpNN(BaseNet):
         # Default layers
         self.default_lays_propty.update({
             "input": {
-                "ic_split": {},
-                "ic_xform": {}
+                "split_ic": {},
+                "multilays": {}
             }
         })
         # Layers names
@@ -76,11 +76,11 @@ class TimeScaleOpNN(BaseNet):
 
     def init_input_lay(self, propty):
         lays = {}
-        for k in ("ic_split", "ic_xform"):
-            if k == "ic_xform":
+        for k in ("split_ic", "multilays"):
+            if k == "multilays":
                 if (k in propty) and (len(propty[k]) != 0):
                     lays[k] = self.get_lay(propty[k])
-            elif k == "ic_split":
+            elif k == "split_ic":
                 if (k in propty) and (len(propty[k]) != 0):
                     _propty = propty[k]
                 else:
@@ -94,7 +94,7 @@ class TimeScaleOpNN(BaseNet):
 
     # Calling
     ###########################################################################
-    def call_net(
+    def forward(
         self,
         x,
         training=None,
@@ -118,7 +118,7 @@ class TimeScaleOpNN(BaseNet):
         # Extract inputs
         ic, t, T = x
         # Extract initial physical inputs
-        rho, Y0, T0 = self.active_lays["input"]["ic_split"](ic)
+        rho, Y0, T0 = self.active_lays["input"]["split_ic"](ic)
         if T is None:
             T = T0
         # Add mass fractions: micro-bins (fastest ts) to macro-bins (current ts)
@@ -127,8 +127,8 @@ class TimeScaleOpNN(BaseNet):
         ic = tf_layers.Concatenate()([rho, Y0, T0])
         # Transform ICs
         inp_lay = self.active_lays["input"]
-        if "ic_xform" in inp_lay.keys():
-            ic = inp_lay["ic_xform"](ic, training=training)
+        if "multilays" in inp_lay.keys():
+            ic = inp_lay["multilays"](ic, training=training)
         # Recompose inputs
         return [ic, t], T
 
@@ -158,18 +158,18 @@ class TSMMOpNN(MMOpNN):
 
     # Calling
     ###########################################################################
-    def call_net(
+    def forward(
         self,
         x,
         training=None,
         mask=None
     ):
         if training or (mask is None):
-            return super(TSMMOpNN, self).call_net(x, training)
+            return super(TSMMOpNN, self).forward(x, training)
         else:
-            return self.adaptive_call_net(x, mask)
+            return self.adaptive_forward(x, mask)
 
-    def adaptive_call_net(
+    def adaptive_forward(
         self,
         x,
         mask=None
@@ -190,28 +190,26 @@ class TSMMOpNN(MMOpNN):
     def _adaptive_call(
         self,
         x,
-        ym1,
-        ratio,
-        tol
+        mask
     ):
         y = []
-        # Get split values from previous Timescale (i-1)
-        ym1 = tf.split(ym1, ym1.shape[1], axis=1)
+        # Split neq. mask columnwise and loop over each column
+        mask = nn_elem.Split(mask.shape[1], axis=1)(mask)
         # Default zeros
-        zeros = tf.zeros_like(ym1[-1], dtype=backend.floatx())
-        # Looping over each OpNN in the current Timescale
-        for i, (name, opnn) in enumerate(self.active_lays['opnns'].items()):
-            # Create a dummy `zeros` tensor with the i-th OpNN dimensions
+        zeros = tf.zeros_like(mask[-1], dtype=backend.floatx())
+        for i, opnn in enumerate(self.active_lays['opnns'].values()):
+            # Create a dummy `zeros` tensor
             y_i = tf.repeat(zeros, repeats=[opnn.output_dim[-1]], axis=1)
-            # If any values from previuos timescale is greater
-            # than the `tol`, evaluates the current timescale
-            mask = tf.squeeze(ym1[i] > tol * len(ratio[i]), axis=1)
+            # If any values of `mask_i` is `True`, evaluate the specific
+            # data points
+            mask_i = tf.squeeze(mask[i], axis=1)
+            # Extract inputs given specific indices
+            x_i = tf.nest.map_structure(
+                lambda z: tf.boolean_mask(z, mask_i, axis=0), x
+            )
             # Update the dummy `zeros` tensor with the
             # actual evaluation of the j-th OpNN
-            x_i = tf.nest.map_structure(
-                lambda z: tf.boolean_mask(z, mask, axis=0), x
-            )
-            y_i = tf.tensor_scatter_nd_update(y_i, tf.where(mask), opnn(x_i))
+            y_i = tf.tensor_scatter_nd_update(y_i, tf.where(mask_i), opnn(x_i))
             # Append outputs of the j-th OpNN for the current i-th Timescale
             y.append(y_i)
         return y

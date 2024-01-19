@@ -29,7 +29,7 @@ cgopnn = tf.keras.models.load_model(paths["cgopnn"])
 
 # Preinput layer
 sys.path.append(paths["pycomet"])
-from pycomet.networks.chemreacnn.cg.adaptive.layers import CGThermoEncoder
+from pycomet.networks.chem.cg.adaptive.layers import CGThermoEncoder
 
 # Function call
 def call(x, dim):

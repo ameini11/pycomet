@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from pycomet.networks.chemreacnn.cg.adaptive.tools.groups_connect import GroupsConnect
+from pycomet.networks.chem.cg.adaptive.tools.groups_connect import GroupsConnect
 
 # Hypernet (v.22.12)
 from hypernet.src.general import const

@@ -11,7 +11,7 @@ from silx.io.dictdump import dicttoh5, h5todict
 
 # PyCOMET
 import pycomet as pcm
-from pycomet.networks.chemreacnn.cg.adaptive.layers import FastestToCurrentTS
+from pycomet.networks.chem.cg.adaptive.layers import FastestToCurrentTS
 from pycomet.networks.chemreacnn.cg.adaptive.groups_connect import GroupsConnect
 from pycomet.networks.chemreacnn.cg.adaptive.neq_data import NeqDataGenerator
 

@@ -7,7 +7,7 @@ from pycomet.networks.mmopnn import MMOpNN
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks.flexopnn import _eval_prenet
 from pycomet.networks.opnn import _init_input_lay, _manipulate_input
-from pycomet.networks.chemreacnn.cg.adaptive.tools.groups_connect import GroupsConnect
+from pycomet.networks.chem.cg.adaptive.tools.groups_connect import GroupsConnect
 
 
 class NeqOpNN(BaseNet):
@@ -96,7 +96,7 @@ class NeqOpNN(BaseNet):
     
     # Calling
     ###########################################################################
-    def call_net(
+    def forward(
         self,
         x,
         training=None
@@ -110,7 +110,7 @@ class NeqOpNN(BaseNet):
             y_.append(mmopnn(y, training=training))
         return y_
     
-    def call_net_infer(
+    def forward_infer(
         self,
         x,
         x_extra,
@@ -166,7 +166,7 @@ class NeqMMOpNN(MMOpNN):
 
     # Calling
     ###########################################################################
-    def call_net(
+    def forward(
         self,
         x,
         training=None,
@@ -174,13 +174,13 @@ class NeqMMOpNN(MMOpNN):
         tol=None
     ):
         if training or (tol is None):
-            y = super(NeqMMOpNN, self).call_net(x, training)
+            y = super(NeqMMOpNN, self).forward(x, training)
         else:
-            y = self.adaptive_call_net(x, ratio, tol)
+            y = self.adaptive_forward(x, ratio, tol)
         y = tf_layers.Concatenate()(y) if len(y) > 1 else y[-1]
         return y
 
-    def adaptive_call_net(
+    def adaptive_forward(
         self,
         x,
         ratio,

@@ -21,6 +21,7 @@ class LRPiecewiseConstantDecay(cb.Callback):
     verbose=0
   ):
     super(LRPiecewiseConstantDecay, self).__init__()
+    self.__name__ = utils.get_class_name(self)
     if (len(boundaries) != len(values) - 1):
       utils.raise_err(
         ValueError,
