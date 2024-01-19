@@ -3,8 +3,8 @@ import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
+from .. import elements as nn_elem
 from pycomet.config import get_config
-from ..elements import layers as nn_elem
 _CFG = get_config()
 
 

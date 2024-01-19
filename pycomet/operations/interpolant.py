@@ -1,8 +1,8 @@
 import tensorflow as tf
 
 from pycomet import utils
-from pycomet import device as dev
-_EPSILON = dev.get_epsilon()
+from pycomet import backend as bkd
+_EPSILON = bkd.get_epsilon()
 
 
 # Interpolant

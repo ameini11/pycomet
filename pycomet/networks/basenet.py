@@ -2,11 +2,11 @@ import copy
 import numpy as np
 import tensorflow as tf
 
+from . import _NN_MOD
 from pycomet import utils
+from . import elements as nn_elem
 from pycomet import backend as bkd
-from pycomet.networks import _NN_MOD
 from keras import layers as tf_layers
-from pycomet.networks.elements import elements as nn_elem
 
 
 class BaseNet(object):
