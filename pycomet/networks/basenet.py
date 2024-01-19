@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from pycomet import utils
 from pycomet import backend as bkd
-from pycomet.networks import NN_MOD
+from pycomet.networks import _NN_MOD
 from keras import layers as tf_layers
 from pycomet.networks.elements import elements as nn_elem
 
@@ -310,7 +310,7 @@ class BaseNet(object):
     self,
     elem
   ):
-    return utils.get_class(modules=NN_MOD, name=elem)
+    return utils.get_class(modules=_NN_MOD, name=elem)
 
   def get_lay(
     self,

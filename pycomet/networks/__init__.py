@@ -10,7 +10,7 @@ __all__ = [
   "OpNN"
 ]
 
-NN_MOD = []
+_NN_MOD = []
 
 from .don import *
 from .fno import *
@@ -20,7 +20,7 @@ from .mixednet import MixedNet
 
 from . import elements as nn_elem
 from .don import blocks as don_blk
-NN_MOD.extend([nn_elem, don_blk])
+_NN_MOD.extend([nn_elem, don_blk])
 
 # Thermochemistry-specific models
 # =====================================
@@ -29,9 +29,9 @@ lib = importlib.util.find_spec("hypernet")
 if (lib is not None):
   from .chem import *
   from . import chem
-  NN_MOD.append(chem)
+  _NN_MOD.append(chem)
 
 # TensorFlow default layers
 # =====================================
 from keras import layers as tf_layers
-NN_MOD.append(tf_layers)
+_NN_MOD.append(tf_layers)

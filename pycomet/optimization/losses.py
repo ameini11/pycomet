@@ -1,14 +1,13 @@
 import tensorflow as tf
 import tensorflow.python.keras.losses as tf_losses
 
+from tensorflow.python.keras import backend as tf_bkd
+from tensorflow.python.keras.utils import losses_utils
+from tensorflow.python.util.tf_export import keras_export
 from pycomet import utils
 from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
-from tensorflow.python.keras import backend as tf_bkd
-from tensorflow.python.keras.utils import losses_utils
-from tensorflow.python.util.tf_export import keras_export
-
 _CFG = get_config()
 
 
