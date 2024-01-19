@@ -135,17 +135,16 @@ class ModelCheckpoint(cb.ModelCheckpoint):
       # logged metrics and the path's placeholders can cause formatting to
       # fail.
       if ((batch is None) or ("batch" in logs)):
-        file_path = self.filepath.format(epoch=epoch + 1, **logs)
+        file_path = self.filepath.format(epoch=epoch+1, **logs)
       else:
         file_path = self.filepath.format(
-          epoch=epoch + 1, batch=batch + 1, **logs
+          epoch=epoch+1, batch=batch+1, **logs
         )
     except KeyError as e:
       utils.raise_err(
         KeyError,
         f"Failed to format this callback filepath: '{self.filepath}'. " \
         f"Reason: {e}"
-
       )
     self._write_filepath = distributed_file_utils.write_filepath(
       file_path, self.model.distribute_strategy
