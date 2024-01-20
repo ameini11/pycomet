@@ -53,4 +53,4 @@ def to_numpy(x=None, dtype=None):
       return x.astype(dtype)
     
 def random_permutation(n):
-  return tf.convert_to_tensor(np.random.permutation(n), dtype=int)
+  return tf.convert_to_tensor(np.random.permutation(n))

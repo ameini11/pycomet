@@ -16,28 +16,7 @@ def get_parser(subparsers):
     description="Build a machine-learning-based model.",
     epilog=utils.EPILOG
   )
-  parser.add_argument('-j', '--threads',
-    type=int,
-    default=4,
-    help='number of threads'
-  )
-  parser.add_argument('-d', '--dir',
-    type=autils._dir_path,
-    default="./",
-    help="path to the working directory (with 'inputs' folder)"
-  )
-  parser.add_argument('-v', '--verbose',
-    type=int,
-    default=0,
-    choices=[0,1],
-    help='verbose mode'
-  )
-  parser.add_argument('-g', '--graph',
-    type=int,
-    default=0,
-    choices=[0,1],
-    help='visualize model graph'
-  )
+  parser = autils.add_def_parser_args(parser)
   parser.set_defaults(process=main)
   return parser
 

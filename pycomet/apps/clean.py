@@ -6,6 +6,7 @@ import shutil
 import argparse
 
 from pycomet import utils
+from . import utils as autils
 
 FOLDERS = ('data', 'training', 'saving', 'postproc', '__pycache__')
 
@@ -20,9 +21,9 @@ def get_parser(subparsers):
     epilog=utils.EPILOG
   )
   parser.add_argument('-d', '--dir',
-    type=str,
+    type=autils._dir_path,
     default="./",
-    help='path to the working directory'
+    help="path to the working directory (with 'inputs' folder)"
   )
   parser.add_argument('-v', '--verbose',
     type=int,

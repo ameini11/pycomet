@@ -14,19 +14,18 @@ def get_learning_rate(lr, scheduler=None):
   name = scheduler.pop("name")
   scheduler["initial_learning_rate"] = lr
   return {
-    "exponential": opt.schedules.ExponentialDecay(**scheduler),
-    "inverse_time": opt.schedules.InverseTimeDecay(**scheduler),
-    "polynomial": opt.schedules.PolynomialDecay(**scheduler)
-  }[name]
+    "exponential": opt.schedules.ExponentialDecay,
+    "inverse_time": opt.schedules.InverseTimeDecay,
+    "polynomial": opt.schedules.PolynomialDecay
+  }[name](**scheduler)
 
 def get_optimizer(name, lr):
   return {
-    "adadelta":     opt.Adadelta(learning_rate=lr),
-    "adagrad":      opt.Adagrad(learning_rate=lr),
-    "adam":         opt.Adam(learning_rate=lr),
-    "adamax":       opt.Adamax(learning_rate=lr),
-    "ftrl":         opt.Ftrl(learning_rate=lr),
-    "rmsprop":      opt.RMSprop(learning_rate=lr),
-    "sgd":          opt.SGD(learning_rate=lr),
-    "sgd_nesterov": opt.SGD(learning_rate=lr, nesterov=True)
-  }[name]
+    "adadelta":     opt.Adadelta,
+    "adagrad":      opt.Adagrad,
+    "adam":         opt.Adam,
+    "adamax":       opt.Adamax,
+    "ftrl":         opt.Ftrl,
+    "rmsprop":      opt.RMSprop,
+    "sgd":          opt.SGD
+  }[name](learning_rate=lr)

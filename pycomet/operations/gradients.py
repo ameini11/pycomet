@@ -2,7 +2,6 @@ import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
-from pycomet import operations as ops
 
 
 class Gradients(object):
@@ -178,7 +177,7 @@ class Gradient(object):
       dydx = [tf.split(g, self.dim_x, axis=1) for g in dydx]
       dydx = [tf.concat(x, 1) for x in list(zip(*dydx))]
     dydx = [tf.gather(g, self.j, axis=1) for g in dydx]
-    return ops.squeeze_list([dydx[k] for k in self.i])
+    return utils.squeeze_list([dydx[k] for k in self.i])
 
   def compute_grad(self, y, x, order):
     """

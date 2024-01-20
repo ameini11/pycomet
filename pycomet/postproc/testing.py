@@ -1,6 +1,8 @@
+import os
 import numpy as np
 
 from pycomet import utils
+from pycomet import operations as ops
 matplotlib, plt = utils.import_matplotlib()
 COLORS = matplotlib.rcParams['axes.prop_cycle'].by_key()['color']
 
@@ -22,7 +24,7 @@ def plot_test(
   ylim=None,
   save=True,
   fig_ax=None,
-  max_num_var=10
+  max_nb_var=10
 ):
   # Initialization
   # -----------------------------------
@@ -100,10 +102,10 @@ def plot_test(
   if (varnames is not None):
     idx = np.arange(0,n)
     if (n > 6):
-      if (n > max_num_var):
-        step = int(np.ceil(n/max_num_var))
+      if (n > max_nb_var):
+        step = int(np.ceil(n/max_nb_var))
         idx = np.arange(0,n,step)
-        n = max_num_var
+        n = max_nb_var
       fs = 'small'
     else:
       fs = 'medium'
@@ -116,6 +118,7 @@ def plot_test(
   # Save figure
   # -----------------------------------
   if save:
+    os.makedirs(path, exist_ok=True)
     figname = f'output_{scales[1]}' if (figname is None) else figname
     fig.savefig(path + f'/{figname}.{figext}')
   # Finalizing
@@ -123,3 +126,46 @@ def plot_test(
   if (fig_ax is not None):
     return fig, ax
   plt.close()
+
+
+# Plotting list of figures
+# =====================================
+def plot_figures(x, y, y_pred, path, figures):
+  """Plots predicted vs. true values.
+  Args:
+    x, y, y_pred: data.
+    path: Saving folder.
+    figures: Dictionary (or a list of dictionaries) of keyword 
+      arguments. The arguments are:
+      - 'figname': Figure name.
+      - 'indices': Tuple of the following form:
+        - x indices: mapping to get x-axis values from 'data'.
+        - y indices: mapping to get true y-axis values from 'data'.
+        - y_pred indices: mapping to get predicted y-axis values.
+        If any is 'None', no data are taken.
+      - 'output_ops': Callable function to manipulate both y and 
+        y_pred (not required).
+      - 'varnames': Names of the variables (not required).
+      - 'labels': Figure labels (not required).
+      - 'scales': Figure scales (not required).
+  """
+  if (not isinstance(figures, (list,tuple))):
+    figures = [figures]
+  # Loop over figures
+  for figure in figures:
+    # Extract data
+    _x, _y, _y_pred = list(map(
+      lambda x,i: ops.extract_data(x,i,1),
+      [x, y, y_pred],
+      figure['indices']
+    ))
+    # Manipulate y-axis values
+    if ('output_ops' in figure):
+      _y, _y_pred = list(map(figure['output_ops'], [_y, _y_pred]))
+    # Arguments for the plotting function
+    plot_kwargs = dict(path=path, x=_x, y=_y, y_pred=_y_pred)
+    for k in utils.get_fun_args(plot_test):
+      if ((k not in plot_kwargs) and (k in figure)):
+        plot_kwargs.update({k: figure[k]})
+    # Plotting
+    plot_test(**plot_kwargs)

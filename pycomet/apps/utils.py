@@ -8,6 +8,8 @@ from pycomet import utils
 from pycomet import data as data_mod
 from pycomet import model as model_mod
 from pycomet import networks as nets_mod
+from pycomet.config import get_config
+_CFG = get_config()
 
 
 # Public
@@ -212,10 +214,51 @@ def _postproc(
   # -------------------------
   if ((inputs_mod.flags['test'] > 0) and (data.test is not None)):
     utils.print_fn("Testing cases", lev=1)
-    for (name, d) in tqdm(data.test.items()):
+    for (name, d) in tqdm(data.test.items(), ncols=_CFG.display_len):
       model.predict(
         data=d,
         plotting=inputs_mod.flags['plot'],
         path=model.dir['post'] + f'/testing/{name}',
         figures=inputs_mod.figures
       )
+
+def add_def_parser_args(parser):
+  parser.add_argument('-d', '--dir',
+    type=_dir_path,
+    default="./",
+    help="path to the working directory (with 'inputs' folder)"
+  )
+  parser.add_argument('-dev', '--device',
+    type=str,
+    default="gpu",
+    choices=["cpu","gpu"],
+    help="device type"
+  )
+  parser.add_argument('-idev', '--dev_index',
+    type=int,
+    default=0,
+    help="device index"
+  )
+  parser.add_argument('-j', '--cpu_threads',
+    type=int,
+    default=4,
+    help="number of threads"
+  )
+  parser.add_argument('-gpumem', '--gpu_memory_growth',
+    type=bool,
+    default=True,
+    help="gpu memory growth allowed"
+  )
+  parser.add_argument('-v', '--verbose',
+    type=int,
+    default=0,
+    choices=[0,1],
+    help='verbose mode'
+  )
+  parser.add_argument('-g', '--graph',
+    type=int,
+    default=0,
+    choices=[0,1],
+    help='visualize model graph'
+  )
+  return parser

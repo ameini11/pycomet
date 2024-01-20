@@ -9,6 +9,8 @@ from pycomet import utils
 from pycomet import postproc
 from pycomet import operations as ops
 from tensorflow.python.util.tf_export import keras_export
+from pycomet.config import get_config
+_CFG = get_config()
 
 
 @keras_export('keras.callbacks.Plotter')
@@ -80,7 +82,9 @@ class Plotter(cb.Callback):
   def testing(self):
     utils.print_fn("- Plotting test cases ...", lev=1)
     data = copy.deepcopy(self.test_data)
-    for (i, (name, (x, y))) in enumerate(tqdm(data.items())):
+    for (i, (name, (x, y))) in enumerate(
+      tqdm(data.items(), ncols=_CFG.display_len)
+    ):
       if ((self.max_nb is not None) and (i+1 > self.max_nb)):
         break
       # Get pred values
@@ -88,24 +92,4 @@ class Plotter(cb.Callback):
       # Define `testing` directory
       path = self.dir['test'] + f'/{name}'
       os.makedirs(path, exist_ok=True)
-      # Loop over figures
-      for figure in self.figures:
-        # Extract data
-        _x, _y, _y_pred = list(map(
-          lambda x,i: ops.extract_data(x,i,1),
-          [x, y, y_pred],
-          figure['indices']
-        ))
-        # Manipulate y-axis values
-        if ('output_ops' in figure):
-          _y, _y_pred = list(map(figure['output_ops'], [_y, _y_pred]))
-        # Arguments for the plotting function
-        plot_kwargs = dict(path=path, x=_x, y=_y, y_pred=_y_pred)
-        for k in (
-          'fig_name', 'var_names', 'labels', 'scales', 'title', \
-          'xlim', 'ylim', 'save', 'fig_ax', 'max_num_var'
-        ):
-          if (k in figure):
-            plot_kwargs.update({k: figure[k]})
-        # Plotting
-        postproc.testing.plot_test(**plot_kwargs)
+      postproc.testing.plot_figures(x, y, y_pred, path, self.figures)

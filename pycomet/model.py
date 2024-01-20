@@ -238,7 +238,7 @@ class Model(object):
     self,
     optimizer='adam',
     lr=None,
-    decay=None,
+    scheduler=None,
     loss="mse",
     axis=None,
     reduction='auto',
@@ -252,7 +252,7 @@ class Model(object):
   ):
     utils.print_fn(f"Compiling '{self.architecture}' network ...")
     # Initializing the optimizer
-    self.optimizer = get_train_opt(optimizer, lr=lr, decay=decay)
+    self.optimizer = get_train_opt(optimizer, lr=lr, scheduler=scheduler)
     # Initializing loss functions
     self.loss = losses_module.get(
       loss,
@@ -307,7 +307,7 @@ class Model(object):
     cb_list = callbacks_module.get_cb_list(self, callbacks)
     # Define training/valididation points
     for identifier in ('training', 'validation'):
-      self.data.get_num_pts(identifier, verbose)
+      self.data.get_nb_pts(identifier, verbose)
     # Fit the model
     x, y, sample_weight = utils.unpack_list(self.data.train, nb_elem=3)
     history = self.net.fit(
@@ -369,29 +369,7 @@ class Model(object):
       if (path is None):
         path = self.dir['post']+'/testing'
         os.makedirs(path, exist_ok=True)
-      # Loop over figures
-      if (not isinstance(figures, (list,tuple))):
-        figures = [figures]
-      for figure in figures:
-        # Extract data
-        _x, _y, _y_pred = list(map(
-          lambda x,i: ops.extract_data(x,i,1),
-          [x, y, y_pred],
-          figure['indices']
-        ))
-        # Manipulate y-axis values
-        if ('output_ops' in figure):
-          _y, _y_pred = list(map(figure['output_ops'], [_y, _y_pred]))
-        # Arguments for the plotting function
-        plot_kwargs = dict(path=path, x=_x, y=_y, y_pred=_y_pred)
-        for k in (
-          'fig_name', 'varnames', 'figname', 'figext', 'labels', 'scales', \
-          'title', 'xlim', 'ylim', 'save', 'fig_ax', 'max_num_var'
-        ):
-          if (k in figure):
-            plot_kwargs.update({k: figure[k]})
-        # Plotting
-        postproc.testing.plot_test(**plot_kwargs)
+      postproc.testing.plot_figures(x, y, y_pred, path, figures)
     return y_pred
 
   # Saving
