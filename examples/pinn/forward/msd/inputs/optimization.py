@@ -59,11 +59,11 @@ callbacks = {
     'profile_batch':  0
   },
 
-  'weighted_loss': {
-      'name':         'EmpiricalWeightsAdapter',
-      'alpha':        0.9,
-      'freq':         10,
-      'max_samples':  20000
-  }
+  # 'weighted_loss': {
+  #     'name':         'EmpiricalWeightsAdapter',
+  #     'alpha':        0.9,
+  #     'freq':         10,
+  #     'max_samples':  20000
+  # }
 
 }
