@@ -113,6 +113,7 @@ class FFBlock(pcm_layers.Layer):
     regularizer=None,
     dropout_kwargs=dict(rate=0),
     batch_norm=None,
+    layer_norm=None,
     interpolating=None,
     **kwargs
   ):
@@ -125,6 +126,7 @@ class FFBlock(pcm_layers.Layer):
     self.regularizer = regularizer
     self.dropout_kwargs = dropout_kwargs
     self.batch_norm = batch_norm
+    self.layer_norm = layer_norm
     self.interpolating = interpolating
     # Checking
     c1 = all([isinstance(k, (list, tuple)) for k in (activation, layer_size)])
@@ -156,6 +158,23 @@ class FFBlock(pcm_layers.Layer):
           name=self.name+'_'+names[i]
         ) for i in range(len(self.layer_size)-1)
       ]
+      # Batch normalization
+      if (self.layer_norm is not None):
+        self.multi_lays.append(
+          tf_layers.LayerNormalization(
+            axis=-1,
+            epsilon=1e-5,
+            center=True,
+            scale=True,
+            beta_initializer='zeros',
+            gamma_initializer='ones',
+            beta_regularizer=self.regularizer,
+            gamma_regularizer=self.regularizer,
+            beta_constraint=None,
+            gamma_constraint=None,
+            name=self.name+'_layerNorm'
+          )
+        )
 
   # Calling
   # ===================================
@@ -178,6 +197,7 @@ class FFBlock(pcm_layers.Layer):
       'regularizer': self.regularizer,
       'dropout_kwargs': self.dropout_kwargs,
       'batch_norm': self.batch_norm,
+      'layer_norm': self.layer_norm,
       'interpolating': interp_cfg
     }
     base_config = super(FFBlock, self).get_config()
@@ -206,6 +226,7 @@ class ResPIBlock(FFBlock):
     regularizer=None,
     dropout_kwargs=dict(rate=0),
     batch_norm=None,
+    layer_norm=None,
     **kwargs
   ):
     super(ResPIBlock, self).__init__(
@@ -215,6 +236,7 @@ class ResPIBlock(FFBlock):
       regularizer=regularizer,
       dropout_kwargs=dropout_kwargs,
       batch_norm=batch_norm,
+      layer_norm=layer_norm,
       **kwargs
     )
     # Hyperparameters initialization

@@ -24,6 +24,7 @@ class PreNetBlock(nn_elem.Layer):
     regularizer=None,
     dropout_kwargs=dict(rate=0),
     batch_norm=None,
+    layer_norm=None,
     out_xform=None,
     transformation='affine',
     shifter=True,
@@ -101,6 +102,7 @@ class PreNetBlock(nn_elem.Layer):
     self.regularizer = regularizer
     self.dropout_kwargs = dropout_kwargs
     self.batch_norm = batch_norm
+    self.layer_norm = layer_norm
     self.blocks = []
     for d in self.output_dim:
       if (d != 0):
@@ -112,6 +114,7 @@ class PreNetBlock(nn_elem.Layer):
             regularizer=self.regularizer,
             dropout_kwargs=self.dropout_kwargs,
             batch_norm=self.batch_norm,
+            layer_norm=self.layer_norm
           )
         )
       else:
