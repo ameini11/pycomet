@@ -45,7 +45,7 @@ class FFNN(BaseNet):
     self.init_preinput_lay()
 
   # Layers initialization
-  # ===================================
+  # -----------------------------------
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():

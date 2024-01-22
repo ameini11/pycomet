@@ -160,7 +160,7 @@ class BaseNet(object):
   # ---------------------------------
   def call_train(self, x, training=None, *args, **kwargs):
     # Noisy inputs
-    if (self.noisy_lay is not None) and ("inputs" in self.noisy_lay):
+    if ((self.noisy_lay is not None) and ("inputs" in self.noisy_lay)):
       x = self.noisy_lay["inputs"](inputs=x, training=training)
     # Pre-inputs manipulation
     y = self._manipulate_inout(

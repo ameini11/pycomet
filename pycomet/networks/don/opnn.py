@@ -40,7 +40,7 @@ class OpNN(BaseNet):
       utils.raise_err(
         ValueError,
         f"'dim['inp']' passed into '{self.name}' has to be a " \
-        "'list' or a 'tuple'of length 2: [u_dim, y_dim]"
+        "'list' or a 'tuple' of length 2: [u_dim, y_dim]"
       )
     # Layers
     # -----------------------
@@ -84,8 +84,7 @@ class OpNN(BaseNet):
     if ((max_nb_blocks != 1) and (max_nb_blocks != self.output_dim[-1])):
       utils.raise_err(
         ValueError,
-        "The number of trunks/branches do "
-        "not match the number of outputs"
+        "The number of trunks/branches do not match the number of outputs"
       )
 
   # Layers initialization
