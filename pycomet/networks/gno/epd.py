@@ -17,7 +17,6 @@ class EncodeProcessDecode(BaseNet):
     lays_propty=None,
     noisy_io=None,
     inference=None,
-    static_edge_attr=None,
     *args,
     **kwargs
   ):
