@@ -45,22 +45,16 @@ class GraphEdgeBlock(nn_elem.FFBlock):
   def call(self, graph, training=False):
     # Unpack graph
     node_attr, edge_index, edge_attr = gutils.unpack_graph(
-      graph, self.static_edge_index
+      graph, self.static_edge_index, None
     )
-    # Collect features
-    features = self._collect_features(node_attr, edge_index, edge_attr)
-    # Call mlp
-    edge_attr = super(GraphEdgeBlock, self).call(features, training=training)
-    # Return graph
-    if (self.static_edge_index is not None):
-      return [node_attr, edge_attr]
-    else:
-      return [node_attr, edge_index, edge_attr]
+    # Gather features
+    features = self._gather_features(node_attr, edge_index, edge_attr)
+    return super(GraphEdgeBlock, self).call(features, training=training)
 
-  def _collect_features(self, node_attr, edge_index, edge_attr):
+  def _gather_features(self, node_attr, edge_index, edge_attr):
     features = [
-      tf.gather(node_attr, edge_index[0], axis=-2), # Collect senders
-      tf.gather(node_attr, edge_index[1], axis=-2), # Collect receivers
+      tf.gather(node_attr, edge_index[0], axis=-2), # Gather senders
+      tf.gather(node_attr, edge_index[1], axis=-2), # Gather receivers
       edge_attr
     ]
     return tf.concat(features, axis=-1)
@@ -116,7 +110,7 @@ class GraphNodeBlock(GraphEdgeBlock):
 
   # Calling
   # ===================================
-  def _collect_features(self, node_attr, edge_index, edge_attr):
+  def _gather_features(self, node_attr, edge_index, edge_attr):
     # Check rank
     rank = tf.rank(edge_attr)
     if (rank not in (2,3)):
@@ -190,16 +184,16 @@ class EdgeEncoder(nn_elem.FFBlock):
   # ===================================
   def call(self, graph, training=False):
     # Unpack graph
-    node_attr, edge_index, edge_attr = gutils.unpack_graph(
+    node_attr, _, edge_attr = gutils.unpack_graph(
       graph, self.static_edge_index, self.static_edge_attr
     )
     # Call mlp
     edge_attr = super(EdgeEncoder, self).call(edge_attr, training=training)
     # Manipulate edges
     if (self.static_edge_attr is not None):
-      shape = tf.nest.map_structure(lambda _: 1, tf.shape(edge_attr))
-      shape[0] = tf.shape(node_attr)[0]
-      edge_attr = tf.tile(edge_attr, shape)
+      multiples = tf.nest.map_structure(lambda _: 1, tf.shape(edge_attr))
+      multiples[0] = tf.shape(node_attr)[0]
+      edge_attr = tf.tile(edge_attr, multiples)
     # Return edge attributes
     return edge_attr
 
