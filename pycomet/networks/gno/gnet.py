@@ -69,8 +69,8 @@ class GraphNet(nn_elem.Layer):
       utils.raise_err(
         ValueError,
         f"The '{key}' input provided to {self.name} must be " \
-        "a dictionary with keys ('edge', 'node') for constructing " \
-        "the respective MLP transformation."
+        "a dictionary with keys ('edge', 'node') for " \
+        "constructing the respective MLP transformation."
       )
     return value
 

@@ -240,7 +240,5 @@ class NodeEncoder(nn_elem.FFBlock):
   # Calling
   # ===================================
   def call(self, graph, training=False):
-    # Unpack graph
-    node_attr = tf.nest.flatten(graph)[0]
     # Call mlp
-    return super(NodeEncoder, self).call(node_attr, training=training)
+    return super(NodeEncoder, self).call(graph[0], training=training)
