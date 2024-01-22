@@ -116,7 +116,9 @@ class GraphNodeBlock(GraphEdgeBlock):
     if (rank not in (2,3)):
       utils.raise_err(
         ValueError,
-        "The 'edge_attr' input tensor has to be of rank 2 or 3."
+        "The 'edge_attr' input tensor has to be of rank 2 " \
+        "(shape [nb_edges, nb_edge_features]) or 3 " \
+        "(shape [nb_samples, nb_edges, nb_edge_features])."
       )
     # Move batches as last dimension
     if (rank == 3):

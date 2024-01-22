@@ -185,3 +185,11 @@ class MultiObjSequence(keras.utils.Sequence):
           dset[i] = list(zip(*z))
     dset = list(zip(*dset))
     return dset
+
+batch = []
+for z in data:
+  if isinstance(z, list) and (len(z) > 1):
+    y = [x[0] for x in z]
+  else:
+    y = z[0]
+  batch.append(y)

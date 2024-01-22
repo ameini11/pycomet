@@ -9,7 +9,7 @@ from pycomet import backend as bkd
 from pycomet import operations as ops
 
 
-class Data(utils.DefObject):
+class Data(object):
 
   # Initialization
   # ===================================
@@ -25,7 +25,7 @@ class Data(utils.DefObject):
     columns=None,
     preproc_fn=None
   ):
-    super(Data, self).__init__()
+    self.name = utils.get_class_name(self)
     # Globals
     self.dim = dim
     self.training = training
@@ -41,26 +41,14 @@ class Data(utils.DefObject):
     self.test = None
     self.validation_split = validation_split
     # Check data sources
-    c1 = (not isinstance(self.data_src, dict))
-    c2 = any([(k not in self.identifiers) for k in self.data_src.keys()])
-    if (c1 or c2):
-      utils.raise_err(
-        ValueError,
-        "'data_src' has to be a 'dict' with keys ['train', 'valid', 'test']."
-      )
-    c3 = ('train' not in self.data_src)
-    if (training and (c3 or (self.data_src['train'] is None))):
-      utils.raise_err(
-        ValueError,
-        "No 'train' data passed into 'data_src'."
-      )
+    self.check_data_src()
     # Batch sizes
     self.batch_size = {
       'train': 32,
       'valid': None
     }
     if (batch_size is not None):
-      self._set_batch_size(batch_size)
+      self.set_batch_size(batch_size)
     # Extra attributes if data extracted from file
     self.from_file = from_file
     self.header = header
@@ -68,7 +56,7 @@ class Data(utils.DefObject):
       if (columns is None):
         utils.raise_err(
           ValueError,
-          f"'columns' passed into '{self.__name__}' has to be a " \
+          f"'columns' passed into '{self.name}' has to be a " \
           "dictionary (structured as 'data_src') with last-level " \
           "keys ['x', 'y', 'sample_weight']."
         )
@@ -89,7 +77,7 @@ class Data(utils.DefObject):
         else:
           utils.raise_err(
             ValueError,
-            f"'preproc_fn' passed into '{self.__name__}' has to " \
+            f"'preproc_fn' passed into '{self.name}' has to " \
             "be a dictionary or a callable function."
           )
       # Check consistency between dictionaries
@@ -120,7 +108,7 @@ class Data(utils.DefObject):
       else:
         utils.raise_err(
           ValueError,
-          f"Input 'data_src['test']' passed into '{self.__name__}' has " \
+          f"Input 'data_src['test']' passed into '{self.name}' has " \
           "to be a 'list'/'tuple'/'dict' of arrays or a 'str' " \
           "pointing at the folder containting all the test cases " \
           "saved in '.csv' format."
@@ -133,6 +121,21 @@ class Data(utils.DefObject):
 
   # Handling data
   # ===================================
+  def check_data_src(self):
+    c1 = (not isinstance(self.data_src, dict))
+    c2 = any([(k not in self.identifiers) for k in self.data_src.keys()])
+    if (c1 or c2):
+      utils.raise_err(
+        ValueError,
+        "'data_src' has to be a 'dict' with keys ['train', 'valid', 'test']."
+      )
+    c3 = ('train' not in self.data_src)
+    if (self.training and (c3 or (self.data_src['train'] is None))):
+      utils.raise_err(
+        ValueError,
+        "No 'train' data passed into 'data_src'."
+      )
+
   def get_data_from_src(self, data, identifier):
     kwargs = {}
     if self.from_file:
@@ -154,7 +157,7 @@ class Data(utils.DefObject):
         else:
           utils.raise_err(
             ValueError,
-            f"Data passed into '{self.__name__}' has to be a list " \
+            f"Data passed into '{self.name}' has to be a list " \
             "or a tuple of arrays: ('x', 'y', 'sample_weight')"
           )
 
@@ -196,7 +199,7 @@ class Data(utils.DefObject):
 
   # Updating default batch sizes
   # ===================================
-  def _set_batch_size(self, batch_size):
+  def set_batch_size(self, batch_size):
     if isinstance(batch_size, dict):
       if all([k in batch_size.keys() for k in ('train', 'valid')]):
         self.batch_size = batch_size
@@ -204,7 +207,7 @@ class Data(utils.DefObject):
         utils.raise_err(
           ValueError,
           "'batch_size' dictionary passed into '{}' has to have " \
-          "['train', 'valid'] as keys.".format(self.__name__)
+          "['train', 'valid'] as keys.".format(self.name)
         )
     elif isinstance(batch_size, int):
       for k in self.batch_size.keys():
@@ -213,7 +216,7 @@ class Data(utils.DefObject):
       utils.raise_err(
         ValueError,
         "'batch_size' passed into '{}' has to be a " \
-        "'int' or a 'dict'".format(self.__name__)
+        "'int' or a 'dict'".format(self.name)
       )
 
   # Logging

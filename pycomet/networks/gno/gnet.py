@@ -77,13 +77,11 @@ class GraphNet(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, graph, training=False):
-    graph_old = graph
-    # Apply edge/node transformation
-    graph_new = self.edge_blk(graph_old, training=training)
-    graph_new = self.node_blk(graph_new, training=training)
-    # Add residual connections
-    graph_new[0] += graph_old[0]
-    graph_new[-1] += graph_old[-1]
+    graph_new = tf.nest.map_structure(tf.identity, graph)
+    # Apply edge transformation
+    graph_new[-1] = self.edge_blk(graph_new, training=training) + graph[-1]
+    # Apply node transformation
+    graph_new[ 0] = self.node_blk(graph_new, training=training) + graph[ 0]
     return graph_new
 
   # Configuration update
