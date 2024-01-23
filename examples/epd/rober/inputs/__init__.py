@@ -4,5 +4,4 @@ from inputs.postproc import *
 from inputs.network import *
 from inputs.general import *
 from inputs.data import *
-from inputs.physics import *
 from inputs.optimization import *

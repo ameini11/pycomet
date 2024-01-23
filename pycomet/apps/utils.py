@@ -45,6 +45,49 @@ def load_model(
 
 # Private
 # =====================================
+# Argument parser
+# -------------------------------------
+def add_def_parser_args(parser):
+  parser.add_argument('-d', '--dir',
+    type=_dir_path,
+    default="./",
+    help="path to the working directory (with 'inputs' folder)"
+  )
+  parser.add_argument('-dev', '--device',
+    type=str,
+    default="gpu",
+    choices=["cpu","gpu"],
+    help="device type"
+  )
+  parser.add_argument('-idev', '--dev_index',
+    type=int,
+    default=0,
+    help="device index"
+  )
+  parser.add_argument('-j', '--cpu_threads',
+    type=int,
+    default=4,
+    help="number of threads"
+  )
+  parser.add_argument('-gpumem', '--gpu_memory_growth',
+    type=bool,
+    default=True,
+    help="gpu memory growth allowed"
+  )
+  parser.add_argument('-v', '--verbose',
+    type=int,
+    default=0,
+    choices=[0,1],
+    help='verbose mode'
+  )
+  parser.add_argument('-g', '--graph',
+    type=int,
+    default=0,
+    choices=[0,1],
+    help='visualize model graph'
+  )
+  return parser
+
 def _dir_path(path):
   path = os.path.abspath(path)
   if os.path.exists(path + '/inputs/'):
@@ -54,6 +97,8 @@ def _dir_path(path):
       f"'inputs' folder not found in '{path}'"
     )
 
+# Data module
+# -------------------------------------
 def _data(
   inputs_mod,
   wdir=None
@@ -66,65 +111,17 @@ def _data(
   )
   # Get data sources
   # -------------------------
-  data_gen = None
-  if inputs_mod.from_file:
+  if getattr(inputs_mod, "from_file", False):
     data_src = inputs_mod.data_src
+    data_gen = None
   else:
-    utils.print_fn("Generating data with 'DataGenerator' ...")
-    try:
-      # path_to_mod = wdir + '/datagen/'
-      # utils.generate_init_mod_file(path=path_to_mod)
-      # utils.append_mod_dir(modules={"data_generator": path_to_mod})
-      sys.path.append(os.path.abspath(wdir + '/datagen/'))
-      from data_generator import DataGenerator
-    except:
-      utils.raise_err(
-        ModuleNotFoundError,
-        "To compute user-generated data define a 'DataGenerator' " \
-        f"object in '{wdir}/datagen/data_generator.py' file."
-      )
-    datagen_args = utils.get_fun_args_values(
-      args=utils.get_fun_args(DataGenerator.__init__),
-      modules=inputs_mod
-    )
-    data_src_args = utils.get_fun_args_values(
-      args=utils.get_fun_args(DataGenerator.get_data_src),
-      modules=inputs_mod
-    )
-    data_gen = DataGenerator(**datagen_args)
-    data_src = data_gen.get_data_src(**data_src_args)
+    data_src, data_gen = _generate_data(inputs_mod, wdir)
   data_args['data_src'] = data_src
   # Add information from physics
   # -------------------------
   physical_mdl = None
   if getattr(inputs_mod, 'physics_informed', False):
-    utils.print_fn("Initializing physical model ...")
-    try:
-      # path_to_mod = wdir + '/physics/'
-      # utils.generate_init_mod_file(path=path_to_mod)
-      # utils.append_mod_dir(modules={"physical_model": path_to_mod})
-      sys.path.append(os.path.abspath(wdir + '/physics/'))
-      from physical_model import PhysicalModel
-    except:
-      utils.raise_err(
-        ModuleNotFoundError,
-        "The model is physics-informed, but no " \
-        "'PhysicalModel' object has been found in " \
-        f"'{wdir}/physics/physical_model.py' file."
-      )
-    if (inputs_mod.data_type in data_mod.__physics_informed__):
-      physical_mdl_args = utils.get_fun_args_values(
-        args=utils.get_fun_args(PhysicalModel.__init__),
-        modules=inputs_mod
-      )
-      physical_mdl = PhysicalModel(**physical_mdl_args)
-      data_args.update(dict(xde=physical_mdl.xde))
-    else:
-      utils.raise_err(
-        ValueError,
-        "For physics-informed models, the following data types " \
-        f"are available: {data_mod.__physics_informed__}"
-      )
+    physical_mdl = _load_physical_mdl(data_args, inputs_mod, wdir)
   # Initialize class
   # -------------------------
   utils.print_fn(f"Initializing '{inputs_mod.data_type}' data ...")
@@ -133,6 +130,71 @@ def _data(
   data.physical_mdl = physical_mdl
   return data
 
+def _generate_data(
+  inputs_mod,
+  wdir=None
+):
+  utils.print_fn("Generating data with 'DataGenerator' ...")
+  try:
+    # path_to_mod = wdir + '/datagen/'
+    # utils.generate_init_mod_file(path=path_to_mod)
+    # utils.append_mod_dir(modules={"data_generator": path_to_mod})
+    sys.path.append(os.path.abspath(wdir + '/datagen/'))
+    from data_generator import DataGenerator
+  except:
+    utils.raise_err(
+      ModuleNotFoundError,
+      "To compute user-generated data define a 'DataGenerator' " \
+      f"object in '{wdir}/datagen/data_generator.py' file."
+    )
+  datagen_args = utils.get_fun_args_values(
+    args=utils.get_fun_args(DataGenerator.__init__),
+    modules=inputs_mod
+  )
+  data_src_args = utils.get_fun_args_values(
+    args=utils.get_fun_args(DataGenerator.get_data_src),
+    modules=inputs_mod
+  )
+  data_gen = DataGenerator(**datagen_args)
+  data_src = data_gen.get_data_src(**data_src_args)
+  return data_src, data_gen
+
+def _load_physical_mdl(
+  data_args,
+  inputs_mod,
+  wdir=None
+):
+  utils.print_fn("Initializing physical model ...")
+  try:
+    # path_to_mod = wdir + '/physics/'
+    # utils.generate_init_mod_file(path=path_to_mod)
+    # utils.append_mod_dir(modules={"physical_model": path_to_mod})
+    sys.path.append(os.path.abspath(wdir + '/physics/'))
+    from physical_model import PhysicalModel
+  except:
+    utils.raise_err(
+      ModuleNotFoundError,
+      "The model is physics-informed, but no " \
+      "'PhysicalModel' object has been found in " \
+      f"'{wdir}/physics/physical_model.py' file."
+    )
+  if (inputs_mod.data_type in data_mod.__physics_informed__):
+    physical_mdl_args = utils.get_fun_args_values(
+      args=utils.get_fun_args(PhysicalModel.__init__),
+      modules=inputs_mod
+    )
+    physical_mdl = PhysicalModel(**physical_mdl_args)
+    data_args.update(dict(xde=physical_mdl.xde))
+  else:
+    utils.raise_err(
+      ValueError,
+      "For physics-informed models, the following data types " \
+      f"are available: {data_mod.__physics_informed__}"
+    )
+  return physical_mdl
+
+# Network module
+# -------------------------------------
 def _network(
   inputs_mod,
   wdir=None
@@ -152,6 +214,8 @@ def _network(
     )
     return net_cls(**net_args)
 
+# Model module
+# -------------------------------------
 def _model(
   inputs_mod,
   data=None,
@@ -199,6 +263,8 @@ def _model(
     model.save()
   return model
 
+# Postprocessing module
+# -------------------------------------
 def _postproc(
   inputs_mod,
   data,
@@ -221,44 +287,3 @@ def _postproc(
         path=model.dir['post'] + f'/testing/{name}',
         figures=inputs_mod.figures
       )
-
-def add_def_parser_args(parser):
-  parser.add_argument('-d', '--dir',
-    type=_dir_path,
-    default="./",
-    help="path to the working directory (with 'inputs' folder)"
-  )
-  parser.add_argument('-dev', '--device',
-    type=str,
-    default="gpu",
-    choices=["cpu","gpu"],
-    help="device type"
-  )
-  parser.add_argument('-idev', '--dev_index',
-    type=int,
-    default=0,
-    help="device index"
-  )
-  parser.add_argument('-j', '--cpu_threads',
-    type=int,
-    default=4,
-    help="number of threads"
-  )
-  parser.add_argument('-gpumem', '--gpu_memory_growth',
-    type=bool,
-    default=True,
-    help="gpu memory growth allowed"
-  )
-  parser.add_argument('-v', '--verbose',
-    type=int,
-    default=0,
-    choices=[0,1],
-    help='verbose mode'
-  )
-  parser.add_argument('-g', '--graph',
-    type=int,
-    default=0,
-    choices=[0,1],
-    help='visualize model graph'
-  )
-  return parser

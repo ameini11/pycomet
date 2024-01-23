@@ -35,13 +35,13 @@ def main(args):
 
   # Data
   # -----------------------------------
-  if inputs.from_file:
+  if getattr(inputs, "from_file", False):
     utils.raise_err(
       ValueError,
       "The data has to be generated and not simply read " \
       "from a file. Check 'from_file' input variable."
     )
-  data = autils._data(
+  _ = autils._generate_data(
     inputs_mod=inputs,
     wdir=args.dir
   )

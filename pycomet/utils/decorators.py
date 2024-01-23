@@ -26,16 +26,16 @@ def app_dec(name=None):
     def wrapper(name=name, *args, **kwargs):
       ts = time.time()
       utils.print_fn(
-        f'App `{name}` starts' + utils.EPILOG, start='', lev=0
+        f"App '{name}' starts" + utils.EPILOG, start='', lev=0
       )
       result = fun(*args, **kwargs)
       te = time.time()
       delta = datetime.timedelta(seconds=(te - ts))
-      if not name:
+      if (not name):
         name = fun.__name__
       print(utils.EPILOG[:-2])
       utils.print_fn(
-        'App `{}` terminates'.format(name), start='', lev=0
+        f"App '{name}' terminates".format(name), start='', lev=0
       )
       utils.print_fn('>> It took %s\n' % delta, start='', lev=1)
       return result
