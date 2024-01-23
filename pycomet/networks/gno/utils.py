@@ -29,13 +29,15 @@ def read_edge_index(
   data = _read_edge_data(data, identifier)
   if (data is not None):
     sh = tf.shape(data)
-    if ((len(sh) > 2) or (sh[1] != 2)):
+    if ((len(sh) > 2) or (2 not in sh)):
       utils.raise_err(
         ValueError,
         f"'{identifier}' input must be a 2-dimensional " \
         "array with a shape of [nb_edges, 2]."
       )
-    return tf.transpose(data)
+    if (sh[1] == 2):
+      data = tf.transpose(data)
+    return tf.cast(data, dtype=tf.int32)
 
 def read_edge_attr(
   data=None,
@@ -50,7 +52,7 @@ def _read_edge_data(
   identifier="edge"
 ):
   if (data is not None):
-    if isinstance(data, (np.ndarray, tf.tensor)):
+    if isinstance(data, (np.ndarray, tf.Tensor)):
       pass
     elif isinstance(data, str):
       data = np.loadtxt(data).squeeze()

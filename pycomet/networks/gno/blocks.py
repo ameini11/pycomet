@@ -15,12 +15,11 @@ class GraphNet(nn_elem.Layer):
   # ===================================
   def __init__(
     self,
-    layer_size=None,
-    activation=['linear'],
+    layer_size={},
+    activation={},
     kernel_initializer=None,
     regularizer=None,
-    dropout_kwargs=dict(rate=0),
-    batch_norm=None,
+    dropout=dict(rate=0),
     layer_norm=None,
     static_edge_index=None,
     reduction="sum",
@@ -33,12 +32,11 @@ class GraphNet(nn_elem.Layer):
     self.activation = self.check_dict("activation", activation)
     self.kernel_initializer = kernel_initializer
     self.regularizer = regularizer
-    self.dropout_kwargs = dropout_kwargs
-    self.batch_norm = batch_norm
+    self.dropout = dropout
     self.layer_norm = layer_norm
     self.reduction = reduction
     self.static_edge_index = gutils.read_edge_index(
-      edge_index=static_edge_index,
+      data=static_edge_index,
       identifier="static_edge_index"
     )
     # Kernel
@@ -46,8 +44,7 @@ class GraphNet(nn_elem.Layer):
     common = dict(
       kernel_initializer=self.kernel_initializer,
       regularizer=self.regularizer,
-      dropout_kwargs=self.dropout_kwargs,
-      batch_norm=self.batch_norm,
+      dropout=self.dropout,
       layer_norm=self.layer_norm,
       static_edge_index=self.static_edge_index
     )
@@ -91,8 +88,7 @@ class GraphNet(nn_elem.Layer):
       'activation': self.activation,
       'kernel_initializer': self.kernel_initializer,
       'regularizer': self.regularizer,
-      'dropout_kwargs': self.dropout_kwargs,
-      'batch_norm': self.batch_norm,
+      'dropout': self.dropout,
       'layer_norm': self.layer_norm,
       'static_edge_index': ops.to_numpy(self.static_edge_index),
       'reduction': self.reduction
@@ -112,8 +108,7 @@ class GraphEdgeBlock(nn_elem.FFBlock):
     activation=['linear'],
     kernel_initializer=None,
     regularizer=None,
-    dropout_kwargs=dict(rate=0),
-    batch_norm=None,
+    dropout=dict(rate=0),
     layer_norm=None,
     static_edge_index=None,
     **kwargs
@@ -123,13 +118,12 @@ class GraphEdgeBlock(nn_elem.FFBlock):
       activation=activation,
       kernel_initializer=kernel_initializer,
       regularizer=regularizer,
-      dropout_kwargs=dropout_kwargs,
-      batch_norm=batch_norm,
+      dropout=dropout,
       layer_norm=layer_norm,
       **kwargs
     )
     self.static_edge_index = gutils.read_edge_index(
-      edge_index=static_edge_index,
+      data=static_edge_index,
       identifier="static_edge_index"
     )
 
@@ -174,8 +168,7 @@ class GraphNodeBlock(GraphEdgeBlock):
     activation=['linear'],
     kernel_initializer=None,
     regularizer=None,
-    dropout_kwargs=dict(rate=0),
-    batch_norm=None,
+    dropout=dict(rate=0),
     layer_norm=None,
     static_edge_index=None,
     reduction="sum",
@@ -186,8 +179,7 @@ class GraphNodeBlock(GraphEdgeBlock):
       activation=activation,
       kernel_initializer=kernel_initializer,
       regularizer=regularizer,
-      dropout_kwargs=dropout_kwargs,
-      batch_norm=batch_norm,
+      dropout=dropout,
       layer_norm=layer_norm,
       static_edge_index=static_edge_index,
       **kwargs
@@ -250,8 +242,7 @@ class EdgeEncoder(nn_elem.FFBlock):
     activation=['linear'],
     kernel_initializer=None,
     regularizer=None,
-    dropout_kwargs=dict(rate=0),
-    batch_norm=None,
+    dropout=dict(rate=0),
     layer_norm=None,
     static_edge_index=None,
     static_edge_attr=None,
@@ -262,8 +253,7 @@ class EdgeEncoder(nn_elem.FFBlock):
       activation=activation,
       kernel_initializer=kernel_initializer,
       regularizer=regularizer,
-      dropout_kwargs=dropout_kwargs,
-      batch_norm=batch_norm,
+      dropout=dropout,
       layer_norm=layer_norm,
       **kwargs
     )

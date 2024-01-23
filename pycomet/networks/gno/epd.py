@@ -1,6 +1,7 @@
 from pycomet import utils
 from ..basenet import BaseNet
 
+import tensorflow as tf
 
 class EncodeProcessDecode(BaseNet):
 
@@ -40,6 +41,9 @@ class EncodeProcessDecode(BaseNet):
       not_opt=('graphnet', 'edge_encoder', 'node_encoder', 'node_decoder'),
       default=self.default_lays_propty
     )
+    # Initializing layers
+    self.active_lays = self.init_layers()
+    self.init_preinput_lay()
 
   # Layers initialization
   # -----------------------------------
@@ -91,8 +95,7 @@ class EncodeProcessDecode(BaseNet):
     # Node decoder: node_attr -> node_attr
     graph[0] = self.active_lays["node_decoder"](graph[0], training=training)
     # Output nodes manipulation
-    y = graph[0] + x
     y = self._manipulate_inout(
-      inputs=dict(x=x, y=y), identifier='output', training=training
+      inputs=dict(x=x, y=graph[0]), identifier='output', training=training
     )
     return y

@@ -1,97 +1,72 @@
-# -------------------------------- INPUT FILE ------------------------------- #
-# Description:
-# >> Defining the Neural Network architecture
-# --------------------------------------------------------------------------- #
-
-
 from inputs.general import dim
 
 
 # Architecture properties
-# =============================================================================
-architecture = 'MIONet'
+# =====================================
+architecture = 'EncodeProcessDecode'
 
-# Layers ----------------------------------------------------------------------
+# Layers
+# -------------------------------------
+latent_dim = 8
+
 common = {
-    'kernel_initializer': 'GlorotNormal',
-    'regularizer': {
-        'name': 'l1+l2',
-        'l1':   1.e-4,
-        'l2':   1.e-4
-    },
-    'dropout_kwargs': {'rate': 0.},
-    'batch_norm': None,
-    'weight_norm': False,
-    'trainable': True
+  'kernel_initializer': 'GlorotNormal',
+  'regularizer': {
+    'name': 'l1+l2',
+    'l1': 1e-4,
+    'l2': 1e-4
+  },
+  'dropout': {'rate': 1e-3},
+  'layer_norm': True,
+  'trainable': True
 }
+
 
 lays_propty = {
 
-    'input': {
-        'params': {
-            'index': 0,
-            'xform': None
-        },
-        'ics': {
-            'index': 1,
-            'xform': None
-        },
-        'time': {
-            'index': 2,
-            'xform': None
-        }
-    },
-
-    'prenet':  {
-
-        'shifter': {
-            'from': ['params', 'ics'],
-            'to': 'time',
-            'kwargs': {
-                'layer_size': [sum(dim['inp'][:2]), 8, 8, 8],
-                'activation': ['sigmoid']*3 + ['linear'],
-                'out_xform': None,
-                'transformation': 'similarity',
-                'num_coords': 1,
-                **common
-            }
-        }
-
-    },
-
-    'branch': {
-
-        'params': [{
-            'lay_id': 'FFBlock',
-            'kwargs': {
-                'layer_size': [dim['inp'][0], 32, 32, 4],
-                'activation': ['sigmoid']*2 + ['linear'],
-                **common
-            }
-        } for _ in range(2)],
-
-        'ics': [{
-            'lay_id': 'FFBlock',
-            'kwargs': {
-                'layer_size': [dim['inp'][1], 32, 32, 4],
-                'activation': ['sigmoid']*2 + ['linear'],
-                **common
-            }
-        } for _ in range(2)]
-
-    },
-
-    'trunk': {
-
-        'time': {
-            'lay_id': 'FFBlock',
-            'kwargs': {
-                'layer_size': [dim['inp'][2], 32, 32, 4],
-                'activation': ['sigmoid']*2 + ['linear'],
-                **common
-            }
-        }
-
+  'edge_encoder': {
+    'lay_id': 'EdgeEncoder',
+    'kwargs': {
+      'layer_size': [2, 32, 32, latent_dim],
+      'activation': ['sigmoid']*2 + ['linear'],
+      "static_edge_index": None,
+      "static_edge_attr": None,
+      **common
     }
+  },
+
+  'node_encoder': {
+    'lay_id': 'FFBlock',
+    'kwargs': {
+      'layer_size': [2, 32, 32, latent_dim],
+      'activation': ['sigmoid']*2 + ['linear'],
+      **common
+    }
+  },
+
+  'graphnet': [{
+    'lay_id': 'GraphNet',
+    'kwargs': {
+      'layer_size': {
+        "node": [latent_dim, 32, 32, latent_dim],
+        "edge": [latent_dim, 32, 32, latent_dim]
+      },
+      'activation': {
+        "node": ['tanh']*2 + ['linear'],
+        "edge": ['tanh']*2 + ['linear']
+      },
+      "static_edge_index": None,
+      **common
+    }
+  } for _ in range(2)],
+
+  'node_decoder': {
+    'lay_id': 'FFBlock',
+    'kwargs': {
+      'layer_size': [latent_dim, 32, 32, 1],
+      'activation': ['sigmoid']*2 + ['linear'],
+      **common
+    }
+  }
 
 }

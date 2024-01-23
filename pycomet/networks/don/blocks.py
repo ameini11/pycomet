@@ -22,8 +22,7 @@ class PreNetBlock(nn_elem.Layer):
     activation=['linear'],
     kernel_initializer=None,
     regularizer=None,
-    dropout_kwargs=dict(rate=0),
-    batch_norm=None,
+    dropout=dict(rate=0),
     layer_norm=None,
     out_xform=None,
     transformation='affine',
@@ -100,8 +99,7 @@ class PreNetBlock(nn_elem.Layer):
     self.activation = activation
     self.kernel_initializer = kernel_initializer
     self.regularizer = regularizer
-    self.dropout_kwargs = dropout_kwargs
-    self.batch_norm = batch_norm
+    self.dropout = dropout
     self.layer_norm = layer_norm
     self.blocks = []
     for d in self.output_dim:
@@ -112,8 +110,7 @@ class PreNetBlock(nn_elem.Layer):
             activation=self.activation,
             kernel_initializer=self.kernel_initializer,
             regularizer=self.regularizer,
-            dropout_kwargs=self.dropout_kwargs,
-            batch_norm=self.batch_norm,
+            dropout=self.dropout,
             layer_norm=self.layer_norm
           )
         )
@@ -207,8 +204,8 @@ class PreNetBlock(nn_elem.Layer):
       'activation': self.activation,
       'kernel_initializer': self.kernel_initializer,
       'regularizer': self.regularizer,
-      'dropout_kwargs': self.dropout_kwargs,
-      'batch_norm': self.batch_norm,
+      'dropout': self.dropout,
+      'layer_norm': self.layer_norm,
       'out_xform': self.out_xform,
       'transformation': self.transformation,
       'shifter': self.shifter,
@@ -230,8 +227,8 @@ class CrossEncoderBlock(nn_elem.FFBlock):
     activation=['linear'],
     kernel_initializer=None,
     regularizer=None,
-    dropout_kwargs=dict(rate=0),
-    batch_norm=None,
+    dropout=dict(rate=0),
+    layer_norm=None,
     **kwargs
   ):
     super(CrossEncoderBlock, self).__init__(
@@ -239,8 +236,8 @@ class CrossEncoderBlock(nn_elem.FFBlock):
       activation=activation,
       kernel_initializer=kernel_initializer,
       regularizer=regularizer,
-      dropout_kwargs=dropout_kwargs,
-      batch_norm=batch_norm,
+      dropout=dropout,
+      layer_norm=layer_norm,
       **kwargs
     )
     for i in range(1,len(self.layer_size)-2):

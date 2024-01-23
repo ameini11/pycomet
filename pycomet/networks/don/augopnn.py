@@ -37,8 +37,7 @@ class AugOpNN(OpNN):
     )
     self.check_layer_size()
     self.block_keys = (
-      'use_bias', 'kernel_initializer', 'regularizer', \
-      'weight_norm', 'batch_norm', 'dropout_kwargs'
+      'use_bias', 'kernel_initializer', 'regularizer', 'layer_norm', 'dropout'
     )
     for (identifier, block) in (('u','branch'), ('v','trunk')):
       propty = self.lays_propty[block]

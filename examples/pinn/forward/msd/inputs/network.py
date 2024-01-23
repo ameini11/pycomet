@@ -11,8 +11,8 @@ common = {
     'l1': 1e-4,
     'l2': 1e-4
   },
-  'dropout_kwargs': {'rate': 1e-3},
-  'batch_norm': None,
+  'dropout': {'rate': 1e-3},
+  'layer_norm': None,
   'trainable': True
 }
 

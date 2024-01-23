@@ -1,7 +1,6 @@
-#!/home/zanardi/.conda/envs/pycomet.gpu/bin/python
+#!/home/zanardi/.conda/envs/pycomet/bin/python
 # -*- coding: utf-8 -*-
 import re
-import os
 import sys
 sys.path.append('/home/zanardi/Codes/ML/PyCOMET/pycomet/')
 from pycomet.__main__ import main

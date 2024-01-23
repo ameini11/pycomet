@@ -28,6 +28,7 @@ class GraphDataSet(DataSet):
     self.multi_obj_loss = False
     self.data_gen = None
     self.physical_mdl = None
+    self.from_file = True
     # Data
     self.identifiers = ('train', 'valid', 'test')
     self.data_src = data_src
