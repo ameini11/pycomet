@@ -1,3 +1,5 @@
+import numpy as np
+
 # Data generator inputs
 # =====================================
 # Training/Validation data
@@ -10,9 +12,15 @@ test_cases = 10
 
 # Input space
 inp_space = {
-  'y1': [1,  10],
-  'y2': [0,5e-5],
-  'y3': [0,   9]
+  'y1': [   1,   10],
+  'y2': [1e-5, 5e-5],
+  'y3': [   0,    9]
+}
+
+inp_space_xform = {
+  'y1': [lambda x: x, lambda x: x],
+  'y2': [     np.log,      np.exp],
+  'y3': [lambda x: x, lambda x: x]
 }
 
 # Model

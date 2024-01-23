@@ -277,8 +277,8 @@ class EdgeEncoder(nn_elem.FFBlock):
     edge_attr = super(EdgeEncoder, self).call(edge_attr, training=training)
     # Manipulate edges
     if (self.static_edge_attr is not None):
-      multiples = tf.nest.map_structure(lambda _: 1, tf.shape(edge_attr))
-      multiples[0] = tf.shape(node_attr)[0]
+      multiples = tf.nest.map_structure(lambda _: 1, list(edge_attr.shape))
+      multiples[0] = node_attr.shape[0]
       edge_attr = tf.tile(edge_attr, multiples)
     # Return graph
     return self._return_graph(node_attr, edge_index, edge_attr)

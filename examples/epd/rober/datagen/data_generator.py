@@ -20,6 +20,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     validation_split,
     test_cases,
     inp_space,
+    inp_space_xform,
     autoregressive,
     *args,
     **kwargs
@@ -37,6 +38,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self.test_cases = test_cases
     # Input space variables
     self.inp_space = np.vstack(list(inp_space.values())).T
+    self.inp_space_xform = inp_space_xform
     # Model
     # -----------------------
     self.autoregressive = autoregressive
@@ -88,9 +90,16 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   ):
     dim = self.inp_space.shape[1]
     samples = self.scenarios * 2 + self.test_cases
+    # Transform input space
+    inp_space_lim = np.zeros_like(self.inp_space)
+    for (i, xform) in enumerate(self.inp_space_xform.values()):
+      inp_space_lim[:,i] = xform[0](self.inp_space[:,i])
     # Contructing design matrix
     x_norm = lhs(dim, samples)
-    x = x_norm * (self.inp_space[1]-self.inp_space[0]) + self.inp_space[0]
+    x = x_norm * (inp_space_lim[1]-inp_space_lim[0]) + inp_space_lim[0]
+    # Transform input space
+    for (i, xform) in enumerate(self.inp_space_xform.values()):
+      x[:,i] = xform[1](x[:,i])
     # Sorting w.r.t. the projection norm
     proj = np.dot(x_norm, np.ones((dim,1))).squeeze()
     inp_space = x[proj.argsort()]
