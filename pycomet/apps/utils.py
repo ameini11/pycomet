@@ -136,9 +136,6 @@ def _generate_data(
 ):
   utils.print_fn("Generating data with 'DataGenerator' ...")
   try:
-    # path_to_mod = wdir + '/datagen/'
-    # utils.generate_init_mod_file(path=path_to_mod)
-    # utils.append_mod_dir(modules={"data_generator": path_to_mod})
     sys.path.append(os.path.abspath(wdir + '/datagen/'))
     from data_generator import DataGenerator
   except:
@@ -166,9 +163,6 @@ def _load_physical_mdl(
 ):
   utils.print_fn("Initializing physical model ...")
   try:
-    # path_to_mod = wdir + '/physics/'
-    # utils.generate_init_mod_file(path=path_to_mod)
-    # utils.append_mod_dir(modules={"physical_model": path_to_mod})
     sys.path.append(os.path.abspath(wdir + '/physics/'))
     from physical_model import PhysicalModel
   except:

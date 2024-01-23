@@ -42,7 +42,7 @@ def main(args):
   # Check flags
   for k in ('train', 'save'):
     inputs.flags[k] = 0
-  if inputs.flags['load'] == 0:
+  if (inputs.flags['load'] == 0):
     utils.raise_err(
       ValueError,
       "The network has to be restored from a saved or a checkpointed " \
@@ -51,7 +51,7 @@ def main(args):
 
   # Data
   # -----------------------------------
-  if (not inputs.from_file):
+  if (not getattr(inputs, "from_file", False)):
     utils.raise_err(
       ValueError,
       "The test cases have to be retrieved from a list " \
