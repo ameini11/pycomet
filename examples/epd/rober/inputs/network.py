@@ -1,6 +1,3 @@
-from inputs.general import dim
-
-
 # Architecture properties
 # =====================================
 architecture = 'EncodeProcessDecode'
@@ -21,7 +18,6 @@ common = {
   'trainable': True
 }
 
-
 lays_propty = {
 
   'edge_encoder': {
@@ -29,8 +25,9 @@ lays_propty = {
     'kwargs': {
       'layer_size': [2, 32, 32, latent_dim],
       'activation': ['sigmoid']*2 + ['linear'],
-      "static_edge_index": None,
+      "static_edge_index": "./data/edge_index.txt",
       "static_edge_attr": None,
+      "name": 'edge_encoder',
       **common
     }
   },
@@ -38,8 +35,9 @@ lays_propty = {
   'node_encoder': {
     'lay_id': 'FFBlock',
     'kwargs': {
-      'layer_size': [2, 32, 32, latent_dim],
+      'layer_size': [1, 32, 32, latent_dim],
       'activation': ['sigmoid']*2 + ['linear'],
+      "name": 'node_encoder',
       **common
     }
   },
@@ -55,16 +53,18 @@ lays_propty = {
         "node": ['tanh']*2 + ['linear'],
         "edge": ['tanh']*2 + ['linear']
       },
-      "static_edge_index": None,
+      "static_edge_index": "./data/edge_index.txt",
+      "name": f'graphnet_{i+1}',
       **common
     }
-  } for _ in range(2)],
+  } for i in range(2)],
 
   'node_decoder': {
     'lay_id': 'FFBlock',
     'kwargs': {
       'layer_size': [latent_dim, 32, 32, 1],
       'activation': ['sigmoid']*2 + ['linear'],
+      "name": 'node_decoder',
       **common
     }
   }

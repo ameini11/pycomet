@@ -198,7 +198,7 @@ class GraphNodeBlock(GraphEdgeBlock):
   # ===================================
   def _gather_features(self, node_attr, edge_index, edge_attr):
     # Check rank
-    rank = tf.rank(edge_attr)
+    rank = len(edge_attr.shape)
     if (rank not in (2,3)):
       utils.raise_err(
         ValueError,
@@ -275,11 +275,11 @@ class EdgeEncoder(nn_elem.FFBlock):
     )
     # Call mlp
     edge_attr = super(EdgeEncoder, self).call(edge_attr, training=training)
-    # Manipulate edges
-    if (self.static_edge_attr is not None):
-      multiples = tf.nest.map_structure(lambda _: 1, list(edge_attr.shape))
-      multiples[0] = node_attr.shape[0]
-      edge_attr = tf.tile(edge_attr, multiples)
+    # # Manipulate edges
+    # if (self.static_edge_attr is not None):
+    #   multiples = tf.nest.map_structure(lambda _: 1, list(edge_attr.shape))
+    #   multiples[0] = node_attr.shape[0]
+    #   edge_attr = tf.tile(edge_attr, multiples)
     # Return graph
     return self._return_graph(node_attr, edge_index, edge_attr)
 
