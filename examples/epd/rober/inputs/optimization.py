@@ -5,7 +5,7 @@ optimizer = 'adam'
 
 # Learning rate scheduler
 # -------------------------------------
-lr = 1.e-3
+lr = 1e-3
 scheduler = {
   "name": "exponential",
   "decay_steps": 8*50,
@@ -16,11 +16,7 @@ scheduler = {
 # =====================================
 axis = 0 # -1 0 None
 reduction = 'auto' # 'auto' 'sum_over_batch_size' 'sum'
-loss = {
-  'ics': 'mse',
-  'pts': 'mse',
-  'res': 'mse'
-}
+loss = 'mse'
 
 # Callbacks
 # =====================================

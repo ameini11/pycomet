@@ -52,8 +52,8 @@ class BaseNet(object):
         "  - 'out': 'int' (or 'list' of 'int').\n" \
         "It represents the dimensions of the I/O feature space."
       )
-    self.input_dim = tf.nest.flatten(self.dim["inp"])
-    self.output_dim = tf.nest.flatten(self.dim["out"])
+    self.input_dim = self.dim["inp"]
+    self.output_dim = self.dim["out"]
     # Extra inputs/outputs due to inference phase
     if (self.inference is not None):
       self.extra_inout = {}

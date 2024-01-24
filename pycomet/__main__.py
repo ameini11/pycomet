@@ -4,6 +4,7 @@ import threadpoolctl
 
 from pycomet import apps
 from pycomet import utils
+from pycomet import device
 from pycomet.config import get_config, update_config
 
 
@@ -32,6 +33,9 @@ def main():
 
   # Updating configuration
   update_config(args)
+
+  # Set device
+  device.set(_CFG)
 
   # Setting seed
   if hasattr(args, "seed"):

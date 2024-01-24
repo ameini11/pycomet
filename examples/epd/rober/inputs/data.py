@@ -8,8 +8,7 @@ from_file = True
 
 data_src = {
   'train': './data/train.hdf5',
-  'valid': './data/valid.hdf5',
-  'test': None
+  'valid': './data/valid.hdf5'
 }
 
 use_static_edges = False

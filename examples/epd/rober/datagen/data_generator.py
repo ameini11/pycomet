@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import pandas as pd
 import pycomet as pcm
 import tensorflow as tf
 
@@ -79,8 +78,6 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Saving edges
     filename = self.data_dir + "/edge_index.txt"
     np.savetxt(filename, self.edges[:,:2], fmt='%d')
-    filename = self.data_dir + "/edge_attr.txt"
-    np.savetxt(filename, self.edges[:,2:], fmt='%.10e')
     return data_src
 
   # Initial conditions
@@ -90,14 +87,14 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   ):
     dim = self.inp_space.shape[1]
     samples = self.scenarios * 2 + self.test_cases
-    # Transform input space
+    # Transform input space - Forward
     inp_space_lim = np.zeros_like(self.inp_space)
     for (i, xform) in enumerate(self.inp_space_xform.values()):
       inp_space_lim[:,i] = xform[0](self.inp_space[:,i])
     # Contructing design matrix
     x_norm = lhs(dim, samples)
     x = x_norm * (inp_space_lim[1]-inp_space_lim[0]) + inp_space_lim[0]
-    # Transform input space
+    # Transform input space - Backward
     for (i, xform) in enumerate(self.inp_space_xform.values()):
       x[:,i] = xform[1](x[:,i])
     # Sorting w.r.t. the projection norm
@@ -159,6 +156,11 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       # Collect data
       data_type = 'train' if ((i % 2) == 0) else 'valid'
       data = self.stack_data(data, data_i, data_type)
+    # Normalization
+    dref = data['train'][0][0]
+    self.xmean, self.xstd = np.mean(dref, axis=0), np.std(dref, axis=0)
+    np.savetxt(self.data_dir + "/xmean.txt", self.xmean, fmt='%.10e')
+    np.savetxt(self.data_dir + "/xstd.txt",  self.xstd,  fmt='%.10e')
     # Save data
     for data_type in data:
       data[data_type] = self.store_data(data[data_type])
@@ -168,10 +170,16 @@ class DataGenerator(pcm.data.BaseDataGenerator):
 
   def get_data(self, y0):
     t, y = self.solution(y0)
+    n = len(t)
+    # Compose edge attributes
+    edge = np.expand_dims(self.edges[:,2:],0)
+    # Compose data
     if self.autoregressive:
-      return [y[:-1], y[1:]]
+      edge = np.tile(edge, (n-1,1,1))
+      return [[y[:-1], edge], y[1:]]
     else:
-      return [[np.tile(y0, (len(y),1)), t], y]
+      edge = np.tile(edge, (n,1,1))
+      return [[np.tile(y0, (n,1)), edge, t], y]
 
   def stack_data(self, data, data_new, data_type):
     if (data_type not in data):
@@ -185,16 +193,20 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     return data
 
   def store_data(self, data):
+    x = (data[0][0] - self.xmean) / self.xstd
+    y = (data[1] - self.xmean) / self.xstd
     if self.autoregressive:
       return {
-        "node_attr": data[0][...,None],         # Input node attributes
-        "target": data[1][...,None]             # Output node attributes
+        "node_attr": x[...,None],     # Input node attributes
+        "edge_attr": data[0][1],      # Input edge attributes
+        "target": y[...,None]         # Output node attributes
       }
     else:
       return {
-        "node_attr": data[0][0][...,None],      # Input node attributes
-        "cond_attr": data[0][1],                # Conditioning inputs - Time
-        "target": data[1][...,None]             # Output node attributes
+        "node_attr": x[...,None],     # Input node attributes
+        "edge_attr": data[0][1],      # Input edge attributes
+        "cond_attr": data[0][2],      # Conditioning inputs - Time
+        "target": y[...,None]         # Output node attributes
       }
 
   # Testing data
