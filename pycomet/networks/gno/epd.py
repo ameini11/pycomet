@@ -1,8 +1,6 @@
 from pycomet import utils
 from ..basenet import BaseNet
-from keras import layers as tf_layers
 
-import tensorflow as tf
 
 class EncodeProcessDecode(BaseNet):
 
@@ -29,6 +27,9 @@ class EncodeProcessDecode(BaseNet):
       *args,
       **kwargs
     )
+    self.process_layers(lays_name)
+
+  def process_layers(self, lays_name):
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
@@ -92,21 +93,33 @@ class EncodeProcessDecode(BaseNet):
     graph[0] = self._manipulate_inout(
       inputs=dict(x=x, y=x), identifier='input', training=training
     )
-    # Edge encoder: graph -> graph
-    graph = self.active_lays["edge_encoder"](graph, training=training)
-    # Node encoder: node_attr -> node_attr
-    graph[0] = self.active_lays["node_encoder"](graph[0], training=training)
-    # Processor: graph -> graph
-    for processor in self.active_lays["graphnet"]:
-      graph = processor(graph)
-    # Node decoder: node_attr -> node_attr
-    graph[0] = self.active_lays["node_decoder"](graph[0], training=training)
-    # Residual connection: node_attr
-    y = graph[0]
-    if ('residual' in self.active_lays):
-      y = self.active_lays["residual"]([x, y])
+    # Encode-process-decode
+    graph = self.encode(graph, training)
+    graph = self.process(graph, training)
+    y = self.decode(x, graph, training)
     # Output nodes manipulation
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier='output', training=training
     )
+    return y
+
+  def encode(self, graph, training):
+    # Edge encoder: graph -> graph
+    graph = self.active_lays["edge_encoder"](graph, training=training)
+    # Node encoder: node_attr -> node_attr
+    graph[0] = self.active_lays["node_encoder"](graph[0], training=training)
+    return graph
+
+  def process(self, graph, training):
+    # Processor: graph -> graph
+    for processor in self.active_lays["graphnet"]:
+      graph = processor(graph, training=training)
+    return graph
+
+  def decode(self, x, graph, training):
+    # Node decoder: node_attr -> node_attr
+    y = self.active_lays["node_decoder"](graph[0], training=training)
+    # Residual connection: node_attr
+    if ('residual' in self.active_lays):
+      y = self.active_lays["residual"]([x, y])
     return y

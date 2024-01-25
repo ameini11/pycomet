@@ -1,6 +1,6 @@
 # Training
 # =====================================
-epochs = 1000
+epochs = 150
 optimizer = 'adam'
 
 # Learning rate scheduler

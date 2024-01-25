@@ -53,7 +53,7 @@ class MLP(pcm_layers.Layer):
       )
     )
     # Normalization
-    if (self.layer_norm is not None):
+    if self.layer_norm:
       self.lays.append(
         tf_layers.LayerNormalization(
           axis=-1,
@@ -70,7 +70,7 @@ class MLP(pcm_layers.Layer):
         )
       )
     # Dropout
-    if (self.dropout is not None):
+    if self.dropout:
       self.lays.append(
         pcm_layers.Dropout(**dropout, name=self.name+'_dropout')
       )
@@ -144,16 +144,17 @@ class FFBlock(pcm_layers.Layer):
       # Hidden Layers
       names = [f'hidden_{i}' for i in range(len(self.layer_size)-2)]
       names = names + ['output']
+      nb_mlp = len(self.layer_size)-1
       self.lays = [
         MLP(
           units=self.layer_size[i+1],
           activation=self.activation[i],
           kernel_initializer=self.kernel_initializer,
           regularizer=self.regularizer,
-          layer_norm=self.layer_norm,
+          layer_norm=self.layer_norm if (i == nb_mlp-1) else False,
           dropout=self.dropout,
           name=self.name+'_'+names[i]
-        ) for i in range(len(self.layer_size)-1)
+        ) for i in range(nb_mlp)
       ]
 
   # Calling
