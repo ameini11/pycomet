@@ -936,10 +936,7 @@ class GaussianNoise(Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=None):
-    y = inputs
-    if training:
-      y = self.noised(y)
-    return y
+    return self.noised(inputs) if training else inputs
 
   def noised(self, inputs):
     if isinstance(inputs, (list, tuple)):
@@ -966,4 +963,51 @@ class GaussianNoise(Layer):
       "seed": self.seed
     }
     base_config = super(GaussianNoise, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class GatheredAdd(tf_layers.Add):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    gathered=None,
+    **kwargs
+  ):
+    super(GatheredAdd, self).__init__(**kwargs)
+    if ((gathered is not None) and (not isinstance(gathered, (list, tuple)))):
+      utils.raise_err(
+        ValueError,
+        "The inputs provided for 'gathered' must be a list or tuple, where " \
+        "each element operates on a specific input tensor intended for the " \
+        "addition operation. Each element should be a dictionary specifying " \
+        "the options for 'tf.gather' (e.g., {'indices': [0], 'axis': -1}). " \
+        "This ensures the correct extraction of tensor entries for the " \
+        "addition operation."
+      )
+    self.gathered = gathered
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    if (self.gathered is not None):
+      y = []
+      for (i, x) in enumerate(inputs):
+        if (self.gathered[i] is not None):
+          y.append(tf.gather(x, **self.gathered[i]))
+        else:
+          y.append(x)
+    else:
+      y = inputs
+    return super(GatheredAdd, self).call(y)
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      'gathered': self.gathered
+    }
+    base_config = super(GatheredAdd, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

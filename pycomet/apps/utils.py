@@ -115,6 +115,13 @@ def _data(
     data_src = inputs_mod.data_src
     data_gen = None
   else:
+    if (data_cls.__name__ in data_mod._only_from_file):
+      utils.raise_err(
+        NotImplementedError,
+        f"The data class '{data_cls.__name__}' is specifically " \
+        "designed for processing data from a file. Please, " \
+        "review the 'from_file' input parameter."
+      )
     data_src, data_gen = _generate_data(inputs_mod, wdir)
   data_args['data_src'] = data_src
   # Add information from physics
@@ -172,7 +179,7 @@ def _load_physical_mdl(
       "'PhysicalModel' object has been found in " \
       f"'{wdir}/physics/physical_model.py' file."
     )
-  if (inputs_mod.data_type in data_mod.__physics_informed__):
+  if (inputs_mod.data_type in data_mod._physics_informed):
     physical_mdl_args = utils.get_fun_args_values(
       args=utils.get_fun_args(PhysicalModel.__init__),
       modules=inputs_mod
@@ -183,7 +190,7 @@ def _load_physical_mdl(
     utils.raise_err(
       ValueError,
       "For physics-informed models, the following data types " \
-      f"are available: {data_mod.__physics_informed__}"
+      f"are available: {data_mod._physics_informed}"
     )
   return physical_mdl
 

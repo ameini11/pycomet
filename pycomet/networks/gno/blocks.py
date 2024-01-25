@@ -213,7 +213,7 @@ class GraphNodeBlock(GraphEdgeBlock):
     edge_attr_aggr = self.reduction_fun(
       data=edge_attr,
       segment_ids=edge_index[1],            # Receivers
-      num_segments=tf.shape(node_attr)[-2]  # Number of nodes
+      num_segments=node_attr.shape[-2]      # Number of nodes
     )
     # Move batches as first dimension
     if (rank == 3):
@@ -275,11 +275,19 @@ class EdgeEncoder(nn_elem.FFBlock):
     )
     # Call mlp
     edge_attr = super(EdgeEncoder, self).call(edge_attr, training=training)
-    # # Manipulate edges
-    # if (self.static_edge_attr is not None):
-    #   multiples = tf.nest.map_structure(lambda _: 1, list(edge_attr.shape))
-    #   multiples[0] = node_attr.shape[0]
-    #   edge_attr = tf.tile(edge_attr, multiples)
+    # Manipulate edges
+    if (self.static_edge_attr is not None):
+      nb_samples = node_attr.shape[0]
+      if (nb_samples is not None):
+        multiples = tf.nest.map_structure(lambda _: 1, list(edge_attr.shape))
+        multiples[0] = nb_samples
+        edge_attr = tf.tile(edge_attr, multiples)
+      else:
+        utils.raise_err(
+          ValueError,
+          "The 'static_edge_attr' input tensor is incompatible with " \
+          "dynamic input tensors, where the first dimension is set to 'None'."
+        )
     # Return graph
     return self._return_graph(node_attr, edge_index, edge_attr)
 

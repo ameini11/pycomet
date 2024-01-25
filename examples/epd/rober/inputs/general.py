@@ -3,7 +3,7 @@
 model_name = 'epd'
 
 dim = {
-  "inp": [(3,1),(4,2)],  # Input node/edge attributes
+  "inp": [(3,1), (4,2)],  # Input node/edge attributes
   "out": [(3,1)]         # Output node attributes
 }
 

@@ -1,6 +1,6 @@
 # Data properties
 # =====================================
-data_type = 'GraphDataSet'
+data_type = 'StaticGraphDataSet'
 
 # Data source
 # -------------------------------------
@@ -16,6 +16,6 @@ use_static_edges = False
 # Batching
 # -------------------------------------
 batch_size = {
-  'train': 32,
-  'valid': 32
+  'train': 64,
+  'valid': 64
 }

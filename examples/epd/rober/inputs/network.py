@@ -4,9 +4,11 @@ architecture = 'EncodeProcessDecode'
 
 # Layers
 # -------------------------------------
-latent_dim = 8
+_latent_dim = 8
+_hidden_dim = 32
+_gnet_depth = 2
 
-common = {
+_common = {
   'kernel_initializer': 'GlorotNormal',
   'regularizer': {
     'name': 'l1+l2',
@@ -18,27 +20,44 @@ common = {
   'trainable': True
 }
 
+noisy_io = {
+  'inputs': {
+    'lay_id': 'GaussianNoise',
+    'kwargs': {
+      'stddev': 0.02,
+      'seed': 0
+    }
+  },
+  'outputs': {
+    'lay_id': 'GaussianNoise',
+    'kwargs': {
+      'stddev': 0.02,
+      'seed': 0
+    }
+  }
+}
+
 lays_propty = {
 
   'edge_encoder': {
     'lay_id': 'EdgeEncoder',
     'kwargs': {
-      'layer_size': [2, 32, 32, latent_dim],
-      'activation': ['sigmoid']*2 + ['linear'],
+      'layer_size': [2, _hidden_dim, _hidden_dim, _latent_dim],
+      'activation': ['tanh']*2 + ['linear'],
       "static_edge_index": "./data/edge_index.txt",
       "static_edge_attr": None,
       "name": 'edge_encoder',
-      **common
+      **_common
     }
   },
 
   'node_encoder': {
     'lay_id': 'FFBlock',
     'kwargs': {
-      'layer_size': [1, 32, 32, latent_dim],
-      'activation': ['sigmoid']*2 + ['linear'],
+      'layer_size': [1, _hidden_dim, _hidden_dim, _latent_dim],
+      'activation': ['tanh']*2 + ['linear'],
       "name": 'node_encoder',
-      **common
+      **_common
     }
   },
 
@@ -46,8 +65,8 @@ lays_propty = {
     'lay_id': 'GraphNet',
     'kwargs': {
       'layer_size': {
-        "node": [latent_dim, 32, 32, latent_dim],
-        "edge": [latent_dim, 32, 32, latent_dim]
+        "edge": [3*_latent_dim, _hidden_dim, _hidden_dim, _latent_dim],
+        "node": [2*_latent_dim, _hidden_dim, _hidden_dim, _latent_dim]
       },
       'activation': {
         "node": ['tanh']*2 + ['linear'],
@@ -55,17 +74,24 @@ lays_propty = {
       },
       "static_edge_index": "./data/edge_index.txt",
       "name": f'graphnet_{i+1}',
-      **common
+      **_common
     }
-  } for i in range(2)],
+  } for i in range(_gnet_depth)],
 
   'node_decoder': {
     'lay_id': 'FFBlock',
     'kwargs': {
-      'layer_size': [latent_dim, 32, 32, 1],
-      'activation': ['sigmoid']*2 + ['linear'],
+      'layer_size': [_latent_dim, _hidden_dim, _hidden_dim, 1],
+      'activation': ['tanh']*2 + ['linear'],
       "name": 'node_decoder',
-      **common
+      **_common
+    }
+  },
+
+  'residual': {
+    'lay_id': 'GatheredAdd',
+    'kwargs': {
+      'gathered': None
     }
   }
 

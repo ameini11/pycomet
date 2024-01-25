@@ -7,7 +7,7 @@ from silx.io.dictdump import h5todict
 from tensorflow.python.keras.engine.data_adapter import train_validation_split
 
 
-class GraphDataSet(DataSet):
+class StaticGraphDataSet(DataSet):
 
   # Initialization
   # ===================================

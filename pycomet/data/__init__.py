@@ -1,15 +1,19 @@
 __all__ = [
   "BaseDataGenerator",
   "DataSet",
-  "GraphDataSet",
+  "ODE",
+  "StaticGraphDataSet"
+]
+
+_physics_informed = [
   "ODE"
 ]
 
-__physics_informed__ = [
-  "ODE"
+_only_from_file = [
+  "StaticGraphDataSet"
 ]
 
 from .datagen import BaseDataGenerator
 from .dataset import DataSet
-from .graph_dset import GraphDataSet
 from .multi_obj import ODE
+from .static_gset import StaticGraphDataSet

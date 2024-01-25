@@ -1,6 +1,6 @@
 # Training
 # =====================================
-epochs = 100
+epochs = 1000
 optimizer = 'adam'
 
 # Learning rate scheduler
@@ -8,7 +8,7 @@ optimizer = 'adam'
 lr = 1e-3
 scheduler = {
   "name": "exponential",
-  "decay_steps": 8*50,
+  "decay_steps": 77*50,
   "decay_rate": 0.98
 }
 
@@ -24,7 +24,7 @@ callbacks = {
 
   'early_stopping': {
      'monitor':              'val_loss',
-     'min_delta':            1.e-8,
+     'min_delta':            1e-8,
      'patience':             20000,
      'restore_best_weights': True,
      'verbose':              1

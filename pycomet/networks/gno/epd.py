@@ -1,5 +1,6 @@
 from pycomet import utils
 from ..basenet import BaseNet
+from keras import layers as tf_layers
 
 import tensorflow as tf
 
@@ -31,7 +32,7 @@ class EncodeProcessDecode(BaseNet):
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
-        'graphnet', 'edge_encoder', 'node_encoder', 'node_decoder'
+        'graphnet', 'edge_encoder', 'node_encoder', 'node_decoder', 'residual'
       )
     else:
       self.lays_name = lays_name
@@ -54,28 +55,34 @@ class EncodeProcessDecode(BaseNet):
         lays[identifier] = self.init_inout_lay(propty)
       elif (identifier == 'graphnet'):
         lay_id = 'GraphNet'
-        lays[identifier] = self.init_block_lay(identifier, propty, lay_id)
+        lays[identifier] = self.init_lay(identifier, propty, lay_id)
       elif (identifier == 'edge_encoder'):
         lay_id = 'EdgeEncoder'
-        lays[identifier] = self.init_block_lay(identifier, propty, lay_id)[-1]
+        lays[identifier] = self.init_lay(identifier, propty, lay_id)[-1]
       elif (identifier == 'node_encoder'):
-        lays[identifier] = self.init_block_lay(propty=propty)[-1]
+        lays[identifier] = self.init_lay(propty=propty)[-1]
       elif (identifier == 'node_decoder'):
-        lays[identifier] = self.init_block_lay(propty=propty)[-1]
+        lays[identifier] = self.init_lay(propty=propty)[-1]
+      elif (identifier == 'residual'):
+        lay_id = 'GatheredAdd'
+        lays[identifier] = self.init_lay(identifier, propty, lay_id)[-1]
     return lays
 
-  def init_block_lay(self, identifier=None, propty=None, lay_id=None):
+  def init_lay(self, identifier=None, propty=None, lay_id=None):
     lay = []
     propty = propty if isinstance(propty, (list,tuple)) else [propty]
     for p in propty:
-      if ((lay_id is not None) and (p['lay_id'] != lay_id)):
-        utils.raise_err(
-          ValueError,
-          f"The layer identifier '{identifier}' in {self.name} " \
-          f"must be associated with the '{lay_id}' layer."
-        )
+      self.check_lay_id(identifier, p, lay_id)
       lay.append(self.get_lay(propty=p))
     return lay
+
+  def check_lay_id(self, identifier=None, propty=None, lay_id=None):
+    if ((lay_id is not None) and (propty['lay_id'] != lay_id)):
+      utils.raise_err(
+        ValueError,
+        f"The layer identifier '{identifier}' in {self.name} " \
+        f"must be associated with the '{lay_id}' layer."
+      )
 
   # Calling
   # ===================================
@@ -94,8 +101,11 @@ class EncodeProcessDecode(BaseNet):
       graph = processor(graph)
     # Node decoder: node_attr -> node_attr
     graph[0] = self.active_lays["node_decoder"](graph[0], training=training)
+    # Residual connection: node_attr
+    y = graph[0]
+    if ('residual' in self.active_lays):
+      y = self.active_lays["residual"]([x, y])
     # Output nodes manipulation
-    y = graph[0] + x
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier='output', training=training
     )
