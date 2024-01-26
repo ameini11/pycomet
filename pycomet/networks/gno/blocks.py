@@ -64,7 +64,7 @@ class GraphNet(nn_elem.Layer):
     if (not isinstance(value, dict)):
       utils.raise_err(
         ValueError,
-        f"The '{key}' input provided to {self.name} must be " \
+        f"The '{key}' input provided to '{self.name}' must be " \
         "a dictionary with keys ('edge', 'node') for " \
         "constructing the respective MLP transformation."
       )
@@ -84,14 +84,14 @@ class GraphNet(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      'layer_size': self.layer_size,
-      'activation': self.activation,
-      'kernel_initializer': self.kernel_initializer,
-      'regularizer': self.regularizer,
-      'dropout': self.dropout,
-      'layer_norm': self.layer_norm,
-      'static_edge_index': ops.to_numpy(self.static_edge_index),
-      'reduction': self.reduction
+      "layer_size": self.layer_size,
+      "activation": self.activation,
+      "kernel_initializer": self.kernel_initializer,
+      "regularizer": self.regularizer,
+      "dropout": self.dropout,
+      "layer_norm": self.layer_norm,
+      "static_edge_index": ops.to_numpy(self.static_edge_index),
+      "reduction": self.reduction
     }
     base_config = super(GraphNet, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -105,7 +105,7 @@ class GraphEdgeBlock(nn_elem.FFBlock):
   def __init__(
     self,
     layer_size=None,
-    activation=['linear'],
+    activation=["linear"],
     kernel_initializer=None,
     regularizer=None,
     dropout=dict(rate=0),
@@ -151,7 +151,7 @@ class GraphEdgeBlock(nn_elem.FFBlock):
   # ===================================
   def get_config(self):
     config = {
-      'static_edge_index': ops.to_numpy(self.static_edge_index)
+      "static_edge_index": ops.to_numpy(self.static_edge_index)
     }
     base_config = super(GraphEdgeBlock, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -165,7 +165,7 @@ class GraphNodeBlock(GraphEdgeBlock):
   def __init__(
     self,
     layer_size=None,
-    activation=['linear'],
+    activation=["linear"],
     kernel_initializer=None,
     regularizer=None,
     dropout=dict(rate=0),
@@ -225,7 +225,7 @@ class GraphNodeBlock(GraphEdgeBlock):
   # ===================================
   def get_config(self):
     config = {
-      'reduction': self.reduction
+      "reduction": self.reduction
     }
     base_config = super(GraphNodeBlock, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -239,7 +239,7 @@ class EdgeEncoder(nn_elem.FFBlock):
   def __init__(
     self,
     layer_size=None,
-    activation=['linear'],
+    activation=["linear"],
     kernel_initializer=None,
     regularizer=None,
     dropout=dict(rate=0),
@@ -301,8 +301,8 @@ class EdgeEncoder(nn_elem.FFBlock):
   # ===================================
   def get_config(self):
     config = {
-      'static_edge_index': ops.to_numpy(self.static_edge_index),
-      'static_edge_attr': ops.to_numpy(self.static_edge_attr)
+      "static_edge_index": ops.to_numpy(self.static_edge_index),
+      "static_edge_attr": ops.to_numpy(self.static_edge_attr)
     }
     base_config = super(EdgeEncoder, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

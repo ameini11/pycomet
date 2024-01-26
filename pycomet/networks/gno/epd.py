@@ -33,14 +33,14 @@ class EncodeProcessDecode(BaseNet):
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
-        'graphnet', 'edge_encoder', 'node_encoder', 'node_decoder', 'residual'
+        "graphnet", "edge_encoder", "node_encoder", "node_decoder", "residual"
       )
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=('graphnet', 'edge_encoder', 'node_encoder', 'node_decoder'),
+      not_opt=("graphnet", "edge_encoder", "node_encoder", "node_decoder"),
       default=self.default_lays_propty
     )
     # Initializing layers
@@ -52,20 +52,26 @@ class EncodeProcessDecode(BaseNet):
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier in ('input', 'output')):
+      if (identifier in ("input", "output")):
         lays[identifier] = self.init_inout_lay(propty)
-      elif (identifier == 'graphnet'):
-        lay_id = 'GraphNet'
+    lays.update(self.init_kernel_layers())
+    return lays
+
+  def init_kernel_layers(self):
+    lays = {}
+    for (identifier, propty) in self.lays_propty.items():
+      if (identifier == "graphnet"):
+        lay_id = "GraphNet"
         lays[identifier] = self.init_lay(identifier, propty, lay_id)
-      elif (identifier == 'edge_encoder'):
-        lay_id = 'EdgeEncoder'
+      elif (identifier == "edge_encoder"):
+        lay_id = "EdgeEncoder"
         lays[identifier] = self.init_lay(identifier, propty, lay_id)[-1]
-      elif (identifier == 'node_encoder'):
+      elif (identifier == "node_encoder"):
         lays[identifier] = self.init_lay(propty=propty)[-1]
-      elif (identifier == 'node_decoder'):
+      elif (identifier == "node_decoder"):
         lays[identifier] = self.init_lay(propty=propty)[-1]
-      elif (identifier == 'residual'):
-        lay_id = 'GatheredAdd'
+      elif (identifier == "residual"):
+        lay_id = "GatheredAdd"
         lays[identifier] = self.init_lay(identifier, propty, lay_id)[-1]
     return lays
 
@@ -78,10 +84,10 @@ class EncodeProcessDecode(BaseNet):
     return lay
 
   def check_lay_id(self, identifier=None, propty=None, lay_id=None):
-    if ((lay_id is not None) and (propty['lay_id'] != lay_id)):
+    if ((lay_id is not None) and (propty["lay_id"] != lay_id)):
       utils.raise_err(
         ValueError,
-        f"The layer identifier '{identifier}' in {self.name} " \
+        f"The layer identifier '{identifier}' in '{self.name}' " \
         f"must be associated with the '{lay_id}' layer."
       )
 
@@ -91,15 +97,15 @@ class EncodeProcessDecode(BaseNet):
     x = graph[0]
     # Input nodes manipulation
     graph[0] = self._manipulate_inout(
-      inputs=dict(x=x, y=x), identifier='input', training=training
+      inputs=dict(x=x, y=x), identifier="input", training=training
     )
     # Encode-process-decode
     graph = self.encode(graph, training)
     graph = self.process(graph, training)
-    y = self.decode(x, graph, training)
+    y = self.decode(x, graph[0], training)
     # Output nodes manipulation
     y = self._manipulate_inout(
-      inputs=dict(x=x, y=y), identifier='output', training=training
+      inputs=dict(x=x, y=y), identifier="output", training=training
     )
     return y
 
@@ -116,10 +122,10 @@ class EncodeProcessDecode(BaseNet):
       graph = processor(graph, training=training)
     return graph
 
-  def decode(self, x, graph, training):
+  def decode(self, x, y, training):
     # Node decoder: node_attr -> node_attr
-    y = self.active_lays["node_decoder"](graph[0], training=training)
+    y = self.active_lays["node_decoder"](y, training=training)
     # Residual connection: node_attr
-    if ('residual' in self.active_lays):
+    if ("residual" in self.active_lays):
       y = self.active_lays["residual"]([x, y])
     return y

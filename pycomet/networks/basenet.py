@@ -113,19 +113,18 @@ class BaseNet(object):
         utils.raise_err(ValueError, "Error with noisy I/O.")
     # Inputs
     # -----------------------------
-    self.inputs = []
     if ((self.inference is not None) and (self.inference['size'] is not None)):
-      s = self.inference['size']
-      for i in self.input_dim:
-        shape = tuple(tf.nest.flatten([s, i]))
-        self.inputs.append(tf.keras.Input(
-          tensor=tf.zeros(shape, dtype=bkd.get_floatx())
-        ))
+      gen_inp = lambda shape: tf.keras.Input(
+        tensor=tf.zeros(
+          shape=[self.inference['size'], *list(shape)],
+          dtype=bkd.get_floatx()
+        )
+      )
     else:
-      for i in self.input_dim:
-        shape = tuple(tf.nest.flatten((i,)))
-        self.inputs.append(tf.keras.Input(shape))
-    self.inputs = utils.squeeze_list(tf.nest.flatten(self.inputs))
+      gen_inp = lambda shape: tf.keras.Input(
+        shape=list(shape)
+      )
+    self.inputs = tf.nest.map_structure(gen_inp, self.input_dim)
 
   # Layers initialization
   # ===================================

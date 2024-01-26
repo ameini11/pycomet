@@ -1,6 +1,8 @@
 __all__ = [
-  "EncodeProcessDecode"
+  "EncodeProcessDecode",
+  "EncodeProcessConditionDecode"
 ]
 
 from .blocks import *
 from .epd import EncodeProcessDecode
+from .epcd import EncodeProcessConditionDecode

@@ -185,7 +185,7 @@ class OpNN(BaseNet):
 
 # Shared functions
 # =====================================
-def _init_input_lay(don_cls, identifier, propty):
+def _init_input_lay(nn_cls, identifier, propty):
   # Checking properties format
   if (not isinstance(propty, dict)):
     utils.raise_err(
@@ -195,7 +195,7 @@ def _init_input_lay(don_cls, identifier, propty):
     )
   # Initializing layer properties
   _propty = {}
-  for i, (k_subnet, v_subnet) in enumerate(propty.items()):
+  for (i, (k_subnet, v_subnet)) in enumerate(propty.items()):
     _propty[k_subnet] = {}
     for k in ('index', 'xform'):
       if (k in v_subnet):
@@ -205,7 +205,7 @@ def _init_input_lay(don_cls, identifier, propty):
           if callable(v_subnet[k]):
             _propty[k_subnet][k] = v_subnet[k]
           elif (v_subnet[k] is not None):
-            _propty[k_subnet][k] = don_cls.get_lay(
+            _propty[k_subnet][k] = nn_cls.get_lay(
               propty=v_subnet[k],
               default_lay_id='Lambda'
             )
@@ -222,18 +222,18 @@ def _init_input_lay(don_cls, identifier, propty):
     )
   return _propty
 
-def _manipulate_input(don_cls, x):
+def _manipulate_input(nn_cls, x):
   if (not isinstance(x, (list, tuple, dict))):
     utils.raise_err(
       ValueError,
-      f"The inputs of '{don_cls.name}' network have to " \
+      f"The inputs of '{nn_cls.name}' network have to " \
       "be one of the following: 'list', 'tuple', 'dict'."
     )
   if isinstance(x, (list, tuple)):
-    x = {k: x[v['index']] for k, v in don_cls.active_lays['input'].items()}
+    x = {k: x[v['index']] for (k, v) in nn_cls.active_lays['input'].items()}
   # Inputs transformation
   y = {}
-  for (k, v) in don_cls.active_lays['input'].items():
+  for (k, v) in nn_cls.active_lays['input'].items():
     if (v['xform'] is not None):
       y[k] = v['xform'](x[k])
     else:

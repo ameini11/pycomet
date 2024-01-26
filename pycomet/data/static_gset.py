@@ -18,7 +18,8 @@ class StaticGraphDataSet(DataSet):
     validation_split=None,
     training=True,
     batch_size=None,
-    use_static_edges=True
+    use_static_edges=True,
+    use_conditioning=False
   ):
     self.name = utils.get_class_name(self)
     # Globals
@@ -47,6 +48,7 @@ class StaticGraphDataSet(DataSet):
       self.set_batch_size(batch_size)
     # Training/Validation data
     self.use_static_edges = use_static_edges
+    self.use_conditioning = use_conditioning
     if self.training:
       if (('valid' in self.data_src) and (self.data_src['valid'] is not None)):
         for k in ('train', 'valid'):
@@ -62,6 +64,7 @@ class StaticGraphDataSet(DataSet):
       utils.warning(
         f"Testing phase is currently not supported for '{self.name}'."
       )
+      self.data_src["test"] = None
 
   # Handling data
   # ===================================
@@ -87,9 +90,11 @@ class StaticGraphDataSet(DataSet):
     # Load data
     data = h5todict(h5file=data)
     if self.use_static_edges:
-      keys = ("node_attr", "target")
+      keys = ["node_attr", "target"]
     else:
-      keys = ("node_attr", "edge_attr", "target")
+      keys = ["node_attr", "edge_attr", "target"]
+    if self.use_conditioning:
+      keys.append("cond_attr")
     if any([(k not in data) for k in keys]):
       utils.raise_err(
         ValueError,
@@ -97,7 +102,7 @@ class StaticGraphDataSet(DataSet):
         f"contain the following keys: {keys}."
       )
     # Check rank
-    for k in ("node_attr", "edge_attr", "target"):
+    for k in ("node_attr", "edge_attr", "cond_attr", "target"):
       if (k in data):
         if (data[k].ndim != 3):
           utils.raise_err(
@@ -132,7 +137,7 @@ class StaticGraphDataSet(DataSet):
     self.nb_target_feat = tshape[-1]
     # Compose data as (x, y, sample_weight)
     x = []
-    for k in ("node_attr", "edge_attr"):
+    for k in ("node_attr", "edge_attr", "cond_attr"):
       if (k in data):
         x.append(data[k])
     _data = [x, [data["target"]]]

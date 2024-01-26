@@ -156,11 +156,12 @@ class PreNetBlock(nn_elem.Layer):
       # Rotation
       if (nc == 2):
         s, c = tf.math.sin(y[0]), tf.math.cos(y[0])
-        R = tf.concat([c, -s, s, c], 1)
-        R = tf.reshape(R, [-1,2,2])
+        R = tf.concat([c, -s, s, c], axis=-1)
+        shape = list(R.shape[:-1] + [2,2])
+        R = tf.reshape(R, shape)
       elif (nc == 3):
-        s = nn_elem.Split(nc, axis=1)(tf.math.sin(y[0]))
-        c = nn_elem.Split(nc, axis=1)(tf.math.cos(y[0]))
+        s = nn_elem.Split(nc, axis=-1)(tf.math.sin(y[0]))
+        c = nn_elem.Split(nc, axis=-1)(tf.math.cos(y[0]))
         R = tf.concat([
           c[0]*c[1],
           c[0]*s[1]*s[2] - s[0]*c[2],
@@ -171,29 +172,34 @@ class PreNetBlock(nn_elem.Layer):
           -s[1],
           c[1]*s[2],
           c[1]*c[2]
-        ], 1)
-        R = tf.reshape(R, [-1,3,3])
+        ], axis=-1)
+        shape = list(R.shape[:-1] + [3,3])
+        R = tf.reshape(R, shape)
       else:
         R = y[0]
       # Scaling factor
       S, T = y[1], y[2]
     else:
       S = None
-      R, T = nn_elem.Split([self.i*self.j, self.i], axis=1)(y[-1])
-      R = tf.reshape(R, [-1,self.i,self.j]) if (self.j > 0) else None
+      R, T = nn_elem.Split([self.i*self.j, self.i], axis=-1)(y[-1])
+      if (self.j > 0):
+        shape = list(R.shape[:-1] + [self.i, self.j])
+        R = tf.reshape(R, shape)
+      else:
+        R = None
     # Apply linear operators
-    y = tf.gather(x2, self.coords_indices['xform'], axis=1)
+    y = tf.gather(x2, self.coords_indices['xform'], axis=-1)
     if (len(self.coords_indices['identity']) > 0):
-      y_id = tf.gather(x2, self.coords_indices['identity'], axis=1)
+      y_id = tf.gather(x2, self.coords_indices['identity'], axis=-1)
     if (R is not None):
-      y = tf.einsum('nij,nj->ni', R, y)
+      y = tf.einsum('...ij,...j->...i', R, y)
     if (S is not None):
       y = S * y
     if (T is not None):
       y = y + T
     if (len(self.coords_indices['identity']) > 0):
-      y = tf.concat([y, y_id], 1)
-      y = tf.gather(y, self.unorder_indices, axis=1)
+      y = tf.concat([y, y_id], axis=-1)
+      y = tf.gather(y, self.unorder_indices, axis=-1)
     return y
 
   # Configuration update
