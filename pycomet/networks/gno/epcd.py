@@ -4,7 +4,6 @@ from .epd import EncodeProcessDecode
 from ..don.flexopnn import _eval_prenet
 from ..don.opnn import _init_input_lay, _manipulate_input
 
-import tensorflow as tf
 
 class EncodeProcessConditionDecode(EncodeProcessDecode):
 

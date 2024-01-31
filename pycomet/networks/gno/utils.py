@@ -1,8 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-from pycomet import utils
 from pycomet import operations as ops
+from pycomet import utils as pcm_utils
 
 
 # Graph data
@@ -15,10 +15,10 @@ def unpack_graph(
   if ((edge_index is not None) and (edge_attr is not None)):
     node_attr = graph[-1] if isinstance(graph, (list, tuple)) else graph
   elif ((edge_index is not None) and (edge_attr is None)):
-    node_attr, edge_attr = utils.unpack_list(graph, nb_elem=2)
+    node_attr, edge_attr = pcm_utils.unpack_list(graph, nb_elem=2)
   else:
-    node_attr, edge_index, edge_attr = utils.unpack_list(graph, nb_elem=3)
-  return node_attr, edge_index, edge_attr
+    node_attr, edge_index, edge_attr = pcm_utils.unpack_list(graph, nb_elem=3)
+  return [node_attr, edge_index, edge_attr]
 
 # Edge data
 # =====================================
@@ -30,7 +30,7 @@ def read_edge_index(
   if (data is not None):
     sh = tf.shape(data)
     if ((len(sh) > 2) or (2 not in sh)):
-      utils.raise_err(
+      pcm_utils.raise_err(
         ValueError,
         f"'{identifier}' input must be a 2-dimensional " \
         "array with a shape of [nb_edges, 2]."
@@ -57,7 +57,7 @@ def _read_edge_data(
     elif isinstance(data, str):
       data = np.loadtxt(data).squeeze()
     else:
-      utils.raise_err(
+      pcm_utils.raise_err(
         ValueError,
         f"'{identifier}' input must be either an array " \
         "with a shape of [nb_edges, :] or a string " \

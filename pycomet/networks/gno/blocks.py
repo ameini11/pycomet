@@ -1,10 +1,10 @@
 import tensorflow as tf
 
-from pycomet import utils
 from . import utils as gutils
 from .. import elements as nn_elem
 from pycomet import operations as ops
 from pycomet.config import get_config
+from pycomet import utils as pcm_utils
 _CFG = get_config()
 
 
@@ -62,7 +62,7 @@ class GraphNet(nn_elem.Layer):
 
   def check_dict(self, key, value):
     if (not isinstance(value, dict)):
-      utils.raise_err(
+      pcm_utils.raise_err(
         ValueError,
         f"The '{key}' input provided to '{self.name}' must be " \
         "a dictionary with keys ('edge', 'node') for " \
@@ -200,7 +200,7 @@ class GraphNodeBlock(GraphEdgeBlock):
     # Check rank
     rank = len(edge_attr.shape)
     if (rank not in (2,3)):
-      utils.raise_err(
+      pcm_utils.raise_err(
         ValueError,
         "The 'edge_attr' input tensor has to be of rank 2 " \
         "(shape [nb_edges, nb_edge_features]) or 3 " \
@@ -283,7 +283,7 @@ class EdgeEncoder(nn_elem.FFBlock):
         multiples[0] = nb_samples
         edge_attr = tf.tile(edge_attr, multiples)
       else:
-        utils.raise_err(
+        pcm_utils.raise_err(
           ValueError,
           "The 'static_edge_attr' input tensor is incompatible with " \
           "dynamic input tensors, where the first dimension is set to 'None'."

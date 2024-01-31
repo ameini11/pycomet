@@ -2,4 +2,5 @@ __all__ = [
   "LinearMEGraphNet"
 ]
 
-from .linear_me import LinearMEGraphNet
+from .layers import *
+# from .linear_me import LinearMEGraphNet
