@@ -24,14 +24,14 @@ from .don import blocks as don_blk
 from .gno import blocks as gno_blk
 _NN_MOD.extend([nn_elem, don_blk, gno_blk])
 
-# # Thermochemistry-specific models
-# # =====================================
-# import importlib
-# lib = importlib.util.find_spec("hypernet")
-# if (lib is not None):
-#   from .chem import *
-#   from . import chem
-#   _NN_MOD.append(chem)
+# Thermochemistry-specific models
+# =====================================
+import importlib
+lib = importlib.util.find_spec("hypernet")
+if (lib is not None):
+  from .chem import *
+  from . import chem
+  _NN_MOD.append(chem)
 
 # TensorFlow default layers
 # =====================================
