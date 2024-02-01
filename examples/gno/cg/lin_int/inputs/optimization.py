@@ -1,6 +1,6 @@
 # Training
 # =====================================
-epochs = 5
+epochs = 2000
 optimizer = "adam"
 
 # Learning rate scheduler
@@ -8,7 +8,7 @@ optimizer = "adam"
 lr = 1e-3
 scheduler = {
   "name": "exponential",
-  "decay_steps": 63*50,
+  "decay_steps": 100*50,
   "decay_rate": 0.98
 }
 
@@ -16,7 +16,7 @@ scheduler = {
 # =====================================
 axis = 0 # -1 0 None
 reduction = "auto" # "auto" "sum_over_batch_size" "sum"
-loss = "msle"
+loss = "mape"
 
 # Callbacks
 # =====================================

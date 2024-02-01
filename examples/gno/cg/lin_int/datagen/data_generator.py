@@ -43,8 +43,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     os.makedirs(self.path_to_data, exist_ok=True)
     # Data quantities
     # ---------------------------------
-    self.train_pts = train_pts
     self.valid_pts = round(validation_split*train_pts)
+    self.train_pts = train_pts - self.valid_pts
     self.scenarios = scenarios
     self.test_cases = test_cases
     # Dynamics sampler
@@ -156,14 +156,15 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Compose edge attributes
     edge_k = (self.rates * na[0]).reshape(1,-1)
     edge_k = np.tile(edge_k, (nb_pts,1))
-    edge_t = sol["t"].reshape(-1,1) + self.time_eps
+    edge_t = sol["t"].reshape(-1,1)
     edge_t = np.tile(edge_t, (1,nb_edges))
     edge = np.stack([edge_k, edge_t], axis=-1)
-    edge = np.log10(edge)
+    edge = np.log10(edge + 1e-1*np.amin(edge[edge>0]))
     # Compose node attributes
-    node = np.tile(nm[0].reshape(1,-1,1), (nb_pts,1,1))
+    ym = (nm * self.sp_th[self.molecule].specie.m) / sol["rho"][0]
+    node = np.tile(ym[0].reshape(1,-1,1), (nb_pts,1,1))
     # Compose target
-    targ = np.expand_dims(nm, axis=-1)
+    targ = np.expand_dims(ym, axis=-1)
     # Compose data
     return {
       "node_attr": node,

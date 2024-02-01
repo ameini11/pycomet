@@ -1,7 +1,7 @@
 # Data generator inputs
 # =====================================
 # Training/Validation data
-scenarios = 100
+scenarios = 200
 train_pts = 160
 validation_split = 0.2
 
@@ -9,7 +9,7 @@ validation_split = 0.2
 test_cases = 10
 
 # Time space
-time_lim = [1e-12,1e-3]
+time_lim = [1e-12, 1e-3]
 time_eps = 1e-13
 
 # Input space
