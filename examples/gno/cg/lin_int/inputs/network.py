@@ -37,8 +37,8 @@ lays_propty = {
   "edge_encoder": {
     "lay_id": "FFBlock",
     "kwargs": {
-      "layer_size": [2, 32, 32, 1],
-      "activation": ["tanh"]*2 + ["linear"],
+      "layer_size": [2, 128, 128, 1],
+      "activation": ["tanh"]*2 + ["exp"],
       "layer_norm": True,
       "name": "edge_encoder",
       **_common

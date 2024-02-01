@@ -1,10 +1,15 @@
+import numpy as np
+
 # Model/architecture properties
 # =====================================
 model_name = "lin_me"
 
 dim = {
-  "inp": [(3,1), (6,2)],  # Input node/edge attributes
-  "out": [(3,1)]          # Output node attributes
+  "inp": [
+    np.array([3,1]),          # Node attributes
+    np.array([6,2])           # Edge attributes
+  ],
+  "out": np.array([3,1])      # Node attributes
 }
 
 # Execution Flags

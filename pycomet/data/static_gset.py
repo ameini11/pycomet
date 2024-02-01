@@ -18,6 +18,7 @@ class StaticGraphDataSet(DataSet):
     validation_split=None,
     training=True,
     batch_size=None,
+    from_file=False,
     use_static_edges=True,
     use_conditioning=False
   ):
@@ -29,7 +30,7 @@ class StaticGraphDataSet(DataSet):
     self.multi_obj_loss = False
     self.data_gen = None
     self.physical_mdl = None
-    self.from_file = True
+    self.from_file = from_file
     # Data
     self.identifiers = ('train', 'valid', 'test')
     self.data_src = data_src
@@ -69,7 +70,9 @@ class StaticGraphDataSet(DataSet):
   # Handling data
   # ===================================
   def get_data_from_src(self, data):
-    self._check_file(data)
+    if self.from_file:
+      self._check_file(data)
+      data = h5todict(h5file=data)
     return self._read_data(data)
 
   def _check_file(self, data):
@@ -87,8 +90,6 @@ class StaticGraphDataSet(DataSet):
     return data
 
   def _read_data(self, data):
-    # Load data
-    data = h5todict(h5file=data)
     if self.use_static_edges:
       keys = ["node_attr", "target"]
     else:

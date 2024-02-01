@@ -1,12 +1,7 @@
-import tensorflow as tf
-
 from pycomet import utils
 from ....basenet import BaseNet
-from pycomet.config import get_config
-_CFG = get_config()
 
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class IntegralLinearMEGraphNet(BaseNet):
 
   # Initialization
@@ -67,16 +62,12 @@ class IntegralLinearMEGraphNet(BaseNet):
         lay_id = "LinearMEGraphNet"
         lays[identifier] = self.init_lay(identifier, propty, lay_id)
       elif (identifier == "edge_encoder"):
-        lays[identifier] = self.init_lay(propty=propty)[-1]
+        lays[identifier] = self.init_lay(propty=propty)
     return lays
 
   def init_lay(self, identifier=None, propty=None, lay_id=None):
-    lay = []
-    propty = propty if isinstance(propty, (list,tuple)) else [propty]
-    for p in propty:
-      self.check_lay_id(identifier, p, lay_id)
-      lay.append(self.get_lay(propty=p))
-    return lay
+    self.check_lay_id(identifier, propty, lay_id)
+    return self.get_lay(propty=propty)
 
   def check_lay_id(self, identifier=None, propty=None, lay_id=None):
     if ((lay_id is not None) and (propty["lay_id"] != lay_id)):

@@ -4,7 +4,7 @@ data_type = "StaticGraphDataSet"
 
 # Data source
 # -------------------------------------
-from_file = False
+from_file = True
 
 data_src = {
   "train": "./data/train.hdf5",
@@ -16,6 +16,6 @@ use_static_edges = False
 # Batching
 # -------------------------------------
 batch_size = {
-  "train": 64,
-  "valid": 64
+  "train": 256,
+  "valid": 256
 }
