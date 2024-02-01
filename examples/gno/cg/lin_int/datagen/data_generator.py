@@ -60,7 +60,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self.inp_space_lbl = list(inp_space.keys())
     # Initializing thermophysical models
     # -----------------------------------
-    with open(self.path_to_phy + "/inputs.json") as file:
+    with open(self.path_to_physics + "/inputs.json") as file:
       phyinp = json.load(file)
     # Species thermo
     self.sp_th = hyputils._get_specie_thermos(phyinp)
@@ -70,6 +70,12 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self.kin = hyputils._get_kinetics(phyinp, self.sp_th, self.mix)
     # Solver
     self.solver = hyputils._get_solver(phyinp, self.kin.fun, self.kin.jac)
+    # Species
+    for (name, st) in self.sp_th.items():
+      if st.specie.nb_comp > 1:
+        self.molecule = name
+      else:
+        self.atom = name
     # Control variables
     # -----------------------------------
     self._edges_set = False
@@ -142,14 +148,18 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     sol = self.compute_solution(inp, nb_pts)
     # Initializing edges
     self.set_edges()
+    # Set dimensions
+    nb_pts = len(sol["t"])
+    nb_edges = self.rates.size
     # Extract number densities
     na, nm = [sol[f"X_{s}"] * sol["n"] for s in self.sp_th.keys()]
     # Compose edge attributes
-    edge_t = sol["t"].reshape(-1,1,1)
-    edge_k = (self.rates * na[0]).reshape(1,-1,1)
-    edge_k = np.tile(edge_k, (nb_pts,1,1))
-    edge = np.concatenate([edge_k, edge_t], axis=-1)
-    edge = np.log(edge + self.time_eps)
+    edge_k = (self.rates * na[0]).reshape(1,-1)
+    edge_k = np.tile(edge_k, (nb_pts,1))
+    edge_t = sol["t"].reshape(-1,1) + self.time_eps
+    edge_t = np.tile(edge_t, (1,nb_edges))
+    edge = np.stack([edge_k, edge_t], axis=-1)
+    edge = np.log10(edge)
     # Compose node attributes
     node = np.tile(nm[0].reshape(1,-1,1), (nb_pts,1,1))
     # Compose target
@@ -188,7 +198,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   # -----------------------------------
   def compute_solution(self, inp, nb_pts):
     # Preprocess input space: [X_atom, Ti, T, p]
-    inp = {k: inp[i] for (i, k) in self.inp_space_lbl}
+    inp = {k: inp[i] for (i, k) in enumerate(self.inp_space_lbl)}
     comp = {
       self.atom: inp[f"X_{self.atom}"],
       self.molecule: 1 - inp[f"X_{self.atom}"]
@@ -200,10 +210,11 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       p_mix=inp["p"],
       T=inp["Ti"]
     )
-    y0 = self.kin.get_init_sol(T=inp["T"])
+    T = np.array(inp["T"]).reshape(1)
+    y0 = self.kin.get_init_sol(T=T)
     # Integrate
-    sol = self.solver.solve(y0)
-    sol = [hypbkd.to_numpy(x) for x in sol]
+    sol = self.solver._solve(y0)
+    sol = [hypbkd.atleast_2d(x, force_numpy=True) for x in sol]
     # Sample solution in time
     if (nb_pts > 0):
       sol = self.sample_solution(*sol, nb_pts)
@@ -218,8 +229,6 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       y=y,
       nb_pts=nb_pts
     )
-    if (0 not in idx):
-      idx = np.insert(idx, 0, 0)
     return t[idx], y[idx]
 
   def set_edges(self):
@@ -227,8 +236,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       # Loop over reactions
       kf, kb = 0, 0
       for reaction in self.kin.reactions:
-        kf = kf + hypbkd.to_numpy(reaction.fwd.k).squeeze()[0]
-        kb = kb + hypbkd.to_numpy(reaction.bwd.k).squeeze()[0]
+        kf = kf + hypbkd.to_numpy(reaction.fwd.k).squeeze()
+        kb = kb + hypbkd.to_numpy(reaction.bwd.k).squeeze()
       # Compose adjacency matrix
       k = kf + kb.T
       # Identify non-zero links
