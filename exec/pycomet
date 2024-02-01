@@ -1,4 +1,4 @@
-#!/home/zanardi/.conda/envs/pycomet.gpu/bin/python
+#!/home/zanardi/.conda/envs/sciml/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

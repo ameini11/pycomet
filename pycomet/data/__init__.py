@@ -9,9 +9,7 @@ _physics_informed = [
   "ODE"
 ]
 
-_only_from_file = [
-  "StaticGraphDataSet"
-]
+_only_from_file = []
 
 from .datagen import BaseDataGenerator
 from .dataset import DataSet
