@@ -17,6 +17,12 @@ def get_parser(subparsers):
     epilog=utils.EPILOG
   )
   parser = autils.add_def_parser_args(parser)
+  parser.add_argument('-g', '--graph',
+    type=int,
+    default=0,
+    choices=[0,1],
+    help='visualize model graph'
+  )
   parser.set_defaults(process=main)
   return parser
 

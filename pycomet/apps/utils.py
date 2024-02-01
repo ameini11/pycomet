@@ -80,12 +80,6 @@ def add_def_parser_args(parser):
     choices=[0,1],
     help='verbose mode'
   )
-  parser.add_argument('-g', '--graph',
-    type=int,
-    default=0,
-    choices=[0,1],
-    help='visualize model graph'
-  )
   return parser
 
 def _dir_path(path):

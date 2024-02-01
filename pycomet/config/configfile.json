@@ -9,7 +9,7 @@
     "TF_CPP_MIN_LOG_LEVEL": "3"
   },
   "custom_pkg": {
-    "hypernet": "/home/zanardi/Codes/TC/HyperNet/v.22.12/hypernet"
+    "hypernet": "/home/zanardi/Codes/TC/HyperNet/hypernet"
   },
   "mpl": {
     "style": "default"

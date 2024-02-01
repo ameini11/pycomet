@@ -25,7 +25,6 @@ dependencies:
     - fortranformat
     - infomap
     - joblib
-    - json
     - matplotlib
     - netron
     - pandas

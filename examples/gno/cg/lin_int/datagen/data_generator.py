@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import numpy as np
 import pycomet as pcm
@@ -7,9 +8,12 @@ import tensorflow as tf
 from pyDOE import lhs
 from tqdm import tqdm
 from silx.io.dictdump import dicttoh5
+from pycomet.sampling import DifferentialBased
+
+# HyperNet package
+os.environ.update({"HYPNET_CONFIGFILE": "./hypcfg.json"})
 from hypernet import backend as hypbkd
 from hypernet.apps import utils as hyputils
-from pycomet.sampling import DifferentialBased
 
 
 class DataGenerator(pcm.data.BaseDataGenerator):
