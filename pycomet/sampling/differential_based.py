@@ -51,8 +51,7 @@ class DifferentialBased(Sampler):
       idx = np.where((x >= self.xlim[0]) * (x <= self.xlim[1]))[0]
       x, norm = x[idx], norm[idx]
     # Sampling
-    samples = self._combined_sampling(x, norm, nb_pts)
-    return samples
+    return self._combined_sampling(x, norm, nb_pts)
 
   # Numerical differentiation
   # -----------------------------------
@@ -100,8 +99,7 @@ class DifferentialBased(Sampler):
       samples = np.unique(samples)
       size = nb_pts-len(samples)
     # Return sorted indices
-    samples = np.sort(samples)
-    return samples
+    return np.sort(samples)
 
   def _uniform_sampling(self, x, size):
     # Construct nearest neighbors tree

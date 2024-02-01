@@ -1,8 +1,9 @@
-name: pycomet.cpu
+name: sciml
 channels:
   - conda-forge
   - defaults
 dependencies:
+  - assimulo=3.4.3
   - graphviz
   - h5py
   - ipykernel
@@ -15,21 +16,27 @@ dependencies:
   - pydot
   - pygments
   - pyqt
-  - python=3.8.13
+  - python=3.8
   - silx
   - sqlite
   - varname
   - pip:
     - absl-py
+    - fortranformat
+    - infomap
     - joblib
+    - json
     - matplotlib
     - netron
     - pandas
+    - pint
     - pydoe
+    - pyvalem
     - scikit-learn
     - scipy
     - tensorflow==2.10.0
     - tensorflow-addons==0.19.0
     - tensorflow-probability==0.18.0
     - threadpoolctl
+    - torch==2.1.2
     - tqdm
