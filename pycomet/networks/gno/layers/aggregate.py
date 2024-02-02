@@ -62,6 +62,7 @@ class Aggregate(nn_elem.Layer):
     # Move batches as first dimension
     if (rank == 3):
       fluxes = [tf.transpose(f, perm=[2,0,1]) for f in fluxes]
+      edge_attr = tf.transpose(edge_attr, perm=[2,0,1])
     # Return graph
     if (len(fluxes) > 1):
       node_attr = tf.concat(fluxes, axis=-1)

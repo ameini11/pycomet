@@ -69,11 +69,14 @@ class IntegralLinearMEGraphNetV2(IntegralLinearMEGraphNetV1):
       inputs=dict(x=x, y=x), identifier="input", training=training
     )
     # Graph processor
-    graph = self.active_lays["message"](graph, training=training)
-    graph = self.active_lays["aggregate"](graph, training=training)
-    y = self.active_lays["update"](graph, training=training)
+    y = self.propagate(graph, training=training)
     # Output nodes manipulation
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier="output", training=training
     )
     return y
+
+  def propagate(self, graph, training=None):
+    graph = self.active_lays["message"](graph, training=training)
+    graph = self.active_lays["aggregate"](graph, training=training)
+    return self.active_lays["update"](graph, training=training)

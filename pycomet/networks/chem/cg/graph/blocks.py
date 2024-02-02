@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from pycomet.networks import gno
+from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
@@ -17,11 +18,15 @@ class LinearMEGraphNet(nn_elem.Layer):
     **kwargs
   ):
     super(LinearMEGraphNet, self).__init__(**kwargs)
+    self.static_edge_index = gno.utils.read_edge_index(
+      data=static_edge_index,
+      identifier="static_edge_index"
+    )
     self.message = gno.LinearMessage(
       origin="sender",
       reduction="prod",
       include_edge=True,
-      static_edge_index=static_edge_index
+      static_edge_index=self.static_edge_index
     )
     self.aggregate = gno.Aggregate(
       fluxes="both",
@@ -45,7 +50,7 @@ class LinearMEGraphNet(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "static_edge_index": self.static_edge_index
+      "static_edge_index": ops.to_numpy(self.static_edge_index)
     }
     base_config = super(LinearMEGraphNet, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
