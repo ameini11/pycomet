@@ -22,7 +22,8 @@ from .mixednet import MixedNet
 from . import elements as nn_elem
 from .don import blocks as don_blk
 from .gno import blocks as gno_blk
-_NN_MOD.extend([nn_elem, don_blk, gno_blk])
+from .gno import layers as gno_lay
+_NN_MOD.extend([nn_elem, don_blk, gno_blk, gno_lay])
 
 # Thermochemistry-specific models
 # =====================================

@@ -274,31 +274,35 @@ class MixedLaysBlock(object):
   # ===================================
   def __init__(
     self,
-    lays_propty,
+    layers,
     **kwargs
   ):
     super(MixedLaysBlock, self).__init__(**kwargs)
     # Order layers by index
-    indices = list(lays_propty.keys())
+    indices = list(layers.keys())
     indices.sort()
-    self.lays_propty = {i: lays_propty[i] for i in indices}
     # Initialize layers
-    self.lays = {}
-    for (i, propty) in self.lays_propty.items():
-      self.lays[i] = self.get_lay(propty)
+    self.layers = {i: self.get_lay(layers[i]) for i in indices}
 
-  def get_lay(self, propty={}):
-    lay = propty['lay_id']
-    if (not callable(lay)):
-      lay = utils.get_class(modules=_NN_MOD, name=lay)
-    if ('kwargs' not in propty):
-      propty['kwargs'] = {}
-    return lay(**propty['kwargs'])
+  def get_lay(self, layer={}):
+    if callable(layer):
+      return layer
+    else:
+      lay_cls = utils.get_class(modules=_NN_MOD, name=layer['lay_id'])
+      if ('kwargs' not in layer):
+        layer['kwargs'] = {}
+      return lay_cls(**layer['kwargs'])
 
   # Calling
   # ===================================
-  def __call__(self, inputs, training=None, *args, **kwargs):
+  def call(self, inputs, training=False, *args, **kwargs):
     y = inputs
-    for lay in self.lays.values():
-      y = lay(y, training=training, *args, **kwargs)
+    for layer in self.layers.values():
+      y = layer(y, training=training, *args, **kwargs)
     return y
+
+  def __call__(self, inputs, training=False, *args, **kwargs):
+    return self.call(inputs, training=training, *args, **kwargs)
+
+  def forward(self, inputs, training=False, *args, **kwargs):
+    return self.call(inputs, training=training, *args, **kwargs)

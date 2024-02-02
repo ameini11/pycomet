@@ -4,5 +4,6 @@ __all__ = [
 ]
 
 from .blocks import *
+from .layers import *
 from .epd import EncodeProcessDecode
 from .epcd import EncodeProcessConditionDecode

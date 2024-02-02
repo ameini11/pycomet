@@ -1,8 +1,9 @@
 __all__ = [
-  "IntegralLinearMEGraphNet",
+  "IntegralLinearMEGraphNetV1",
+  "IntegralLinearMEGraphNetV2",
   "LinearMEGraphNet"
 ]
 
-from .layers import *
-from .int_lin import IntegralLinearMEGraphNet
-# from .linear_me import LinearMEGraphNet
+from .blocks import *
+from .int_lin_v1 import IntegralLinearMEGraphNetV1
+from .int_lin_v2 import IntegralLinearMEGraphNetV2

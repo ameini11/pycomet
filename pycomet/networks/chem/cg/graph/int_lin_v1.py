@@ -1,8 +1,8 @@
 from pycomet import utils
-from ....basenet import BaseNet
+from pycomet.networks.basenet import BaseNet
 
 
-class IntegralLinearMEGraphNet(BaseNet):
+class IntegralLinearMEGraphNetV1(BaseNet):
 
   # Initialization
   # ===================================
@@ -16,7 +16,7 @@ class IntegralLinearMEGraphNet(BaseNet):
     *args,
     **kwargs
   ):
-    super(IntegralLinearMEGraphNet, self).__init__(
+    super(IntegralLinearMEGraphNetV1, self).__init__(
       dim=dim,
       lays_name=lays_name,
       lays_propty=lays_propty,
