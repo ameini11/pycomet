@@ -7,7 +7,7 @@ model_name = "lin_me"
 dim = {
   "inp": [
     np.array([3,1]),          # Node attributes
-    np.array([6,2])           # Edge attributes
+    np.array([6,3])           # Edge attributes
   ],
   "out": np.array([3,1])      # Node attributes
 }

@@ -1,0 +1,16 @@
+{
+  "start": 0.0,
+  "stop": 1e-3,
+  "options": {
+    "atol": 1e-15,
+    "rtol": 1e-12,
+    "inith": 1e-12,
+    "linear_solver": "dense"
+  },
+  "t_eval": {
+    "scale": "log",
+    "start": -12,
+    "stop": -3,
+    "num": 1000
+  }
+}

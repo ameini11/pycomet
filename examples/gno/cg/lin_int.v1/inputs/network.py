@@ -1,6 +1,6 @@
 # Architecture properties
 # =====================================
-architecture = "IntegralLinearMEGraphNet"
+architecture = "IntegralLinearMEGraphNetV1"
 
 # Layers
 # -------------------------------------
@@ -37,8 +37,8 @@ lays_propty = {
   "edge_encoder": {
     "lay_id": "FFBlock",
     "kwargs": {
-      "layer_size": [2, 32, 32, 32, 1],
-      "activation": ["tanh"]*3 + ["exp"],
+      "layer_size": [3, 32, 32, 1],
+      "activation": ["tanh"]*2 + ["exp"],
       "layer_norm": False,
       "name": "edge_encoder",
       **_common

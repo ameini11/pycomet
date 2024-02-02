@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import numpy as np
 import pycomet as pcm
@@ -137,6 +136,11 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       # Collect data
       data_type = "train" if is_train else "valid"
       data = self.stack_data(data, data_i, data_type)
+    # Normalization
+    for identifier in ("node_attr", "edge_attr", "target"):
+      self.compute_norm_qoi(data, identifier)
+      for k in ("train", "valid"):
+        data[k] = self.apply_norm_qoi(data[k], identifier)
     # Save data
     for data_type in data:
       filename = self.path_to_data + f"/{data_type}.hdf5"
@@ -154,23 +158,22 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Extract number densities
     na, nm = [sol[f"X_{s}"] * sol["n"] for s in self.sp_th.keys()]
     # Compose edge attributes
-    edge_k = (self.rates * na[0]).reshape(1,-1)
-    edge_k = np.tile(edge_k, (nb_pts,1))
-    edge_t = sol["t"].reshape(-1,1)
-    edge_t = np.tile(edge_t, (1,nb_edges))
-    edge = np.stack([edge_k, edge_t], axis=-1)
-    edge = np.log10(edge + 1e-1*np.amin(edge[edge>0]))
+    edge_k = np.tile(self.rates, (nb_pts,1))
+    edge_t = np.tile(sol["t"].reshape(-1,1), (1,nb_edges))
+    edge_n = np.tile(na[0].reshape(1,1), (nb_pts,nb_edges))
+    edge = np.stack([edge_k, edge_n, edge_t], axis=-1)
     # Compose node attributes
-    ym = (nm * self.sp_th[self.molecule].specie.m) / sol["rho"][0]
-    node = np.tile(ym[0].reshape(1,-1,1), (nb_pts,1,1))
+    node = np.tile(nm[0].reshape(1,-1,1), (nb_pts,1,1))
     # Compose target
-    targ = np.expand_dims(ym, axis=-1)
+    targ = np.expand_dims(nm, axis=-1)
     # Compose data
-    return {
+    data = {
       "node_attr": node,
       "edge_attr": edge,
       "target": targ
     }
+    # Return log-transformed data
+    return tf.nest.map_structure(lambda x: np.log(x + self.time_eps), data)
 
   def stack_data(self, data, data_new, data_type):
     if (data_type not in data):
@@ -183,6 +186,28 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       )
     return data
 
+  # Normalization
+  # -----------------------------------
+  def compute_norm_qoi(self, data, identifier):
+    path = self.path_to_data + "/norm/"
+    os.makedirs(path, exist_ok=True)
+    # Compute normalizing QoI
+    data = [data[k][identifier] for k in ("train", "valid")]
+    data = np.concatenate(data, axis=0)
+    qois = (
+      (f"{identifier}_mean", np.mean),
+      (f"{identifier}_std", np.std)
+    )
+    for (qoi, fun) in qois:
+      value = fun(data, axis=(0,1))
+      setattr(self, qoi, value.reshape(1,1,-1))
+      np.savetxt(path + f"/{qoi}.txt", value, fmt='%.10e')
+
+  def apply_norm_qoi(self, data, identifier):
+    data[identifier] -= getattr(self, f"{identifier}_mean")
+    data[identifier] /= getattr(self, f"{identifier}_std")
+    return data
+
   # Testing data
   # -----------------------------------
   def testing_data(
@@ -191,7 +216,10 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   ):
     data = {}
     for (i, inp) in enumerate(tqdm(inp_space, ncols=80)):
-      data["case_" + str(i+1).zfill(3)] = self.get_data(inp)
+      datai = self.get_data(inp)
+      for identifier in ("node_attr", "edge_attr", "target"):
+        datai = self.apply_norm_qoi(datai, identifier)
+      data["case_" + str(i+1).zfill(3)] = datai
     dicttoh5(data, self.path_to_data + "/test.hdf5")
     return data
 
@@ -240,7 +268,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         kf = kf + hypbkd.to_numpy(reaction.fwd.k).squeeze()
         kb = kb + hypbkd.to_numpy(reaction.bwd.k).squeeze()
       # Compose adjacency matrix
-      k = kf + kb.T
+      k = (kf + kb.T)
       # Identify non-zero links
       k_idx = np.where(k > 0)
       # Construct edges
