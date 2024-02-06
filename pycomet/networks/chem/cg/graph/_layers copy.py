@@ -166,6 +166,18 @@ class LinearAggregate(nn_elem.Layer):
     return self.update(*graph)
 
   def aggregate(self, node_attr, edge_index, edge_attr):
+    # Aggregate fluxes for each node
+    # -----------------------
+    # > incoming: gather receivers (index 1)
+    # > outgoing: gather senders (index 0)
+    fluxes = [tf.math.unsorted_segment_sum(
+      data=edge_attr,
+      segment_ids=edge_index[i],
+      num_segments=node_attr.shape[-2]
+    ) for i in range(2)]
+    return tf.concat(fluxes, axis=-1)
+
+  def aggregate(self, node_attr, edge_index, edge_attr):
     # Aggregate fluxes
     # -----------------------
     # Check rank
@@ -194,7 +206,7 @@ class LinearAggregate(nn_elem.Layer):
     return tf.concat(fluxes, axis=-1)
 
   def update(self, node_attr, edge_index, edge_attr):
-    # Update nodes
+    # Update nodes with computed fluxes
     # -----------------------
     fin = tf.gather(node_attr, [1], axis=-1)
     fout = tf.gather(node_attr, [0], axis=-1)

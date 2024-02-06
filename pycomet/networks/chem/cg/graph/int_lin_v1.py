@@ -88,7 +88,7 @@ class IntegralLinearMEGraphNetV1(BaseNet):
     # Edge encoder
     graph[-1] = self.active_lays["edge_encoder"](graph[-1], training=training)
     # Graph processor
-    y = self.active_lays["lin_me_gnet"](graph, training=training)
+    y = self.active_lays["lin_me_gnet"](graph, training=training) + x
     # Output nodes manipulation
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier="output", training=training

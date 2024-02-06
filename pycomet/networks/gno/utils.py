@@ -20,16 +20,16 @@ def unpack_graph(
     node_attr, edge_index, edge_attr = pcm_utils.unpack_list(graph, nb_elem=3)
   return [node_attr, edge_index, edge_attr]
 
-# Edge data
+# Edge/Node data
 # =====================================
 def read_edge_index(
   data=None,
   identifier="edge_index"
 ):
-  data = _read_edge_data(data, identifier)
+  data = _read_data(data, identifier)
   if (data is not None):
     sh = tf.shape(data)
-    if ((len(sh) > 2) or (2 not in sh)):
+    if ((len(sh) != 2) or (2 not in sh)):
       pcm_utils.raise_err(
         ValueError,
         f"'{identifier}' input must be a 2-dimensional " \
@@ -39,15 +39,15 @@ def read_edge_index(
       data = tf.transpose(data)
     return tf.cast(data, dtype=tf.int32)
 
-def read_edge_attr(
+def read_attr(
   data=None,
   identifier="edge_attr"
 ):
-  data = _read_edge_data(data, identifier)
+  data = _read_data(data, identifier)
   if (data is not None):
     return tf.expand_dims(data, axis=0)
 
-def _read_edge_data(
+def _read_data(
   data=None,
   identifier="edge"
 ):
@@ -55,12 +55,13 @@ def _read_edge_data(
     if isinstance(data, (np.ndarray, tf.Tensor)):
       pass
     elif isinstance(data, str):
-      data = np.loadtxt(data).squeeze()
+      data = np.loadtxt(data)
     else:
       pcm_utils.raise_err(
         ValueError,
         f"'{identifier}' input must be either an array " \
-        "with a shape of [nb_edges, :] or a string " \
+        "with a shape of [nb_edges/nb_nodes, :] or a string " \
         "representing a valid file path for reading."
       )
-    return tf.constant(ops.to_tensor(data))
+    data = tf.constant(ops.to_tensor(data))
+    return tf.squeeze(data)

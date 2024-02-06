@@ -277,17 +277,21 @@ class EdgeEncoder(nn_elem.FFBlock):
     edge_attr = super(EdgeEncoder, self).call(edge_attr, training=training)
     # Manipulate edges
     if (self.static_edge_attr is not None):
-      nb_samples = node_attr.shape[0]
-      if (nb_samples is not None):
-        multiples = tf.nest.map_structure(lambda _: 1, list(edge_attr.shape))
-        multiples[0] = nb_samples
-        edge_attr = tf.tile(edge_attr, multiples)
-      else:
-        pcm_utils.raise_err(
-          ValueError,
-          "The 'static_edge_attr' input tensor is incompatible with " \
-          "dynamic input tensors, where the first dimension is set to 'None'."
-        )
+      edge_attr = tf.repeat(
+        input=edge_attr,
+        repeats=tf.shape(node_attr)[0],
+        axis=0
+      )
+      # if (nb_samples is not None):
+      #   multiples = tf.nest.map_structure(lambda _: 1, list(edge_attr.shape))
+      #   multiples[0] = nb_samples
+      #   edge_attr = tf.tile(edge_attr, multiples)
+      # else:
+      #   pcm_utils.raise_err(
+      #     ValueError,
+      #     "The 'static_edge_attr' input tensor is incompatible with " \
+      #     "dynamic input tensors, where the first dimension is set to 'None'."
+      #   )
     # Return graph
     return self._return_graph(node_attr, edge_index, edge_attr)
 
