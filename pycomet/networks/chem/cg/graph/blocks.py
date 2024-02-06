@@ -7,62 +7,13 @@ from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
-# HyperNet lib
+# HyperNet library
 from hypernet.thermophysics import mixture as mix_mod
 from hypernet.thermophysics import specie_thermo as st_mod
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class LinearMEGraphNet(nn_elem.Layer):
-
-  # Initialization
-  # ===================================
-  def __init__(
-    self,
-    static_edge_index=None,
-    **kwargs
-  ):
-    super(LinearMEGraphNet, self).__init__(**kwargs)
-    self.static_edge_index = gno.utils.read_edge_index(
-      data=static_edge_index,
-      identifier="static_edge_index"
-    )
-    self.message = gno.LinearMessage(
-      origin="sender",
-      reduction="prod",
-      include_edge=True,
-      static_edge_index=self.static_edge_index
-    )
-    self.aggregate = gno.Aggregate(
-      fluxes="both",
-      reduction="sum"
-    )
-    self.update = gno.LinearUpdate(
-      reduction="diff"
-    )
-
-  # Calling
-  # ===================================
-  def call(self, graph, training=False):
-    # Edges - Message passing
-    graph = self.message(graph, training=training)
-    # Edges - Aggregation
-    graph = self.aggregate(graph, training=training)
-    # Nodes - Updating
-    return self.update(graph, training=training)
-
-  # Configuration update
-  # ===================================
-  def get_config(self):
-    config = {
-      "static_edge_index": ops.to_numpy(self.static_edge_index)
-    }
-    base_config = super(LinearMEGraphNet, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
-
-
-@tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class NodeTempEncoder(nn_elem.FFBlock):
+class NodeTemperature(nn_elem.FFBlock):
   """Predicts specific node temperature"""
 
   # Initialization
@@ -81,7 +32,7 @@ class NodeTempEncoder(nn_elem.FFBlock):
     static_node_attr=None,
     **kwargs
   ):
-    super(NodeTempEncoder, self).__init__(
+    super(NodeTemperature, self).__init__(
       layer_size=layer_size,
       activation=activation,
       kernel_initializer=kernel_initializer,
@@ -122,7 +73,7 @@ class NodeTempEncoder(nn_elem.FFBlock):
       )
     # Predict new temperature attributes
     features = tf.concat(features, axis=-1)
-    temp_attr = super(NodeTempEncoder, self).call(features, training=training)
+    temp_attr = super(NodeTemperature, self).call(features, training=training)
     # Enforce temperature to be positive and limited
     if (self.temp_xform == "sigmoid"):
       temp_attr = tf.math.sigmoid(temp_attr)
@@ -141,7 +92,7 @@ class NodeTempEncoder(nn_elem.FFBlock):
       "feat_indices": self.feat_indices,
       "static_node_attr": ops.to_numpy(self.static_node_attr)
     }
-    base_config = super(NodeTempEncoder, self).get_config()
+    base_config = super(NodeTemperature, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -221,7 +172,7 @@ class NodePartitionFunctions(tf_layers.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class EdgeBwdEncoder(nn_elem.Layer):
+class EdgeBackward(nn_elem.Layer):
   """Calculates the backward edge rate based on the forward rate and 
   partition functions of products/reactants"""
 
@@ -234,7 +185,7 @@ class EdgeBwdEncoder(nn_elem.Layer):
     static_fwd_edge_attr=None,
     **kwargs
   ):
-    super(EdgeBwdEncoder, self).__init__(**kwargs)
+    super(EdgeBackward, self).__init__(**kwargs)
     self.node_index_pf = tf.nest.flatten(node_index_pf)
     self.static_fwd_edge_index = gno.utils.read_edge_index(
       data=static_fwd_edge_index,
@@ -244,6 +195,13 @@ class EdgeBwdEncoder(nn_elem.Layer):
       data=static_fwd_edge_attr,
       identifier="static_fwd_edge_attr"
     )
+    if (self.static_fwd_edge_index is not None):
+      self.static_bwd_edge_index = tf.reverse(
+        self.static_fwd_edge_index, axis=[0]
+      )
+      self.edge_index = tf.concat(
+        [self.static_fwd_edge_index, self.static_bwd_edge_index], axis=-1
+      )
 
   # Calling
   # ===================================
@@ -256,12 +214,21 @@ class EdgeBwdEncoder(nn_elem.Layer):
     q = tf.gather(node_attr, self.node_index_pf, axis=-1)
     q_in = tf.gather(q, fwd_edge_index[0], axis=-2)
     q_out = tf.gather(q, fwd_edge_index[1], axis=-2)
-    # Backward edges
+    # Compose edge attributes
+    if (self.static_fwd_edge_attr is not None):
+      fwd_edge_attr = tf.repeat(
+        input=fwd_edge_attr,
+        repeats=tf.shape(node_attr)[0],
+        axis=0
+      )
     bwd_edge_attr = fwd_edge_attr * q_in / q_out
-    bwd_edge_index = tf.reverse(fwd_edge_index, axis=[0])
-    # Compose edges
     edge_attr = tf.concat([fwd_edge_attr, bwd_edge_attr], axis=-2)
-    edge_index = tf.concat([fwd_edge_index, bwd_edge_index], axis=-1)
+    # Compose edge index
+    if (self.static_fwd_edge_index is not None):
+      edge_index = self.edge_index
+    else:
+      bwd_edge_index = tf.reverse(fwd_edge_index, axis=[0])
+      edge_index = tf.concat([fwd_edge_index, bwd_edge_index], axis=-1)
     # Return graph
     return [node_attr, edge_index, edge_attr]
 
@@ -273,7 +240,60 @@ class EdgeBwdEncoder(nn_elem.Layer):
       "static_fwd_edge_index": ops.to_numpy(self.static_fwd_edge_index),
       "static_fwd_edge_attr": ops.to_numpy(self.static_fwd_edge_attr)
     }
-    base_config = super(EdgeBwdEncoder, self).get_config()
+    base_config = super(EdgeBackward, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class LinearMEGraphNet(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    node_attr_indices=[0],
+    static_edge_index=None,
+    **kwargs
+  ):
+    super(LinearMEGraphNet, self).__init__(**kwargs)
+    self.node_attr_indices = tf.nest.flatten(node_attr_indices)
+    self.static_edge_index = gno.utils.read_edge_index(
+      data=static_edge_index,
+      identifier="static_edge_index"
+    )
+    self.message = gno.LinearMessage(
+      origin="sender",
+      reduction="prod",
+      include_edge=True,
+      static_edge_index=self.static_edge_index
+    )
+    self.aggregate = gno.Aggregate(
+      fluxes="both",
+      reduction="sum"
+    )
+    self.update = gno.LinearUpdate(
+      reduction="diff"
+    )
+
+  # Calling
+  # ===================================
+  def call(self, graph, training=False):
+    graph[0] = tf.gather(graph[0], self.node_attr_indices, axis=-1)
+    # Edges - Message passing
+    graph = self.message(graph, training=training)
+    # Edges - Aggregation
+    graph = self.aggregate(graph, training=training)
+    # Nodes - Updating
+    return self.update(graph, training=training)
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "node_attr_indices": self.node_attr_indices,
+      "static_edge_index": ops.to_numpy(self.static_edge_index)
+    }
+    base_config = super(LinearMEGraphNet, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

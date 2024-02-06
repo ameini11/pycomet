@@ -45,7 +45,12 @@ def read_attr(
 ):
   data = _read_data(data, identifier)
   if (data is not None):
-    return tf.expand_dims(data, axis=0)
+    data = tf.expand_dims(data, axis=0)
+    # Force 3D tensor
+    rank = tf.rank(data)
+    for _ in range(3-rank):
+      data = tf.expand_dims(data, axis=-1)
+    return data
 
 def _read_data(
   data=None,
