@@ -1,21 +1,15 @@
 import tensorflow as tf
 
+from keras import layers as tf_layers
 from pycomet.networks import gno
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
-
-from keras import layers as tf_layers
-
-from hypernet import utils
-from hypernet import solvers as sol_mod
+# HyperNet lib
 from hypernet.thermophysics import mixture as mix_mod
-from hypernet.thermophysics import kinetics as kin_mod
 from hypernet.thermophysics import specie_thermo as st_mod
-
-
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
@@ -68,7 +62,8 @@ class LinearMEGraphNet(nn_elem.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class NodeEncoder(nn_elem.FFBlock):
+class NodeTempEncoder(nn_elem.FFBlock):
+  """Predicts specific node temperature"""
 
   # Initialization
   # ===================================
@@ -80,10 +75,13 @@ class NodeEncoder(nn_elem.FFBlock):
     regularizer=None,
     dropout=dict(rate=0),
     layer_norm=None,
+    temp_lim=[1e2, 1e5],
+    temp_xform="exp",
+    feat_indices=None,
     static_node_attr=None,
     **kwargs
   ):
-    super(NodeEncoder, self).__init__(
+    super(NodeTempEncoder, self).__init__(
       layer_size=layer_size,
       activation=activation,
       kernel_initializer=kernel_initializer,
@@ -92,6 +90,10 @@ class NodeEncoder(nn_elem.FFBlock):
       layer_norm=layer_norm,
       **kwargs
     )
+    self.temp_lim = tf.nest.flatten(temp_lim)
+    self.temp_delta = self.temp_lim[1] - self.temp_lim[0]
+    self.temp_xform = temp_xform
+    self.feat_indices = tf.nest.flatten(feat_indices)
     self.static_node_attr = gno.utils.read_attr(
       data=static_node_attr,
       identifier="static_node_attr"
@@ -118,19 +120,28 @@ class NodeEncoder(nn_elem.FFBlock):
           axis=0
         )
       )
-    # Predict new node attributes
+    # Predict new temperature attributes
     features = tf.concat(features, axis=-1)
-    node_attr_new = super(NodeEncoder, self).call(features, training=training)
+    temp_attr = super(NodeTempEncoder, self).call(features, training=training)
+    # Enforce temperature to be positive and limited
+    if (self.temp_xform == "sigmoid"):
+      temp_attr = tf.math.sigmoid(temp_attr)
+      temp_attr = temp_attr * self.temp_delta + self.temp_lim[0]
+    else:
+      temp_attr = tf.math.exp(temp_attr) + self.temp_lim[0]
     # Return node attributes
-    return tf.concat([node_attr, node_attr_new], axis=-1)
+    return tf.concat([node_attr, temp_attr], axis=-1)
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
+      "temp_lim": self.temp_lim,
+      "temp_xform": self.temp_xform,
+      "feat_indices": self.feat_indices,
       "static_node_attr": ops.to_numpy(self.static_node_attr)
     }
-    base_config = super(NodeEncoder, self).get_config()
+    base_config = super(NodeTempEncoder, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -165,37 +176,37 @@ class NodePartitionFunctions(tf_layers.Layer):
   # Calling
   # ===================================
   def call(self, node_attr, training=False):                                    # Shape: (nb_samples, nb_nodes, nb_attr)
-    Q = []
+    q = []
     # Loop over species
     for st in self.sp_th.values():
       # Extract species-related attributes
       attr = tf.gather(node_attr, st.specie.comp_indices, axis=-2)              # Shape: (nb_samples, nb_comp, nb_attr)
       # Compute species-related total partition function
-      Qs = self.compute_qs(attr, st)                                            # Shape: (nb_samples, nb_comp)
+      qs = self.compute_qs(attr, st)                                            # Shape: (nb_samples, nb_comp)
       # Store total partition function
-      Q.append(Qs)
+      q.append(qs)
     # Concatenate species-related partition functions
-    Q = tf.concat(Q, axis=-1)                                                   # Shape: (nb_samples, nb_nodes)
-    Q = tf.expand_dims(Q, axis=-1)                                              # Shape: (nb_samples, nb_nodes, 1)
+    q = tf.concat(q, axis=-1)                                                   # Shape: (nb_samples, nb_nodes)
+    q = tf.expand_dims(q, axis=-1)                                              # Shape: (nb_samples, nb_nodes, 1)
     # Concatenate all node attributes
-    return tf.concat([node_attr, Q], axis=-1)                                   # Shape: (nb_samples, nb_nodes, nb_attr+1)
+    return tf.concat([node_attr, q], axis=-1)                                   # Shape: (nb_samples, nb_nodes, nb_attr+1)
 
   def compute_qs(self, attributes, specie_thermo):
-    Qs = []
+    qs = []
     for (k, index) in self.temp_indices.items():
       # Extract temperature from species-related attributes
       Tk = tf.gather(attributes, index, axis=-1)                                # Shape: (nb_samples, nb_comp)
-      # Retrieve the unique global temperature for 'chemical'
-      # and 'translational' energy modes per each species
+      # Retrieve the unique global temperature for "chemical"
+      # and "translational" energy modes per each species
       if (k in ("chem", "trans")):
-        Tk = tf.gather(Tk, [0], axis=-1)                                       # Shape: (nb_samples, 1)
+        Tk = tf.gather(Tk, [0], axis=-1)                                        # Shape: (nb_samples, 1)
       # Compute partition function
       pf_k = getattr(specie_thermo.pf, k)
       pf_k._update(Tk)
       # Store partition function
-      Qs.append(pf_k.Q)
+      qs.append(pf_k.q)
     # Compute total partition function
-    return tf_layers.Multiply()(Qs)                                             # Shape: (nb_samples, nb_comp)
+    return tf_layers.Multiply()(qs)                                             # Shape: (nb_samples, nb_comp)
 
   # Configuration update
   # ===================================

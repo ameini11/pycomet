@@ -2,7 +2,8 @@ __all__ = [
   "IntegralLinearMEGraphNetV1",
   "IntegralLinearMEGraphNetV2",
   "LinearMEGraphNet",
-  "NodePartitionFunctions"
+  "NodePartitionFunctions",
+  "NodeTempEncoder"
 ]
 
 from .blocks import *
