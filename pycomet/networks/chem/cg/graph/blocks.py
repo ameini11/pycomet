@@ -204,7 +204,7 @@ class NodePartitionFunctions(tf_layers.Layer):
       pf_k = getattr(specie_thermo.pf, k)
       pf_k._update(Tk)
       # Store partition function
-      qs.append(pf_k.q)
+      qs.append(pf_k.Q)
     # Compute total partition function
     return tf_layers.Multiply()(qs)                                             # Shape: (nb_samples, nb_comp)
 
@@ -220,6 +220,61 @@ class NodePartitionFunctions(tf_layers.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class EdgeBwdEncoder(nn_elem.Layer):
+  """Calculates the backward edge rate based on the forward rate and 
+  partition functions of products/reactants"""
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    node_index_pf=[-1],
+    static_fwd_edge_index=None,
+    static_fwd_edge_attr=None,
+    **kwargs
+  ):
+    super(EdgeBwdEncoder, self).__init__(**kwargs)
+    self.node_index_pf = tf.nest.flatten(node_index_pf)
+    self.static_fwd_edge_index = gno.utils.read_edge_index(
+      data=static_fwd_edge_index,
+      identifier="static_fwd_edge_index"
+    )
+    self.static_fwd_edge_attr = gno.utils.read_attr(
+      data=static_fwd_edge_attr,
+      identifier="static_fwd_edge_attr"
+    )
+
+  # Calling
+  # ===================================
+  def call(self, graph, training=False):
+    # Unpack graph
+    node_attr, fwd_edge_index, fwd_edge_attr = gno.utils.unpack_graph(
+      graph, self.static_fwd_edge_index, self.static_fwd_edge_attr
+    )
+    # Extract partition functions
+    q = tf.gather(node_attr, self.node_index_pf, axis=-1)
+    q_in = tf.gather(q, fwd_edge_index[0], axis=-2)
+    q_out = tf.gather(q, fwd_edge_index[1], axis=-2)
+    # Backward edges
+    bwd_edge_attr = fwd_edge_attr * q_in / q_out
+    bwd_edge_index = tf.reverse(fwd_edge_index, axis=[0])
+    # Compose edges
+    edge_attr = tf.concat([fwd_edge_attr, bwd_edge_attr], axis=-2)
+    edge_index = tf.concat([fwd_edge_index, bwd_edge_index], axis=-1)
+    # Return graph
+    return [node_attr, edge_index, edge_attr]
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "node_index_pf": self.node_index_pf,
+      "static_fwd_edge_index": ops.to_numpy(self.static_fwd_edge_index),
+      "static_fwd_edge_attr": ops.to_numpy(self.static_fwd_edge_attr)
+    }
+    base_config = super(EdgeBwdEncoder, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
 
 
 # @tf.keras.utils.register_keras_serializable(package=_CFG.name)

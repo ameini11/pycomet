@@ -261,7 +261,7 @@ class EdgeEncoder(nn_elem.FFBlock):
       data=static_edge_index,
       identifier="static_edge_index"
     )
-    self.static_edge_attr = gutils.read_edge_attr(
+    self.static_edge_attr = gutils.read_attr(
       data=static_edge_attr,
       identifier="static_edge_attr"
     )
