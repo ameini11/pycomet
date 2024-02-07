@@ -6,8 +6,9 @@ model_name = "lin_me_int"
 
 dim = {
   "inp": [
-    np.array([3,3]),          # Node attributes: [t, n, T]
-    np.array([3,1])           # Edge attributes: [k_ij*n_O]
+    np.array([3,2]),          # Node attributes: [n, T]
+    np.array([3,1]),          # Edge attributes: [k_ij*n_O]
+    np.array([3,2])           # Conditioning inputs: [t, n_O]
   ],
   "out": np.array([3,1])      # Node attributes
 }
@@ -22,4 +23,4 @@ flags = {
   "save":  1        # Saving model        0: no, 1: yes
 }
 
-run_eagerly = True
+run_eagerly = False

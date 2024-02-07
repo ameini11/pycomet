@@ -38,11 +38,14 @@ lays_propty = {
   "node_temp": {
     "lay_id": "NodeTemperature",
     "kwargs": {
-      "layer_size": [3, 32, 32, 1],
-      "activation": ["tanh"]*2 + ["linear"],
-      "temp_lim": [1e2, 1e5],
-      "temp_xform": "exp",
-      "feat_indices": [0],
+      "layer_size": [4, 32, 32, 1],
+      "activation": ["tanh"]*2 + ["exp"],
+      "temp": {
+        "limits": [3e2, 1e5],
+        "xform": "exp",
+        "index_in": [1]
+      },
+      "cond_attr_indices": None,
       "static_node_attr": "./data/node_energies.txt",
       **_common
     }
@@ -52,9 +55,9 @@ lays_propty = {
     "lay_id": "NodePartitionFunctions",
     "kwargs": {
       "node_index_temp": {
-        "int": 3,
-        "chem": 2,
-        "trans": 2
+        "int": 2,
+        "chem": 1,
+        "trans": 1
       },
       "specie_thermos": {
         "filename": "./inputs/sp_th.json",
@@ -67,7 +70,7 @@ lays_propty = {
   "edge_bwd": {
     "lay_id": "EdgeBackward",
     "kwargs": {
-      "node_index_pf": [4],
+      "node_index_pf": [3],
       "static_fwd_edge_index": "./data/fwd_edge_index.txt"
     }
   },
@@ -75,7 +78,7 @@ lays_propty = {
   "lin_me_gnet": {
     "lay_id": "LinearMEGraphNet",
     "kwargs": {
-      "node_attr_indices": [1]
+      "node_attr_indices": [0]
     }
   },
 
@@ -83,7 +86,7 @@ lays_propty = {
     "lay_id": "GatheredAdd",
     "kwargs": {
       "gathered": [
-        {'indices': [1], 'axis': -1},
+        {'indices': [0], 'axis': -1},
         {'indices': [0], 'axis': -1}
       ]
     }

@@ -134,10 +134,10 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       # Collect data
       data_type = "train" if is_train else "valid"
       data = self.stack_data(data, data_i, data_type)
-    # # Edges normalization
-    # self.compute_norm_qoi(data, "edge_attr")
-    # for k in ("train", "valid"):
-    #   data[k] = self.apply_norm_qoi(data[k], "edge_attr")
+    # Edges normalization
+    self.compute_norm_qoi(data, "cond_attr")
+    for k in ("train", "valid"):
+      data[k] = self.apply_norm_qoi(data[k], "cond_attr")
     # Save data
     for data_type in data:
       filename = self.path_to_data + f"/{data_type}.hdf5"
@@ -153,23 +153,28 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Extract number densities and temperature
     na, nm = [sol[f"X_{s}"] * sol["n"] for s in self.sp_th.keys()]
     # Set dimensions
-    nb_pts = len(sol["t"])
-    nb_nodes = nm.shape[-1]
+    nb_pts, nb_nodes = nm.shape
+    # Compose node attributes
+    node_n = np.tile(nm[0].reshape(1,-1), (nb_pts,1))
+    node_T = np.tile(sol["T"].reshape(-1,1), (1,nb_nodes))
+    node = np.stack([node_n, node_T], axis=-1)
     # Compose edge attributes
     edge = (self.rates * na[0]).reshape(1,-1,1)
     edge = np.tile(edge, (nb_pts,1,1))
-    # Compose node attributes
-    t = np.log(sol["t"] + self.time_eps)
-    node_t = np.tile(t.reshape(-1,1), (1,nb_nodes))
-    node_n = np.tile(nm[0].reshape(1,-1), (nb_pts,1))
-    node_T = np.tile(sol["T"].reshape(-1,1), (1,nb_nodes))
-    node = np.stack([node_t, node_n, node_T], axis=-1)
+    # Compose conditioning input attributes
+    cond_t = sol["t"].reshape(-1,1)
+    cond_t = np.tile(cond_t, (1,nb_nodes))
+    cond_n = na[0].reshape(1,1)
+    cond_n = np.tile(cond_n, (nb_pts,nb_nodes))
+    cond = np.stack([cond_t, cond_n], axis=-1)
+    cond = np.log(cond + self.time_eps)
     # Compose target
     targ = np.expand_dims(nm, axis=-1)
     # Compose data
     return {
       "node_attr": node,
       "edge_attr": edge,
+      "cond_attr": cond,
       "target": targ
     }
 
@@ -184,27 +189,27 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       )
     return data
 
-  # # Normalization
-  # # -----------------------------------
-  # def compute_norm_qoi(self, data, identifier):
-  #   path = self.path_to_data + "/norm/"
-  #   os.makedirs(path, exist_ok=True)
-  #   # Compute normalizing QoI
-  #   data = [data[k][identifier] for k in ("train", "valid")]
-  #   data = np.concatenate(data, axis=0)
-  #   qois = (
-  #     (f"{identifier}_mean", np.mean),
-  #     (f"{identifier}_std", np.std)
-  #   )
-  #   for (qoi, fun) in qois:
-  #     value = fun(data, axis=(0,1))
-  #     setattr(self, qoi, value.reshape(1,1,-1))
-  #     np.savetxt(path + f"/{qoi}.txt", value, fmt='%.10e')
+  # Normalization
+  # -----------------------------------
+  def compute_norm_qoi(self, data, identifier):
+    path = self.path_to_data + "/norm/"
+    os.makedirs(path, exist_ok=True)
+    # Compute normalizing QoI
+    data = [data[k][identifier] for k in ("train", "valid")]
+    data = np.concatenate(data, axis=0)
+    qois = (
+      (f"{identifier}_mean", np.mean),
+      (f"{identifier}_std", np.std)
+    )
+    for (qoi, fun) in qois:
+      value = fun(data, axis=(0,1))
+      setattr(self, qoi, value.reshape(1,1,-1))
+      np.savetxt(path + f"/{qoi}.txt", value, fmt='%.10e')
 
-  # def apply_norm_qoi(self, data, identifier):
-  #   data[identifier] -= getattr(self, f"{identifier}_mean")
-  #   data[identifier] /= getattr(self, f"{identifier}_std")
-  #   return data
+  def apply_norm_qoi(self, data, identifier):
+    data[identifier] -= getattr(self, f"{identifier}_mean")
+    data[identifier] /= getattr(self, f"{identifier}_std")
+    return data
 
   # Testing data
   # -----------------------------------
@@ -215,7 +220,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     data = {}
     for (i, inp) in enumerate(tqdm(inp_space, ncols=80)):
       datai = self.get_data(inp)
-      # datai = self.apply_norm_qoi(datai, "edge_attr")
+      datai = self.apply_norm_qoi(datai, "cond_attr")
       data["case_" + str(i+1).zfill(3)] = datai
     dicttoh5(data, self.path_to_data + "/test.hdf5")
     return data

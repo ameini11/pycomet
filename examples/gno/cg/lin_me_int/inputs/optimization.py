@@ -5,7 +5,7 @@ optimizer = "adam"
 
 # Learning rate scheduler
 # -------------------------------------
-lr = 1e-3
+lr = 1e-4
 scheduler = {
   "name": "exponential",
   "decay_steps": 100*50,
