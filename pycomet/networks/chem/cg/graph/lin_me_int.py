@@ -1,6 +1,7 @@
 from pycomet import utils
+from pycomet.networks import gno
 from pycomet.networks.basenet import BaseNet
-
+import tensorflow as tf
 
 class LinMEIntGraphNet(BaseNet):
 
@@ -87,15 +88,17 @@ class LinMEIntGraphNet(BaseNet):
   # Calling
   # ===================================
   def forward(self, graph, training=None):
-    x = graph[0]
+    # Unpack graph
+    x, edge_attr, cond_attr, edge_index = gno.utils.unpack_graph(graph)
     # Input nodes manipulation
-    graph[0] = self._manipulate_inout(
+    node_attr = self._manipulate_inout(
       inputs=dict(x=x, y=x), identifier="input", training=training
     )
+    graph = gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
     # Node temperature
-    graph[0] = self.active_lays["node_temp"](graph[0], training=training)
+    graph = self.active_lays["node_temp"](graph, training=training)
     # Node partition functions
-    graph[0] = self.active_lays["node_pf"](graph[0], training=training)
+    graph = self.active_lays["node_pf"](graph, training=training)
     # Edge backward
     graph = self.active_lays["edge_bwd"](graph, training=training)
     # Graph processor

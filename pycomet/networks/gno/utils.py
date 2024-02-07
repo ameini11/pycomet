@@ -9,16 +9,44 @@ from pycomet import utils as pcm_utils
 # =====================================
 def unpack_graph(
   graph,
-  edge_index=None,
-  edge_attr=None
+  edge_attr=None,
+  edge_index=None
 ):
-  if ((edge_index is not None) and (edge_attr is not None)):
-    node_attr = graph[-1] if isinstance(graph, (list, tuple)) else graph
-  elif ((edge_index is not None) and (edge_attr is None)):
-    node_attr, edge_attr = pcm_utils.unpack_list(graph, nb_elem=2)
-  else:
-    node_attr, edge_index, edge_attr = pcm_utils.unpack_list(graph, nb_elem=3)
-  return [node_attr, edge_index, edge_attr]
+  elem = pcm_utils.unpack_list(graph, nb_elem=4)
+  node_attr, _edge_attr, cond_attr, _edge_index = elem
+  edge_attr = edge_attr if (edge_attr is not None) else _edge_attr
+  edge_index = edge_index if (edge_index is not None) else _edge_index
+  return (node_attr, edge_attr, cond_attr, edge_index)
+
+def return_graph(
+  node_attr,
+  edge_attr=None,
+  cond_attr=None,
+  edge_index=None
+):
+  return (node_attr, edge_attr, cond_attr, edge_index)
+
+# def unpack_graph(
+#   graph,
+#   edge_attr=None,
+#   edge_index=None
+# ):
+#   node_attr, _edge_attr, _edge_index = pcm_utils.unpack_list(graph, nb_elem=3)
+#   edge_attr = edge_attr if (edge_attr is not None) else _edge_attr
+#   edge_index = edge_index if (edge_index is not None) else _edge_index
+#   return (node_attr, edge_attr, edge_index)
+
+# def return_graph(
+#   node_attr,
+#   edge_attr=None,
+#   edge_index=None
+# ):
+#   graph = [node_attr]
+#   if (edge_attr is not None):
+#     graph.append(edge_attr)
+#   if (edge_index is not None):
+#     graph.append(edge_index)
+#   return tuple(graph)
 
 # Edge/Node data
 # =====================================
@@ -47,7 +75,7 @@ def read_attr(
   if (data is not None):
     data = tf.expand_dims(data, axis=0)
     # Force 3D tensor
-    rank = tf.rank(data)
+    rank = len(data.shape)
     for _ in range(3-rank):
       data = tf.expand_dims(data, axis=-1)
     return data

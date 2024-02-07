@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from pycomet.networks import gno
 from keras import layers as tf_layers
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
@@ -27,15 +28,15 @@ class LinearUpdate(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, graph, training=False):
-    # Extract fluxes from 'node_attr'
-    fluxes = graph[0]
+    # Unpack graph
+    node_attr, *_ = gno.utils.unpack_graph(graph)
     # Combine fluxes on nodes
-    if (fluxes.shape[-1] > 1):
-      fluxes = tf.split(fluxes, 2, axis=-1)
+    if (node_attr.shape[-1] > 1):
+      fluxes = tf.split(node_attr, 2, axis=-1)
       fluxes = [f * self.red_coeff[i] for (i, f) in enumerate(fluxes)]
       return tf_layers.Add()(fluxes)
     else:
-      return fluxes
+      return node_attr
 
   # Configuration update
   # ===================================

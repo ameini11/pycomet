@@ -26,9 +26,12 @@ class NodeTemperature(nn_elem.FFBlock):
     regularizer=None,
     dropout=dict(rate=0),
     layer_norm=None,
-    temp_lim=[1e2, 1e5],
-    temp_xform="exp",
-    feat_indices=None,
+    temp={
+      "limits": [2e2, 1e5],
+      "xform": "exp",
+      "index_in": None
+    },
+    cond_attr_indices=None,
     static_node_attr=None,
     **kwargs
   ):
@@ -41,10 +44,17 @@ class NodeTemperature(nn_elem.FFBlock):
       layer_norm=layer_norm,
       **kwargs
     )
-    self.temp_lim = tf.nest.flatten(temp_lim)
-    self.temp_delta = self.temp_lim[1] - self.temp_lim[0]
-    self.temp_xform = temp_xform
-    self.feat_indices = tf.nest.flatten(feat_indices)
+    # Set temperature-related inputs
+    self.temp = temp
+    self.temp["limits"] = tf.nest.flatten(self.temp["limits"])
+    self.temp["delta"] = self.temp["limits"][1] - self.temp["limits"][0]
+    if (self.temp["index_in"] is not None):
+      self.temp["index_in"] = tf.nest.flatten(self.temp["index_in"])
+    # Conditioning inputs for temperature prediction
+    self.cond_attr_indices = cond_attr_indices
+    if (self.cond_attr_indices is not None):
+      self.cond_attr_indices = tf.nest.flatten(self.cond_attr_indices)
+    # Static node features
     self.static_node_attr = gno.utils.read_attr(
       data=static_node_attr,
       identifier="static_node_attr"
@@ -52,51 +62,56 @@ class NodeTemperature(nn_elem.FFBlock):
 
   # Calling
   # ===================================
-  def call(self, node_attr, training=False):
+  def call(self, graph, training=False):
+    # Unpack graph
+    node_attr, edge_attr, cond_attr, edge_index = gno.utils.unpack_graph(graph)
+    # Collect needed features
     features = []
-    # Extract needed information from node (e.g., time instant)
-    features.append(
-      tf.gather(
-        params=node_attr,
-        indices=self.feat_indices,
-        axis=-1
+    # > Extract information from conditioning inputs (e.g., time instant)
+    if (self.cond_attr_indices is not None):
+      cond_feat = tf.gather(
+        params=cond_attr, indices=self.cond_attr_indices, axis=-1
       )
-    )
-    # Tile static node attributes (e.g., state/group properties)
+    else:
+      cond_feat = cond_attr
+    features.append(cond_feat)
+    # > Tile static node attributes (e.g., state/group properties)
     if (self.static_node_attr is not None):
       features.append(
         tf.repeat(
-          input=self.static_node_attr,
-          repeats=tf.shape(node_attr)[0],
-          axis=0
+          input=self.static_node_attr, repeats=tf.shape(cond_attr)[0], axis=0
         )
       )
     # Predict new temperature attributes
     features = tf.concat(features, axis=-1)
     temp_attr = super(NodeTemperature, self).call(features, training=training)
     # Enforce temperature to be positive and limited
-    if (self.temp_xform == "sigmoid"):
+    if (self.temp["index_in"] is not None):
+      T = tf.gather(params=node_attr, indices=self.temp["index_in"], axis=-1)
+      temp_attr = temp_attr * T + self.temp["limits"][0]
+    elif (self.temp["xform"] == "sigmoid"):
       temp_attr = tf.math.sigmoid(temp_attr)
-      temp_attr = temp_attr * self.temp_delta + self.temp_lim[0]
+      temp_attr = temp_attr * self.temp["delta"] + self.temp["limits"][0]
     else:
-      temp_attr = tf.math.exp(temp_attr) + self.temp_lim[0]
-    # Return node attributes
-    return tf.concat([node_attr, temp_attr], axis=-1)
+      temp_attr = tf.math.exp(temp_attr) + self.temp["limits"][0]
+    # Compose node attributes
+    node_attr = tf.concat([node_attr, temp_attr], axis=-1)
+    # Return graph
+    return gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      "temp_lim": self.temp_lim,
-      "temp_xform": self.temp_xform,
-      "feat_indices": self.feat_indices,
+      "temp": self.temp,
+      "cond_attr_indices": self.cond_attr_indices,
       "static_node_attr": ops.to_numpy(self.static_node_attr)
     }
     base_config = super(NodeTemperature, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
-class NodePartitionFunctions(tf_layers.Layer):
+class NodePartitionFunctions(nn_elem.Layer):
   """Computes node partition functions given node temperatures"""
 
   # Initialization
@@ -128,9 +143,11 @@ class NodePartitionFunctions(tf_layers.Layer):
 
   # Calling
   # ===================================
-  def call(self, node_attr, training=False):                                    # Shape: (nb_samples, nb_nodes, nb_attr)
-    q = []
+  def call(self, graph, training=False):
+    # Unpack graph
+    node_attr, *_ = gno.utils.unpack_graph(graph)
     # Loop over species
+    q = []
     for st in self.sp_th.values():
       # Extract species-related attributes
       attr = tf.gather(node_attr, st.specie.comp_indices, axis=-2)              # Shape: (nb_samples, nb_comp, nb_attr)
@@ -141,8 +158,10 @@ class NodePartitionFunctions(tf_layers.Layer):
     # Concatenate species-related partition functions
     q = tf.concat(q, axis=-1)                                                   # Shape: (nb_samples, nb_nodes)
     q = tf.expand_dims(q, axis=-1)                                              # Shape: (nb_samples, nb_nodes, 1)
-    # Concatenate all node attributes
-    return tf.concat([node_attr, q], axis=-1)                                   # Shape: (nb_samples, nb_nodes, nb_attr+1)
+    # Compose node attributes
+    node_attr = tf.concat([node_attr, q], axis=-1)                              # Shape: (nb_samples, nb_nodes, nb_attr+1)
+    # Return graph
+    return gno.utils.return_graph(node_attr, *_)
 
   def compute_qs(self, attributes, specie_thermo):
     qs = []
@@ -209,9 +228,12 @@ class EdgeBackward(nn_elem.Layer):
   # ===================================
   def call(self, graph, training=False):
     # Unpack graph
-    node_attr, fwd_edge_index, fwd_edge_attr = gno.utils.unpack_graph(
-      graph, self.static_fwd_edge_index, self.static_fwd_edge_attr
+    _graph = gno.utils.unpack_graph(
+      graph=graph,
+      edge_attr=self.static_fwd_edge_attr,
+      edge_index=self.static_fwd_edge_index
     )
+    node_attr, fwd_edge_attr, cond_attr, fwd_edge_index = _graph
     # Extract partition functions
     q = tf.gather(node_attr, self.node_index_pf, axis=-1)
     q_in = tf.gather(q, fwd_edge_index[0], axis=-2)
@@ -232,7 +254,7 @@ class EdgeBackward(nn_elem.Layer):
       bwd_edge_index = tf.reverse(fwd_edge_index, axis=[0])
       edge_index = tf.concat([fwd_edge_index, bwd_edge_index], axis=-1)
     # Return graph
-    return [node_attr, edge_index, edge_attr]
+    return gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
 
   # Configuration update
   # ===================================
@@ -253,12 +275,14 @@ class LinearMEGraphNet(nn_elem.Layer):
   # ===================================
   def __init__(
     self,
-    node_attr_indices=[0],
+    node_attr_indices=None,
+    edge_attr_indices=None,
     static_edge_index=None,
     **kwargs
   ):
     super(LinearMEGraphNet, self).__init__(**kwargs)
-    self.node_attr_indices = tf.nest.flatten(node_attr_indices)
+    self.node_attr_indices = node_attr_indices
+    self.edge_attr_indices = edge_attr_indices
     self.static_edge_index = gno.utils.read_edge_index(
       data=static_edge_index,
       identifier="static_edge_index"
@@ -267,6 +291,8 @@ class LinearMEGraphNet(nn_elem.Layer):
       origin="sender",
       reduction="prod",
       include_edge=True,
+      node_attr_indices=self.node_attr_indices,
+      edge_attr_indices=self.edge_attr_indices,
       static_edge_index=self.static_edge_index
     )
     self.aggregate = gno.Aggregate(
@@ -280,10 +306,6 @@ class LinearMEGraphNet(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, graph, training=False):
-    # Make copy of inputs
-    graph = tf.nest.map_structure(tf.identity, graph)
-    # Extract node attributes
-    graph[0] = tf.gather(graph[0], self.node_attr_indices, axis=-1)
     # Edges - Message passing
     graph = self.message(graph, training=training)
     # Edges - Aggregation
@@ -296,6 +318,7 @@ class LinearMEGraphNet(nn_elem.Layer):
   def get_config(self):
     config = {
       "node_attr_indices": self.node_attr_indices,
+      "edge_attr_indices": self.edge_attr_indices,
       "static_edge_index": ops.to_numpy(self.static_edge_index)
     }
     base_config = super(LinearMEGraphNet, self).get_config()

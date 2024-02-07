@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from pycomet.networks import gno
 from pycomet.config import get_config
 from pycomet import utils as pcm_utils
 from pycomet.networks import elements as nn_elem
@@ -40,7 +41,7 @@ class Aggregate(nn_elem.Layer):
   # ===================================
   def call(self, graph, training=False):
     # Unpack graph
-    node_attr, edge_index, edge_attr = graph
+    node_attr, edge_attr, cond_attr, edge_index = gno.utils.unpack_graph(graph)
     # Check rank
     rank = len(edge_attr.shape)
     if (rank not in (2,3)):
@@ -63,12 +64,13 @@ class Aggregate(nn_elem.Layer):
     if (rank == 3):
       fluxes = [tf.transpose(f, perm=[2,0,1]) for f in fluxes]
       edge_attr = tf.transpose(edge_attr, perm=[2,0,1])
-    # Return graph
+    # Compose node attributes
     if (len(fluxes) > 1):
       node_attr = tf.concat(fluxes, axis=-1)
     else:
       node_attr = fluxes[-1]
-    return [node_attr, edge_index, edge_attr]
+    # Return graph
+    return gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
 
   # Configuration update
   # ===================================
