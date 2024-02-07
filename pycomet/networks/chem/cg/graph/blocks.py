@@ -103,7 +103,7 @@ class NodePartitionFunctions(tf_layers.Layer):
   # ===================================
   def __init__(
     self,
-    temp_indices={
+    node_index_temp={
       "int": 0,
       "chem": 0,
       "trans": 0
@@ -118,7 +118,9 @@ class NodePartitionFunctions(tf_layers.Layer):
   ):
     super(NodePartitionFunctions, self).__init__(**kwargs)
     # Temperature indices
-    self.temp_indices = {k: int(index) for (k, index) in temp_indices.items()}
+    self.node_index_temp = {
+      k: int(index) for (k, index) in node_index_temp.items()
+    }
     # Thermophysics
     self.sp_th = st_mod.init_specie_thermos(**specie_thermos)
     st_mod.build_specie_thermos(self.sp_th)
@@ -144,7 +146,7 @@ class NodePartitionFunctions(tf_layers.Layer):
 
   def compute_qs(self, attributes, specie_thermo):
     qs = []
-    for (k, index) in self.temp_indices.items():
+    for (k, index) in self.node_index_temp.items():
       # Extract temperature from species-related attributes
       Tk = tf.gather(attributes, index, axis=-1)                                # Shape: (nb_samples, nb_comp)
       # Retrieve the unique global temperature for "chemical"
@@ -164,7 +166,7 @@ class NodePartitionFunctions(tf_layers.Layer):
   def get_config(self):
     sp_th_cfg = {name: st.get_config() for (name, st) in self.sp_th.items()}
     config = {
-      "temp_indices": self.temp_indices,
+      "node_index_temp": self.node_index_temp,
       "specie_thermos": {"config": sp_th_cfg}
     }
     base_config = super(NodePartitionFunctions, self).get_config()
@@ -173,14 +175,14 @@ class NodePartitionFunctions(tf_layers.Layer):
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class EdgeBackward(nn_elem.Layer):
-  """Calculates the backward edge rate based on the forward rate and 
+  """Calculates the backward edge rate based on the forward rate and
   partition functions of products/reactants"""
 
   # Initialization
   # ===================================
   def __init__(
     self,
-    node_index_pf=[-1],
+    node_index_pf=[0],
     static_fwd_edge_index=None,
     static_fwd_edge_attr=None,
     **kwargs
@@ -278,6 +280,9 @@ class LinearMEGraphNet(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, graph, training=False):
+    # Make copy of inputs
+    graph = tf.nest.map_structure(tf.identity, graph)
+    # Extract node attributes
     graph[0] = tf.gather(graph[0], self.node_attr_indices, axis=-1)
     # Edges - Message passing
     graph = self.message(graph, training=training)

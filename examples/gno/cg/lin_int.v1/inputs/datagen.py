@@ -21,4 +21,4 @@ inp_space = {
 }
 
 # Physics inputs
-path_to_physics = "./physics/"
+path_to_physics = "./../physics/"

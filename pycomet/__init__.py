@@ -26,6 +26,10 @@ __all__ = [
   "utils"
 ]
 
+# Ignore all warnings
+import warnings
+warnings.filterwarnings("ignore")
+
 # Configuration
 from pycomet import config
 config.read_config()

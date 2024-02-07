@@ -6,7 +6,8 @@
   "dev_index": 0,
   "floatx": "float64",
   "env": {
-    "TF_CPP_MIN_LOG_LEVEL": "3"
+    "TF_CPP_MIN_LOG_LEVEL": "3",
+    "HYPNET_CONFIGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/pycomet/config/hypcfg_tf.json"
   },
   "custom_pkg": {
     "hypernet": "/home/zanardi/Codes/TC/HyperNet/hypernet"

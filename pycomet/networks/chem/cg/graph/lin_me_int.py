@@ -33,14 +33,14 @@ class LinMEIntGraphNet(BaseNet):
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
-        "node_temp", "node_pf", "edge_bwd", "lin_me_gnet"
+        "node_temp", "node_pf", "edge_bwd", "lin_me_gnet", "residual"
       )
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("node_temp", "node_pf", "edge_bwd", "lin_me_gnet"),
+      not_opt=("node_temp", "node_pf", "edge_bwd", "lin_me_gnet", "residual"),
       default=self.default_lays_propty
     )
     # Initializing layers
@@ -58,15 +58,18 @@ class LinMEIntGraphNet(BaseNet):
     return lays
 
   def init_kernel_layers(self):
+    lay_ids = {
+      "node_temp": "NodeTemperature",
+      "node_pf": "NodePartitionFunctions",
+      "edge_bwd": "EdgeBackward",
+      "lin_me_gnet": "LinearMEGraphNet",
+      "residual": "GatheredAdd"
+    }
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      lay_id = {
-        "node_temp": "NodeTemperature",
-        "node_pf": "NodePartitionFunctions",
-        "edge_bwd": "EdgeBackward",
-        "lin_me_gnet": "LinearMEGraphNet",
-      }[identifier]
-      lays[identifier] = self.init_lay(identifier, propty, lay_id)
+      lay_id = lay_ids.get(identifier, None)
+      if (lay_id is not None):
+        lays[identifier] = self.init_lay(identifier, propty, lay_id)
     return lays
 
   def init_lay(self, identifier=None, propty=None, lay_id=None):
@@ -96,7 +99,9 @@ class LinMEIntGraphNet(BaseNet):
     # Edge backward
     graph = self.active_lays["edge_bwd"](graph, training=training)
     # Graph processor
-    y = self.active_lays["lin_me_gnet"](graph, training=training) + x
+    y = self.active_lays["lin_me_gnet"](graph, training=training)
+    # Residual connection
+    y = self.active_lays["residual"]([x, y], training=training)
     # Output nodes manipulation
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier="output", training=training
