@@ -21,21 +21,26 @@ class BaseWeightsAdapter(cb.Callback):
   # ===================================
   def __init__(
     self,
-    data_container=None,
-    multi_obj_loss_weights=None,
     freq=1,
+    data=None,
     log_dir=None,
+    multi_obj_loss_weights=None,
     **kwargs
   ):
-    super(BaseWeightsAdapter, self).__init__()
+    super(BaseWeightsAdapter, self).__init__(**kwargs)
     self.__name__ = utils.get_class_name(self)
     self.multi_obj_loss_weights = multi_obj_loss_weights
     self.freq = int(np.clip(freq, 1, None))
-    self.print = True
+    self._print = True
     # Define data container
-    self.data_container = data_container
-    assert self.data_container is data_container
-    # Define `logs` directory
+    self.data = data
+    if (not self.data.multi_obj_loss):
+      utils.raise_err(
+        ValueError,
+        f"The callback '{self.__name__}' is valid " \
+        "only with multi-objective loss function."
+      )
+    # Define 'logs' directory
     self.log_dir = log_dir
 
   # Callback methods
@@ -46,11 +51,11 @@ class BaseWeightsAdapter(cb.Callback):
       "to balance the multi-objective loss.",
       lev=1
     )
-    # Assign `weighted_loss` class to Keras model
+    # Assign 'weighted_loss' class to Keras model
     self.model.weighted_loss = self
 
   def on_epoch_end(self, epoch, logs={}):
-    if ((self.multi_obj_loss_weights is not None) and self.print):
+    if ((self.multi_obj_loss_weights is not None) and self._print):
       self.print_weights(epoch, logs)
 
   # Handling weights methods
@@ -117,7 +122,7 @@ class BaseWeightsAdapter(cb.Callback):
       print("")
       utils.warning(
         "One or multiple weights evaluated in " \
-        "'{self.__name__}' class are 'inf' or 'nan'."
+        f"'{self.__name__}' class are 'inf' or 'nan'."
       )
       if (self.multi_obj_loss_weights is not None):
         utils.print_fn("Here the 'multi_obj_loss_weights' values:", lev=1)
@@ -151,20 +156,20 @@ class ConstantWeightsAdapter(BaseWeightsAdapter):
   # ===================================
   def __init__(
     self,
-    data_container=None,
-    multi_obj_loss_weights=None,
     freq=1,
+    data=None,
     log_dir=None,
+    multi_obj_loss_weights=None,
     **kwargs
   ):
     super(ConstantWeightsAdapter, self).__init__(
-      data_container=data_container,
-      multi_obj_loss_weights=multi_obj_loss_weights,
       freq=freq,
+      data=data,
       log_dir=log_dir,
+      multi_obj_loss_weights=multi_obj_loss_weights,
       **kwargs
     )
-    self.print = False
+    self._print = False
 
   # Callback methods
   # ===================================
@@ -180,29 +185,29 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
 
   See:
     Sifan Wang, Yujun Teng, Paris Perdikaris
-    `Understanding and mitigating gradient pathologies in physics-informed
-    neural networks`
+    'Understanding and mitigating gradient pathologies in physics-informed
+    neural networks'
     https://arxiv.org/abs/2001.04536"""
 
   # Initialization
   # ===================================
   def __init__(
     self,
-    data_container=None,
+    freq=50,
+    data=None,
+    log_dir=None,
     multi_obj_loss_weights=None,
-    freq=1000,
     alpha=0.8,
     max_samples=20000,
-    method='mean',
-    log_dir=None,
+    method="mean",
     ref_obj="res",
     **kwargs
   ):
     super(EmpiricalWeightsAdapter, self).__init__(
-      data_container=data_container,
-      multi_obj_loss_weights=multi_obj_loss_weights,
       freq=freq,
+      data=data,
       log_dir=log_dir,
+      multi_obj_loss_weights=multi_obj_loss_weights,
       **kwargs
     )
     self.alpha = tf.cast(tf.clip_by_value(alpha, 0, 1), bkd.get_floatx())
@@ -210,13 +215,11 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
     self.dataset = {}
     self.max_samples = max_samples
     # Gradients aggregation
-    self._mean = lambda x: tf.reduce_mean(
-      [tf.reduce_mean(tf.math.abs(i)) for i in x]
-    )
-    self._max = lambda x: tf.reduce_max(
-      [tf.reduce_max(tf.math.abs(i)) for i in x]
-    )
-    self.aggr_grads = self._mean if (method == 'mean') else self._max
+    if (method == "max"):
+      self.reduction = tf.math.reduce_max
+    else:
+      self.reduction = tf.math.reduce_mean
+    self.check_ref_obj = False
     # Control variables
     self._update = True
     # Reference objective data
@@ -251,16 +254,9 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
     self.check_weights(self.multi_obj_loss_weights)
 
   def sample_dataset(self):
-    for (obj, dset) in self.data_container.data.items():
-      nb_samples = self.data_container.nb_samples[obj]
-      indices = np.random.permutation(nb_samples)
-      if (nb_samples > self.max_samples):
-        indices = np.random.choice(
-          indices, self.max_samples, replace=False
-        )
-      self.dataset[obj] = tf.nest.map_structure(
-        lambda z: tf.gather(z, indices, axis=0), dset
-      )
+    self.dataset = self.data.sample_data(
+      identifier="train", max_samples=self.max_samples
+    )
 
   def eval_loss_gradients(self):
     losses = {}
@@ -278,24 +274,29 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
       )
 
   def update_multi_obj_loss_weights(self):
-    # Manipulate residual gradients
-    grad_res = self.aggr_grads(self.gradients[self.ref_obj])
+    # Aggragate reference gradients
+    ref_grad = self.aggr_grads(self.gradients[self.ref_obj])
+    # Evaluate new multi-objective loss weights
     new_weights = {}
     for (obj, grad) in self.gradients.items():
       if (obj == self.ref_obj):
         new_weights[obj] = self.multi_obj_loss_weights[self.ref_obj]
         continue
-      # Manipulate gradients of the remaining objective loss functions
-      grads_obj = self._mean(grad)
-      # Evaluate new multi-objective loss weights
-      new_weights[obj] = grad_res / grads_obj \
-        * self.multi_obj_loss_weights[self.ref_obj]
+      new_weights[obj] = ref_grad / self.aggr_grads(grad)
+      new_weights[obj] *= self.multi_obj_loss_weights[self.ref_obj]
     # Update multi-objective loss weights
     self.multi_obj_loss_weights = tf.nest.map_structure(
-      lambda old, new: self.alpha*new + (1. - self.alpha)*old,
+      lambda old, new: self.alpha*new + (1 - self.alpha)*old,
       self.multi_obj_loss_weights,
       new_weights
     )
+
+  def aggr_grads(self, gradients):
+    gradients = tf.nest.map_structure(
+      lambda g: tf.reshape(tf.math.abs(g), -1), gradients
+    )
+    gradients = tf.concat(tf.nest.flatten(gradients), axis=0)
+    return self.reduction(gradients)
 
 
 @keras_export('keras.callbacks.InverseDirichletWeightsAdapter')
@@ -307,46 +308,55 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
   # ===================================
   def __init__(
     self,
-    data_container=None,
+    freq=50,
+    data=None,
+    log_dir=None,
     multi_obj_loss_weights=None,
-    freq=1000,
     alpha=0.8,
     max_samples=20000,
-    method='std',
-    log_dir=None,
+    method="std",
     **kwargs
   ):
     super(InverseDirichletWeightsAdapter, self).__init__(
-      data_container=data_container,
-      multi_obj_loss_weights=multi_obj_loss_weights,
       freq=freq,
+      data=data,
+      log_dir=log_dir,
+      multi_obj_loss_weights=multi_obj_loss_weights,
       alpha=alpha,
       max_samples=max_samples,
-      log_dir=log_dir,
+      method=method,
+      ref_obj=None,
       **kwargs
     )
-    self.aggr_grads = np.var if (method == 'var') else np.std
+    if (method == "var"):
+      self.reduction = tf.math.reduce_variance
+    else:
+      self.reduction = tf.math.reduce_std
     self.check_ref_obj = False
 
   # Handling weights methods
   # ===================================
   def update_multi_obj_loss_weights(self):
-    # Evaluate gradients `var` or `std`
+    # Aggragate gradients
     sigmas = {}
     for (obj, grad) in self.gradients.items():
-      sigmas[obj] = self.aggr_grads(
-        np.concatenate([g.numpy().flatten() for g in grad])
-      )
+      sigmas[obj] = self.aggr_grads(grad)
+    sigma_max = max(tf.nest.flatten(sigmas))
     # Evaluate new multi-objective loss weights
-    new_weights = {
-      obj: max(sigmas.values())/sigma for obj, sigma in sigmas.items()
-    }
+    new_weights = {}
+    for (obj, sigma) in sigmas.items():
+      new_weights[obj] = sigma_max/sigma
     # Update multi-objective loss weights
     self.multi_obj_loss_weights = tf.nest.map_structure(
-      lambda old, new: self.alpha*new + (1. - self.alpha)*old,
+      lambda old, new: self.alpha*new + (1 - self.alpha)*old,
       self.multi_obj_loss_weights,
       new_weights
     )
+
+  def aggr_grads(self, gradients):
+    gradients = tf.nest.map_structure(lambda g: tf.reshape(g, -1), gradients)
+    gradients = tf.concat(tf.nest.flatten(gradients), axis=0)
+    return self.reduction(gradients)
 
 # @keras_export('keras.callbacks.NTKWeightsAdapter')
 # class NTKWeightsAdapter(EmpiricalWeightsAdapter):
@@ -355,13 +365,13 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 
 #   See:
 #     Sifan Wang, Xinling Yu, Paris Perdikaris
-#     `When and why PINNs fail to train: A neural tangent kernel perspective`
+#     'When and why PINNs fail to train: A neural tangent kernel perspective'
 #     https://arxiv.org/abs/2007.14527"""
 
 #   def __init__(
 #     self,
 #     ode_loss_weights=None,
-#     data_container=None,
+#     data=None,
 #     freq=None,
 #     log_dir=None,
 #     max_samples=1000,
@@ -369,7 +379,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #   ):
 #     super(NTKWeightsAdapter, self).__init__(
 #       ode_loss_weights=ode_loss_weights,
-#       data_container=data_container,
+#       data=data,
 #       freq=freq,
 #       log_dir=log_dir,
 #       max_samples=max_samples,
@@ -421,11 +431,11 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #     return self.eval_diag_ntk(pred, tape)
 
 #   def eval_diag_ntk(self, pred, tape):
-#     utils.print_fn("From `NTKWeightsAdapter` callback:", lev=1)
+#     utils.print_fn("From 'NTKWeightsAdapter' callback:", lev=1)
 #     ntk = {}
 #     for data_id, pred_i in pred.items():
 #       utils.print_fn(
-#         "  - Evaluating NTK matrix for `{data_id}` data points", lev=1
+#         "  - Evaluating NTK matrix for '{data_id}' data points", lev=1
 #       )
 #       ta = tf.TensorArray(
 #         dtype=bkd.get_floatx(),
@@ -462,7 +472,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 
 #   def __init__(
 #     self,
-#     data_container=None,
+#     data=None,
 #     trainable=True,
 #     rank=1,
 #     limits=[1.,1.],
@@ -473,7 +483,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #     **kwargs
 #   ):
 #     super(SoftAttentionWeightsAdapter, self).__init__(
-#       data_container=data_container,
+#       data=data,
 #       freq=freq,
 #       log_dir=log_dir,
 #       **kwargs
@@ -490,7 +500,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #       }
 #     if not isinstance(self.limits, dict):
 #       utils.raise_err(ValueError,
-#         "`limits` in `{}` has to be a `dict` of [min, max] value "
+#         "'limits' in '{}' has to be a 'dict' of [min, max] value "
 #         "list for each objecitve function.".format(self.__name__)
 #       )
 #     self.initializer = {
@@ -501,7 +511,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #     if q is not None:
 #       if any([q_i <= 0. for q_i in q]):
 #         utils.raise_err(ValueError,
-#           "`q` coefficents for the mask function in `{}` have "
+#           "'q' coefficents for the mask function in '{}' have "
 #           "to be positive.".format(self.__name__)
 #         )
 #     else:
@@ -536,12 +546,12 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #   # Handling weights methods ------------------------------------------------
 #   def init_weights(self):
 #     # Build sample weights
-#     self.data_container.init_sample_weight(
+#     self.data.init_sample_weight(
 #       self.initializer, self.trainable, self.rank
 #     )
 #     # Shuffle/Batch data
-#     self.data_container.keep_indices = True
-#     self.data_container.on_epoch_end()
+#     self.data.keep_indices = True
+#     self.data.on_epoch_end()
 
 #   # Gradient descent methods ------------------------------------------------
 #   def on_grad_step_begin(self, sample_weight=None):
@@ -575,6 +585,6 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #           lambda sw_old, sw_new: sw_old.scatter_nd_update(
 #             sample_index[obj], sw_new
 #           ),
-#           self.data_container[obj][-1],
+#           self.data[obj][-1],
 #           sw
 #         )

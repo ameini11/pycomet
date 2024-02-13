@@ -1,4 +1,5 @@
 import os
+import abc
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -34,7 +35,7 @@ class Data(object):
     self.data_gen = None
     self.physical_mdl = None
     # Data
-    self.identifiers = ('train', 'valid', 'test')
+    self.identifiers = ("train", "valid", "test")
     self.data_src = data_src
     self.train = None
     self.valid = None
@@ -44,8 +45,8 @@ class Data(object):
     self.check_data_src()
     # Batch sizes
     self.batch_size = {
-      'train': 32,
-      'valid': None
+      "train": 32,
+      "valid": None
     }
     if (batch_size is not None):
       self.set_batch_size(batch_size)
@@ -60,7 +61,7 @@ class Data(object):
           "dictionary (structured as 'data_src') with last-level " \
           "keys ['x', 'y', 'sample_weight']."
         )
-      elif any([(k in columns) for k in ('x', 'y', 'sample_weight')]):
+      elif any([(k in columns) for k in ("x", "y", "sample_weight")]):
         self.columns = tf.nest.map_structure(
           lambda _: columns, self.data_src
         )
@@ -82,28 +83,28 @@ class Data(object):
           )
       # Check consistency between dictionaries
       list_of_dicts = [
-        ('data_src', self.data_src),
-        ('columns', self.columns),
-        ('preproc_fn', self.preproc_fn)
+        ("data_src", self.data_src),
+        ("columns", self.columns),
+        ("preproc_fn", self.preproc_fn)
       ]
       utils.check_dicts_consistency(list_of_dicts)
     else:
       self.columns = columns
       self.preproc_fn = preproc_fn
     # Testing data
-    if ('test' in self.data_src):
-      test = self.data_src['test']
+    if ("test" in self.data_src):
+      test = self.data_src["test"]
       if (self.from_file and os.path.isdir(test)):
         self.test = {}
         for file in os.listdir(test):
           self.test[Path(file).stem] = self.get_data_from_src(
-            data=os.path.join(test, file), identifier='test'
+            data=os.path.join(test, file), identifier="test"
           )
       elif isinstance(test, (list,tuple,dict)):
         self.test = tf.nest.map_structure(lambda x: np.array(x), test)
         if (not isinstance(self.test, dict)):
           self.test = {
-            'case_'+str(i).zfill(4): d for (i, d) in enumerate(self.test)
+            "case_"+str(i).zfill(4): d for (i, d) in enumerate(self.test)
           }
       else:
         utils.raise_err(
@@ -129,8 +130,8 @@ class Data(object):
         ValueError,
         "'data_src' has to be a 'dict' with keys ['train', 'valid', 'test']."
       )
-    c3 = ('train' not in self.data_src)
-    if (self.training and (c3 or (self.data_src['train'] is None))):
+    c3 = ("train" not in self.data_src)
+    if (self.training and (c3 or (self.data_src["train"] is None))):
       utils.raise_err(
         ValueError,
         "No 'train' data passed into 'data_src'."
@@ -139,11 +140,14 @@ class Data(object):
   def get_data_from_src(self, data, identifier):
     kwargs = {}
     if self.from_file:
-      for k in ('columns', 'preproc_fn'):
+      for k in ("columns", "preproc_fn"):
         attr = getattr(self, k)
         if ((data is not None) and (attr is not None)):
           kwargs[k] = attr[identifier]
-    return self.extract_data(data=data, **kwargs)
+    data = self.extract_data(data=data, **kwargs)
+    if (identifier != "test"):
+      data = tf.nest.map_structure(ops.to_tensor, data)
+    return data
 
   # Extract data from container
   def extract_data(self, data, columns=None, preproc_fn=None):
@@ -163,9 +167,9 @@ class Data(object):
 
   # Reading data from file
   def _read_datafile(self, file, columns, preproc_fn=None):
-    utils.check_file_extension(file, '.csv')
+    utils.check_file_extension(file, ".csv")
     # Read csv file
-    df = pd.read_csv(file, sep=',', header=self.header)
+    df = pd.read_csv(file, sep=",", header=self.header)
     if callable(preproc_fn):
       df = pd.DataFrame(
         data=preproc_fn(df.to_numpy(dtype=bkd.get_floatx())),
@@ -173,15 +177,19 @@ class Data(object):
       )
     # Collect data from file
     data = []
-    for i in ('x', 'y', 'sample_weight'):
-      if ((i in ('x', 'y')) and (i not in columns.keys())):
+    for i in ("x", "y", "sample_weight"):
+      if ((i in ("x", "y")) and (i not in columns.keys())):
         utils.raise_err(
           ValueError,
-          f"'{i}' has not been provided in 'columns' dictionary."
+          f""{i}" has not been provided in 'columns' dictionary."
         )
       if (i in columns.keys()):
         data.append(ops.extract_data_from_tensor(df, columns[i]))
     return tuple(data)
+
+  @abc.abstractmethod
+  def sample_data(self, identifier="train", max_samples=None):
+    pass
 
   # Checking data - Network consistency
   # ===================================
@@ -201,13 +209,13 @@ class Data(object):
   # ===================================
   def set_batch_size(self, batch_size):
     if isinstance(batch_size, dict):
-      if all([k in batch_size.keys() for k in ('train', 'valid')]):
+      if all([k in batch_size.keys() for k in ("train", "valid")]):
         self.batch_size = batch_size
       else:
         utils.raise_err(
           ValueError,
-          "'batch_size' dictionary passed into '{}' has to have " \
-          "['train', 'valid'] as keys.".format(self.name)
+          f"'batch_size' dictionary passed into '{self.name}' " \
+          "has to have ['train', 'valid'] as keys."
         )
     elif isinstance(batch_size, int):
       for k in self.batch_size.keys():
@@ -215,14 +223,14 @@ class Data(object):
     else:
       utils.raise_err(
         ValueError,
-        "'batch_size' passed into '{}' has to be a " \
-        "'int' or a 'dict'".format(self.name)
+        f"'batch_size' passed into '{self.name}' " \
+        "has to be a 'int' or a 'dict'."
       )
 
   # Logging
   # ===================================
-  def get_nb_pts(self, identifier='training', verbose=1, print_fn=None):
-    dset = self.train if (identifier == 'training') else self.valid
+  def get_nb_pts(self, identifier="training", verbose=1, print_fn=None):
+    dset = self.train if (identifier == "training") else self.valid
     if ((dset is not None) and (print_fn is not None)):
       print_fn(dset, identifier, verbose)
     else:

@@ -41,11 +41,11 @@ class MultiObjData(Data):
     #   target value)
     self.obj_opt_targets = obj_opt_targets
     # > Objectives predictive functions (`model.predict` by default)
-    self.obj_pred_fn = {k: 'model' for k in self.obj_list}
+    self.obj_pred_fn = {k: "model" for k in self.obj_list}
     # > Actual list of objectives identifiers based on data availability
     self.objectives = {
-      'train': self.obj_list,
-      'valid': self.obj_list
+      "train": self.obj_list,
+      "valid": self.obj_list
     }
     # Attributes for physics-informed loss
     self.physics_informed = physics_informed
@@ -53,7 +53,7 @@ class MultiObjData(Data):
   # Handling Data
   # ===================================
   def get_data_from_src(self, data, identifier):
-    if (identifier == 'test'):
+    if (identifier == "test"):
       return super(MultiObjData, self).get_data_from_src(
         data=data, identifier=identifier
       )
@@ -63,16 +63,20 @@ class MultiObjData(Data):
         if (obj in data.keys()):
           kwargs = {}
           if self.from_file:
-            for k in ('columns', 'preproc_fn'):
+            for k in ("columns", "preproc_fn"):
               attr = getattr(self, k)
               if ((data[obj] is not None) and (attr is not None)):
                 kwargs[k] = attr[identifier][obj]
           dset[obj] = self.extract_data(data=data[obj], **kwargs)
       return dset
 
+  def sample_data(self, identifier="train", max_samples=None):
+    dataset = self.train if (identifier == "train") else self.valid
+    return dataset.sample_data(max_samples)
+
   # Logging
   # ===================================
-  def get_nb_pts(self, identifier='training', verbose=1):
+  def get_nb_pts(self, identifier="training", verbose=1):
     def print_fn(dset, identifier, verbose):
       nb_pts = {obj: dset.nb_samples[obj] for obj in dset.data}
       if verbose:

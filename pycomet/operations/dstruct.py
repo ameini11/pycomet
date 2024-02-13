@@ -125,4 +125,5 @@ def get_cardinality(x):
   numpy tensor or similar, it returns the shape's first dimension (number of
   rows) as the cardinality.
   """
-  return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]
+  if (x is not None):
+    return get_cardinality(x[0]) if isinstance(x, (list,tuple)) else x.shape[0]

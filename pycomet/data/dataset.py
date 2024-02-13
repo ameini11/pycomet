@@ -33,25 +33,38 @@ class DataSet(Data):
     )
     # Training/Validation data
     if self.training:
-      if (('valid' in self.data_src) and (self.data_src['valid'] is not None)):
-        for k in ('train', 'valid'):
+      if (("valid" in self.data_src) and (self.data_src["valid"] is not None)):
+        for k in ("train", "valid"):
           setattr(self, k, self.get_data_from_src(self.data_src[k], k))
       elif self.validation_split:
         self.train, self.valid = train_validation_split(
-          self.get_data_from_src(self.data_src['train'], 'train'),
+          self.get_data_from_src(self.data_src["train"], "train"),
           self.validation_split
         )
       else:
-        self.train = self.get_data_from_src(self.data_src['train'], 'train')
+        self.train = self.get_data_from_src(self.data_src["train"], "train")
+      self.nb_samples = {
+        "train": ops.get_cardinality(self.train),
+        "valid": ops.get_cardinality(self.valid)
+      }
+
+  # Handling Data
+  # ===================================
+  def sample_data(self, identifier="train", max_samples=None):
+    return utils.sample_dataset(
+      dataset=self.train if (identifier == "train") else self.valid,
+      nb_samples=self.nb_samples[identifier],
+      max_samples=max_samples
+    )
 
   # Logging
   # ===================================
-  def get_nb_pts(self, identifier='training', verbose=1):
+  def get_nb_pts(self, identifier="training", verbose=1):
     def print_fn(dset, identifier, verbose):
       nb_pts = ops.get_cardinality(dset)
       if verbose:
         text = f"Number of {identifier} pts:"
         utils.print_fn(
-          text + ' '*(30-len(text)) + "%10d" % nb_pts, lev=1
+          text + " "*(30-len(text)) + "%10d" % nb_pts, lev=1
         )
     super(DataSet, self).get_nb_pts(identifier, verbose, print_fn)

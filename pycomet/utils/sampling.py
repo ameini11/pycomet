@@ -3,6 +3,8 @@ import random
 import numpy as np
 import tensorflow as tf
 
+from pycomet import operations as ops
+
 
 def stratified_sampling(
   x,
@@ -36,7 +38,9 @@ def stratified_sampling(
   assert np.intersect1d(x_1, x_2).size == 0
   return x_2, x_1
 
-def set_random_seed(seed=None):
+def set_random_seed(
+  seed=None
+):
   """
   Set random number generator seeds for reproducibility.
 
@@ -54,3 +58,18 @@ def set_random_seed(seed=None):
     os.environ["TF_DETERMINISTIC_OPS"] = "1"
     tf.random.set_seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
+
+def sample_dataset(
+  dataset,
+  nb_samples=None,
+  max_samples=None
+):
+  dataset = tf.nest.map_structure(ops.to_tensor, dataset)
+  if (nb_samples is not None):
+    nb_samples = ops.get_cardinality(dataset)
+  indices = np.random.permutation(nb_samples)
+  if ((max_samples is not None) and (nb_samples > max_samples)):
+    indices = np.random.choice(indices, max_samples, replace=False)
+  return tf.nest.map_structure(
+    lambda z: tf.gather(z, indices, axis=0), dataset
+  )

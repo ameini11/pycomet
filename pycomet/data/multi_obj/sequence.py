@@ -185,3 +185,12 @@ class MultiObjSequence(keras.utils.Sequence):
           dset[i] = list(zip(*z))
     dset = list(zip(*dset))
     return dset
+
+  def sample_data(self, max_samples=None):
+    return {
+      obj: utils.sample_dataset(
+        dataset=self.data[obj],
+        nb_samples=self.nb_samples[obj],
+        max_samples=max_samples
+      ) for obj in self.data.keys()
+    }

@@ -66,9 +66,7 @@ class LearningRateTracker(cb.CSVLogger):
     super(LearningRateTracker, self).__init__(filename)
     self.log_dir = log_dir
     if (self.log_dir is not None):
-      self.log_lr = tf.summary.create_file_writer(
-        self.log_dir + '/scalars/lr'
-      )
+      self.writer = tf.summary.create_file_writer(self.log_dir+'/scalars/lr')
     self.verbose = verbose
 
   # Callback methods
@@ -78,7 +76,7 @@ class LearningRateTracker(cb.CSVLogger):
       self.model.optimizer._decayed_lr(tf.float32)
     ))}
     if (self.log_dir is not None):
-      with self.log_lr.as_default():
+      with self.writer.as_default():
         tf.summary.scalar(
           name='epoch_learning_rate', data=logs['lr'], step=epoch
         )

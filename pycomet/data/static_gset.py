@@ -32,7 +32,7 @@ class StaticGraphDataSet(DataSet):
     self.physical_mdl = None
     self.from_file = from_file
     # Data
-    self.identifiers = ('train', 'valid', 'test')
+    self.identifiers = ("train", "valid", "test")
     self.data_src = data_src
     self.train = None
     self.valid = None
@@ -42,8 +42,8 @@ class StaticGraphDataSet(DataSet):
     self.check_data_src()
     # Batch sizes
     self.batch_size = {
-      'train': 32,
-      'valid': None
+      "train": 32,
+      "valid": None
     }
     if (batch_size is not None):
       self.set_batch_size(batch_size)
@@ -51,17 +51,21 @@ class StaticGraphDataSet(DataSet):
     self.use_static_edges = use_static_edges
     self.use_conditioning = use_conditioning
     if self.training:
-      if (('valid' in self.data_src) and (self.data_src['valid'] is not None)):
-        for k in ('train', 'valid'):
+      if (("valid" in self.data_src) and (self.data_src["valid"] is not None)):
+        for k in ("train", "valid"):
           setattr(self, k, self.get_data_from_src(self.data_src[k]))
       elif self.validation_split:
         self.train, self.valid = train_validation_split(
-          self.get_data_from_src(self.data_src['train'], 'train'),
+          self.get_data_from_src(self.data_src["train"], "train"),
           self.validation_split
         )
       else:
-        self.train = self.get_data_from_src(self.data_src['train'], 'train')
-    if ('test' in self.data_src):
+        self.train = self.get_data_from_src(self.data_src["train"], "train")
+      self.nb_samples = {
+        "train": ops.get_cardinality(self.train),
+        "valid": ops.get_cardinality(self.valid)
+      }
+    if ("test" in self.data_src):
       utils.warning(
         f"Testing phase is currently not supported for '{self.name}'."
       )
@@ -79,7 +83,7 @@ class StaticGraphDataSet(DataSet):
     _raise_err = False
     if (not isinstance(data, str)):
       _raise_err = True
-    elif (not data.lower().endswith(('.h5', '.hdf5'))):
+    elif (not data.lower().endswith((".h5", ".hdf5"))):
       _raise_err = True
     if _raise_err:
       utils.raise_err(
@@ -145,3 +149,10 @@ class StaticGraphDataSet(DataSet):
     if ("sample_weight" in data):
       _data.append([data["sample_weight"]])
     return tf.nest.map_structure(ops.to_tensor, _data)
+
+  def sample_data(self, identifier="train", max_samples=None):
+    return utils.sample_dataset(
+      dataset=self.train if (identifier == "train") else self.valid,
+      nb_samples=self.nb_samples[identifier],
+      max_samples=max_samples
+    )
