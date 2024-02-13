@@ -34,16 +34,22 @@ class LinMEIntGraphNet(BaseNet):
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
-        "node_temp", "node_pf", "edge_bwd", "lin_me_gnet", "residual"
+        "node_temp", "node_pf", "node_pf_corr", \
+        "edge_bwd", "lin_me_gnet", "residual"
       )
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("node_temp", "node_pf", "edge_bwd", "lin_me_gnet", "residual"),
+      not_opt=("node_pf", "edge_bwd", "lin_me_gnet", "residual"),
       default=self.default_lays_propty
     )
+    if all([k in self.lays_propty for k in ("node_temp", "node_pf_corr")]):
+      utils.raise_err(
+        ValueError,
+        "Please, select one layer between 'node_temp' and 'node_pf_corr'."
+      )
     # Initializing layers
     self.active_lays = self.init_layers()
     self.init_preinput_lay()
@@ -61,7 +67,8 @@ class LinMEIntGraphNet(BaseNet):
   def init_kernel_layers(self):
     lay_ids = {
       "node_temp": "NodeTemperature",
-      "node_pf": "NodePartitionFunctions",
+      "node_pf": "NodePartitionFunction",
+      "node_pf_corr": "NodePartitionFunctionCorr",
       "edge_bwd": "EdgeBackward",
       "lin_me_gnet": "LinearMEGraphNet",
       "residual": "GatheredAdd"
@@ -96,9 +103,13 @@ class LinMEIntGraphNet(BaseNet):
     )
     graph = gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
     # Node temperature
-    graph = self.active_lays["node_temp"](graph, training=training)
-    # Node partition functions
+    if ("node_temp" in self.active_lays):
+      graph = self.active_lays["node_temp"](graph, training=training)
+    # Node partition function
     graph = self.active_lays["node_pf"](graph, training=training)
+    # Node partition function correction
+    if ("node_pf_corr" in self.active_lays):
+      graph = self.active_lays["node_pf_corr"](graph, training=training)
     # Edge backward
     graph = self.active_lays["edge_bwd"](graph, training=training)
     # Graph processor

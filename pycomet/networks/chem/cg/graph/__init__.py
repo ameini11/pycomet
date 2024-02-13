@@ -3,7 +3,8 @@ __all__ = [
   "IntegralLinearMEGraphNetV2",
   "LinMEIntGraphNet",
   "NodeTemperature",
-  "NodePartitionFunctions",
+  "NodePartitionFunction",
+  "NodePartitionFunctionCorr",
   "EdgeBackward",
   "LinearMEGraphNet"
 ]

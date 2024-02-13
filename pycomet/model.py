@@ -239,10 +239,7 @@ class Model(object):
     optimizer='adam',
     lr=None,
     scheduler=None,
-    loss="mse",
-    axis=None,
-    reduction='auto',
-    standard_scaler=None,
+    loss_info={"loss": "mse"},
     metrics=None,
     loss_weights=None,
     weighted_metrics=None,
@@ -254,12 +251,7 @@ class Model(object):
     # Initializing the optimizer
     self.optimizer = get_train_opt(optimizer, lr=lr, scheduler=scheduler)
     # Initializing loss functions
-    self.loss = losses_module.get(
-      loss,
-      axis=axis,
-      reduction=reduction,
-      standard_scaler=standard_scaler
-    )
+    self.loss = losses_module.get(**loss_info)
     # Initializing loss weights
     self.loss_weights = self.get_loss_weights(loss_weights)
     # Initializing metrics

@@ -111,7 +111,7 @@ class NodeTemperature(nn_elem.FFBlock):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-class NodePartitionFunctions(nn_elem.Layer):
+class NodePartitionFunction(nn_elem.Layer):
   """Computes node partition functions given node temperatures"""
 
   # Initialization
@@ -131,7 +131,7 @@ class NodePartitionFunctions(nn_elem.Layer):
     },
     **kwargs
   ):
-    super(NodePartitionFunctions, self).__init__(**kwargs)
+    super(NodePartitionFunction, self).__init__(**kwargs)
     # Temperature indices
     self.node_index_temp = {
       k: int(index) for (k, index) in node_index_temp.items()
@@ -183,12 +183,130 @@ class NodePartitionFunctions(nn_elem.Layer):
   # Configuration update
   # ===================================
   def get_config(self):
-    sp_th_cfg = {name: st.get_config() for (name, st) in self.sp_th.items()}
+    sp_th_cfg = {
+      name: st.get_config() for (name, st) in self.sp_th.items()
+    }
     config = {
       "node_index_temp": self.node_index_temp,
       "specie_thermos": {"config": sp_th_cfg}
     }
-    base_config = super(NodePartitionFunctions, self).get_config()
+    base_config = super(NodePartitionFunction, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class NodePartitionFunctionCorr(nn_elem.FFBlock):
+  """Predicts a correction for the partition function"""
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    layer_size=None,
+    activation=["linear"],
+    kernel_initializer=None,
+    regularizer=None,
+    dropout=dict(rate=0),
+    layer_norm=None,
+    nb_node_attr=1,
+    node_attr_index_pf=0,
+    cond_attr_indices=None,
+    static_node_attr=None,
+    **kwargs
+  ):
+    super(NodePartitionFunctionCorr, self).__init__(
+      layer_size=layer_size,
+      activation=activation,
+      kernel_initializer=kernel_initializer,
+      regularizer=regularizer,
+      dropout=dropout,
+      layer_norm=layer_norm,
+      **kwargs
+    )
+    # Set partition function-related inputs
+    self.nb_node_attr = int(nb_node_attr)
+    node_attr_indices = list(range(self.nb_node_attr))
+    self.node_attr_index_pf = [int(node_attr_index_pf)]
+    self.node_attr_indices_no_pf = [
+      i for i in node_attr_indices if (i not in self.node_attr_index_pf)
+    ]
+    # Conditioning inputs for partition function prediction
+    self.cond_attr_indices = cond_attr_indices
+    if (self.cond_attr_indices is not None):
+      self.cond_attr_indices = tf.nest.flatten(self.cond_attr_indices)
+    # Static node features
+    self.static_node_attr = gno.utils.read_attr(
+      data=static_node_attr,
+      identifier="static_node_attr"
+    )
+
+  # Calling
+  # ===================================
+  def call(self, graph, training=False):
+    # Unpack graph
+    node_attr, edge_attr, cond_attr, edge_index = gno.utils.unpack_graph(graph)
+    # Collect needed features
+    # -----------------------
+    features = []
+    # Extract information from conditioning inputs (e.g., time instant)
+    if (self.cond_attr_indices is not None):
+      features.append(
+        tf.gather(
+          params=cond_attr,
+          indices=self.cond_attr_indices,
+          axis=-1
+        )
+      )
+    else:
+      features.append(cond_attr)
+    # Tile static node attributes (e.g., state/group properties)
+    if (self.static_node_attr is not None):
+      features.append(
+        tf.repeat(
+          input=self.static_node_attr,
+          repeats=tf.shape(cond_attr)[0],
+          axis=0
+        )
+      )
+    # Compose features
+    features = tf.concat(features, axis=-1)
+    # Correct partition function
+    # -----------------------
+    q_corr = super(NodePartitionFunctionCorr, self).call(
+      features, training=training
+    )
+    q = q_corr * tf.gather(
+      params=node_attr,
+      indices=self.node_attr_index_pf,
+      axis=-1
+    )
+    # Compose node attributes
+    # -----------------------
+    node_attr = tf.gather(
+      params=node_attr,
+      indices=self.node_attr_indices_no_pf,
+      axis=-1
+    )
+    node_attr = tf.concat([node_attr, q], axis=-1)
+    # Reorder node attributes
+    node_attr = tf.gather(
+      params=node_attr,
+      indices=self.node_attr_indices_no_pf + self.node_attr_index_pf,
+      axis=-1
+    )
+    # Return graph
+    return gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "nb_node_attr": self.nb_node_attr,
+      "node_attr_index_pf": self.node_attr_index_pf,
+      "cond_attr_indices": self.cond_attr_indices,
+      "static_node_attr": ops.to_numpy(self.static_node_attr)
+    }
+    base_config = super(NodePartitionFunctionCorr, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -201,13 +319,13 @@ class EdgeBackward(nn_elem.Layer):
   # ===================================
   def __init__(
     self,
-    node_index_pf=[0],
+    node_attr_index_pf=-1,
     static_fwd_edge_index=None,
     static_fwd_edge_attr=None,
     **kwargs
   ):
     super(EdgeBackward, self).__init__(**kwargs)
-    self.node_index_pf = tf.nest.flatten(node_index_pf)
+    self.node_attr_index_pf = [int(node_attr_index_pf)]
     self.static_fwd_edge_index = gno.utils.read_edge_index(
       data=static_fwd_edge_index,
       identifier="static_fwd_edge_index"
@@ -235,7 +353,7 @@ class EdgeBackward(nn_elem.Layer):
     )
     node_attr, fwd_edge_attr, cond_attr, fwd_edge_index = _graph
     # Extract partition functions
-    q = tf.gather(node_attr, self.node_index_pf, axis=-1)
+    q = tf.gather(node_attr, self.node_attr_index_pf, axis=-1)
     q_in = tf.gather(q, fwd_edge_index[0], axis=-2)
     q_out = tf.gather(q, fwd_edge_index[1], axis=-2)
     # Compose edge attributes
@@ -260,7 +378,7 @@ class EdgeBackward(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "node_index_pf": self.node_index_pf,
+      "node_attr_index_pf": self.node_attr_index_pf,
       "static_fwd_edge_index": ops.to_numpy(self.static_fwd_edge_index),
       "static_fwd_edge_attr": ops.to_numpy(self.static_fwd_edge_attr)
     }
