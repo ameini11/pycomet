@@ -78,7 +78,7 @@ def get_callback(model, identifier, kwargs):
       kwargs.update(
         dict(
           data_container=model.data,
-          log_dir=model.dir['train']
+          log_dir=model.dir['logs']
         )
       )
       return utils.get_class(weighted_loss, kwargs=kwargs)

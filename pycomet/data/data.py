@@ -181,7 +181,7 @@ class Data(object):
       if ((i in ("x", "y")) and (i not in columns.keys())):
         utils.raise_err(
           ValueError,
-          f""{i}" has not been provided in 'columns' dictionary."
+          f"'{i}' has not been provided in 'columns' dictionary."
         )
       if (i in columns.keys()):
         data.append(ops.extract_data_from_tensor(df, columns[i]))
