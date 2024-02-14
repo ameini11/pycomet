@@ -4,6 +4,7 @@ import tensorflow.python.keras.callbacks as cb
 from pycomet import utils
 from . import _CB_LIST
 from . import early_stopping
+from . import gradients
 from . import learning_rate
 from . import model_ckpt
 from . import plotting
@@ -33,6 +34,13 @@ def get_callback(model, identifier, kwargs):
       return learning_rate.LearningRateTracker(
         filename=model.dir['train']+'/lr.csv',
         log_dir=model.dir['logs'],
+        **kwargs
+      )
+    elif (identifier == "grads_tracker"):
+      return gradients.GradientsTracker(
+        data=model.data,
+        log_dir=model.dir['logs'],
+        train_dir=model.dir['train'],
         **kwargs
       )
     elif (identifier == "plotter"):
@@ -77,7 +85,7 @@ def get_callback(model, identifier, kwargs):
     elif (identifier == "weighted_loss"):
       kwargs.update(
         dict(
-          data_container=model.data,
+          data=model.data,
           log_dir=model.dir['logs']
         )
       )

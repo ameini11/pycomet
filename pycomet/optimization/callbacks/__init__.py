@@ -1,6 +1,7 @@
 __all__ = [
   "callbacks",
   "early_stopping",
+  "gradients",
   "learning_rate",
   "model_ckpt",
   "plotting",
@@ -13,6 +14,7 @@ _CB_LIST = (
   "lr_scheduler",
   "reduce_lr_on_plateau",
   "lr_tracker",
+  "grads_tracker",
   "plotter",
   "model_ckpt",
   "tensorboard",
@@ -24,6 +26,7 @@ _CB_LIST = (
 
 from . import callbacks
 from . import early_stopping
+from . import gradients
 from . import learning_rate
 from . import model_ckpt
 from . import plotting
