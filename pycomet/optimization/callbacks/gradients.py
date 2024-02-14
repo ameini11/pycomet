@@ -1,10 +1,10 @@
+import os
+import h5py
 import numpy as np
 import tensorflow as tf
 import tensorflow.python.keras.callbacks as cb
 
 from pycomet import utils
-from silx.io.dictdump import dicttoh5
-from tensorflow.keras import backend as tf_bkd
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -21,8 +21,7 @@ class GradientsTracker(cb.Callback):
     histogram_freq=0,
     save=False,
     log_dir=None,
-    train_dir=None,
-    h5filename="grads",
+    h5filename="./grads.h5",
     **kwargs
   ):
     super(GradientsTracker, self).__init__(**kwargs)
@@ -34,43 +33,40 @@ class GradientsTracker(cb.Callback):
     self.histogram_freq = histogram_freq
     self.save = save
     self.log_dir = log_dir
-    self.train_dir = train_dir
-    self.h5filename = self.train_dir + "/" + h5filename + ".h5"
-
-  def set_model(self, model):
-    super(GradientsTracker, self).set_model(model)
-    self._weights_names = tf.nest.map_structure(
-      lambda w: w.name.replace(":", "_"), self.model.trainable_weights
-    )
-    if (self.log_dir is not None):
-      self._writer = tf.summary.create_file_writer(self.log_dir + "/train")
-    else:
-      self.histogram_freq = 0
+    self.h5filename = h5filename
+    if os.path.exists(self.h5filename):
+      os.remove(self.h5filename)
 
   # Callback methods
   # ===================================
-  # 'on_train_begin' method
-  # -----------------------------------
-  def on_train_begin(self, logs={}):
-    self._compute_gradients = self._make_compute_gradients()
-
-  def _make_compute_gradients(self):
-    grads = tf_bkd.gradients(
-      self.model.total_loss, self.model.trainable_weights
+  def set_model(self, model):
+    super(GradientsTracker, self).set_model(model)
+    self._weights_names = tf.nest.map_structure(
+      lambda w: "_".join(w.name.replace(":", "_").split("/")[-2:]),
+      self.model.trainable_weights
     )
-    inputs = self.model._feed_inputs \
-      + self.model._feed_targets \
-      + self.model._feed_sample_weights
-    return tf_bkd.function(inputs, grads)
+    self._grads_writer = None
+    if ((self.log_dir is not None) and (self.histogram_freq > 0)):
+      _log_dir = self.log_dir + '/train/grads'
+      self._grads_writer = tf.summary.create_file_writer(_log_dir)
+    # Make function to compute gradients
+    self._compute_gradients = tf.function(
+      func=self._compute_gradients,
+      autograph=True,
+      jit_compile=True,
+      reduce_retracing=True
+    )
 
-  # 'on_epoch_end' method
-  # -----------------------------------
+  def _compute_gradients(self, x, y, sample_weight):
+    loss = self.model.compute_total_loss(x, y, sample_weight)
+    return tf.gradients(loss, self.model.trainable_weights)
+
   def on_epoch_end(self, epoch, logs={}):
     if (epoch % self.freq == 0):
       # Sample dataset
       data = utils.unpack_list(self._sample_dataset(), nb_elem=3)
       # Compute gradients
-      grads = self._compute_gradients(data)
+      grads = self._compute_gradients(*data)
       grads = utils.make_dict(self._weights_names, grads)
       # Compute gradients mean
       grads_mean = tf.nest.map_structure(self._aggr_grads, grads)
@@ -78,7 +74,7 @@ class GradientsTracker(cb.Callback):
       if self.save:
         self._save_grads(epoch, grads, grads_mean)
       # Write gradients to TensorBoard
-      if (self.histogram_freq and (epoch % self.histogram_freq == 0)):
+      if (self._grads_writer and (epoch % self.histogram_freq == 0)):
         self._log_grads(epoch, grads, grads_mean)
 
   def _sample_dataset(self):
@@ -95,16 +91,20 @@ class GradientsTracker(cb.Callback):
     gradients,
     gradients_mean
   ):
-    dicttoh5(
-      treedict={
-        str(epoch).zfill(6): {
-          "tensors": gradients,
-          "mean": gradients_mean
-        }
-      },
-      h5file=self.h5filename,
-      mode='a'
-    )
+    with h5py.File(self.h5filename, 'a') as file:
+      for name in self._weights_names:
+        self._save_grads_to_h5(file, "tensor", epoch, name, gradients[name])
+        self._save_grads_to_h5(file, "mean", epoch, name, gradients_mean[name])
+
+  def _save_grads_to_h5(self, file, group, epoch, name, grads):
+    group = file.require_group(group)
+    if (epoch == 0):
+      shape = tuple([None] + list(grads.shape))
+      grads = np.expand_dims(grads, axis=0)
+      group.create_dataset(name, data=grads, maxshape=shape)
+    else:
+      group[name].resize(epoch+1, axis=0)
+      group[name][-1] = grads
 
   def _log_grads(
     self, 
@@ -112,7 +112,7 @@ class GradientsTracker(cb.Callback):
     gradients,
     gradients_mean
   ):
-    with self._writer.as_default():
+    with self._grads_writer.as_default():
       with tf.summary.record_if(True):
         for name in self._weights_names:
           tf.summary.histogram(
@@ -125,4 +125,4 @@ class GradientsTracker(cb.Callback):
             data=gradients_mean[name],
             step=epoch
           )
-        self._writer.flush()
+        self._grads_writer.flush()

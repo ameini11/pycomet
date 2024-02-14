@@ -192,15 +192,9 @@ class FuncNet(Functional):
       if self.weighted_loss:
         sample_weight = self.weighted_loss.on_grad_step_eval(sample_weight)
       # Evaluate losses
-      losses = self.compute_losses(x, y, sample_weight)
-      # Regularization loss
-      reg_loss = self.compute_reg_loss()
-      # Evaluate total loss
-      loss = tf.add_n(
-        losses_utils.cast_losses_to_common_dtype(losses.values())
+      loss, reg_loss = self.compute_total_loss(
+        x, y, sample_weight, training=True, return_reg_loss=True
       )
-      if (reg_loss is not None):
-        loss = loss + reg_loss
     # Update model parameters
     self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
     # Update sample weights
@@ -236,7 +230,7 @@ class FuncNet(Functional):
     # Unpack data
     x, y, sample_weight = utils.unpack_list(data, nb_elem=3)
     # Evaluate each objective function loss
-    losses = self.compute_losses(x, y, sample_weight, training=False)
+    losses = self.compute_multi_obj_loss(x, y, sample_weight, training=False)
     # Collect metrics to return
     metrics = {}
     for metric in self.metrics:
@@ -261,7 +255,35 @@ class FuncNet(Functional):
 
   # Compute losses
   # -----------------------------------
-  def compute_losses(self, x, y, sample_weight=None, training=True):
+  def compute_total_loss(
+    self,
+    x,
+    y,
+    sample_weight=None,
+    training=False,
+    return_reg_loss=False
+  ):
+    if self.multi_obj_loss:
+      # Evaluate losses
+      losses = self.compute_multi_obj_loss(x, y, sample_weight, training)
+      # Regularization loss
+      reg_loss = self.compute_reg_loss()
+      # Evaluate total loss
+      loss = tf.add_n(
+        losses_utils.cast_losses_to_common_dtype(losses.values())
+      )
+      if (reg_loss is not None):
+        loss = loss + reg_loss
+      # Return losses
+      if return_reg_loss:
+        return loss, reg_loss
+      else:
+        return loss
+    else:
+      y_pred = self(x, training=training)
+      return self.compute_loss(x, y, y_pred, sample_weight)
+
+  def compute_multi_obj_loss(self, x, y, sample_weight=None, training=True):
     phase = 'train' if training else 'valid'
     # Evaluate each objective function loss
     losses = {}

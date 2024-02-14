@@ -28,92 +28,82 @@ class BaseWeightsAdapter(cb.Callback):
     **kwargs
   ):
     super(BaseWeightsAdapter, self).__init__(**kwargs)
-    self.__name__ = utils.get_class_name(self)
-    self.multi_obj_loss_weights = multi_obj_loss_weights
     self.freq = int(np.clip(freq, 1, None))
-    self._print = True
+    self.name = utils.get_class_name(self)
+    self.multi_obj_loss_weights = multi_obj_loss_weights
     # Define data container
     self.data = data
     if (not self.data.multi_obj_loss):
       utils.raise_err(
         ValueError,
-        f"The callback '{self.__name__}' is valid " \
+        f"The callback '{self.name}' is valid " \
         "only with multi-objective loss function."
       )
     # Define 'logs' directory
     self.log_dir = log_dir
+    # Control variables
+    self._print = True
 
   # Callback methods
   # ===================================
-  def on_train_begin(self, logs={}):
-    utils.print_fn(
-      f"The '{self.__name__}' callback is used " \
-      "to balance the multi-objective loss.",
-      lev=1
-    )
-    # Assign 'weighted_loss' class to Keras model
-    self.model.weighted_loss = self
+  def set_model(self, model):
+    super(BaseWeightsAdapter, self).set_model(model)
+    # Set the writer
+    self._weights_writer = None
+    c1 = (self.log_dir is not None)
+    c2 = (self.multi_obj_loss_weights is not None)
+    if (c1 and c2):
+      self._weights_writer = {}
+      for obj in self.multi_obj_loss_weights:
+        _logdir = self.log_dir + '/scalars/multi_obj_loss_weights/' + obj
+        self._weights_writer[obj] = tf.summary.create_file_writer(_logdir)
 
   def on_epoch_end(self, epoch, logs={}):
     if ((self.multi_obj_loss_weights is not None) and self._print):
-      self.print_weights(epoch, logs)
+      self._log_weights(epoch, logs)
 
   # Handling weights methods
   # ===================================
-  def init_weights(self):
+  def _init_weights(self):
     if (self.multi_obj_loss_weights is None):
       utils.warning(
         "No 'multi_obj_loss_weights' have been provided to " \
-        f"'{self.__name__}': the initial value of 1 will be applied."
+        f"'{self.name}': the initial value of 1 will be applied."
       )
-      self.multi_obj_loss_weights = {
-        obj: tf.ones(1, dtype=bkd.get_floatx()) \
-          for obj in self.model.objectives['train']
-      }
+      self.multi_obj_loss_weights = {}
+      for obj in self.model.objectives['train']:
+        self.multi_obj_loss_weights[obj] = tf.ones(1, dtype=bkd.get_floatx())
     elif isinstance(self.multi_obj_loss_weights, (list,tuple)):
-      self.multi_obj_loss_weights = dict(
-        zip(
-          self.model.objectives['train'],
-          self.multi_obj_loss_weights
-        )
+      self.multi_obj_loss_weights = utils.make_dict(
+        self.model.objectives['train'], self.multi_obj_loss_weights
       )
     elif isinstance(self.multi_obj_loss_weights, dict):
       pass
     else:
       utils.raise_err(
         ValueError,
-        f"'multi_obj_loss_weights' passed into '{self.__name__}' " \
+        f"'multi_obj_loss_weights' passed into '{self.name}' " \
         "has to be a list or a dictionary."
       )
-    self.multi_obj_loss_weights = ops.convert_struct_to_tensor(
-      self.multi_obj_loss_weights
-    )
     for (k, w) in self.multi_obj_loss_weights.items():
-      w = tf.reshape(w, shape=[-1,1]) if (w.shape.rank < 1) else w
+      w = tf.reshape(ops.to_tensor(w), shape=(-1,1))
       self.multi_obj_loss_weights[k] = w
-    # Create file writer
-    if (self.log_dir is not None):
-      self.logs = {
-        obj: tf.summary.create_file_writer(
-          self.log_dir + '/scalars/multi_obj_loss_weights/' + obj
-        ) for obj in self.multi_obj_loss_weights
-      }
 
-  def print_weights(self, epoch, logs):
+  def _log_weights(self, epoch, logs):
     weights = tf.nest.map_structure(
       lambda x: np.squeeze(x.numpy()), self.multi_obj_loss_weights
     )
     logs.update({obj + '_loss_weight': w for (obj, w) in weights.items()})
-    if (self.log_dir is not None):
-      for (obj, log) in self.logs.items():
-        with log.as_default():
+    if (self._weights_writer is not None):
+      for (obj, writer) in self._weights_writer.items():
+        with writer.as_default():
           tf.summary.scalar(
             name='epoch_' + obj + '_loss_weight',
             data=weights[obj],
             step=epoch
           )
 
-  def check_weights(self, weights=None):
+  def _check_weights(self, weights=None):
     if (weights is None):
       weights = self.multi_obj_loss_weights
     nan = [tf.math.is_nan(w) for w in tf.nest.flatten(weights)]
@@ -122,12 +112,12 @@ class BaseWeightsAdapter(cb.Callback):
       print("")
       utils.warning(
         "One or multiple weights evaluated in " \
-        f"'{self.__name__}' class are 'inf' or 'nan'."
+        f"'{self.name}' class are 'inf' or 'nan'."
       )
       if (self.multi_obj_loss_weights is not None):
         utils.print_fn("Here the 'multi_obj_loss_weights' values:", lev=1)
         for (k, v) in self.multi_obj_loss_weights.items():
-          utils.print_fn("  - '{}': {}".format(k,v), lev=1)
+          utils.print_fn(f"  - '{k}': {v}", lev=1)
         utils.print_fn("The training will be stopped.", lev=1)
         self.model.stop_training = True
 
@@ -175,7 +165,7 @@ class ConstantWeightsAdapter(BaseWeightsAdapter):
   # ===================================
   def on_train_begin(self, logs={}):
     super(ConstantWeightsAdapter, self).on_train_begin(logs=logs)
-    self.init_weights()
+    self._init_weights()
 
 
 @keras_export('keras.callbacks.EmpiricalWeightsAdapter')
@@ -219,46 +209,41 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
       self.reduction = tf.math.reduce_max
     else:
       self.reduction = tf.math.reduce_mean
-    self.check_ref_obj = False
-    # Control variables
-    self._update = True
     # Reference objective data
     self.ref_obj = ref_obj
-    self.check_ref_obj = True
+    # Control variables
+    self._check_ref_obj = True
+    self._update = True
 
   # Callback methods
   # ===================================
   def on_train_begin(self, logs={}):
     super(EmpiricalWeightsAdapter, self).on_train_begin(logs=logs)
-    self.init_weights()
-    c1 = (self.ref_obj not in self.model.objectives['train'])
-    c2 = self.check_ref_obj
-    if (c1 and c2):
+    self._init_weights()
+    cond = (self.ref_obj not in self.model.objectives['train'])
+    if (cond and self._check_ref_obj):
       utils.warning(
         f"Network '{self.model.name}' hasn't any '{self.ref_obj}' objective "
-        f"loss to be evaluated: '{self.__name__}' can't be applied."
+        f"loss to be evaluated: '{self.name}' can't be applied."
       )
       self._update = False
       self.model.weighted_loss = None
 
   def on_epoch_begin(self, epoch, logs={}):
     if (self._update and (epoch % self.freq == 0)):
-      self.update_weights()
+      self._sample_dataset()
+      self._eval_loss_gradients()
+      self._update_multi_obj_loss_weights()
+      self._check_weights(self.multi_obj_loss_weights)
 
   # Handling weights methods
   # ===================================
-  def update_weights(self):
-    self.sample_dataset()
-    self.eval_loss_gradients()
-    self.update_multi_obj_loss_weights()
-    self.check_weights(self.multi_obj_loss_weights)
-
-  def sample_dataset(self):
+  def _sample_dataset(self):
     self.dataset = self.data.sample_data(
       identifier="train", max_samples=self.max_samples
     )
 
-  def eval_loss_gradients(self):
+  def _eval_loss_gradients(self):
     losses = {}
     with backprop.GradientTape(persistent=True) as tape:
       for obj in self.model.objectives['train']:
@@ -273,16 +258,16 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
         losses[obj], self.model.trainable_variables
       )
 
-  def update_multi_obj_loss_weights(self):
+  def _update_multi_obj_loss_weights(self):
     # Aggragate reference gradients
-    ref_grad = self.aggr_grads(self.gradients[self.ref_obj])
+    ref_grads = self._aggr_grads(self.gradients[self.ref_obj])
     # Evaluate new multi-objective loss weights
     new_weights = {}
-    for (obj, grad) in self.gradients.items():
+    for (obj, grads) in self.gradients.items():
       if (obj == self.ref_obj):
         new_weights[obj] = self.multi_obj_loss_weights[self.ref_obj]
         continue
-      new_weights[obj] = ref_grad / self.aggr_grads(grad)
+      new_weights[obj] = ref_grads / self._aggr_grads(grads)
       new_weights[obj] *= self.multi_obj_loss_weights[self.ref_obj]
     # Update multi-objective loss weights
     self.multi_obj_loss_weights = tf.nest.map_structure(
@@ -291,7 +276,7 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
       new_weights
     )
 
-  def aggr_grads(self, gradients):
+  def _aggr_grads(self, gradients):
     gradients = tf.nest.map_structure(
       lambda g: tf.reshape(tf.math.abs(g), -1), gradients
     )
@@ -332,15 +317,15 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
       self.reduction = tf.math.reduce_variance
     else:
       self.reduction = tf.math.reduce_std
-    self.check_ref_obj = False
+    self._check_ref_obj = False
 
   # Handling weights methods
   # ===================================
-  def update_multi_obj_loss_weights(self):
+  def _update_multi_obj_loss_weights(self):
     # Aggragate gradients
     sigmas = {}
     for (obj, grad) in self.gradients.items():
-      sigmas[obj] = self.aggr_grads(grad)
+      sigmas[obj] = self._aggr_grads(grad)
     sigma_max = max(tf.nest.flatten(sigmas))
     # Evaluate new multi-objective loss weights
     new_weights = {}
@@ -353,10 +338,11 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
       new_weights
     )
 
-  def aggr_grads(self, gradients):
+  def _aggr_grads(self, gradients):
     gradients = tf.nest.map_structure(lambda g: tf.reshape(g, -1), gradients)
     gradients = tf.concat(tf.nest.flatten(gradients), axis=0)
     return self.reduction(gradients)
+
 
 # @keras_export('keras.callbacks.NTKWeightsAdapter')
 # class NTKWeightsAdapter(EmpiricalWeightsAdapter):
@@ -388,14 +374,14 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #     self.pred_fn = {}
 
 #   def on_train_begin(self, logs={}):
-#     self.init_weights()
+#     self._init_weights()
 #     self.set_pred_fn()
 
 #   def update(self):
-#     self.sample_dataset()
+#     self._sample_dataset()
 #     ntk = self.get_ntk()
 #     self.update_loss_weights(ntk)
-#     self.check_weights()
+#     self._check_weights()
 
 #   # Handling predictions
 #   ###########################################################################
@@ -501,7 +487,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #     if not isinstance(self.limits, dict):
 #       utils.raise_err(ValueError,
 #         "'limits' in '{}' has to be a 'dict' of [min, max] value "
-#         "list for each objecitve function.".format(self.__name__)
+#         "list for each objecitve function.".format(self.name)
 #       )
 #     self.initializer = {
 #       obj: tf_init.RandomUniform(*l) for obj, l in self.limits.items()
@@ -512,7 +498,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #       if any([q_i <= 0. for q_i in q]):
 #         utils.raise_err(ValueError,
 #           "'q' coefficents for the mask function in '{}' have "
-#           "to be positive.".format(self.__name__)
+#           "to be positive.".format(self.name)
 #         )
 #     else:
 #       q = [1., 1.]
@@ -526,7 +512,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #       self.mask_fn = tf.square
 
 #     self._update = True
-#     self.init_weights()
+#     self._init_weights()
 
 #   # Callback methods --------------------------------------------------------
 #   def on_train_begin(self, logs={}):
@@ -544,7 +530,7 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
 #       self._update = False
 
 #   # Handling weights methods ------------------------------------------------
-#   def init_weights(self):
+#   def _init_weights(self):
 #     # Build sample weights
 #     self.data.init_sample_weight(
 #       self.initializer, self.trainable, self.rank

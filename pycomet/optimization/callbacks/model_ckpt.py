@@ -54,7 +54,7 @@ class ModelCheckpoint(cb.ModelCheckpoint):
           if (current is None):
             logging.warning(
               "Can save best model only with %s available, skipping.",
-              self.monitor,
+              self.monitor
             )
           else:
             if self.monitor_op(current, self.best):

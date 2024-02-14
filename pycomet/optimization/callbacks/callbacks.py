@@ -40,7 +40,7 @@ def get_callback(model, identifier, kwargs):
       return gradients.GradientsTracker(
         data=model.data,
         log_dir=model.dir['logs'],
-        train_dir=model.dir['train'],
+        h5filename=model.dir['train']+"/grads.h5",
         **kwargs
       )
     elif (identifier == "plotter"):

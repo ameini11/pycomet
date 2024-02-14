@@ -5,10 +5,11 @@ import tensorflow as tf
 import tensorflow.keras.callbacks as cb
 
 from tqdm import tqdm
+from keras.utils import io_utils
+from tensorflow.python.util.tf_export import keras_export
+
 from pycomet import utils
 from pycomet import postproc
-from pycomet import operations as ops
-from tensorflow.python.util.tf_export import keras_export
 from pycomet.config import get_config
 _CFG = get_config()
 
@@ -43,11 +44,11 @@ class Plotter(cb.Callback):
   # ===================================
   def on_epoch_end(self, epoch, logs=None):
     if ((epoch != 0) and (epoch % self.freq == 0)):
-      utils.print_fn(">> `Plotter` callback:", start='\n\n', lev=0)
+      utils.print_fn(">> 'Plotter' callback:", start='\n\n', lev=0)
       self.training()
       if (self.test_data is not None):
         self.testing()
-      print("")
+      io_utils.print_msg("")
 
   def training(self, scales='log'):
     utils.print_fn("- Plotting training quantities ...", lev=1)
@@ -89,7 +90,7 @@ class Plotter(cb.Callback):
         break
       # Get pred values
       y_pred = self.model.predict(x, verbose=0)
-      # Define `testing` directory
+      # Define 'testing' directory
       path = self.dir['test'] + f'/{name}'
       os.makedirs(path, exist_ok=True)
       postproc.testing.plot_figures(x, y, y_pred, path, self.figures)
