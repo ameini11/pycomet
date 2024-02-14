@@ -4,7 +4,7 @@ data_type = "StaticGraphDataSet"
 
 # Data source
 # -------------------------------------
-from_file = False
+from_file = True
 
 data_src = {
   "train": "./data/train.hdf5",

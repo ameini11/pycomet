@@ -1,8 +1,9 @@
 from pycomet import utils
+from pycomet.networks import gno
 from pycomet.networks.basenet import BaseNet
 
 
-class IntegralLinearMEGraphNetV1(BaseNet):
+class LinMEIntGraphNet(BaseNet):
 
   # Initialization
   # ===================================
@@ -16,7 +17,7 @@ class IntegralLinearMEGraphNetV1(BaseNet):
     *args,
     **kwargs
   ):
-    super(IntegralLinearMEGraphNetV1, self).__init__(
+    super(LinMEIntGraphNet, self).__init__(
       dim=dim,
       lays_name=lays_name,
       lays_propty=lays_propty,
@@ -32,15 +33,23 @@ class IntegralLinearMEGraphNetV1(BaseNet):
   def process_layers(self, lays_name):
     # Layers names
     if (lays_name == None):
-      self.lays_name = self.lays_name + ("edge_encoder", "lin_me_gnet")
+      self.lays_name = self.lays_name + (
+        "node_temp", "node_pf", "node_pf_corr", \
+        "edge_bwd", "lin_me_gnet", "residual"
+      )
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("edge_encoder", "lin_me_gnet"),
+      not_opt=("node_pf", "edge_bwd", "lin_me_gnet", "residual"),
       default=self.default_lays_propty
     )
+    if all([k in self.lays_propty for k in ("node_temp", "node_pf_corr")]):
+      utils.raise_err(
+        ValueError,
+        "Please, select one layer between 'node_temp' and 'node_pf_corr'."
+      )
     # Initializing layers
     self.active_lays = self.init_layers()
     self.init_preinput_lay()
@@ -56,13 +65,19 @@ class IntegralLinearMEGraphNetV1(BaseNet):
     return lays
 
   def init_kernel_layers(self):
+    lay_ids = {
+      "node_temp": "NodeTemperature",
+      "node_pf": "NodePartitionFunction",
+      "node_pf_corr": "NodePartitionFunctionCorr",
+      "edge_bwd": "EdgeBackward",
+      "lin_me_gnet": "LinearMEGraphNet",
+      "residual": "GatheredAdd"
+    }
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier == "lin_me_gnet"):
-        lay_id = "LinearMEGraphNet"
+      lay_id = lay_ids.get(identifier, None)
+      if (lay_id is not None):
         lays[identifier] = self.init_lay(identifier, propty, lay_id)
-      elif (identifier == "edge_encoder"):
-        lays[identifier] = self.init_lay(propty=propty)
     return lays
 
   def init_lay(self, identifier=None, propty=None, lay_id=None):
@@ -80,15 +95,27 @@ class IntegralLinearMEGraphNetV1(BaseNet):
   # Calling
   # ===================================
   def forward(self, graph, training=None):
-    x = graph[0]
+    # Unpack graph
+    x, edge_attr, cond_attr, edge_index = gno.utils.unpack_graph(graph)
     # Input nodes manipulation
-    graph[0] = self._manipulate_inout(
+    node_attr = self._manipulate_inout(
       inputs=dict(x=x, y=x), identifier="input", training=training
     )
-    # Edge encoder
-    graph[-1] = self.active_lays["edge_encoder"](graph[-1], training=training)
+    graph = gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
+    # Node temperature
+    if ("node_temp" in self.active_lays):
+      graph = self.active_lays["node_temp"](graph, training=training)
+    # Node partition function
+    graph = self.active_lays["node_pf"](graph, training=training)
+    # Node partition function correction
+    if ("node_pf_corr" in self.active_lays):
+      graph = self.active_lays["node_pf_corr"](graph, training=training)
+    # Edge backward
+    graph = self.active_lays["edge_bwd"](graph, training=training)
     # Graph processor
-    y = self.active_lays["lin_me_gnet"](graph, training=training) + x
+    y = self.active_lays["lin_me_gnet"](graph, training=training)
+    # Residual connection
+    y = self.active_lays["residual"]([x, y], training=training)
     # Output nodes manipulation
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier="output", training=training

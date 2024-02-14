@@ -1,6 +1,6 @@
 # Architecture properties
 # =====================================
-architecture = "IntegralLinearMEGraphNetV1"
+architecture = "LinMEIntGraphEdgeNet"
 
 # Layers
 # -------------------------------------
@@ -12,6 +12,7 @@ _common = {
     "l2": 1e-4
   },
   "dropout": {"rate": 1e-4},
+  "layer_norm": False,
   "trainable": True
 }
 
@@ -39,7 +40,6 @@ lays_propty = {
     "kwargs": {
       "layer_size": [3, 32, 32, 1],
       "activation": ["tanh"]*2 + ["exp"],
-      "layer_norm": False,
       "name": "edge_encoder",
       **_common
     }
@@ -50,6 +50,16 @@ lays_propty = {
     "kwargs": {
       "static_edge_index": "./data/edge_index.txt",
       "name": "lin_me_gnet"
+    }
+  },
+
+  "residual": {
+    "lay_id": "GatheredAdd",
+    "kwargs": {
+      "gathered": [
+        {'indices': [0], 'axis': -1},
+        {'indices': [0], 'axis': -1}
+      ]
     }
   }
 

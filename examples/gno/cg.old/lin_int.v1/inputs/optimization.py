@@ -1,3 +1,8 @@
+import numpy as np
+
+from hypernet import const
+
+
 # Training
 # =====================================
 epochs = 2000
@@ -14,20 +19,23 @@ scheduler = {
 
 # Loss and metrics
 # =====================================
-axis = 0 # -1 0 None
-reduction = "auto" # "auto" "sum_over_batch_size" "sum"
-loss = "mape"
+loss_info = {
+  "loss": "mape",
+  "axis": 0, # -1 0 None
+  "reduction": "auto", # "auto" "sum_over_batch_size" "sum"
+  "std_scaler": np.array({"mean": 0.0, "std": const.UNA})
+}
 
 # Callbacks
 # =====================================
 callbacks = {
 
   "early_stopping": {
-     "monitor":              "val_loss",
-     "min_delta":            1e-8,
-     "patience":             20000,
-     "restore_best_weights": True,
-     "verbose":              1
+    "monitor":              "val_loss",
+    "min_delta":            1e-8,
+    "patience":             20000,
+    "restore_best_weights": True,
+    "verbose":              1
   },
 
   "lr_tracker": {
@@ -43,8 +51,15 @@ callbacks = {
   "tensorboard": {
     "histogram_freq": 0,
     "write_graph":    True,
-    "write_images":   True,
+    "write_images":   False,
     "profile_batch":  0
+  },
+
+  "grads_tracker": {
+    "max_samples":    None,
+    "freq":           1,
+    "histogram_freq": 1,
+    "save":           True
   }
 
 }

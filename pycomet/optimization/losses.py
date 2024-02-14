@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 import tensorflow.python.keras.losses as tf_losses
 
@@ -153,7 +154,11 @@ class PcmLossFunctionWrapper(tf_losses.LossFunctionWrapper):
     )
     self.axis = axis
     self.gathered = gathered
+    if isinstance(self.gathered, np.ndarray):
+      self.gathered = self.gathered.tolist()
     self.std_scaler = std_scaler
+    if isinstance(self.std_scaler, np.ndarray):
+      self.std_scaler = self.std_scaler.tolist()
     self.fn = self._make_loss_fn(fn)
 
   def _make_loss_fn(self, loss_fn):

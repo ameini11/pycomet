@@ -10,7 +10,6 @@ from silx.io.dictdump import dicttoh5
 from pycomet.sampling import DifferentialBased
 
 # HyperNet package
-os.environ.update({"HYPNET_CONFIGFILE": "./hypcfg.json"})
 from hypernet import backend as hypbkd
 from hypernet.apps import utils as hyputils
 
