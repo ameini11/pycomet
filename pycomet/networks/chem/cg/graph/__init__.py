@@ -1,11 +1,14 @@
 __all__ = [
-  "LinMEIntGraphEdgeNet",
-  "NodeTemperature",
+  "NodeEnergy",
   "NodePartitionFunction",
-  "NodePartitionFunctionCorr",
+  "EdgeFwdRate",
+  "EdgeFwdRateCorr",
   "EdgeBackward",
-  "LinearMEGraphNet"
+  "LinearMEGraphNet",
+  "MEIntEdgeFwdGNet",
+  "MEIntNodeEnergyGNet"
 ]
 
 from .blocks import *
-from .lin_me_int_edge import LinMEIntGraphEdgeNet
+from .me_int_edge_fwd import MEIntEdgeFwdGNet
+from .me_int_node_ene import MEIntNodeEnergyGNet

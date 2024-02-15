@@ -549,9 +549,9 @@ class Log(Layer):
     else:
       self.scale = np.log(float(self.base))
     self.weights_values = {
-      'slope': self.slope,
-      'offset': self.offset,
-      'scale': self.scale
+      'slope': ops.to_tensor(self.slope),
+      'offset': ops.to_tensor(self.offset),
+      'scale': ops.to_tensor(self.scale)
     }
 
   # Building
@@ -569,8 +569,9 @@ class Log(Layer):
     for (name, w) in self.weights_values.items():
       self._weights[name] = self.add_weight(
         name=name,
+        shape=w.shape,
         dtype=bkd.get_floatx(),
-        initializer=initializers.Constant(value=w),
+        initializer=lambda shape, dtype: w,
         trainable=self.trainable
       )
     self.built = True

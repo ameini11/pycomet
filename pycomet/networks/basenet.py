@@ -272,6 +272,8 @@ class BaseNet(object):
 
   # Handling layers
   # ===================================
+  # Checking layers
+  # -----------------------------------
   def check_layers(
     self,
     layers={},
@@ -308,11 +310,31 @@ class BaseNet(object):
         layers[k] = default[k]
     return layers
 
-  def get_nn_elem(
+  # Initializing layers
+  # -----------------------------------
+  def init_lay(
     self,
-    elem
+    identifier=None,
+    propty=None,
+    lay_id=None,
+    default_lay_id='Lambda',
+    name=None
   ):
-    return utils.get_class(modules=_NN_MOD, name=elem)
+    self.check_lay_id(identifier, propty, lay_id)
+    return self.get_lay(propty, default_lay_id, name)
+  
+  def check_lay_id(
+    self,
+    identifier=None,
+    propty=None,
+    lay_id=None
+  ):
+    if ((lay_id is not None) and (propty["lay_id"] != lay_id)):
+      utils.raise_err(
+        ValueError,
+        f"The layer identifier '{identifier}' in '{self.name}' " \
+        f"must be associated with the '{lay_id}' layer."
+      )
 
   def get_lay(
     self,
@@ -329,3 +351,9 @@ class BaseNet(object):
     if ('kwargs' not in propty):
       propty['kwargs'] = {}
     return lay(**propty['kwargs'])
+
+  def get_nn_elem(
+    self,
+    elem
+  ):
+    return utils.get_class(modules=_NN_MOD, name=elem)
