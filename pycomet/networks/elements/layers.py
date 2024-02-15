@@ -535,19 +535,19 @@ class Log(Layer):
   # ===================================
   def __init__(
     self,
-    base=10.0,
-    slope=1.0,
-    offset=0.0,
+    base=10,
+    slope=1,
+    offset=0,
+    scale=1,
     **kwargs
   ):
     super(Log, self).__init__(**kwargs)
     self.base = base
     self.slope = slope
     self.offset = offset
-    if (self.base == 'e'):
-      self.scale = 1.0
-    else:
-      self.scale = np.log(float(self.base))
+    self.scale = scale
+    if (self.base != 'e'):
+      self.scale = self.scale/np.log(float(self.base))
     self.weights_values = {
       'slope': ops.to_tensor(self.slope),
       'offset': ops.to_tensor(self.offset),
@@ -581,7 +581,7 @@ class Log(Layer):
   def call(self, inputs):
     outputs = inputs + self._weights['offset']
     outputs = tf.math.log(self._weights['slope'] * outputs)
-    return outputs / self._weights['scale']
+    return self._weights['scale'] * outputs
 
   # Configuration update
   # ===================================

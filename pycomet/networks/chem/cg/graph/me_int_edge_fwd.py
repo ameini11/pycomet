@@ -33,7 +33,7 @@ class MEIntEdgeFwdGNet(BaseNet):
     # Layers names
     if (lays_name is None):
       self.lays_name = self.lays_name + (
-        "fwd_edge_encoder", "node_pf", "edge_bwd", "lin_me_gnet", "residual"
+        "fwd_edge_encoder", "node_thermo", "edge_bwd", "lin_me_gnet", "residual"
       )
     else:
       self.lays_name = lays_name
@@ -41,7 +41,7 @@ class MEIntEdgeFwdGNet(BaseNet):
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
       not_opt=(
-        "fwd_edge_encoder", "node_pf", "edge_bwd", "lin_me_gnet", "residual"
+        "fwd_edge_encoder", "node_thermo", "edge_bwd", "lin_me_gnet", "residual"
       ),
       default=self.default_lays_propty
     )
@@ -62,7 +62,7 @@ class MEIntEdgeFwdGNet(BaseNet):
   def init_kernel_layers(self):
     lay_ids = {
       "fwd_edge_encoder": "EdgeFwdRate",
-      "node_pf": "NodePartitionFunction",
+      "node_thermo": "NodeThermoUpdate",
       "edge_bwd": "EdgeBackward",
       "lin_me_gnet": "LinearMEGraphNet",
       "residual": "GatheredAdd"
@@ -94,7 +94,7 @@ class MEIntEdgeFwdGNet(BaseNet):
       node_attr, edge_attr, cond_attr, edge_index
     )
     # Node partition function
-    graph = self.active_lays["node_pf"](graph, training=training)
+    graph = self.active_lays["node_thermo"](graph, training=training)
     # Edge backward
     graph = self.active_lays["edge_bwd"](graph, training=training)
     # Graph processor

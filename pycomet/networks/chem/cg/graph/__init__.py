@@ -1,6 +1,6 @@
 __all__ = [
   "NodeEnergy",
-  "NodePartitionFunction",
+  "NodeThermoUpdate",
   "EdgeFwdRate",
   "EdgeFwdRateCorr",
   "EdgeBackward",

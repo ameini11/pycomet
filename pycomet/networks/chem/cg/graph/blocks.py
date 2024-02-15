@@ -103,7 +103,7 @@ class NodeEnergy(nn_elem.FFBlock):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class NodePartitionFunction(nn_elem.Layer):
+class NodeThermoUpdate(nn_elem.Layer):
   """Computes node partition functions given node temperatures"""
 
   # Initialization
@@ -115,6 +115,8 @@ class NodePartitionFunction(nn_elem.Layer):
       "chem": 0,
       "trans": 0
     },
+    node_attr_index_energy=None,
+    node_attr_indices_nd_temp=[0,1],
     specie_thermos={
       "filename": None,
       "thermo_process": 0,
@@ -123,11 +125,19 @@ class NodePartitionFunction(nn_elem.Layer):
     },
     **kwargs
   ):
-    super(NodePartitionFunction, self).__init__(**kwargs)
+    super(NodeThermoUpdate, self).__init__(**kwargs)
     # Temperature indices
-    self.node_attr_index_temp = {
-      k: int(index) for (k, index) in node_attr_index_temp.items()
-    }
+    self.node_attr_index_temp = tf.nest.map_structure(int, node_attr_index_temp)
+    # Energy index
+    self._update_energy = False
+    self.node_attr_index_energy = node_attr_index_energy
+    if (self.node_attr_index_energy is not None):
+      self._update_energy = True
+      self.node_attr_index_energy = int(self.node_attr_index_energy)
+    # Number density and temperatures indices
+    self.node_attr_indices_nd_temp = tf.nest.flatten(
+      tf.nest.map_structure(int, node_attr_indices_nd_temp)
+    )
     # Thermophysics
     self.sp_th = st_mod.init_specie_thermos(**specie_thermos)
     st_mod.build_specie_thermos(self.sp_th)
@@ -140,39 +150,63 @@ class NodePartitionFunction(nn_elem.Layer):
     node_attr, *_ = gno.utils.unpack_graph(graph)
     # Loop over species
     q = []
+    if self._update_energy:
+      e = []
     for st in self.sp_th.values():
       # Extract species-related attributes
-      sp_attr = tf.gather(
-        params=node_attr, indices=st.specie.comp_indices, axis=-2
-      )                                                                         # Shape: (nb_samples, nb_comp, nb_attr)
+      sp_attr = tf.gather(node_attr, indices=st.specie.comp_indices, axis=-2)   # Shape: (nb_samples, nb_comp, nb_attr)
       # Compute species-related total partition function
-      qs = self.compute_qs(sp_attr, st)                                         # Shape: (nb_samples, nb_comp)
-      # Store total partition function
-      q.append(qs)
+      q.append(self.compute_q_sp(sp_attr, st.pf))                               # Shape: (nb_samples, nb_comp)
+      # Compute species-related energy
+      if self._update_energy:
+        e.append(self.compute_e_sp(sp_attr, st.thermo))
     # Concatenate species-related partition functions
     q = tf.concat(q, axis=-1)                                                   # Shape: (nb_samples, nb_nodes)
     q = tf.expand_dims(q, axis=-1)                                              # Shape: (nb_samples, nb_nodes, 1)
+    # Concatenate species-related energy
+    if self._update_energy:
+      e = tf.concat(e, axis=-1)                                                 # Shape: (nb_samples, nb_nodes)
+      e = tf.expand_dims(e, axis=-1)                                            # Shape: (nb_samples, nb_nodes, 1)
     # Compose node attributes
-    node_attr = tf.concat([node_attr, q], axis=-1)                              # Shape: (nb_samples, nb_nodes, nb_attr+1)
+    node_attr = [tf.gather(
+      node_attr, indices=self.node_attr_indices_nd_temp, axis=-1
+    )]
+    if self._update_energy:
+      node_attr.append(e)
+    node_attr.append(q)
+    node_attr = tf.concat(node_attr, axis=-1)
     # Return graph
     return gno.utils.return_graph(node_attr, *_)
 
-  def compute_qs(self, attributes, specie_thermo):
+  def compute_q_sp(self, attributes, pf_obj):
     qs = []
-    for (pf_id, index) in self.node_attr_index_temp.items():
+    for (identifier, index) in self.node_attr_index_temp.items():
       # Extract temperature from species-related attributes
       T = tf.gather(params=attributes, indices=index, axis=-1)                  # Shape: (nb_samples, nb_comp)
       # Retrieve the unique global temperature for "chemical"
       # and "translational" energy modes per each species
-      if (pf_id in ("chem", "trans")):
+      if (identifier in ("chem", "trans")):
         T = tf.gather(T, [0], axis=-1)                                          # Shape: (nb_samples, 1)
       # Compute partition function
-      pf = getattr(specie_thermo.pf, pf_id)
+      pf = getattr(pf_obj, identifier)
       pf._update(T)
       # Store partition function
       qs.append(pf.Q)
     # Compute total partition function
     return tf_layers.Multiply()(qs)                                             # Shape: (nb_samples, nb_comp)
+
+  def compute_e_sp(self, attributes, th_obj):
+    # Compute internal energy
+    T = tf.gather(
+      params=attributes, indices=self.node_attr_index_temp["int"], axis=-1
+    )
+    th_obj.int._update(T)
+    # Compute internal + formation energy
+    e = th_obj.int.e * th_obj.specie.m + th_obj.specie.e_f
+    # Scale predicted energy
+    return e * tf.gather(
+      params=attributes, indices=self.node_attr_index_energy, axis=-1
+    )
 
   # Configuration update
   # ===================================
@@ -182,9 +216,11 @@ class NodePartitionFunction(nn_elem.Layer):
     }
     config = {
       "node_attr_index_temp": self.node_attr_index_temp,
+      "node_attr_index_energy": self.node_attr_index_energy,
+      "node_attr_indices_nd_temp": self.node_attr_indices_nd_temp,
       "specie_thermos": {"config": sp_th_cfg}
     }
-    base_config = super(NodePartitionFunction, self).get_config()
+    base_config = super(NodeThermoUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

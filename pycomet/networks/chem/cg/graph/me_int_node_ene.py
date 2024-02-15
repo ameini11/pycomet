@@ -33,7 +33,7 @@ class MEIntNodeEnergyGNet(BaseNet):
     # Layers names
     if (lays_name is None):
       self.lays_name = self.lays_name + (
-        "node_energy", "edge_fwd_corr", "node_pf", \
+        "node_energy", "node_thermo", "edge_fwd_corr", \
         "edge_bwd", "lin_me_gnet", "residual"
       )
     else:
@@ -42,7 +42,7 @@ class MEIntNodeEnergyGNet(BaseNet):
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
       not_opt=(
-        "node_energy", "edge_fwd_corr", "node_pf", \
+        "node_energy", "node_thermo", "edge_fwd_corr", \
         "edge_bwd", "lin_me_gnet", "residual"
       ),
       default=self.default_lays_propty
@@ -64,8 +64,8 @@ class MEIntNodeEnergyGNet(BaseNet):
   def init_kernel_layers(self):
     lay_ids = {
       "node_energy": "NodeEnergy",
+      "node_thermo": "NodeThermoUpdate",
       "edge_fwd_corr": "EdgeFwdRateCorr",
-      "node_pf": "NodePartitionFunction",
       "edge_bwd": "EdgeBackward",
       "lin_me_gnet": "LinearMEGraphNet",
       "residual": "GatheredAdd"
@@ -92,10 +92,10 @@ class MEIntNodeEnergyGNet(BaseNet):
     graph = gno.utils.return_graph(node_attr, edge_attr, cond_attr, edge_index)
     # Node energy
     graph = self.active_lays["node_energy"](graph, training=training)
+    # Node partition function
+    graph = self.active_lays["node_thermo"](graph, training=training)
     # Edge forward correction
     graph = self.active_lays["edge_fwd_corr"](graph, training=training)
-    # Node partition function
-    graph = self.active_lays["node_pf"](graph, training=training)
     # Edge backward
     graph = self.active_lays["edge_bwd"](graph, training=training)
     # Graph processor
