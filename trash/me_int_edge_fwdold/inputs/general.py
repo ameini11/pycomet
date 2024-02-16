@@ -2,7 +2,7 @@ import numpy as np
 
 # Model/architecture properties
 # =====================================
-model_name = "lin_me_int"
+model_name = "me_int"
 
 dim = {
   "inp": [
