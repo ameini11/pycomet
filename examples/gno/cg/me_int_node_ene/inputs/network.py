@@ -1,4 +1,5 @@
 import numpy as np
+from hypernet import const
 
 # Architecture properties
 # =====================================
@@ -35,6 +36,9 @@ noisy_io = {
   }
 }
 
+c_na = 1/const.UNA
+c_ev = 1/const.eV_to_J
+
 lays_propty = {
 
   "node_energy": {
@@ -46,9 +50,9 @@ lays_propty = {
       "cond_attr_indices": [0,1],
       "features_log_xform": {
         "base": "e",
-        "slope":  np.array([  1e8, 1e-22, 1e19, 1e19]).reshape(1,1,-1),
-        "offset": np.array([1e-13,     0,    0,    0]).reshape(1,1,-1),
-        "scale":  np.array([  0.1,     1,    1,    1]).reshape(1,1,-1),
+        "slope":  np.array([  1e8, c_na, c_ev, c_ev]).reshape(1,1,-1),
+        "offset": np.array([1e-13,    0,    0,    0]).reshape(1,1,-1),
+        "scale":  np.array([  0.1,    1,    1,    1]).reshape(1,1,-1),
         "trainable": False
       },
       **_common
