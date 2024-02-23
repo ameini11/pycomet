@@ -31,6 +31,7 @@ class NodeEnergy(nn_elem.FFBlock):
     dropout=dict(rate=0),
     layer_norm=None,
     static_node_attr=None,
+    cond_attr_prod=False,
     cond_attr_indices=None,
     features_log_xform=None,
     **kwargs
@@ -50,6 +51,7 @@ class NodeEnergy(nn_elem.FFBlock):
       identifier="static_node_attr"
     )
     # Conditioning inputs for energy prediction
+    self.cond_attr_prod = cond_attr_prod
     self.cond_attr_indices = cond_attr_indices
     if (self.cond_attr_indices is not None):
       self.cond_attr_indices = tf.nest.flatten(self.cond_attr_indices)
@@ -72,6 +74,8 @@ class NodeEnergy(nn_elem.FFBlock):
       )
     else:
       cond_feat = cond_attr
+    if self.cond_attr_prod:
+      cond_feat = tf.math.reduce_prod(cond_feat, axis=-1, keepdims=True)
     features.append(cond_feat)
     # > Tile static node attributes (e.g., state/group properties)
     if (self.static_node_attr is not None):
@@ -95,6 +99,7 @@ class NodeEnergy(nn_elem.FFBlock):
   def get_config(self):
     config = {
       "static_node_attr": ops.to_numpy(self.static_node_attr),
+      "cond_attr_prod": self.cond_attr_prod,
       "cond_attr_indices": self.cond_attr_indices,
       "features_log_xform": self.features_log_xform
     }
@@ -241,8 +246,9 @@ class EdgeFwdRate(nn_elem.FFBlock):
     regularizer=None,
     dropout=dict(rate=0),
     layer_norm=None,
+    scaling_factor=None,
     edge_attr_log_xform=None,
-    edge_attr_indices_mulfac=[0,1],
+    edge_attr_indices_scaling=None,
     **kwargs
   ):
     super(EdgeFwdRate, self).__init__(
@@ -254,36 +260,49 @@ class EdgeFwdRate(nn_elem.FFBlock):
       layer_norm=layer_norm,
       **kwargs
     )
+    # Log-transformation
     self.edge_attr_log_xform = edge_attr_log_xform
     if (self.edge_attr_log_xform is not None):
       self.log_lay = nn_elem.Log(**self.edge_attr_log_xform)
-    self.edge_attr_indices_mulfac = tf.nest.flatten(edge_attr_indices_mulfac)
+    # Scaling factor
+    self.scaling_factor = scaling_factor
+    self.edge_attr_indices_scaling = edge_attr_indices_scaling
+    if (self.edge_attr_indices_scaling is not None):
+      self.edge_attr_indices_scaling = tf.nest.flatten(
+        self.edge_attr_indices_scaling
+      )
 
   # Calling
   # ===================================
   def call(self, edge_attr, training=False):
-    # Compute multiplicative factor
-    factor = tf.gather(
-      params=edge_attr, indices=self.edge_attr_indices_mulfac, axis=-1
-    )
-    if (len(self.edge_attr_indices_mulfac) > 1):
-      factor = tf.math.reduce_prod(factor, axis=-1, keepdims=True)
+    # Compute scaling factor
+    scaling = 1
+    if (self.scaling_factor is not None):
+      scaling = scaling * self.scaling_factor
+    if (self.edge_attr_indices_scaling is not None):
+      _scaling = tf.gather(
+        params=edge_attr, indices=self.edge_attr_indices_scaling, axis=-1
+      )
+      if (len(self.edge_attr_indices_scaling) > 1):
+        _scaling = tf.math.reduce_prod(_scaling, axis=-1, keepdims=True)
+      scaling = scaling * _scaling
     # Apply log-transform
     if (self.edge_attr_log_xform is not None):
       edge_attr = self.log_lay(edge_attr)
-    # Predict new forward rates
-    edge_attr = factor * super(EdgeFwdRate, self).call(
-      edge_attr, training=training
-    )
-    # Return edges
+    # Compute new forward rates
+    edge_attr = super(EdgeFwdRate, self).call(edge_attr, training=training)
+    if (not isinstance(scaling, int)):
+      edge_attr = edge_attr * scaling
+    # Return new edges
     return edge_attr
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
+      "scaling_factor": self.scaling_factor,
       "edge_attr_log_xform": self.edge_attr_log_xform,
-      "edge_attr_indices_mulfac": self.edge_attr_indices_mulfac
+      "edge_attr_indices_scaling": self.edge_attr_indices_scaling
     }
     base_config = super(EdgeFwdRate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -300,6 +319,7 @@ class EdgeFwdRateCorr(nn_elem.Layer):
     edge_attr_index_rate,
     node_attr_index_temp,
     node_attr_index_energy,
+    scaling_factor=None,
     cond_attr_indices_scaling=None,
     static_fwd_edge_attr=None,
     static_fwd_edge_index=None,
@@ -309,11 +329,14 @@ class EdgeFwdRateCorr(nn_elem.Layer):
     self.edge_attr_index_rate = int(edge_attr_index_rate)
     self.node_attr_index_temp = int(node_attr_index_temp)
     self.node_attr_index_energy = int(node_attr_index_energy)
+    # Scaling factor
+    self.scaling_factor = scaling_factor
     self.cond_attr_indices_scaling = cond_attr_indices_scaling
     if (self.cond_attr_indices_scaling is not None):
       self.cond_attr_indices_scaling = tf.nest.flatten(
         cond_attr_indices_scaling
       )
+    # Static edge attributes/indices
     self.static_fwd_edge_attr = gno.utils.read_attr(
       data=static_fwd_edge_attr,
       identifier="static_fwd_edge_attr"
@@ -334,7 +357,7 @@ class EdgeFwdRateCorr(nn_elem.Layer):
       edge_index=self.static_fwd_edge_index
     )
     node_attr, fwd_edge_attr, cond_attr, fwd_edge_index = _graph
-    # Compute rate correction
+    # Rate correction
     # -----------------------
     # > Assume the Boltzmann distribution function
     # > kij_corr = exp(-(ei-ej)/(kT))
@@ -349,20 +372,21 @@ class EdgeFwdRateCorr(nn_elem.Layer):
     zj = tf.gather(z, indices=fwd_edge_index[1], axis=-2)
     # Compute correction
     kcorr = tf.math.exp(zj-zi)
-    # Apply rate correction
+    # Extract rate and apply correction
+    fwd_edge_attr = kcorr * tf.gather(
+      fwd_edge_attr, indices=[self.edge_attr_index_rate], axis=-1
+    )
+    # Scaling factors
     # -----------------------
-    # Extract rate
-    k = tf.gather(fwd_edge_attr, indices=[self.edge_attr_index_rate], axis=-1)
-    # Compute/Apply scaling factor
+    if (self.scaling_factor is not None):
+      fwd_edge_attr *= self.scaling_factor
     if (self.cond_attr_indices_scaling is not None):
       scale = tf.gather(
         params=cond_attr, indices=self.cond_attr_indices_scaling, axis=-1
       )
       if (len(self.cond_attr_indices_scaling) > 1):
         scale = tf.math.reduce_prod(scale, axis=-1, keepdims=True)
-      k = k * scale
-    # Apply correction
-    fwd_edge_attr = k * kcorr
+      fwd_edge_attr *= scale
     # Return graph
     # -----------------------
     return gno.utils.return_graph(
@@ -376,6 +400,7 @@ class EdgeFwdRateCorr(nn_elem.Layer):
       "edge_attr_index_rate": self.edge_attr_index_rate,
       "node_attr_index_temp": self.node_attr_index_temp,
       "node_attr_index_energy": self.node_attr_index_energy,
+      "scaling_factor": self.scaling_factor,
       "cond_attr_indices_scaling": self.cond_attr_indices_scaling,
       "static_fwd_edge_attr": ops.to_numpy(self.static_fwd_edge_attr),
       "static_fwd_edge_index": ops.to_numpy(self.static_fwd_edge_index)

@@ -9,8 +9,8 @@
     "init_comp": {
       "var": "X",
       "composition": {
-        "O2": 0.9,
-        "O": 0.1
+        "O2": 0.95,
+        "O": 0.05
       },
       "P0": 1000.0,
       "T0": 1000.0
@@ -20,7 +20,7 @@
   "kinetics": {
     "model": "OneTemp",
     "kwargs": {
-      "reacfile": "/home/zanardi/Codes/ML/PyCOMET/pycomet/examples/gno/cg/physics/kinetics/excit.json",
+      "reacfile": "/home/zanardi/Codes/ML/PyCOMET/pycomet/examples/gno/cg/physics/kinetics/full.json",
       "anal_jac": true,
       "T_lim": [
         200.0,
