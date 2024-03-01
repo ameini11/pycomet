@@ -108,8 +108,9 @@ class FwdEulerIsoME(nn_elem.Layer):
     na, nm = tf.split(n, num_or_size_splits=[1,n.shape[1]-1], axis=1)
     # Compose corrected reaction rates
     if ("exc" in self.processes):
-      ke = self.rates["kef"] * f
-      ke = ke + tf.transpose(self.rates["keb"] * f, perm=[0,2,1])
+      fe = tf.expand_dims(f, axis=-1)
+      ke = self.rates["kef"] * fe
+      ke = ke + tf.transpose(self.rates["keb"] * fe, perm=[0,2,1])
       ked = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
       ke = tf.transpose(ke, perm=[0,2,1]) - ked
     if ("dis" in self.processes):

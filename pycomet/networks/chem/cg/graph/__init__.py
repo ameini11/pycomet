@@ -8,7 +8,7 @@ __all__ = [
   "MEIntEdgeFwdGNet",
   "MEIntNodeEnergyGNet"
 ]
-__all__ = __all__.extend([
+__all__.extend([
   "CorrFactor",
   "FwdEulerIsoME",
   "MEIntCorrFE"
