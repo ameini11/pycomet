@@ -57,7 +57,7 @@ lays_propty = {
         "exc": ["tanh"]*2 + ["exp"]
       },
       "processes": processes,
-      "static_prop": "./data/states/energies.txt",
+      "static_prop": "./../data/states/energies.txt",
       "features_log_xform": {
         "exc": _get_log_xform(n=4),
         "dis": _get_log_xform(n=2)
@@ -72,7 +72,7 @@ lays_propty = {
       "processes": processes,
       "use_pfcorr": False,
       "rates": {
-        k: f"./data/rates/{k}.txt" for k in ("kef", "keb", "kd", "kr")
+        k: f"./../data/rates/{k}.txt" for k in ("kef", "keb", "kd", "kr")
       }
     }
   }
