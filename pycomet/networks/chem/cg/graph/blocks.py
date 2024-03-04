@@ -363,6 +363,7 @@ class EdgeFwdRateCorr(nn_elem.Layer):
     # > kij_corr = exp(-(ei-ej)/(kT))
     #            = exp(ej/(kT)-ei/(kT))
     #            = exp(zj-zi)
+  
     # Extract temperature and energy
     T = tf.gather(node_attr, indices=[self.node_attr_index_temp], axis=-1)
     e = tf.gather(node_attr, indices=[self.node_attr_index_energy], axis=-1)
@@ -372,6 +373,14 @@ class EdgeFwdRateCorr(nn_elem.Layer):
     zj = tf.gather(z, indices=fwd_edge_index[1], axis=-2)
     # Compute correction
     kcorr = tf.math.exp(zj-zi)
+
+    # # Compute/Extract exponent
+    # qc = tf.gather(node_attr, indices=[self.node_attr_index_energy], axis=-1)
+    # qi = tf.gather(qc, indices=fwd_edge_index[0], axis=-2)
+    # qj = tf.gather(qc, indices=fwd_edge_index[1], axis=-2)
+    # # Compute correction
+    # kcorr = qi / qj
+
     # Extract rate and apply correction
     fwd_edge_attr = kcorr * tf.gather(
       fwd_edge_attr, indices=[self.edge_attr_index_rate], axis=-1

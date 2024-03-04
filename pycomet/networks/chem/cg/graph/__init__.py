@@ -9,7 +9,10 @@ __all__ = [
   "MEIntNodeEnergyGNet"
 ]
 __all__.extend([
-  "CorrFactor",
+  "PFCorr",
+  "FwdDisRateCorr",
+  "FwdExcRateCorr",
+  "FwdRateCorr",
   "FwdEulerIsoME",
   "MEIntCorrFE"
 ])

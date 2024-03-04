@@ -54,6 +54,8 @@ class Data(object):
     self.from_file = from_file
     self.header = header
     if self.from_file:
+      self.columns = columns
+      self.preproc_fn = preproc_fn
       if (columns is None):
         utils.raise_err(
           ValueError,
@@ -88,9 +90,6 @@ class Data(object):
         ("preproc_fn", self.preproc_fn)
       ]
       utils.check_dicts_consistency(list_of_dicts)
-    else:
-      self.columns = columns
-      self.preproc_fn = preproc_fn
     # Testing data
     if ("test" in self.data_src):
       test = self.data_src["test"]

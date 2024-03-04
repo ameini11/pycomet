@@ -137,7 +137,7 @@ def get_key_from_value(
   )
 
 def get_keys_from_dict(
-  dictionary
+  dictionary=None
 ):
   """
   Recursively retrieve keys from a dictionary and its nested dictionaries.
@@ -185,15 +185,21 @@ def check_dicts_consistency(
   dictionary, it raises a `ValueError` with an error message indicating the
   inconsistency.
   """
-  list_of_keys = tf.nest.map_structure(
-    lambda x: (x[0], get_keys_from_dict(x[1])), list_of_dicts
-  )
+  # print(list_of_dicts)
+  # list_of_keys = tf.nest.map_structure(
+  #   lambda x: (x[0], get_keys_from_dict(x[1])), list_of_dicts
+  # )
+  # print(list_of_dicts)
+  list_of_keys = []
+  for (iname, idict) in list_of_dicts:
+    if (idict is not None):
+      list_of_keys.append((iname, get_keys_from_dict(idict)))
   for i, (name, keys) in enumerate(list_of_keys):
     if (i == idx_ref_dict):
       continue
     else:
       for k in keys[idx_ref_dict]:
-        if k not in keys[i]:
+        if (k not in keys[i]):
           utils.raise_err(
             error=ValueError,
             text=f"A structure discrepancy between '{name}' and " \

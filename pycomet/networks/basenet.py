@@ -124,6 +124,9 @@ class BaseNet(object):
       gen_inp = lambda shape: tf.keras.Input(
         shape=list(shape)
       )
+    self.input_dim = tf.nest.map_structure(
+      lambda x: np.atleast_1d(np.array(x)), self.input_dim
+    )
     self.inputs = tf.nest.map_structure(gen_inp, self.input_dim)
 
   # Layers initialization

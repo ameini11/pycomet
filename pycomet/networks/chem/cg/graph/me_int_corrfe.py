@@ -54,12 +54,13 @@ class MEIntCorrFE(BaseNet):
     for (identifier, propty) in self.lays_propty.items():
       if (identifier in ("input", "output")):
         lays[identifier] = self.init_inout_lay(propty)
+      elif (identifier == "corr_factor"):
+        lays[identifier] = self.init_lay(identifier, propty)
     lays.update(self.init_kernel_layers())
     return lays
 
   def init_kernel_layers(self):
     lay_ids = {
-      "corr_factor": "CorrFactor",
       "fwd_euler": "FwdEulerIsoME"
     }
     lays = {}
@@ -83,7 +84,7 @@ class MEIntCorrFE(BaseNet):
     # State/group-specific corrective factor
     f = self.active_lays["corr_factor"](f, training=training)
     # Forward Euler-type update
-    y = self.active_lays["fwd_euler"](tuple(t,x,f), training=training)
+    y = self.active_lays["fwd_euler"]((t,x,f), training=training)
     # Output nodes manipulation
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier="output", training=training
