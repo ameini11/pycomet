@@ -76,15 +76,15 @@ class MEIntCorrFE(BaseNet):
   # ===================================
   def forward(self, inputs, training=None):
     # Unpack inputs
-    t, x, f = utils.unpack_list(inputs, nb_elem=3)
+    qt, x, f = utils.unpack_list(inputs, nb_elem=3)
     # Input nodes manipulation
-    x = self._manipulate_inout(
-      inputs=dict(x=x, y=x), identifier="input", training=training
+    f = self._manipulate_inout(
+      inputs=dict(x=f, y=f), identifier="input", training=training
     )
     # State/group-specific corrective factor
     f = self.active_lays["corr_factor"](f, training=training)
     # Forward Euler-type update
-    y = self.active_lays["fwd_euler"]((t,x,f), training=training)
+    y = self.active_lays["fwd_euler"]((qt, x, f), training=training)
     # Output nodes manipulation
     y = self._manipulate_inout(
       inputs=dict(x=x, y=y), identifier="output", training=training

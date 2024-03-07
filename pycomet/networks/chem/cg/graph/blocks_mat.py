@@ -219,7 +219,7 @@ class FwdDisRateCorr(nn_elem.FFBlock):
     if (self.features_log_xform is not None):
       features = self.log_lay(features)
     f = super(FwdDisRateCorr, self).call(features, training=training)
-    return f
+    return tf.squeeze(f, axis=-1)
 
   # Configuration update
   # ===================================
@@ -247,6 +247,7 @@ class FwdRateCorr(object):
     processes=("exc",),
     static_prop=None,
     features_log_xform=None,
+    trainable=False,
     **kwargs
   ):
     self.processes = processes
@@ -262,6 +263,7 @@ class FwdRateCorr(object):
           layer_norm=layer_norm,
           static_prop=static_prop,
           features_log_xform=features_log_xform[k],
+          trainable=trainable if isinstance(trainable, bool) else trainable[k],
           **kwargs
         )
 
@@ -287,64 +289,118 @@ class FwdEulerIsoME(nn_elem.Layer):
   def __init__(
     self,
     processes,
-    rates,
+    fwd_rates,
+    part_fn,
     use_pfcorr=False,
+    use_fully_nonlin=False,
     **kwargs
   ):
     super(FwdEulerIsoME, self).__init__(**kwargs)
     self.processes = processes
-    self.rates = rates
     self.use_pfcorr = use_pfcorr
-    for (k, x) in self.rates.items():
-      if (k not in ("kef", "keb", "kd", "kr")):
+    self.use_fully_nonlin = use_fully_nonlin
+    # Load forward rates
+    self.fwd_rates = fwd_rates
+    for (k, x) in self.fwd_rates.items():
+      if (k not in ("kef", "kd")):
         utils.raise_err(ValueError, f"Rates not valid: {k}")
       else:
         if isinstance(x, str):
           x = np.loadtxt(x)
         x = np.expand_dims(ops.to_numpy(x).squeeze(), axis=0)
-        self.rates[k] = tf.constant(x)
+        self.fwd_rates[k] = tf.constant(x)
+    # Load partition functions
+    self.part_fn = part_fn
+    for (k, x) in self.part_fn.items():
+      if (k not in ("atom", "molecule")):
+        utils.raise_err(ValueError, f"Partition function not valid: {k}")
+      else:
+        if isinstance(x, str):
+          x = np.loadtxt(x)
+        x = np.expand_dims(ops.to_numpy(x).reshape(-1), axis=0)
+        self.part_fn[k] = tf.constant(x)
 
   # Calling
   # ===================================
   def call(self, inputs, training=False):
-    t, n0, f = utils.unpack_list(inputs, nb_elem=3)
-    # Correct reaction rates
-    rates = self.correct_rates(f)
-    # Extract number densities
-    na, nm = tf.split(n0, num_or_size_splits=[1,n0.shape[1]-1], axis=1)
+    qt, nm_0, f = utils.unpack_list(inputs, nb_elem=3)
+    # Extract time-dependent QoI: time, atom nd, molecule nd
+    t, na, nm = tf.split(qt, num_or_size_splits=[1,1,1], axis=1)
+    # Rescale the total number of particles for molecule
+    xm_0 = nm_0 / tf.math.reduce_sum(nm_0, axis=-1, keepdims=True)
+    nm = nm * xm_0
+    # Correct fwd reaction rates
+    rates = self.correct_fwd_rates(f)
+    # Compute bwd reaction rates
+    rates = self.compute_bwd_rates(rates)
     # Construct source terms
     w = 0.0
     if ("exc" in self.processes):
       ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
       ked = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
       ke = tf.transpose(ke, perm=[0,2,1]) - ked
-      w = w + tf.einsum("nij,nj->ni",ke,nm*na)
+      w = w + tf.einsum("...ij,...j->...i", ke, nm*na)
     if ("dis" in self.processes):
       w = w - rates["kd"]*nm*na + rates["kr"]*na**3
     # Return linear update
     return nm + t * w
 
-  def correct_rates(self, f):
-    _rates = {}
+  # def call(self, inputs, training=False):
+  #   t, n0, f = utils.unpack_list(inputs, nb_elem=3)
+  #   # Correct fwd reaction rates
+  #   rates = self.correct_fwd_rates(f)
+  #   # Compute bwd reaction rates
+  #   rates = self.compute_bwd_rates(rates)
+  #   # Extract number densities
+  #   na, nm = tf.split(n0, num_or_size_splits=[1,n0.shape[1]-1], axis=1)
+  #   # Construct source terms
+  #   w = 0.0
+  #   if ("exc" in self.processes):
+  #     ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
+  #     ked = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
+  #     ke = tf.transpose(ke, perm=[0,2,1]) - ked
+  #     w = w + tf.einsum("...ij,...j->...i",ke,nm*na)
+  #   if ("dis" in self.processes):
+  #     w = w - rates["kd"]*nm*na + rates["kr"]*na**3
+  #   # Return linear update
+  #   return nm + t * w
+
+  def correct_fwd_rates(self, f):
+    rates = {}
     if ("exc" in self.processes):
-      fe = f[0]
-      if self.use_pfcorr:
-        fe = tf.math.exp(tf.einsum("ni,nj->nij", fe, -fe))
-      for k in ("kef", "keb"):
-        _rates[k] = self.rates[k] * fe
+      if self.use_fully_nonlin:
+        rates["kef"] = 1e-16 * f[0]
+      else:
+        fe = f[0]
+        if self.use_pfcorr:
+          fe = tf.math.exp(tf.einsum("ni,nj->nij", fe, -fe))
+        rates["kef"] = self.fwd_rates["kef"] * fe
     if ("dis" in self.processes):
-      fd = tf.math.exp(f[0]) if self.use_pfcorr else f[1]
-      for k in ("kd", "kr"):
-        _rates[k] = self.rates[k] * fd
-    return _rates
+      if self.use_fully_nonlin:
+        rates["kd"] = 1e-16 * f[1]
+      else:
+        fd = tf.math.exp(f[0]) if self.use_pfcorr else f[1]
+        rates["kd"] = self.fwd_rates["kd"] * fd
+    return rates
+
+  def compute_bwd_rates(self, rates):
+    qa, qm = [self.part_fn[s] for s in ("atom", "molecule")]
+    if ("exc" in self.processes):
+      eq = "...i,...ij,...j->...ij"
+      rates["keb"] = tf.einsum(eq, qm, rates["kef"], 1/qm)
+    if ("dis" in self.processes):
+      rates["kr"] = rates["kd"] * qm / (qa**2)
+    return rates
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
       "processes": self.processes,
-      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
-      "use_pfcorr": self.use_pfcorr
+      "fwd_rates": tf.nest.map_structure(ops.to_numpy, self.fwd_rates),
+      "part_fn": tf.nest.map_structure(ops.to_numpy, self.part_fn),
+      "use_pfcorr": self.use_pfcorr,
+      "use_fully_nonlin": self.use_fully_nonlin
     }
     base_config = super(FwdEulerIsoME, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

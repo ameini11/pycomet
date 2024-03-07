@@ -1,4 +1,5 @@
 {
+  
   "O2": {
     "specie": {
       "internal": {
@@ -23,11 +24,33 @@
         }
       },
       "Tc_index": {
-        "int": [0,1,2],
+        "int": [0],
         "chem": [0],
         "trans": [0]
       },
-      "derivatives": false
+      "derivatives": true
+    }
+  },
+
+  "O": {
+    "specie": {
+      "internal": {
+        "levels": "/home/zanardi/Codes/TC/HyperNet/database/levels/O3_UMN/O.csv"
+      }
+    },
+    "thermo": {
+      "modes": {
+        "internal": {
+          "model": "Constant"
+        }
+      },
+      "Tc_index": {
+        "int": [0],
+        "chem": [0],
+        "trans": [0]
+      },
+      "derivatives": true
     }
   }
+
 }
