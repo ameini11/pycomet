@@ -11,9 +11,9 @@ data_type = "DataSet"
 from_file = True
 
 data_src = {
-  "train": "./data/train.csv",
-  "valid": "./data/valid.csv",
-  "test": "./data/test/"
+  "train": "./../datagen/data/train.csv",
+  "valid": "./../datagen/data/valid.csv",
+  "test": "./../datagen/data/test/"
 }
 
 cols = {

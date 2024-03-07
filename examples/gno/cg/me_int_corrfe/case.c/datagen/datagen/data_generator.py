@@ -201,10 +201,10 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     nm0 = np.tile(nm[0].reshape(1,-1), (nb_pts,1))
     # > Correction factor
     tp = t * na * const.UKB * T
+    tp = np.log(tp + 1e-10)
     if self._compute_svd_coeff:
       w = sol[f"n_{self.atom}_svd"].reshape(1,-1)
       w = np.tile(w, (nb_pts,1))
-      tp = np.log(tp + 1e-10)
       f = np.hstack([tp, w])
     else:
       f = tp

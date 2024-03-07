@@ -11,7 +11,7 @@ lr = 1e-3
 scheduler = {
   "name": "exponential",
   "decay_steps": 100*50,
-  "decay_rate": 0.98
+  "decay_rate": 0.95
 }
 
 # Loss and metrics

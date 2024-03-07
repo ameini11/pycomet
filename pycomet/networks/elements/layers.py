@@ -503,7 +503,7 @@ class StdNormalization(Layer):
       df = df.to_numpy(dtype=bkd.get_floatx())
       if callable(self.preproc_fn):
         df = self.preproc_fn(df)
-      data.append(ops.extract_data_from_array(df, self.columns))
+      data.append(ops.extract_data_from_tensor(df, self.columns))
     data = tf.convert_to_tensor(np.vstack(data))
     return data
 

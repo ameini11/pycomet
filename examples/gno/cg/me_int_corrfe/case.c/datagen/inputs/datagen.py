@@ -1,7 +1,5 @@
 # Data generator inputs
 # =====================================
-save_sol_only = False
-
 # Training/Validation data
 scenarios = 200
 train_pts = 160
@@ -23,11 +21,17 @@ inp_space = {
 }
 
 # Physics
-path_to_physics = "./physics/"
+path_to_physics = "./../../physics/"
 processes = ("exc", "dis")
 free_atom = True
 
+# SVD decomposition
+# > Use only to generate data to perform SVD
+save_sol_only = False
+# > Path to SVD tensors
 svd = {
+  # t*pO grid
   "tp": "./decomp/tensor/tp.txt",
+  # Modes
   "phi": "./decomp/tensor/phi.txt"
 }

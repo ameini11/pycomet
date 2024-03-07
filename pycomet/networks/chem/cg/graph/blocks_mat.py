@@ -247,7 +247,7 @@ class FwdRateCorr(object):
     processes=("exc",),
     static_prop=None,
     features_log_xform=None,
-    trainable=False,
+    trainable=True,
     **kwargs
   ):
     self.processes = processes
@@ -262,8 +262,10 @@ class FwdRateCorr(object):
           dropout=dropout,
           layer_norm=layer_norm,
           static_prop=static_prop,
-          features_log_xform=features_log_xform[k],
-          trainable=trainable if isinstance(trainable, bool) else trainable[k],
+          features_log_xform=features_log_xform[k] \
+            if (features_log_xform is not None) else None,
+          trainable=trainable \
+            if isinstance(trainable, bool) else trainable[k],
           **kwargs
         )
 

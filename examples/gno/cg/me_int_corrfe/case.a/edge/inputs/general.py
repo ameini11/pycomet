@@ -3,7 +3,7 @@
 model_name = "me_int"
 
 dim = {
-  "inp": [1, 4, 1],
+  "inp": [3, 3, 1],
   "out": [3]
 }
 

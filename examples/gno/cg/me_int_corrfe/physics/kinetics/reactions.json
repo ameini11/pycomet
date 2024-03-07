@@ -14,7 +14,7 @@
       "format": "csv",
       "units": "m^3/s",
       "kwargs": {
-        "filename": "/home/zanardi/Codes/ML/PyCOMET/run/me_int_corrfe/case.c/datagen/physics/kinetics/diss.csv",
+        "filename": "/home/zanardi/Codes/ML/PyCOMET/run/me_int_corrfe/physics/kinetics/diss.csv",
         "min_i": 1
       }
     }
@@ -34,7 +34,7 @@
       "format": "csv",
       "units": "m^3/s",
       "kwargs": {
-        "filename": "/home/zanardi/Codes/ML/PyCOMET/run/me_int_corrfe/case.c/datagen/physics/kinetics/inel.csv",
+        "filename": "/home/zanardi/Codes/ML/PyCOMET/run/me_int_corrfe/physics/kinetics/inel.csv",
         "min_i": 1
       }
     }
@@ -54,7 +54,7 @@
       "format": "csv",
       "units": "m^3/s",
       "kwargs": {
-        "filename": "/home/zanardi/Codes/ML/PyCOMET/run/me_int_corrfe/case.c/datagen/physics/kinetics/exch_1.csv",
+        "filename": "/home/zanardi/Codes/ML/PyCOMET/run/me_int_corrfe/physics/kinetics/exch_1.csv",
         "min_i": 1
       }
     }

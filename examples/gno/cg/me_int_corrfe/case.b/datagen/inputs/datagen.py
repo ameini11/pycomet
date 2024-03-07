@@ -23,4 +23,4 @@ inp_space = {
 # Physics
 path_to_physics = "./../../physics/"
 processes = ("exc", "dis")
-free_atom = False
+free_atom = True
