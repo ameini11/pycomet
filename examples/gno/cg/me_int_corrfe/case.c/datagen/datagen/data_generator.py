@@ -204,6 +204,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     if self._compute_svd_coeff:
       w = sol[f"n_{self.atom}_svd"].reshape(1,-1)
       w = np.tile(w, (nb_pts,1))
+      tp = np.log(tp + 1e-10)
       f = np.hstack([tp, w])
     else:
       f = tp
