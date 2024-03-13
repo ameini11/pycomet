@@ -6,8 +6,14 @@ from pycomet import utils
 from pycomet.networks import gno
 from pycomet import operations as ops
 from pycomet.config import get_config
+from silx.io.dictdump import h5todict
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
+
+# HyperNet library
+from hypernet import const
+from hypernet.thermophysics import mixture as mix_mod
+from hypernet.thermophysics import specie_thermo as st_mod
 
 
 def _compose_feat(inputs, static_inputs, nb_elem):
@@ -37,7 +43,6 @@ class PFCorr(nn_elem.FFBlock):
     dropout=dict(rate=0),
     layer_norm=None,
     static_prop=None,
-    features_log_xform=None,
     **kwargs
   ):
     super(PFCorr, self).__init__(
@@ -54,10 +59,6 @@ class PFCorr(nn_elem.FFBlock):
       data=static_prop, identifier="static_prop"
     )
     self.nb_comp = self.static_prop.shape[-2]
-    # Conditioning inputs log-transformation
-    self.features_log_xform = features_log_xform
-    if (self.features_log_xform is not None):
-      self.log_lay = nn_elem.Log(**self.features_log_xform)
 
   # Calling
   # ===================================
@@ -65,8 +66,6 @@ class PFCorr(nn_elem.FFBlock):
     # Compose input features
     features = _compose_feat(inputs, self.static_prop, self.nb_comp)
     # Predict corrective factor
-    if (self.features_log_xform is not None):
-      features = self.log_lay(features)
     f = super(PFCorr, self).call(features, training=training)
     f = tf.squeeze(f, axis=-1)
     return (f,)
@@ -75,8 +74,7 @@ class PFCorr(nn_elem.FFBlock):
   # ===================================
   def get_config(self):
     config = {
-      "static_prop": ops.to_numpy(self.static_prop),
-      "features_log_xform": self.features_log_xform
+      "static_prop": ops.to_numpy(self.static_prop)
     }
     base_config = super(PFCorr, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -96,7 +94,6 @@ class FwdExcRateCorr(nn_elem.FFBlock):
     dropout=dict(rate=0),
     layer_norm=None,
     static_prop=None,
-    features_log_xform=None,
     **kwargs
   ):
     super(FwdExcRateCorr, self).__init__(
@@ -132,10 +129,6 @@ class FwdExcRateCorr(nn_elem.FFBlock):
     self.nb_fwd_rates = self.fwd_rates_vec.shape[1]
     # > Create padding operator
     self.q = tf.constant(np.eye(nb_comp)[:nb_comp-1])
-    # Conditioning inputs log-transformation
-    self.features_log_xform = features_log_xform
-    if (self.features_log_xform is not None):
-      self.log_lay = nn_elem.Log(**self.features_log_xform)
 
   # Calling
   # ===================================
@@ -143,8 +136,6 @@ class FwdExcRateCorr(nn_elem.FFBlock):
     # Compose input features
     features = _compose_feat(inputs, self.fwd_rates_vec, self.nb_fwd_rates)
     # Predict corrective factor
-    if (self.features_log_xform is not None):
-      features = self.log_lay(features)
     f = super(FwdExcRateCorr, self).call(features, training=training)
     f = self.make_tril(f)
     return f
@@ -164,8 +155,7 @@ class FwdExcRateCorr(nn_elem.FFBlock):
   # ===================================
   def get_config(self):
     config = {
-      "static_prop": ops.to_numpy(self.static_prop),
-      "features_log_xform": self.features_log_xform
+      "static_prop": ops.to_numpy(self.static_prop)
     }
     base_config = super(FwdExcRateCorr, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -185,7 +175,6 @@ class FwdDisRateCorr(nn_elem.FFBlock):
     dropout=dict(rate=0),
     layer_norm=None,
     static_prop=None,
-    features_log_xform=None,
     **kwargs
   ):
     super(FwdDisRateCorr, self).__init__(
@@ -205,10 +194,6 @@ class FwdDisRateCorr(nn_elem.FFBlock):
     fwd_rates_vec = tf.constant(self.static_prop)
     self.fwd_rates_vec = tf.expand_dims(fwd_rates_vec, axis=0)
     self.nb_fwd_rates = self.fwd_rates_vec.shape[1]
-    # Conditioning inputs log-transformation
-    self.features_log_xform = features_log_xform
-    if (self.features_log_xform is not None):
-      self.log_lay = nn_elem.Log(**self.features_log_xform)
 
   # Calling
   # ===================================
@@ -216,8 +201,6 @@ class FwdDisRateCorr(nn_elem.FFBlock):
     # Compose input features
     features = _compose_feat(inputs, self.fwd_rates_vec, self.nb_fwd_rates)
     # Predict corrective factor
-    if (self.features_log_xform is not None):
-      features = self.log_lay(features)
     f = super(FwdDisRateCorr, self).call(features, training=training)
     return tf.squeeze(f, axis=-1)
 
@@ -225,8 +208,7 @@ class FwdDisRateCorr(nn_elem.FFBlock):
   # ===================================
   def get_config(self):
     config = {
-      "static_prop": ops.to_numpy(self.static_prop),
-      "features_log_xform": self.features_log_xform
+      "static_prop": ops.to_numpy(self.static_prop)
     }
     base_config = super(FwdDisRateCorr, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -244,30 +226,23 @@ class FwdRateCorr(object):
     regularizer=None,
     dropout=dict(rate=0),
     layer_norm=None,
-    processes=("exc",),
     static_prop=None,
-    features_log_xform=None,
     trainable=True,
     **kwargs
   ):
-    self.processes = processes
     self.lays = {}
     for (k, lay) in (("exc", FwdExcRateCorr), ("dis", FwdDisRateCorr)):
-      if (k in self.processes):
-        self.lays[k] = lay(
-          layer_size=layer_size[k],
-          activation=activation[k],
-          kernel_initializer=kernel_initializer,
-          regularizer=regularizer,
-          dropout=dropout,
-          layer_norm=layer_norm,
-          static_prop=static_prop,
-          features_log_xform=features_log_xform[k] \
-            if (features_log_xform is not None) else None,
-          trainable=trainable \
-            if isinstance(trainable, bool) else trainable[k],
-          **kwargs
-        )
+      self.lays[k] = lay(
+        layer_size=layer_size[k],
+        activation=activation[k],
+        kernel_initializer=kernel_initializer,
+        regularizer=regularizer,
+        dropout=dropout,
+        layer_norm=layer_norm,
+        static_prop=static_prop,
+        trainable=trainable if isinstance(trainable, bool) else trainable[k],
+        **kwargs
+      )
 
   # Calling
   # ===================================
@@ -277,132 +252,164 @@ class FwdRateCorr(object):
   def call(self, inputs, training=False):
     f = []
     for k in ("exc", "dis"):
-      if (k in self.processes):
-        f.append(self.lays[k](inputs, training=training))
+      f.append(self.lays[k](inputs, training=training))
     return tuple(f)
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class FwdEulerIsoME(nn_elem.Layer):
-  """Forward Euler-type update for the isothermal Master equation."""
+class FwdEulerME(nn_elem.Layer):
+  """Forward Euler-type update for the master equation."""
 
   # Initialization
   # ===================================
   def __init__(
     self,
-    processes,
-    fwd_rates,
-    part_fn,
-    use_pfcorr=False,
-    use_fully_nonlin=False,
+    rates=None,
+    molecule=None,
+    specie_thermos={
+      # N-groups model
+      "Ng": {
+        "filename": None,
+        "config": None
+      },
+      # 1-group model
+      "1g": {
+        "filename": None,
+        "config": None
+      }
+    },
+    use_state_corr=False,
     **kwargs
   ):
-    super(FwdEulerIsoME, self).__init__(**kwargs)
-    self.processes = processes
-    self.use_pfcorr = use_pfcorr
-    self.use_fully_nonlin = use_fully_nonlin
-    # Load forward rates
-    self.fwd_rates = fwd_rates
-    for (k, x) in self.fwd_rates.items():
-      if (k not in ("kef", "kd")):
-        utils.raise_err(ValueError, f"Rates not valid: {k}")
-      else:
-        if isinstance(x, str):
-          x = np.loadtxt(x)
-        x = np.expand_dims(ops.to_numpy(x).squeeze(), axis=0)
-        self.fwd_rates[k] = tf.constant(x)
-    # Load partition functions
-    self.part_fn = part_fn
-    for (k, x) in self.part_fn.items():
-      if (k not in ("atom", "molecule")):
-        utils.raise_err(ValueError, f"Partition function not valid: {k}")
-      else:
-        if isinstance(x, str):
-          x = np.loadtxt(x)
-        x = np.expand_dims(ops.to_numpy(x).reshape(-1), axis=0)
-        self.part_fn[k] = tf.constant(x)
+    super(FwdEulerME, self).__init__(**kwargs)
+    # Species thermodynamics
+    self.molecule = molecule
+    self._sp_th_common = {
+      "thermo_process": 1,
+      "eos_model": "PerfectGas"
+    }
+    self.sp_th = {
+      k: self._build_sp_th(specie_thermos[k]) for k in ("Ng", "1g")
+    }
+    self.th_int = {
+      k: self.sp_th[k][self.molecule].thermo.int for k in ("Ng", "1g")
+    }
+    # Reaction rates
+    self.rates = rates
+    if isinstance(self.rates, str):
+      self.rates = h5todict(h5file=self.rates)
+    self.rates = tf.nest.map_structure(
+      lambda x: tf.constant(np.expand_dims(ops.to_numpy(x).squeeze(), axis=0)),
+      self.rates
+    )
+    # Use node-wise correction
+    self.use_state_corr = use_state_corr
+
+  def _build_sp_th(self, specie_thermos):
+    specie_thermos.update(self._sp_th_common)
+    sp_th = st_mod.init_specie_thermos(**specie_thermos)
+    st_mod.build_specie_thermos(sp_th)
+    return sp_th
 
   # Calling
   # ===================================
   def call(self, inputs, training=False):
-    qt, nm_0, f = utils.unpack_list(inputs, nb_elem=3)
-    # Extract time-dependent QoI: time, atom nd, molecule nd
-    t, na, nm = tf.split(qt, num_or_size_splits=[1,1,1], axis=1)
-    # Rescale the total number of particles for molecule
-    xm_0 = nm_0 / tf.math.reduce_sum(nm_0, axis=-1, keepdims=True)
-    nm = nm * xm_0
-    # Correct fwd reaction rates
-    rates = self.correct_fwd_rates(f)
-    # Compute bwd reaction rates
-    rates = self.compute_bwd_rates(rates)
-    # Construct source terms
-    w = 0.0
-    if ("exc" in self.processes):
-      ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
-      ked = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
-      ke = tf.transpose(ke, perm=[0,2,1]) - ked
-      w = w + tf.einsum("...ij,...j->...i", ke, nm*na)
-    if ("dis" in self.processes):
-      w = w - rates["kd"]*nm*na + rates["kr"]*na**3
+    qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
+    # Extract time-dependent QoI
+    t, na, nm, T, Tm = tf.split(qt, num_or_size_splits=5, axis=1)
+    # Update species thermodynamics
+    st_mod.update_specie_thermos(self.sp_th["Ng"], T)
+    # Boltzmann-based rescaling
+    nm0 *= self.boltz_rescale(nm0, nm, Tm)
+    # Compute reaction rates
+    rates = self.compute_rates(T, f)
+    # Compute source terms
+    w = self.compute_sources(na, nm0, rates)
     # Return linear update
-    return nm + t * w
+    return nm0 + t * w
 
-  # def call(self, inputs, training=False):
-  #   t, n0, f = utils.unpack_list(inputs, nb_elem=3)
-  #   # Correct fwd reaction rates
-  #   rates = self.correct_fwd_rates(f)
-  #   # Compute bwd reaction rates
-  #   rates = self.compute_bwd_rates(rates)
-  #   # Extract number densities
-  #   na, nm = tf.split(n0, num_or_size_splits=[1,n0.shape[1]-1], axis=1)
-  #   # Construct source terms
-  #   w = 0.0
-  #   if ("exc" in self.processes):
-  #     ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
-  #     ked = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
-  #     ke = tf.transpose(ke, perm=[0,2,1]) - ked
-  #     w = w + tf.einsum("...ij,...j->...i",ke,nm*na)
-  #   if ("dis" in self.processes):
-  #     w = w - rates["kd"]*nm*na + rates["kr"]*na**3
-  #   # Return linear update
-  #   return nm + t * w
+  # Boltzmann-based rescaling
+  # -----------------------------------
+  def boltz_rescale(self, ni0, nt, Tt):
+    # Get state-specific energies and masses
+    ei = self.sp_th["Ng"][self.molecule].thermo.int.e
+    mi = self.sp_th["Ng"][self.molecule].specie.m
+    # Compute total density and temperature at t=0
+    n0 = tf.math.reduce_sum(ni0, axis=-1, keepdims=True)
+    e0 = tf.math.reduce_sum(ni0 * ei, axis=-1, keepdims=True) / n0
+    T0 = self.sp_th["1g"][self.molecule].thermo.int._update_interp_inv(e0)
+    # Compute rescaling factor
+    dB = (1/T0-1/Tt) * (ei*mi) * (1/const.UKB)
+    dB = nt/n0 * tf.math.exp(dB)
+    return dB
 
-  def correct_fwd_rates(self, f):
+  # Reaction rates
+  # -----------------------------------
+  def compute_rates(self, T, f):
+    # Compute fwd reaction rates
+    rates = self.compute_fwd_rates(T)
+    # Correct fwd reaction rates
+    rates = self.correct_fwd_rates(rates, f)
+    # Compute bwd reaction rates
+    return self.compute_bwd_rates(rates)
+
+  def compute_fwd_rates(self, T):
+    # Precompute temperature vectors
+    ln_T, ov_T = tf.math.log(T), 1/T
+    # Loop over processes
     rates = {}
-    if ("exc" in self.processes):
-      if self.use_fully_nonlin:
-        rates["kef"] = 1e-16 * f[0]
-      else:
-        fe = f[0]
-        if self.use_pfcorr:
-          fe = tf.math.exp(tf.einsum("ni,nj->nij", fe, -fe))
-        rates["kef"] = self.fwd_rates["kef"] * fe
-    if ("dis" in self.processes):
-      if self.use_fully_nonlin:
-        rates["kd"] = 1e-16 * f[1]
-      else:
-        fd = tf.math.exp(f[0]) if self.use_pfcorr else f[1]
-        rates["kd"] = self.fwd_rates["kd"] * fd
+    for k in ("kef", "kd"):
+      # Extract Arrhenius law parameters
+      param = [self.rates[k][p] for p in ("A", "beta", "Ta")]
+      # Apply Arrhenius law
+      rates[k] = self._arrhenius(ln_T, ov_T, *param)
+    return rates
+
+  def _arrhenius(self, ln_T, ov_T, A, beta, Ta):
+    # Reshape temperature vectors
+    shape = [-1] + [1 for _ in A.shape[1:]]
+    ln_T, ov_T = [tf.reshape(x, shape) for x in (ln_T, ov_T)]
+    # Apply Arrhenius law
+    return A * tf.math.exp(beta*ln_T - Ta*ov_T)
+
+  def correct_fwd_rates(self, rates, f):
+    # Excitation processes
+    fe = tf.einsum("ni,nj->nij", f[0], -f[0]) if self.use_state_corr else f[0]
+    rates["kef"] *= tf.math.exp(fe)
+    # Dissociation processes
+    fd = f[0] if self.use_state_corr else f[1]
+    rates["kd"] *= tf.math.exp(fd)
     return rates
 
   def compute_bwd_rates(self, rates):
-    qa, qm = [self.part_fn[s] for s in ("atom", "molecule")]
-    if ("exc" in self.processes):
-      eq = "...i,...ij,...j->...ij"
-      rates["keb"] = tf.einsum(eq, qm, rates["kef"], 1/qm)
-    if ("dis" in self.processes):
-      rates["kr"] = rates["kd"] * qm / (qa**2)
+    qa, qm = [st.pf.tot.Q for st in self.sp_th["Ng"].values()]
+    # Excitation processes
+    rates["keb"] = tf.einsum("nij,ni,nj->nij", rates["kef"], qm, 1/qm)
+    # Dissociation processes
+    rates["kr"] = rates["kd"] * qm * (1/(qa**2))
     return rates
+
+  # Source terms
+  # -----------------------------------
+  def compute_sources(self, na, nm, rates):
+    # Excitation processes
+    ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
+    ked = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
+    ke = tf.transpose(ke, perm=[0,2,1]) - ked
+    we = tf.einsum("nij,nj->ni", ke, nm*na)
+    # Dissociation process
+    wd = rates["kr"]*na**3 - rates["kd"]*nm*na
+    return we + wd
 
   # Configuration update
   # ===================================
   def get_config(self):
+    sp_th_cfg = tf.nest.map_structure(lambda st: st.get_config(), self.sp_th)
+    sp_th = {k: {"config": stk_cfg} for (k, stk_cfg) in sp_th_cfg.items()}
     config = {
-      "processes": self.processes,
-      "fwd_rates": tf.nest.map_structure(ops.to_numpy, self.fwd_rates),
-      "part_fn": tf.nest.map_structure(ops.to_numpy, self.part_fn),
-      "use_pfcorr": self.use_pfcorr,
-      "use_fully_nonlin": self.use_fully_nonlin
+      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "specie_thermos": sp_th,
+      "use_state_corr": self.use_state_corr
     }
-    base_config = super(FwdEulerIsoME, self).get_config()
+    base_config = super(FwdEulerME, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
