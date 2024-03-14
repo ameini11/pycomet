@@ -92,6 +92,10 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       else:
         self.species.append(st.specie.name)
         self.atom = st.specie.name
+    # Set nodes/edges
+    # -----------------------------------
+    self.set_states()
+    self.set_rates()
     # SVD decomposition
     # -----------------------------------
     self.svd = svd
@@ -160,7 +164,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         rates["kef"] = get_param(reaction)
       elif (reaction.param["process"] == 2):
         rates["kd"] = get_param(reaction)
-    rates = tf.nest.map_structure(lambda x: x.numpy().squeeze(), rates)
+    # rates = tf.nest.map_structure(lambda x: x.numpy().squeeze(), rates)
+    rates = tf.nest.map_structure(lambda x: x.squeeze(), rates)
     # Saving rates
     os.makedirs(self.path_to_data + "/physics/", exist_ok=True)
     dicttoh5(
@@ -257,10 +262,11 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   def compute_solutions(
     self,
     path,
+    dataid,
     init_sols
   ):
     if (not os.path.exists(path + "/sols.hdf5")):
-      pcm.utils.print_fn("Computing 0D cases", lev=2)
+      pcm.utils.print_fn(f"Computing 0D cases: {dataid}", lev=2)
       # Computing solutions
       sols = jl.Parallel(self.nb_workers)(
         jl.delayed(self.compute_solution)(
@@ -272,7 +278,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       # Filter solutions
       sols = {i: c for (i, c) in sols if (c is not None)}
       # Saving computed solutions
-      pcm.utils.print_fn("Saving 0D cases", lev=2)
+      pcm.utils.print_fn(f"Saving 0D cases: {dataid}", lev=2)
       os.makedirs(path, exist_ok=True)
       dicttoh5(
         treedict=sols,
@@ -281,7 +287,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         create_dataset_args={"compression": "gzip"}
       )
     else:
-      pcm.utils.print_fn("Reading 0D cases", lev=2)
+      pcm.utils.print_fn(f"Reading 0D cases: {dataid}", lev=2)
       sols = h5todict(path + "/sols.hdf5")
     return sols
 
@@ -340,7 +346,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     if (box.to_numpy() < 0).any():
       return None
     # Get solution
-    t, n, T = [box[k].to_numpy().reshape(-1,1) for k in ("t","n","T")]
+    t, n, T = [box[k].to_numpy().reshape(-1,1) for k in ("t", "n", "T")]
     n = n * box[self.xi_names].to_numpy()
     y = np.hstack([n,T])
     return {"t": t, "y": y}
@@ -356,12 +362,28 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     if (nb_pts > 0):
       sol = self.sample_solution(*sol, nb_pts)
     # Get physical QoI
-    sol = self.kin.prim_to_phys(*sol)
-    sol["E"] = sol.pop("he")
+    sol = self.prim_to_phys(*sol)
     # Store SVD coefficients for (na, T) decomposition
     if self.compute_svd_coeff:
       sol["svd"] = w
     return sol
+
+  def prim_to_phys(self, t, y):
+    # Manipulate primitive variables
+    n, T = y[:,:-1], y[:,-1:]
+    # Update thermochemistry and mixture
+    st_mod.update_specie_thermos(self.sp_th, T)
+    self.mix.update(n)
+    # Store physical variables
+    phys = {
+      "t": t,
+      "T": T,
+      "n": np.sum(n, axis=-1, keepdims=True)
+    }
+    phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
+    for (name, st) in self.sp_th.items():
+      phys["X_"+name] = st.specie.X
+    return phys
 
   def sample_solution(self, t, y, nb_pts):
     idx = self.dyn_sampler.sample(
@@ -374,7 +396,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   # SVD decomposition
   # -----------------------------------
   def svd_decomp(self, t, y):
-    sol = self.kin.prim_to_phys(t, y)
+    sol = self.prim_to_phys(t, y)
     # Extract variables
     var = ("t", "T", "n", f"X_{self.atom}")
     t, T, n, Xa = [sol[k].reshape(-1) for k in var]
@@ -477,7 +499,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     for k in ("train", "valid"):
       # Computing 0D data
       sols = self.compute_solutions(
-        path=self.path_to_runs + f"/samples/data/{k}/", init_sols=init_sols[k]
+        path=self.path_to_runs + f"/samples/data/{k}/",
+        dataid=k,
+        init_sols=init_sols[k]
       )
       # Sampling 0D data
       if (not self.save_sols_only):
@@ -498,17 +522,18 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     init_sols
   ):
     data = {}
-    if ("test" in init_sols):
+    if (("test" in init_sols) and (not self.save_sols_only)):
       path = self.path_to_data + "/test/"
       os.makedirs(path, exist_ok=True)
       # Computing 0D data
       sols = self.compute_solutions(
         path=self.path_to_runs + "/samples/data/test/",
+        dataid="test",
         init_sols=init_sols["test"]
       )
       # Saving 0D data
       for (i, sol) in tqdm(sols.items(), ncols=80):
-        ikey = "case_" + str(i+1).zfill(3)
+        ikey = "case_" + i
         data[ikey] = self.get_data(sol)
         self.save_data(filename=path+f"/{ikey}", data=data[ikey])
     return data

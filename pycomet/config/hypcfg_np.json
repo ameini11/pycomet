@@ -4,7 +4,7 @@
   "cpu_threads": 4,
   "gpu_memory": 0.3,
   "backend": "numpy",
-  "method": "unstacked",
+  "method": "stacked",
   "dtb": "/home/zanardi/Codes/TC/HyperNet/database/",
   "floatx": "float64",
   "env": {
