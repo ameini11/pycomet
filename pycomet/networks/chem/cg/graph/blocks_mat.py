@@ -12,7 +12,6 @@ _CFG = get_config()
 
 # HyperNet library
 from hypernet import const
-from hypernet.thermophysics import mixture as mix_mod
 from hypernet.thermophysics import specie_thermo as st_mod
 
 
@@ -294,6 +293,7 @@ class FwdEulerME(nn_elem.Layer):
     self.th_int = {
       k: self.sp_th[k][self.molecule].thermo.int for k in ("Ng", "1g")
     }
+    self.mk = self.sp_th["Ng"][self.molecule].specie.m / const.UKB
     # Reaction rates
     self.rates = rates
     if isinstance(self.rates, str):
@@ -316,11 +316,11 @@ class FwdEulerME(nn_elem.Layer):
   def call(self, inputs, training=False):
     qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
     # Extract time-dependent QoI
-    t, na, nm, T, Tm = tf.split(qt, num_or_size_splits=5, axis=1)
+    t, na, nm, T, em = tf.split(qt, num_or_size_splits=5, axis=1)
     # Update species thermodynamics
     st_mod.update_specie_thermos(self.sp_th["Ng"], T)
     # Boltzmann-based rescaling
-    nm0 *= self.boltz_rescale(nm0, nm, Tm)
+    nm0 *= self.boltz_rescale(nm0, nm, em)
     # Compute reaction rates
     rates = self.compute_rates(T, f)
     # Compute source terms
@@ -330,16 +330,17 @@ class FwdEulerME(nn_elem.Layer):
 
   # Boltzmann-based rescaling
   # -----------------------------------
-  def boltz_rescale(self, ni0, nt, Tt):
-    # Get state-specific energies and masses
-    ei = self.sp_th["Ng"][self.molecule].thermo.int.e
-    mi = self.sp_th["Ng"][self.molecule].specie.m
-    # Compute total density and temperature at t=0
+  def boltz_rescale(self, ni0, nt, et):
+    th = {k: self.sp_th[k][self.molecule].thermo for k in ("Ng", "1g")}
+    # Get state-specific energies
+    ei = th["Ng"].int.e
+    # Compute total density and energy at t=0
     n0 = tf.math.reduce_sum(ni0, axis=-1, keepdims=True)
     e0 = tf.math.reduce_sum(ni0 * ei, axis=-1, keepdims=True) / n0
-    T0 = self.sp_th["1g"][self.molecule].thermo.int._update_interp_inv(e0)
+    # Compute temperatures
+    T0, Tt = [th["1g"].int._update_interp_inv(e) for e in (e0, et)]
     # Compute rescaling factor
-    dB = (1/T0-1/Tt) * (ei*mi) * (1/const.UKB)
+    dB = (self.mk * (1/T0-1/Tt)) * ei
     dB = nt/n0 * tf.math.exp(dB)
     return dB
 

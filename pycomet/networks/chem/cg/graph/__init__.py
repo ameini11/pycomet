@@ -13,7 +13,7 @@ __all__.extend([
   "FwdDisRateCorr",
   "FwdExcRateCorr",
   "FwdRateCorr",
-  "FwdEulerIsoME",
+  "FwdEulerME",
   "MEIntCorrFE"
 ])
 
