@@ -1,0 +1,43 @@
+# Data generator inputs
+# =====================================
+# Training/Validation data
+scenarios = 200
+train_pts = 160
+validation_split = 0.2
+
+# Testing data
+test_cases = 10
+
+# Time space
+time_lim = [1e-12, 1e-3]
+time_eps = 1e-13
+
+# Input space
+inp_space = {
+  "X_O": [0.05, 0.95],
+  "p":   [ 1e3,  1e4],
+  "Ti":  [ 1e3,  9e3],
+  "T":   [ 1e4,  1e4]
+}
+read_init_sols = False
+
+# Physics
+path_to_physics = "./../physics/"
+load_plato = "module load plato/dev-gcc-9.3.0-openmpi-3.1.3-sundials-5.8.0"
+
+# SVD decomposition
+# > Use only to generate data to perform SVD
+save_sols_only = False
+# > Path to SVD tensors
+# svd = None
+svd = {
+  k: {
+    "tp": f"./decomp/tensors/{k}/tp.txt",
+    "phi": f"./decomp/tensors/{k}/phi.txt"
+  } for k in ("pa",)
+  # } for k in ("na", "pa", "T")
+}
+
+# Multi-threading
+nb_workers = 32
+nb_threads = 4

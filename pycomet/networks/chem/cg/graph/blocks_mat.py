@@ -278,6 +278,7 @@ class FwdEulerME(nn_elem.Layer):
       }
     },
     use_state_corr=False,
+    boltz_rescale_order=0,
     **kwargs
   ):
     super(FwdEulerME, self).__init__(**kwargs)
@@ -304,6 +305,8 @@ class FwdEulerME(nn_elem.Layer):
     )
     # Use node-wise correction
     self.use_state_corr = use_state_corr
+    # Boltzmann-based rescaling order
+    self.boltz_rescale_order = boltz_rescale_order
 
   def _build_sp_th(self, specie_thermos):
     specie_thermos.update(self._sp_th_common)
@@ -320,7 +323,7 @@ class FwdEulerME(nn_elem.Layer):
     # Update species thermodynamics
     st_mod.update_specie_thermos(self.sp_th["Ng"], T)
     # Boltzmann-based rescaling
-    nm0 *= self.boltz_rescale(nm0, nm, em)
+    nm0 = nm0 * self.boltz_rescale(nm0, nm, em)
     # Compute reaction rates
     rates = self.compute_rates(T, f)
     # Compute source terms
@@ -332,16 +335,21 @@ class FwdEulerME(nn_elem.Layer):
   # -----------------------------------
   def boltz_rescale(self, ni0, nt, et):
     th = {k: self.sp_th[k][self.molecule].thermo for k in ("Ng", "1g")}
-    # Get state-specific energies
-    ei = th["Ng"].int.e
     # Compute total density and energy at t=0
+    # -----------------------
     n0 = tf.math.reduce_sum(ni0, axis=-1, keepdims=True)
-    e0 = tf.math.reduce_sum(ni0 * ei, axis=-1, keepdims=True) / n0
-    # Compute temperatures
-    T0, Tt = [th["1g"].int._update_interp_inv(e) for e in (e0, et)]
+    if (self.boltz_rescale_order > 0):
+      # Get state-specific energies
+      ei = th["Ng"].int.e
+      # Get total energy
+      e0 = tf.math.reduce_sum(ni0 * ei, axis=-1, keepdims=True) / n0
+      # Compute temperatures
+      T0, Tt = [th["1g"].int._update_interp_inv(e) for e in (e0, et)]
     # Compute rescaling factor
-    dB = (self.mk * (1/T0-1/Tt)) * ei
-    dB = nt/n0 * tf.math.exp(dB)
+    # -----------------------
+    dB = nt/n0
+    if (self.boltz_rescale_order > 0):
+      dB = dB * tf.math.exp((self.mk * (1/T0-1/Tt)) * ei)
     return dB
 
   # Reaction rates
@@ -376,10 +384,10 @@ class FwdEulerME(nn_elem.Layer):
   def correct_fwd_rates(self, rates, f):
     # Excitation processes
     fe = tf.einsum("ni,nj->nij", f[0], -f[0]) if self.use_state_corr else f[0]
-    rates["kef"] *= tf.math.exp(fe)
+    rates["kef"] = rates["kef"] * tf.math.exp(fe)
     # Dissociation processes
     fd = f[0] if self.use_state_corr else f[1]
-    rates["kd"] *= tf.math.exp(fd)
+    rates["kd"] = rates["kd"] * tf.math.exp(fd)
     return rates
 
   def compute_bwd_rates(self, rates):
@@ -410,7 +418,8 @@ class FwdEulerME(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
       "specie_thermos": sp_th,
-      "use_state_corr": self.use_state_corr
+      "use_state_corr": self.use_state_corr,
+      "boltz_rescale_order": self.boltz_rescale_order
     }
     base_config = super(FwdEulerME, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

@@ -61,7 +61,7 @@ class MEIntCorrFE(BaseNet):
 
   def init_kernel_layers(self):
     lay_ids = {
-      "fwd_euler": "FwdEulerIsoME"
+      "fwd_euler": "FwdEulerME"
     }
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
