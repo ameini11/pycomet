@@ -268,6 +268,7 @@ class MEOperators(nn_elem.Layer):
       "filename": None,
       "config": None
     },
+    use_corr=True,
     use_state_corr=False,
     **kwargs
   ):
@@ -286,6 +287,8 @@ class MEOperators(nn_elem.Layer):
       lambda x: tf.constant(np.expand_dims(ops.to_numpy(x).squeeze(), axis=0)),
       self.rates
     )
+    # Use correction
+    self.use_corr = use_corr
     # Use node-wise correction
     self.use_state_corr = use_state_corr
 
@@ -311,7 +314,8 @@ class MEOperators(nn_elem.Layer):
     # Compute fwd reaction rates
     rates = self.compute_fwd_rates(T)
     # Correct fwd reaction rates
-    rates = self.correct_fwd_rates(rates, f)
+    if self.use_corr:
+      rates = self.correct_fwd_rates(rates, f)
     # Compute bwd reaction rates
     return self.compute_bwd_rates(rates)
 
@@ -320,7 +324,7 @@ class MEOperators(nn_elem.Layer):
     ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
     ke_diag = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
     ke = tf.transpose(ke, perm=[0,2,1]) - ke_diag
-    k = (ke - tf.linalg.diag(rates["kd"])) * na
+    k = (ke - tf.linalg.diag(rates["kd"])) * tf.expand_dims(na, axis=-1)
     # > Recombination processes
     wr = rates["kr"] * na**3
     return k, wr
@@ -356,7 +360,7 @@ class MEOperators(nn_elem.Layer):
     return rates
 
   def compute_bwd_rates(self, rates):
-    qa, qm = [st.pf.tot.Q for st in self.sp_th["Ng"].values()]
+    qa, qm = [st.pf.tot.Q for st in self.sp_th.values()]
     # Excitation processes
     rates["keb"] = tf.einsum("nij,ni,nj->nij", rates["kef"], qm, 1/qm)
     # Dissociation processes
@@ -397,6 +401,7 @@ class FwdEulerME(nn_elem.Layer):
         "config": None
       }
     },
+    use_corr=True,
     use_state_corr=False,
     boltz_rescale_order=0,
     **kwargs
@@ -406,6 +411,7 @@ class FwdEulerME(nn_elem.Layer):
     self.ops_lay = MEOperators(
       rates=rates,
       specie_thermos=specie_thermos["Ng"],
+      use_corr=use_corr,
       use_state_corr=use_state_corr
     )
     # Species thermodynamics
@@ -485,42 +491,78 @@ class MatExpME(nn_elem.Layer):
       "filename": None,
       "config": None
     },
+    use_corr=True,
     use_state_corr=False,
     **kwargs
   ):
     super(MatExpME, self).__init__(**kwargs)
     # Operators layer
-    self.ops_lay = MEOperators(
+    self.compute_ops = MEOperators(
       rates=rates,
       specie_thermos=specie_thermos,
+      use_corr=use_corr,
       use_state_corr=use_state_corr
     )
+
+  # # Calling
+  # # ===================================
+  # def call(self, inputs, training=False):
+  #   qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
+  #   # Extract time-dependent QoI
+  #   # t, na, T = tf.split(qt, num_or_size_splits=3, axis=1)
+  #   t, na, _nm, T, _em = tf.split(qt, num_or_size_splits=5, axis=1)
+  #   # Compute operators
+  #   k, wr = self.compute_ops((na, T, f))
+  #   # Construct solution operators
+  #   # > f = exp(K)
+  #   exp_k = tf.linalg.expm(k * tf.expand_dims(t, axis=-1))
+  #   # > f = K^(-1)
+  #   k_inv = tf.linalg.inv(k)
+  #   # > f = exp(K) - I
+  #   exp_k_I = tf.linalg.set_diag(
+  #     input=exp_k,
+  #     diagonal=tf.linalg.diag_part(exp_k) - 1.0
+  #   )
+  #   # Compute solution
+  #   # > f = exp(K) @ nm0 + (exp(K) - I) @ K^(-1) @ wr
+  #   nm = tf.einsum("nij,nj->ni", exp_k, nm0)
+  #   nm += tf.einsum("nij,njk,nk->ni", exp_k_I, k_inv, wr)
+  #   return nm
 
   # Calling
   # ===================================
   def call(self, inputs, training=False):
     qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
     # Extract time-dependent QoI
-    t, na, T = tf.split(qt, num_or_size_splits=3, axis=1)
+    # t, na, T = tf.split(qt, num_or_size_splits=3, axis=1)
+    t, na, _nm, T, _em = tf.split(qt, num_or_size_splits=5, axis=1)
     # Compute operators
-    k, wr = self.ops_lay((na, T, f))
+    k, wr = self.compute_ops((na, T, f))
     # Eigen-decomposition of the linear operator
+    # > K = V @ S @ V^(-1)
     lam_k = self._decompose(k)
     # Construct solution operators
-    exp_k = self._reconstruct(z=tf.math.exp(t*lam_k))
-    k_inv = self._reconstruct(z=1/lam_k)
+    # > f = exp(K)
+    exp_k = self._reconstruct(tf.math.exp(t*lam_k))
+    # > f = K^(-1)
+    k_inv = self._reconstruct(1/lam_k)
+    # > f = exp(K) - I
+    exp_k_I = tf.linalg.set_diag(
+      input=exp_k,
+      diagonal=tf.linalg.diag_part(exp_k) - 1.0
+    )
     # Compute solution
-    # > nm = exp_k @ nm0 + (exp_k-I) @ k_inv @ wr
+    # > f = exp(K) @ nm0 + (exp(K) - I) @ K^(-1) @ wr
     nm = tf.einsum("nij,nj->ni", exp_k, nm0)
-    nm += tf.einsum("nij,njk,nk->ni", exp_k-self.I, k_inv, wr)
+    nm += tf.einsum("nij,njk,nk->ni", exp_k_I, k_inv, wr)
     return nm
 
   def _decompose(self, x):
-    lam, self.v = tf.linalg.eig(x)
-    self.v_inv = tf.linalg.inv(self.v)
+    lam, v = tf.linalg.eig(x)
+    v_inv = tf.linalg.inv(v)
+    lam, self.v, self.v_inv = [tf.math.real(x) for x in (lam, v, v_inv)]
     return lam
 
   def _reconstruct(self, x):
-    return tf.einsum(
-      "nij,njk,nkl->nil", self.v, tf.linalg.diag(x), self.v_inv
-    )
+    # > f = V @ diag(x) @ V^(-1)
+    return tf.einsum("nij,nj,njk->nik", self.v, x, self.v_inv)
