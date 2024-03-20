@@ -14,6 +14,7 @@ __all__.extend([
   "FwdExcRateCorr",
   "FwdRateCorr",
   "FwdEulerME",
+  "MatExpME",
   "MEIntCorrFE"
 ])
 

@@ -256,45 +256,28 @@ class FwdRateCorr(object):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class FwdEulerME(nn_elem.Layer):
-  """Forward Euler-type update for the master equation."""
+class MEOperators(nn_elem.Layer):
+  """Compute the master equation operators for triatomic systems."""
 
   # Initialization
   # ===================================
   def __init__(
     self,
     rates=None,
-    molecule=None,
     specie_thermos={
-      # N-groups model
-      "Ng": {
-        "filename": None,
-        "config": None
-      },
-      # 1-group model
-      "1g": {
-        "filename": None,
-        "config": None
-      }
+      "filename": None,
+      "config": None
     },
     use_state_corr=False,
-    boltz_rescale_order=0,
     **kwargs
   ):
-    super(FwdEulerME, self).__init__(**kwargs)
+    super(MEOperators, self).__init__(**kwargs)
     # Species thermodynamics
-    self.molecule = molecule
     self._sp_th_common = {
       "thermo_process": 1,
       "eos_model": "PerfectGas"
     }
-    self.sp_th = {
-      k: self._build_sp_th(specie_thermos[k]) for k in ("Ng", "1g")
-    }
-    self.th_int = {
-      k: self.sp_th[k][self.molecule].thermo.int for k in ("Ng", "1g")
-    }
-    self.mk = self.sp_th["Ng"][self.molecule].specie.m / const.UKB
+    self.sp_th = self._build_sp_th(specie_thermos)
     # Reaction rates
     self.rates = rates
     if isinstance(self.rates, str):
@@ -305,8 +288,6 @@ class FwdEulerME(nn_elem.Layer):
     )
     # Use node-wise correction
     self.use_state_corr = use_state_corr
-    # Boltzmann-based rescaling order
-    self.boltz_rescale_order = boltz_rescale_order
 
   def _build_sp_th(self, specie_thermos):
     specie_thermos.update(self._sp_th_common)
@@ -317,43 +298,15 @@ class FwdEulerME(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=False):
-    qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
-    # Extract time-dependent QoI
-    t, na, nm, T, em = tf.split(qt, num_or_size_splits=5, axis=1)
+    # Extract inputs
+    na, T, f = utils.unpack_list(inputs, nb_elem=3)
     # Update species thermodynamics
-    st_mod.update_specie_thermos(self.sp_th["Ng"], T)
-    # Boltzmann-based rescaling
-    nm0 = nm0 * self.boltz_rescale(nm0, nm, em)
+    st_mod.update_specie_thermos(self.sp_th, T)
     # Compute reaction rates
     rates = self.compute_rates(T, f)
-    # Compute source terms
-    w = self.compute_sources(na, nm0, rates)
-    # Return linear update
-    return nm0 + t * w
+    # Compute operators
+    return self.compute_ops(rates, na)
 
-  # Boltzmann-based rescaling
-  # -----------------------------------
-  def boltz_rescale(self, ni0, nt, et):
-    th = {k: self.sp_th[k][self.molecule].thermo for k in ("Ng", "1g")}
-    # Compute total density and energy at t=0
-    # -----------------------
-    n0 = tf.math.reduce_sum(ni0, axis=-1, keepdims=True)
-    if (self.boltz_rescale_order > 0):
-      # Get state-specific energies
-      ei = th["Ng"].int.e
-      # Get total energy
-      e0 = tf.math.reduce_sum(ni0 * ei, axis=-1, keepdims=True) / n0
-      # Compute temperatures
-      T0, Tt = [th["1g"].int._update_interp_inv(e) for e in (e0, et)]
-    # Compute rescaling factor
-    # -----------------------
-    dB = nt/n0
-    if (self.boltz_rescale_order > 0):
-      dB = dB * tf.math.exp((self.mk * (1/T0-1/Tt)) * ei)
-    return dB
-
-  # Reaction rates
-  # -----------------------------------
   def compute_rates(self, T, f):
     # Compute fwd reaction rates
     rates = self.compute_fwd_rates(T)
@@ -362,6 +315,18 @@ class FwdEulerME(nn_elem.Layer):
     # Compute bwd reaction rates
     return self.compute_bwd_rates(rates)
 
+  def compute_ops(self, rates, na):
+    # > Excitation-Relaxation-Dissociation processes
+    ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
+    ke_diag = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
+    ke = tf.transpose(ke, perm=[0,2,1]) - ke_diag
+    k = (ke - tf.linalg.diag(rates["kd"])) * na
+    # > Recombination processes
+    wr = rates["kr"] * na**3
+    return k, wr
+
+  # Reaction rates
+  # -----------------------------------
   def compute_fwd_rates(self, T):
     # Precompute temperature vectors
     ln_T, ov_T = tf.math.log(T), 1/T
@@ -398,17 +363,99 @@ class FwdEulerME(nn_elem.Layer):
     rates["kr"] = rates["kd"] * qm * (1/(qa**2))
     return rates
 
-  # Source terms
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "specie_thermos": {"config": self.sp_th.get_config()},
+      "use_state_corr": self.use_state_corr
+    }
+    base_config = super(MEOperators, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class FwdEulerME(nn_elem.Layer):
+  """Forward Euler-type update for the master equation."""
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    rates=None,
+    molecule=None,
+    specie_thermos={
+      # N-groups model
+      "Ng": {
+        "filename": None,
+        "config": None
+      },
+      # 1-group model
+      "1g": {
+        "filename": None,
+        "config": None
+      }
+    },
+    use_state_corr=False,
+    boltz_rescale_order=0,
+    **kwargs
+  ):
+    super(FwdEulerME, self).__init__(**kwargs)
+    # Operators layer
+    self.ops_lay = MEOperators(
+      rates=rates,
+      specie_thermos=specie_thermos["Ng"],
+      use_state_corr=use_state_corr
+    )
+    # Species thermodynamics
+    self.molecule = molecule
+    self.sp_th = {
+      "Ng": self.ops_lay.sp_th,
+      "1g": self.ops_lay._build_sp_th(specie_thermos["1g"])
+    }
+    self.th_int = {
+      k: self.sp_th[k][self.molecule].thermo.int for k in ("Ng", "1g")
+    }
+    self.mk = self.sp_th["Ng"][self.molecule].specie.m / const.UKB
+    # Boltzmann-based rescaling order
+    self.boltz_rescale_order = boltz_rescale_order
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=False):
+    qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
+    # Extract time-dependent QoI
+    t, na, nm, T, em = tf.split(qt, num_or_size_splits=5, axis=1)
+    # Compute operators
+    k, wr = self.ops_lay((na, T, f))
+    # Boltzmann-based rescaling
+    nm0 *= self.boltz_rescale(nm0, nm, em)
+    # Compute source term
+    w = tf.einsum("nij,nj->ni", k, nm0) + wr
+    # Return linear update
+    return nm0 + t * w
+
+  # Boltzmann-based rescaling
   # -----------------------------------
-  def compute_sources(self, na, nm, rates):
-    # Excitation processes
-    ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
-    ked = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
-    ke = tf.transpose(ke, perm=[0,2,1]) - ked
-    we = tf.einsum("nij,nj->ni", ke, nm*na)
-    # Dissociation process
-    wd = rates["kr"]*na**3 - rates["kd"]*nm*na
-    return we + wd
+  def boltz_rescale(self, ni0, nt, et):
+    th = {k: self.sp_th[k][self.molecule].thermo for k in ("Ng", "1g")}
+    # Compute total density and energy at t=0
+    # -----------------------
+    n0 = tf.math.reduce_sum(ni0, axis=-1, keepdims=True)
+    if (self.boltz_rescale_order > 0):
+      # Get state-specific energies
+      ei = th["Ng"].int.e
+      # Get total energy
+      e0 = tf.math.reduce_sum(ni0 * ei, axis=-1, keepdims=True) / n0
+      # Compute temperatures
+      T0, Tt = [th["1g"].int._update_interp_inv(e) for e in (e0, et)]
+    # Compute rescaling factor
+    # -----------------------
+    dB = nt/n0
+    if (self.boltz_rescale_order > 0):
+      dB = dB * tf.math.exp((self.mk * (1/T0-1/Tt)) * ei)
+    return dB
 
   # Configuration update
   # ===================================
@@ -423,3 +470,57 @@ class FwdEulerME(nn_elem.Layer):
     }
     base_config = super(FwdEulerME, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class MatExpME(nn_elem.Layer):
+  """Matrix exponential-type update for the master equation."""
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    rates=None,
+    specie_thermos={
+      "filename": None,
+      "config": None
+    },
+    use_state_corr=False,
+    **kwargs
+  ):
+    super(MatExpME, self).__init__(**kwargs)
+    # Operators layer
+    self.ops_lay = MEOperators(
+      rates=rates,
+      specie_thermos=specie_thermos,
+      use_state_corr=use_state_corr
+    )
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=False):
+    qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
+    # Extract time-dependent QoI
+    t, na, T = tf.split(qt, num_or_size_splits=3, axis=1)
+    # Compute operators
+    k, wr = self.ops_lay((na, T, f))
+    # Eigen-decomposition of the linear operator
+    lam_k = self._decompose(k)
+    # Construct solution operators
+    exp_k = self._reconstruct(z=tf.math.exp(t*lam_k))
+    k_inv = self._reconstruct(z=1/lam_k)
+    # Compute solution
+    # > nm = exp_k @ nm0 + (exp_k-I) @ k_inv @ wr
+    nm = tf.einsum("nij,nj->ni", exp_k, nm0)
+    nm += tf.einsum("nij,njk,nk->ni", exp_k-self.I, k_inv, wr)
+    return nm
+
+  def _decompose(self, x):
+    lam, self.v = tf.linalg.eig(x)
+    self.v_inv = tf.linalg.inv(self.v)
+    return lam
+
+  def _reconstruct(self, x):
+    return tf.einsum(
+      "nij,njk,nkl->nil", self.v, tf.linalg.diag(x), self.v_inv
+    )
