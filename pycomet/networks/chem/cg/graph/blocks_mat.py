@@ -370,9 +370,10 @@ class MEOperators(nn_elem.Layer):
   # Configuration update
   # ===================================
   def get_config(self):
+    sp_th_cfg = tf.nest.map_structure(lambda st: st.get_config(), self.sp_th)
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
-      "specie_thermos": {"config": self.sp_th.get_config()},
+      "specie_thermos": {"config": sp_th_cfg},
       "use_state_corr": self.use_state_corr
     }
     base_config = super(MEOperators, self).get_config()
@@ -497,37 +498,13 @@ class MatExpME(nn_elem.Layer):
   ):
     super(MatExpME, self).__init__(**kwargs)
     # Operators layer
-    self.compute_ops = MEOperators(
+    self.operators = MEOperators(
       rates=rates,
       specie_thermos=specie_thermos,
       use_corr=use_corr,
       use_state_corr=use_state_corr
     )
-
-  # # Calling
-  # # ===================================
-  # def call(self, inputs, training=False):
-  #   qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
-  #   # Extract time-dependent QoI
-  #   # t, na, T = tf.split(qt, num_or_size_splits=3, axis=1)
-  #   t, na, _nm, T, _em = tf.split(qt, num_or_size_splits=5, axis=1)
-  #   # Compute operators
-  #   k, wr = self.compute_ops((na, T, f))
-  #   # Construct solution operators
-  #   # > f = exp(K)
-  #   exp_k = tf.linalg.expm(k * tf.expand_dims(t, axis=-1))
-  #   # > f = K^(-1)
-  #   k_inv = tf.linalg.inv(k)
-  #   # > f = exp(K) - I
-  #   exp_k_I = tf.linalg.set_diag(
-  #     input=exp_k,
-  #     diagonal=tf.linalg.diag_part(exp_k) - 1.0
-  #   )
-  #   # Compute solution
-  #   # > f = exp(K) @ nm0 + (exp(K) - I) @ K^(-1) @ wr
-  #   nm = tf.einsum("nij,nj->ni", exp_k, nm0)
-  #   nm += tf.einsum("nij,njk,nk->ni", exp_k_I, k_inv, wr)
-  #   return nm
+    self.linode = nn_elem.LinODE()
 
   # Calling
   # ===================================
@@ -537,32 +514,6 @@ class MatExpME(nn_elem.Layer):
     # t, na, T = tf.split(qt, num_or_size_splits=3, axis=1)
     t, na, _nm, T, _em = tf.split(qt, num_or_size_splits=5, axis=1)
     # Compute operators
-    k, wr = self.compute_ops((na, T, f))
-    # Eigen-decomposition of the linear operator
-    # > K = V @ S @ V^(-1)
-    lam_k = self._decompose(k)
-    # Construct solution operators
-    # > f = exp(K)
-    exp_k = self._reconstruct(tf.math.exp(t*lam_k))
-    # > f = K^(-1)
-    k_inv = self._reconstruct(1/lam_k)
-    # > f = exp(K) - I
-    exp_k_I = tf.linalg.set_diag(
-      input=exp_k,
-      diagonal=tf.linalg.diag_part(exp_k) - 1.0
-    )
+    k, wr = self.operators((na, T, f), training=training)
     # Compute solution
-    # > f = exp(K) @ nm0 + (exp(K) - I) @ K^(-1) @ wr
-    nm = tf.einsum("nij,nj->ni", exp_k, nm0)
-    nm += tf.einsum("nij,njk,nk->ni", exp_k_I, k_inv, wr)
-    return nm
-
-  def _decompose(self, x):
-    lam, v = tf.linalg.eig(x)
-    v_inv = tf.linalg.inv(v)
-    lam, self.v, self.v_inv = [tf.math.real(x) for x in (lam, v, v_inv)]
-    return lam
-
-  def _reconstruct(self, x):
-    # > f = V @ diag(x) @ V^(-1)
-    return tf.einsum("nij,nj,njk->nik", self.v, x, self.v_inv)
+    return self.linode((t, nm0, k, wr), training=training)

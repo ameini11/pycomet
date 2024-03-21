@@ -509,7 +509,7 @@ class StdNormalization(Layer):
 
   # Building
   # ===================================
-  def build(self, input_shape):    
+  def build(self, input_shape):
     return self.norm_lay.build(input_shape)
 
   # Calling
@@ -1011,4 +1011,110 @@ class GatheredAdd(tf_layers.Add):
       'gathered': self.gathered
     }
     base_config = super(GatheredAdd, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class Eigen(Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    real_only=True,
+    **kwargs
+  ):
+    super(Eigen, self).__init__(**kwargs)
+    self.real_only = real_only
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None, mode="decompose"):
+    if (mode == "decompose"):
+      return self.decompose(inputs)
+    else:
+      return self.reconstruct(inputs)
+
+  def decompose(self, x):
+    l, v = tf.linalg.eig(x)
+    vinv = tf.linalg.inv(v)
+    if self.real_only:
+      l, v, vinv = [tf.math.real(z) for z in (l, v, vinv)]
+    self.v, self.vinv = v, vinv
+    return l
+
+  def reconstruct(self, x):
+    # f(x) = V @ diag(x) @ V^(-1)
+    return tf.einsum("nij,nj,njk->nik", self.v, x, self.vinv)
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "real_only": self.real_only
+    }
+    base_config = super(Eigen, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class LinODE(Layer):
+  """
+  Integral solution of linear ODE with constant coefficients:
+    > dydt = a @ y + b
+    > y(t) = exp(At) @ y0 + (exp(At)-I) @ A^(-1) @ b
+  """
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    use_eig=True,
+    real_only=True,
+    **kwargs
+  ):
+    super(LinODE, self).__init__(**kwargs)
+    self.use_eig = use_eig
+    self.real_only = real_only
+    if self.use_eig:
+      self.eigen = Eigen(real_only=self.real_only)
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
+    if self.use_eig:
+      expa, ainv = self.apply_eig(t, a, training)
+    else:
+      expa = tf.linalg.expm(a * tf.expand_dims(t, axis=-1))
+      ainv = tf.linalg.inv(a)
+    # Op: exp(At)-I
+    expa_i = tf.linalg.set_diag(
+      input=expa,
+      diagonal=tf.linalg.diag_part(expa) - 1.0
+    )
+    # Compute solution
+    y = tf.einsum("nij,nj->ni", expa, y0) \
+      + tf.einsum("nij,njk,nk->ni", expa_i, ainv, b)
+    return y
+
+  def apply_eig(self, t, a, training=None):
+    # Eigen-decomposition of the linear operator
+    # > A = V @ S @ V^(-1)
+    l = self.eigen(a, training=training, mode="decompose")
+    # Compute solution operators
+    # Op: exp(At)
+    expa = self.eigen(tf.math.exp(t*l), training=training, mode="reconstruct")
+    # Op: A^(-1)
+    ainv = self.eigen(1/l, training=training, mode="reconstruct")
+    return expa, ainv
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "use_eig": self.use_eig,
+      "real_only": self.real_only
+    }
+    base_config = super(LinODE, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
