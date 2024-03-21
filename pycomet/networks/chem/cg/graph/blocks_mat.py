@@ -66,7 +66,6 @@ class PFCorr(nn_elem.FFBlock):
     features = _compose_feat(inputs, self.static_prop, self.nb_comp)
     # Predict corrective factor
     f = super(PFCorr, self).call(features, training=training)
-    f = tf.squeeze(f, axis=-1)
     return (f,)
 
   # Configuration update
@@ -269,7 +268,9 @@ class MEOperators(nn_elem.Layer):
       "config": None
     },
     use_corr=True,
+    use_tril_corr=False,
     use_state_corr=False,
+    use_state_corr_lin=True,
     **kwargs
   ):
     super(MEOperators, self).__init__(**kwargs)
@@ -287,10 +288,11 @@ class MEOperators(nn_elem.Layer):
       lambda x: tf.constant(np.expand_dims(ops.to_numpy(x).squeeze(), axis=0)),
       self.rates
     )
-    # Use correction
+    # Corrections
     self.use_corr = use_corr
-    # Use node-wise correction
+    self.use_tril_corr = use_tril_corr
     self.use_state_corr = use_state_corr
+    self.use_state_corr_lin = use_state_corr_lin
 
   def _build_sp_th(self, specie_thermos):
     specie_thermos.update(self._sp_th_common)
@@ -311,13 +313,22 @@ class MEOperators(nn_elem.Layer):
     return self.compute_ops(rates, na)
 
   def compute_rates(self, T, f):
+    # Compose corrections
+    if self.use_corr:
+      fe, fd = self.compose_corr(f)
     # Compute fwd reaction rates
     rates = self.compute_fwd_rates(T)
     # Correct fwd reaction rates
-    if self.use_corr:
-      rates = self.correct_fwd_rates(rates, f)
+    if (self.use_corr and (not self.use_tril_corr)):
+      rates["kef"] *= fe
+      rates["kd"] *= fd
     # Compute bwd reaction rates
-    return self.compute_bwd_rates(rates)
+    rates = self.compute_bwd_rates(rates)
+    # Correct bwd reaction rates
+    if (self.use_corr and self.use_tril_corr):
+      rates["keb"] *= fe
+      rates["kr"] *= fd
+    return rates
 
   def compute_ops(self, rates, na):
     # > Excitation-Relaxation-Dissociation processes
@@ -328,6 +339,25 @@ class MEOperators(nn_elem.Layer):
     # > Recombination processes
     wr = rates["kr"] * na**3
     return k, wr
+
+  # Reaction rates corrections
+  # -----------------------------------
+  def compose_corr(self, f):
+    if self.use_state_corr:
+      if self.use_state_corr_lin:
+        # Excitation processes
+        fe = tf.math.exp(tf.einsum("nik,njk->nij", f[0], -f[0]))
+        # Dissociation processes
+        fd = tf.math.exp(tf.einsum("nik->ni", f[0]))
+        return fe, fd
+      else:
+        # Excitation processes
+        fe = tf.math.exp(tf.einsum("nik,njk->nijk", f[0], -f[0]))
+        # Dissociation processes
+        fd = tf.math.exp(f[0])
+        return [tf.math.reduce_sum(fi, axis=-1) for fi in (fe, fd)]
+    else:
+      return [tf.math.exp(fi) for fi in f]
 
   # Reaction rates
   # -----------------------------------
@@ -350,15 +380,6 @@ class MEOperators(nn_elem.Layer):
     # Apply Arrhenius law
     return A * tf.math.exp(beta*ln_T - Ta*ov_T)
 
-  def correct_fwd_rates(self, rates, f):
-    # Excitation processes
-    fe = tf.einsum("ni,nj->nij", f[0], -f[0]) if self.use_state_corr else f[0]
-    rates["kef"] = rates["kef"] * tf.math.exp(fe)
-    # Dissociation processes
-    fd = f[0] if self.use_state_corr else f[1]
-    rates["kd"] = rates["kd"] * tf.math.exp(fd)
-    return rates
-
   def compute_bwd_rates(self, rates):
     qa, qm = [st.pf.tot.Q for st in self.sp_th.values()]
     # Excitation processes
@@ -374,7 +395,10 @@ class MEOperators(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
       "specie_thermos": {"config": sp_th_cfg},
-      "use_state_corr": self.use_state_corr
+      "use_corr": self.use_corr,
+      "use_tril_corr": self.use_tril_corr,
+      "use_state_corr": self.use_state_corr,
+      "use_state_corr_lin": self.use_state_corr_lin
     }
     base_config = super(MEOperators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -403,23 +427,28 @@ class FwdEulerME(nn_elem.Layer):
       }
     },
     use_corr=True,
+    use_tril_corr=False,
     use_state_corr=False,
+    use_state_corr_lin=True,
     boltz_rescale_order=0,
     **kwargs
   ):
     super(FwdEulerME, self).__init__(**kwargs)
+    self.specie_thermos = specie_thermos
     # Operators layer
-    self.ops_lay = MEOperators(
+    self.operators = MEOperators(
       rates=rates,
-      specie_thermos=specie_thermos["Ng"],
+      specie_thermos=self.specie_thermos["Ng"],
       use_corr=use_corr,
-      use_state_corr=use_state_corr
+      use_tril_corr=use_tril_corr,
+      use_state_corr=use_state_corr,
+      use_state_corr_lin=use_state_corr_lin
     )
     # Species thermodynamics
     self.molecule = molecule
     self.sp_th = {
-      "Ng": self.ops_lay.sp_th,
-      "1g": self.ops_lay._build_sp_th(specie_thermos["1g"])
+      "Ng": self.operators.sp_th,
+      "1g": self.operators._build_sp_th(self.specie_thermos["1g"])
     }
     self.th_int = {
       k: self.sp_th[k][self.molecule].thermo.int for k in ("Ng", "1g")
@@ -435,7 +464,7 @@ class FwdEulerME(nn_elem.Layer):
     # Extract time-dependent QoI
     t, na, nm, T, em = tf.split(qt, num_or_size_splits=5, axis=1)
     # Compute operators
-    k, wr = self.ops_lay((na, T, f))
+    k, wr = self.operators((na, T, f))
     # Boltzmann-based rescaling
     nm0 *= self.boltz_rescale(nm0, nm, em)
     # Compute source term
@@ -470,9 +499,8 @@ class FwdEulerME(nn_elem.Layer):
     sp_th_cfg = tf.nest.map_structure(lambda st: st.get_config(), self.sp_th)
     sp_th = {k: {"config": stk_cfg} for (k, stk_cfg) in sp_th_cfg.items()}
     config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "molecule": self.molecule,
       "specie_thermos": sp_th,
-      "use_state_corr": self.use_state_corr,
       "boltz_rescale_order": self.boltz_rescale_order
     }
     base_config = super(FwdEulerME, self).get_config()
@@ -493,7 +521,9 @@ class MatExpME(nn_elem.Layer):
       "config": None
     },
     use_corr=True,
+    use_tril_corr=False,
     use_state_corr=False,
+    use_state_corr_lin=True,
     **kwargs
   ):
     super(MatExpME, self).__init__(**kwargs)
@@ -502,7 +532,9 @@ class MatExpME(nn_elem.Layer):
       rates=rates,
       specie_thermos=specie_thermos,
       use_corr=use_corr,
-      use_state_corr=use_state_corr
+      use_tril_corr=use_tril_corr,
+      use_state_corr=use_state_corr,
+      use_state_corr_lin=use_state_corr_lin
     )
     self.linode = nn_elem.LinODE()
 
