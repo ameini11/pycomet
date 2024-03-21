@@ -1062,7 +1062,7 @@ class LinODE(Layer):
   """
   Integral solution of linear ODE with constant coefficients:
     > dydt = a @ y + b
-    > y(t) = exp(At) @ y0 + (exp(At)-I) @ A^(-1) @ b
+    > y(t) = exp(a*t) @ y0 + (exp(a*t)-I) @ a^(-1) @ b
   """
 
   # Initialization
@@ -1099,10 +1099,10 @@ class LinODE(Layer):
     return y
 
   def apply_eig(self, t, a, training=None):
-    # Eigen-decomposition of the linear operator
+    # Eigen-decomposition
     # > A = V @ S @ V^(-1)
     l = self.eigen(a, training=training, mode="decompose")
-    # Compute solution operators
+    # Compute operators
     # Op: exp(At)
     expa = self.eigen(tf.math.exp(t*l), training=training, mode="reconstruct")
     # Op: A^(-1)
