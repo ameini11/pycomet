@@ -1021,10 +1021,12 @@ class Eigen(Layer):
   # ===================================
   def __init__(
     self,
+    use_pinv=False,
     real_only=True,
     **kwargs
   ):
     super(Eigen, self).__init__(**kwargs)
+    self.use_pinv = use_pinv
     self.real_only = real_only
 
   # Calling
@@ -1037,7 +1039,7 @@ class Eigen(Layer):
 
   def decompose(self, x):
     l, v = tf.linalg.eig(x)
-    vinv = tf.linalg.inv(v)
+    vinv = tf.linalg.pinv(v) if self.use_pinv else tf.linalg.inv(v)
     if self.real_only:
       l, v, vinv = [tf.math.real(z) for z in (l, v, vinv)]
     self.v, self.vinv = v, vinv
@@ -1051,6 +1053,7 @@ class Eigen(Layer):
   # ===================================
   def get_config(self):
     config = {
+      "use_pinv": self.use_pinv,
       "real_only": self.real_only
     }
     base_config = super(Eigen, self).get_config()
@@ -1070,14 +1073,19 @@ class LinODE(Layer):
   def __init__(
     self,
     use_eig=True,
+    use_pinv=True,
     real_only=True,
     **kwargs
   ):
     super(LinODE, self).__init__(**kwargs)
     self.use_eig = use_eig
+    self.use_pinv = use_pinv
     self.real_only = real_only
     if self.use_eig:
-      self.eigen = Eigen(real_only=self.real_only)
+      self.eigen = Eigen(
+        use_pinv=self.use_pinv,
+        real_only=self.real_only
+      )
 
   # Calling
   # ===================================
@@ -1087,7 +1095,7 @@ class LinODE(Layer):
       expa, ainv = self.apply_eig(t, a, training)
     else:
       expa = tf.linalg.expm(a * tf.expand_dims(t, axis=-1))
-      ainv = tf.linalg.inv(a)
+      ainv = tf.linalg.pinv(a) if self.use_pinv else tf.linalg.inv(a)
     # Op: exp(At)-I
     expa_i = tf.linalg.set_diag(
       input=expa,
@@ -1114,6 +1122,7 @@ class LinODE(Layer):
   def get_config(self):
     config = {
       "use_eig": self.use_eig,
+      "use_pinv": self.use_pinv,
       "real_only": self.real_only
     }
     base_config = super(LinODE, self).get_config()

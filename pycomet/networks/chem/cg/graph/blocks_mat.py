@@ -520,6 +520,9 @@ class MatExpME(nn_elem.Layer):
       "filename": None,
       "config": None
     },
+    use_eig=True,
+    use_pinv=False,
+    real_only=True,
     use_corr=True,
     use_tril_corr=False,
     use_state_corr=False,
@@ -536,7 +539,11 @@ class MatExpME(nn_elem.Layer):
       use_state_corr=use_state_corr,
       use_state_corr_lin=use_state_corr_lin
     )
-    self.linode = nn_elem.LinODE()
+    self.linode = nn_elem.LinODE(
+      use_eig=use_eig,
+      use_pinv=use_pinv,
+      real_only=real_only
+    )
 
   # Calling
   # ===================================
@@ -548,4 +555,5 @@ class MatExpME(nn_elem.Layer):
     # Compute operators
     k, wr = self.operators((na, T, f), training=training)
     # Compute solution
-    return self.linode((t, nm0, k, wr), training=training)
+    y =  self.linode((t, nm0, k, wr), training=training)
+    return y
