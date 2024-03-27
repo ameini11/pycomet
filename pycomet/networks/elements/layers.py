@@ -1061,6 +1061,148 @@ class Eigen(Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class MatrixExp(Layer):
+  """
+  Computing the matrix exponential with an optimized Taylor polynomial
+  approximation.
+
+  See:
+    https://doi.org/10.3390/math7121174
+  """
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    approx_deg=-1,
+    **kwargs
+  ):
+    super(MatrixExp, self).__init__(**kwargs)
+    self.approx_deg = approx_deg
+
+  # Building
+  # ===================================
+  def build(self, *args, **kwargs):
+    if (self.approx_deg > 0):
+      if (self.approx_deg == 12):
+        self.set_coeff_t12()
+      else:
+        self.set_coeff_t8()
+      self.w = {}
+      for (name, wi) in self.weights.items():
+        self.w[name] = self.add_weight(
+          name=name,
+          shape=wi.shape,
+          dtype=bkd.get_floatx(),
+          initializer=lambda shape, dtype: wi,
+          trainable=False
+        )
+    self.built = True
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    if (self.approx_deg < 0):
+      # Padé approximants
+      return tf.linalg.expm(inputs)
+    else:
+      shape = list(tf.shape(inputs))
+      A = tf.reshape(inputs, (-1,*shape[-2:]))
+      I = tf.eye(
+        tf.shape(A)[-2],
+        batch_shape=tf.shape(A)[:-2],
+        dtype=A.dtype
+      )
+      if (self.approx_deg == 12):
+        T = self.compute_t12(I, A)
+      else:
+        T = self.compute_t8(I, A)
+      return tf.reshape(T, shape)
+
+  # Polynomial of degree k=8
+  # ===================================
+  def set_coeff_t8(self):
+    # Initialize weights
+    x, y = np.ones(7), np.ones(3)
+    sqrt_177 = 0.1330413469565007072504e+2
+    x[2] = 2. / 3.
+    x[0] = x[2] * ((1. + sqrt_177) / 88.)
+    x[1] = x[2] * ((1. + sqrt_177) / 352.)
+    x[3] = (-271. + 29. * sqrt_177) / (315. * x[2])
+    x[4] = (-11. + 11. * sqrt_177) / (1260. * x[2])
+    x[5] = (-99. + 11. * sqrt_177) / (5040. * x[2])
+    x[6] = (89. - sqrt_177) / (5040. * x[2])
+    y[2] = (857. - 58. * sqrt_177) / 630.
+    # Set weights
+    self.weights = {
+      "x": tf.constant(x),
+      "y": tf.constant(y)
+    }
+
+  def compute_t8(self, I, A):
+    A2 = tf.matmul(A, A)
+    A4 = tf.matmul(
+      A2,
+      self.w["x"][0] * A + self.w["x"][1] * A2
+    )
+    A8 = tf.matmul(
+      self.w["x"][2] * A2 + A4,
+      self.w["x"][3] * I + self.w["x"][4] * A \
+        + self.w["x"][5] * A2 + self.w["x"][6] * A4
+    )
+    return I + A + self.w["y"][2] * A2 + A8
+
+  # Polynomial of degree k=12
+  # ===================================
+  def set_coeff_t12(self):
+    # Initialize weights
+    a = np.zeros(4,4)
+    # > First row
+    a[0,0] = -0.01860232051462055322434373004330
+    a[0,1] = -0.00500702322573317730979741843919
+    a[0,2] = -0.57342012296052226390595242078900
+    a[0,3] = -0.13339969394389205970076892698300
+    # > Second row
+    a[1,0] =  4.60000000000000000000000000000000
+    a[1,1] =  0.99287510353848683614047957150500
+    a[1,2] = -0.13244556105279963884507499745400
+    a[1,3] =  0.00172990000000000000000000000000
+    # > Third row
+    a[2,0] =  0.21169311829980944294932332333600
+    a[2,1] =  0.15822438471572672537176889325200
+    a[2,2] =  0.16563516943672741501117166841900
+    a[2,3] =  0.01078627793157924250263206401080
+    # > Fourth row
+    a[3,0] =  0.00000000000000000000000000000000
+    a[3,1] = -0.13181061013830184015681934946400
+    a[3,2] = -0.02027855540589259079335682299450
+    a[3,3] = -0.00675951846863086359778560766482
+    # Set weights
+    self.weights = {
+      "a": tf.constant(a)
+    }
+
+  def compute_t12(self, I, A):
+    A2 = tf.matmul(A, A)
+    A3 = tf.matmul(A2, A)
+    Bs = []
+    for ai in self.w["a"]:
+      Bi = ai[0]*I + ai[1]*A + ai[2]*A2 + ai[3]*A3
+      Bs.append(Bi)
+    A6 = Bs[2] + tf.matmul(Bs[3], Bs[3])
+    return Bs[0] + tf.matmul(Bs[1]+A6, A6)
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "approx_deg": self.approx_deg
+    }
+    base_config = super(MatrixExp, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class LinODE(Layer):
   """
   Integral solution of linear ODE with constant coefficients:
@@ -1072,19 +1214,25 @@ class LinODE(Layer):
   # ===================================
   def __init__(
     self,
-    use_eig=True,
-    use_pinv=True,
-    real_only=True,
+    use_eig=False,
+    use_pinv=False,
+    real_only=False,
+    approx_deg=-1,
     **kwargs
   ):
     super(LinODE, self).__init__(**kwargs)
     self.use_eig = use_eig
     self.use_pinv = use_pinv
     self.real_only = real_only
+    self.approx_deg = approx_deg
     if self.use_eig:
       self.eigen = Eigen(
         use_pinv=self.use_pinv,
         real_only=self.real_only
+      )
+    else:
+      self.expm = MatrixExp(
+        approx_deg=self.approx_deg
       )
 
   # Calling
@@ -1094,7 +1242,8 @@ class LinODE(Layer):
     if self.use_eig:
       expa, ainv = self.apply_eig(t, a, training)
     else:
-      expa = tf.linalg.expm(a * tf.expand_dims(t, axis=-1))
+      z = a * tf.expand_dims(t, axis=-1)
+      expa = self.expm(z, training=training)
       ainv = tf.linalg.pinv(a) if self.use_pinv else tf.linalg.inv(a)
     # Op: exp(At)-I
     expa_i = tf.linalg.set_diag(
@@ -1123,7 +1272,8 @@ class LinODE(Layer):
     config = {
       "use_eig": self.use_eig,
       "use_pinv": self.use_pinv,
-      "real_only": self.real_only
+      "real_only": self.real_only,
+      "approx_deg": self.approx_deg
     }
     base_config = super(LinODE, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
