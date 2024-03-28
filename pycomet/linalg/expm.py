@@ -39,17 +39,17 @@ def expm(Α, deg=None):
     E = _taylor_p2(I, A)
   elif (deg == 4):
     c = _taylor_p4_coeff()
-    E = _taylor_p4(I, A, c)
+    E = _taylor_p4(I, A)
   elif (deg == 8):
     c = _taylor_p8_coeff()
-    E = _taylor_p8(I, A, c)
+    E = _taylor_p8(I, A)
   elif (deg == 12):
     c = _taylor_p12_coeff()
-    E = _taylor_p12(I, A, c)
+    E = _taylor_p12(I, A)
   elif (deg == 18):
     s, As, is_finite = _scaling(A, l1_norm, maxnorm)
     c = _taylor_p18_coeff()
-    E = _taylor_p18(I, As, c)
+    E = _taylor_p18(I, As)
     E = _squaring(E, s, is_finite)
   # 5) Reshape out
   return _reshape_out(A, E, batch_shape)
@@ -83,41 +83,19 @@ def _reshape_out(A, E, batch_shape):
 
 # Scaling and squaring operations
 # -------------------------------------
-def _compute_l1_norm(A):
-  return tf.math.reduce_sum(tf.math.abs(A), axis=[1,2], keepdims=True)
-
-def _get_maxnorm(dtype, deg):
-  if (dtype in (tf.float64, tf.complex128)):
-    return {
-      1:  2.220446049250313e-16,
-      2:  2.580956802971767e-08,
-      4:  3.397168839976962e-04,
-      8:  4.991228871115323e-02,
-      12: 2.996158913811580e-01,
-      18: 1.090863719290036e+00
-    }[deg]
-  elif (dtype in (tf.float16, tf.float32, tf.complex64)):
-    return {
-      1:  1.192092800768788e-07,
-      2:  5.978858893805233e-04,
-      4:  5.116619363445086e-02,
-      8:  5.800524627688768e-01,
-      12: 1.461661507209034e+00,
-      18: 3.010066362817634e+00
-    }[deg]
 
 def _scaling(A, l1_norm, maxnorm):
   is_finite = tf.math.is_finite(tf.math.reduce_max(l1_norm))
   if is_finite:
     # Compute scaling
     ov_log2, ov_maxnorm = 1/tf.math.log(2.0), 1/maxnorm
-    s = ov_log2 * tf.math.log(ov_maxnorm * l1_norm)
-    s = tf.math.maximum(tf.math.floor(s), 0)
+    squarings = ov_log2 * tf.math.log(ov_maxnorm * l1_norm)
+    squarings = tf.math.maximum(tf.math.floor(squarings), 0)
     # Apply scaling
-    As = (1 / tf.math.pow(2.0, s)) * A
+    As = (1 / tf.math.pow(2.0, squarings)) * A
   else:
-    s, As = np.zeros_like(l1_norm), A
-  return s, As, is_finite
+    squarings, As = np.zeros_like(l1_norm), A
+  return squarings, As, is_finite
 
 def _squaring(E, squarings, is_finite):
   # Maximum number of squarings operation
@@ -145,6 +123,8 @@ def _squaring(E, squarings, is_finite):
   return E
 
 
+# Optimized Taylor polynomial approximations
+# =====================================
 # Linear combination
 # -------------------------------------
 def _linear_comb(scalars, *tensors):
@@ -183,46 +163,53 @@ def _taylor_p4_coeff():
   return {
     "a": tf.constant(a)
   }
+_c4 = _taylor_p4_coeff()
 
-def _taylor_p4(I, A, c):
+def _taylor_p4(I, A):
   A2 = tf.matmul(A, A)
-  A4 = tf.matmul(A2, _linear_comb(c["a"], I, A, A2))
+  A4 = tf.matmul(A2, _linear_comb(_c4["a"], I, A, A2))
   return I + A + A4
 
 
 # Polynomial of degree p=8
 # -------------------------------------
 def _taylor_p8_coeff():
-  # Define constants
-  x = 2/3
+  # Define constant
   f = np.sqrt(177)
   # Initialize coefficients
+  # > 'x' coefficients
+  x = np.ones(2)
+  x[0] = 2/3
   # > 'a' coefficients
   a = np.ones(2)
-  a[0] = x * ((1 + f) / 88)
-  a[1] = x * ((1 + f) / 352)
+  a[0] = x[0] * ((1 + f) / 88)
+  a[1] = x[0] * ((1 + f) / 352)
   # > 'b' coefficients
   b = np.ones(4)
-  b[1] = (-271 + 29 * f) / (315 * x)
-  b[2] = (-11 + 11 * f) / (1260 * x)
-  b[3] = (-99 + 11 * f) / (5040 * x)
-  b[4] = (89 - f) / (5040 * x**2)
+  b[1] = (-271 + 29 * f) / (315 * x[0])
+  b[2] = (-11 + 11 * f) / (1260 * x[0])
+  b[3] = (-99 + 11 * f) / (5040 * x[0])
+  b[4] = (89 - f) / (5040 * x[0]**2)
   # > 'c' coefficients
   c = np.ones(4)
   c[2] = (857 - 58 * f) / 630
   # Return coefficients
   return {
+    "x": tf.constant(x),
     "a": tf.constant(a),
     "b": tf.constant(b),
-    "c": tf.constant(c),
-    "x": tf.constant(x)
+    "c": tf.constant(c)
   }
+_c8 = _taylor_p8_coeff()
 
-def _taylor_p8(I, A, c):
+def _taylor_p8(I, A):
   A2 = tf.matmul(A, A)
-  A4 = tf.matmul(A2, _linear_comb(c["a"], A, A2))
-  A8 = tf.matmul(c["x"]*A2 + A4, _linear_comb(c["b"], I, A, A2, A4))
-  return _linear_comb(c["c"], I, A, A2, A8)
+  A4 = tf.matmul(A2, _linear_comb(_c8["a"], A, A2))
+  A8 = tf.matmul(
+    _linear_comb(_c8["x"], A2, A4),
+    _linear_comb(_c8["b"], I, A, A2, A4)
+  )
+  return _linear_comb(_c8["c"], I, A, A2, A8)
 
 
 # Polynomial of degree p=12
@@ -253,11 +240,12 @@ def _taylor_p12_coeff():
   return {
     "a": tf.constant(a)
   }
+_c12 = _taylor_p12_coeff()
 
-def _taylor_p12(I, A, c):
+def _taylor_p12(I, A):
   A2 = tf.matmul(A, A)
   A3 = tf.matmul(A2, A)
-  Bs = [_linear_comb(ai, I, A, A2, A3) for ai in c["a"]]
+  Bs = [_linear_comb(ai, I, A, A2, A3) for ai in _c12["a"]]
   A6 = Bs[2] + tf.matmul(Bs[3], Bs[3])
   return Bs[0] + tf.matmul(Bs[1] + A6, A6)
 
@@ -296,11 +284,113 @@ def _taylor_p18_coeff():
   return {
     "a": tf.constant(a)
   }
+_c18 = _taylor_p18_coeff()
 
-def _taylor_p18(I, A, c):
+def _taylor_p18(I, A):
   A2 = tf.matmul(A, A)
   A3 = tf.matmul(A2, A)
   A6 = tf.matmul(A3, A3)
-  Bs = [_linear_comb(ai, I, A, A2, A3, A6) for ai in c["a"]]
+  Bs = [_linear_comb(ai, I, A, A2, A3, A6) for ai in _c18["a"]]
   A9 = tf.matmul(Bs[0], Bs[4]) + Bs[3]
   return Bs[1] + tf.matmul(Bs[2] + A9, A9)
+
+
+# Polynomial max norms and degrees
+# -------------------------------------
+def _get_maxnorm(dtype, deg=None):
+  if (dtype in (tf.float64, tf.complex128)):
+    maxnorm = {
+      1:  2.220446049250313e-16,
+      2:  2.580956802971767e-08,
+      4:  3.397168839976962e-04,
+      8:  4.991228871115323e-02,
+      12: 2.996158913811580e-01,
+      18: 1.090863719290036e+00
+    }
+  elif (dtype in (tf.float16, tf.float32, tf.complex64)):
+    maxnorm = {
+      1:  1.192092800768788e-07,
+      2:  5.978858893805233e-04,
+      4:  5.116619363445086e-02,
+      8:  5.800524627688768e-01,
+      12: 1.461661507209034e+00,
+      18: 3.010066362817634e+00
+    }
+  if (deg is not None):
+    return maxnorm[deg]
+  else:
+    return maxnorm
+
+def _get_deg_norm(A, maxdeg=None):
+  dtype = A.dtype
+  # 1) Get max norms
+  maxnorm = _get_maxnorm(dtype)
+  # > Degrees
+  degrees = tf.constant(list(maxnorm.keys()), dtype=int)
+  # > Norms
+  thetas = [0.0] + list(maxnorm.values())
+  thetas[-1] = np.inf
+  thetas = tf.constant(thetas, dtype=dtype)
+  # 2) Get max polynomial degree
+  maxdeg_avail = tf.math.maximum(degrees)
+  maxdeg = maxdeg_avail if (maxdeg is None) else maxdeg
+  maxdeg = tf.math.minimum(maxdeg_avail, maxdeg)
+  return degrees, thetas, maxdeg
+
+
+def _compute_l1_norm(A):
+  l1_norm = tf.math.reduce_sum(tf.math.abs(A), axis=-2, keepdims=True)
+  return tf.math.reduce_max(l1_norm, axis=-1, keepdims=True)
+
+
+# Taylor polynomial approximation
+# -------------------------------------
+def _taylor(I, A, maxdeg=None):
+  # 1) Get norms and degrees
+  degrees, thetas, maxdeg = _get_deg_norm(A, maxdeg)
+  # 2) Compute L1 norm
+  l1_norm = _compute_l1_norm(A)
+  # 4) Compute optimized Taylor polynomial approximations
+  # > Define stop condition: max polynomial degree reached
+  def cond(i):
+    return tf.math.less_equal(degrees[i], maxdeg)
+  # > Define Taylor computation
+  def body(i, a):
+    # Index
+    j = i + 1
+    # Conditions
+    lower_bound = tf.math.less_equal(thetas[i], l1_norm)
+    upper_bound = tf.math.less(l1_norm, thetas[j])
+    # Computations
+    e = tf.where(
+      cond=lower_bound * upper_bound,
+      x=_taylor_px(I, a, degrees[i], l1_norm)
+      y=a
+    )
+    return j, e
+  # > Perform computations
+  i = 0
+  _, E = tf.while_loop(
+    cond=cond,
+    body=body,
+    loop_vars=[i, A]
+  )
+  return E
+
+def _taylor_px(I, A, deg, l1_norm):
+  if (deg == 1):
+    return _taylor_p1(I, A)
+  elif (deg == 2):
+    return _taylor_p2(I, A)
+  elif (deg == 4):
+    return _taylor_p4(I, A)
+  elif (deg == 8):
+    return _taylor_p8(I, A)
+  elif (deg == 12):
+    return _taylor_p12(I, A)
+  elif (deg == 18):
+    maxnorm = _get_maxnorm(A.dtype, deg)
+    squarings, As, is_finite = _scaling(A, l1_norm, maxnorm)
+    E = _taylor_p18(I, As)
+    E = _squaring(E, squarings, is_finite)
+    return E
