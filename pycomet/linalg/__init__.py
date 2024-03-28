@@ -1,5 +1,5 @@
-# __all__ = [
-#   "expm"
-# ]
+__all__ = [
+  "expm"
+]
 
-# from .expm import expm
+from .expm import expm
