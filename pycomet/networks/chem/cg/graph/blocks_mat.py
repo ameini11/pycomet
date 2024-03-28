@@ -548,12 +548,14 @@ class MatExpME(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=False):
-    qt, nm0, f = utils.unpack_list(inputs, nb_elem=3)
+    qt, nm_0, f = utils.unpack_list(inputs, nb_elem=3)
     # Extract time-dependent QoI
     # t, na, T = tf.split(qt, num_or_size_splits=3, axis=1)
-    t, na, _nm, T, _em = tf.split(qt, num_or_size_splits=5, axis=1)
+    t, na, nm, T, em = tf.split(qt, num_or_size_splits=5, axis=1)
     # Compute operators
     k, wr = self.operators((na, T, f), training=training)
     # Compute solution
-    y =  self.linode((t, nm0, k, wr), training=training)
-    return y
+    nm_t = self.linode((t, nm_0, k, wr), training=False)
+    # # Mass conservation
+    # nm_t *= nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)
+    return nm_t
