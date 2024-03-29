@@ -16,7 +16,6 @@ __all__ = [
   "config",
   "data",
   "device",
-  "linalg",
   "model",
   "networks",
   "operations",
@@ -60,7 +59,6 @@ utils.append_mod_dir(getattr(_CFG, "custom_pkg", {}))
 from pycomet import apps
 from pycomet import data
 from pycomet import device
-from pycomet import linalg
 from pycomet import model
 from pycomet import networks
 from pycomet import operations

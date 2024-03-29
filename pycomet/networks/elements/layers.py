@@ -18,7 +18,7 @@ from pycomet import utils
 from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
-from pycomet import linalg as pcm_linalg
+# from pycomet import linalg as pcm_linalg
 from pycomet.operations import interpolant
 _CFG = get_config()
 
