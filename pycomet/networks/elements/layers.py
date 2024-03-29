@@ -19,7 +19,7 @@ from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.operations import interpolant
-from pycomet.operations.linalg import matrix_exp
+from pycomet.operations.linalg.matrix_exp import expm
 _CFG = get_config()
 
 
@@ -1099,7 +1099,7 @@ class MatrixExp(Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=None):
-    return matrix_exp.expm(
+    return expm(
       A=inputs,
       max_degree=self.max_degree,
       max_nb_squarings=self.max_nb_squarings

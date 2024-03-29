@@ -563,5 +563,5 @@ class MatExpME(nn_elem.Layer):
     # Compute solution
     nm_t = self.linode((t, nm_0, k, wr), training=False)
     # Mass conservation
-    nm_t *= nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)
+    # nm_t *= nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)
     return nm_t
