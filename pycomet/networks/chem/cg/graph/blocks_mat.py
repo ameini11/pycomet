@@ -515,18 +515,22 @@ class MatExpME(nn_elem.Layer):
   # ===================================
   def __init__(
     self,
+    # MEOperators Layer
     rates=None,
     specie_thermos={
       "filename": None,
       "config": None
     },
-    use_eig=True,
-    use_pinv=False,
-    real_only=True,
     use_corr=True,
     use_tril_corr=False,
     use_state_corr=False,
     use_state_corr_lin=True,
+    # LinODE Layer
+    use_eig=False,
+    use_pinv=False,
+    real_only=True,
+    expm_max_degree=None,
+    expm_max_nb_squarings=None,
     **kwargs
   ):
     super(MatExpME, self).__init__(**kwargs)
@@ -542,7 +546,9 @@ class MatExpME(nn_elem.Layer):
     self.linode = nn_elem.LinODE(
       use_eig=use_eig,
       use_pinv=use_pinv,
-      real_only=real_only
+      real_only=real_only,
+      expm_max_degree=expm_max_degree,
+      expm_max_nb_squarings=expm_max_nb_squarings
     )
 
   # Calling

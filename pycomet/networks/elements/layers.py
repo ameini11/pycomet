@@ -18,8 +18,8 @@ from pycomet import utils
 from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
-# from pycomet import linalg as pcm_linalg
 from pycomet.operations import interpolant
+from pycomet.operations.linalg import matrix_exp
 _CFG = get_config()
 
 
@@ -1023,12 +1023,34 @@ class Eigen(Layer):
   def __init__(
     self,
     use_pinv=False,
-    real_only=True,
     **kwargs
   ):
     super(Eigen, self).__init__(**kwargs)
     self.use_pinv = use_pinv
-    self.real_only = real_only
+
+  # Properties
+  # ===================================
+  @property
+  def v(self):
+    return self._v
+
+  @v.setter
+  def v(self, value):
+    self._v = value
+
+  @property
+  def vinv(self):
+    return self._vinv
+
+  @vinv.setter
+  def vinv(self, value=None):
+    if (value is None):
+      if self.use_pinv:
+        self._vinv = tf.linalg.pinv(self.v)
+      else:
+        self._vinv = tf.linalg.inv(self.v)
+    else:
+      self._vinv = value
 
   # Calling
   # ===================================
@@ -1040,22 +1062,20 @@ class Eigen(Layer):
 
   def decompose(self, x):
     l, v = tf.linalg.eig(x)
-    vinv = tf.linalg.pinv(v) if self.use_pinv else tf.linalg.inv(v)
-    if self.real_only:
-      l, v, vinv = [tf.math.real(z) for z in (l, v, vinv)]
-    self.v, self.vinv = v, vinv
+    self.v, self.vinv = v, None
     return l
 
   def reconstruct(self, x):
-    # f(x) = V @ diag(x) @ V^(-1)
-    return tf.einsum("nij,nj,njk->nik", self.v, x, self.vinv)
+    # > f(x) = V @ diag(x) @ V^(-1)
+    v = tf.cast(self.v, dtype=x.dtype)
+    vinv = tf.cast(self.vinv, dtype=x.dtype)
+    return tf.einsum("nij,nj,njk->nik", v, x, vinv)
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      "use_pinv": self.use_pinv,
-      "real_only": self.real_only
+      "use_pinv": self.use_pinv
     }
     base_config = super(Eigen, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -1068,56 +1088,29 @@ class MatrixExp(Layer):
   # ===================================
   def __init__(
     self,
-    taylor_deg=-1,
+    max_degree=None,
+    max_nb_squarings=None,
     **kwargs
   ):
     super(MatrixExp, self).__init__(**kwargs)
-    self.taylor_deg = taylor_deg
-
-  # Building
-  # ===================================
-  def build(self, *args, **kwargs):
-    if (self.taylor_deg >= 4):
-      if (self.taylor_deg == 12):
-        self.set_coeff_p12()
-      else:
-        self.set_coeff_p8()
-      self.w = {}
-      for (name, wi) in self.weights.items():
-        self.w[name] = self.add_weight(
-          name=name,
-          shape=wi.shape,
-          dtype=bkd.get_floatx(),
-          initializer=lambda shape, dtype: wi,
-          trainable=False
-        )
-    self.built = True
+    self.max_degree = max_degree
+    self.max_nb_squarings = max_nb_squarings
 
   # Calling
   # ===================================
   def call(self, inputs, training=None):
-    if (self.taylor_deg < 0):
-      # Padé approximants
-      return tf.linalg.expm(inputs)
-    else:
-      shape = list(tf.shape(inputs))
-      A = tf.reshape(inputs, (-1,*shape[-2:]))
-      I = tf.eye(
-        tf.shape(A)[-2],
-        batch_shape=tf.shape(A)[:-2],
-        dtype=A.dtype
-      )
-      if (self.taylor_deg == 12):
-        T = self.compute_p12(I, A)
-      else:
-        T = self.compute_p8(I, A)
-      return tf.reshape(T, shape)
+    return matrix_exp.expm(
+      A=inputs,
+      max_degree=self.max_degree,
+      max_nb_squarings=self.max_nb_squarings
+    )
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      "taylor_deg": self.taylor_deg
+      "max_degree": self.max_degree,
+      "max_nb_squarings": self.max_nb_squarings
     }
     base_config = super(MatrixExp, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -1138,30 +1131,32 @@ class LinODE(Layer):
     use_eig=False,
     use_pinv=False,
     real_only=False,
-    taylor_deg=-1,
+    expm_max_degree=None,
+    expm_max_nb_squarings=None,
     **kwargs
   ):
     super(LinODE, self).__init__(**kwargs)
     self.use_eig = use_eig
     self.use_pinv = use_pinv
     self.real_only = real_only
-    self.taylor_deg = taylor_deg
+    self.expm_max_degree = expm_max_degree
+    self.expm_max_nb_squarings = expm_max_nb_squarings
     if self.use_eig:
       self.eigen = Eigen(
-        use_pinv=self.use_pinv,
-        real_only=self.real_only
+        use_pinv=self.use_pinv
       )
     else:
       self.expm = MatrixExp(
-        taylor_deg=self.taylor_deg
+        max_degree=self.expm_max_degree,
+        max_nb_squarings=self.expm_max_nb_squarings
       )
 
   # Calling
   # ===================================
-  def call(self, inputs, training=None):
+  def call(self, inputs, eig=None, training=None):
     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
     if self.use_eig:
-      expa, ainv = self.apply_eig(t, a, training)
+      expa, ainv = self.apply_eig(t, a, eig, training)
     else:
       z = a * tf.expand_dims(t, axis=-1)
       expa = self.expm(z, training=training)
@@ -1173,13 +1168,20 @@ class LinODE(Layer):
     )
     # Compute solution
     y = tf.einsum("nij,nj->ni", expa, y0) \
-      + tf.einsum("nij,njk,nk->ni", expa_i, ainv, b)
+      + tf.einsum("nij,nj->ni", tf.matmul(expa_i, ainv), b)
+      # + tf.einsum("nij,njk,nk->ni", expa_i, ainv, b)
     return y
 
-  def apply_eig(self, t, a, training=None):
+  def apply_eig(self, t, a, eig=None, training=None):
     # Eigen-decomposition
-    # > A = V @ S @ V^(-1)
-    l = self.eigen(a, training=training, mode="decompose")
+    if (eig is None):
+      # > A = V @ S @ V^(-1)
+      l = self.eigen(a, training=training, mode="decompose")
+    else:
+      l, self.eigen.v = eig
+      self.eigen.vinv = None
+    if self.real_only:
+      l = tf.math.real(l)
     # Compute operators
     # Op: exp(At)
     expa = self.eigen(tf.math.exp(t*l), training=training, mode="reconstruct")
@@ -1194,7 +1196,8 @@ class LinODE(Layer):
       "use_eig": self.use_eig,
       "use_pinv": self.use_pinv,
       "real_only": self.real_only,
-      "taylor_deg": self.taylor_deg
+      "expm_max_degree": self.expm_max_degree,
+      "expm_max_nb_squarings": self.expm_max_nb_squarings
     }
     base_config = super(LinODE, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

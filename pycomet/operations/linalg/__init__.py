@@ -2,4 +2,4 @@
 #   "expm"
 # ]
 
-# from .expm import expm
+# from .matrix_exp import expm
