@@ -38,11 +38,11 @@ class Correction(nn_elem.Layer):
     # > Initialization
     self.blocks = {}
     for name in ("time", "energy"):
-      layer_size = copy.deepcopy(self.layer_size)
+      layer_size_i = copy.deepcopy(self.layer_size)
       if (name == "energy"):
-        layer_size[-1] += 2
+        layer_size_i[-1] += 2
       self.blocks[name] = nn_elem.FFBlock(
-        layer_size=layer_size,
+        layer_size=layer_size_i,
         activation=self.activation,
         kernel_initializer=self.kernel_initializer,
         regularizer=self.regularizer,
@@ -67,7 +67,7 @@ class Correction(nn_elem.Layer):
     c = tf.repeat(input=c, repeats=tf.shape(ft)[0], axis=0)
     # Linerly combine latent spaces
     # -------------
-    y = tf.einsum("np,mp->nmp", ft, fe)
+    y = tf.einsum("...p,mp->...mp", ft, fe)
     y = tf.concat([y,c], axis=-1)
     return y
 

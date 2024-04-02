@@ -7,6 +7,7 @@ from .correction import Correction
 from .update import PFUpdate, SolUpdate
 from .connectivity import LastToCurrent
 from pycomet.networks.basenet import BaseNet
+from pycomet.networks import elements as nn_elem
 
 
 class TimeScale(BaseNet):
@@ -51,26 +52,28 @@ class TimeScale(BaseNet):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
       if (identifier == "pf_update"):
-        propty["kwargs"]["split_indices"] = self.current_indices
         lays[identifier] = self.init_lay_kernel(identifier, propty)
       elif (identifier == "correct"):
-        lays[identifier] = self.init_lay_correct(identifier, propty)
+        lays[identifier] = self.init_lay_kernel(identifier, propty)
       elif (identifier == "sol_update"):
         lays[identifier] = self.init_lay_sol_update(identifier, propty)
+    # Connecting layer
     lays["connect"] = LastToCurrent(self.last_to_current)
+    # Splitting layer
+    lays["gather"] = nn_elem.Gather(indices=self.current_indices, axis=-1)
     return lays
 
-  def init_lay_correct(self, identifier, propty):
-    static_prop = split_static_prop(
-      prop=propty["kwargs"]["static_prop"],
-      indices=self.current_indices
-    )
-    lays = []
-    for istatic_prop in static_prop:
-      ipropty = tf.nest.map_structure(copy.deepcopy, propty)
-      ipropty["kwargs"]["static_prop"] = istatic_prop
-      lays.append(self.init_lay_kernel(identifier, ipropty))
-    return lays
+  # def init_lay_correct(self, identifier, propty):
+  #   static_prop = split_static_prop(
+  #     prop=propty["kwargs"]["static_prop"],
+  #     indices=self.current_indices
+  #   )
+  #   lays = []
+  #   for istatic_prop in static_prop:
+  #     ipropty = tf.nest.map_structure(copy.deepcopy, propty)
+  #     ipropty["kwargs"]["static_prop"] = istatic_prop
+  #     lays.append(self.init_lay_kernel(identifier, ipropty))
+  #   return lays
 
   def init_lay_sol_update(self, identifier, propty):
     rates = split_rates(
@@ -105,21 +108,26 @@ class TimeScale(BaseNet):
     t, na, Ts, nm_0, f_in = inputs
     # Update partition functions
     # -------------
-    qa, *qm = self.active_lays["pf_update"](Ts, training=training)
+    T = nn_elem.Gather(indices=[0], axis=-1)(Ts)
+    qa, qm = self.active_lays["pf_update"](T, training=training)
+    qm = self.active_lays["gather"](qm)
     # Merge states
     # -------------
     # Micro-states (fastest/last timescale) to macro-states (current timescale)
     nm_0 = self.active_lays["connect"](nm_0, training=training)
+    # Compute corrections
+    # -------------
+    f = self.active_lays["correct"](f_in, training=training)
+    f = self.active_lays["gather"](f)
     # Compute solution
     # -------------
     # Relative molar fractions (molecule)
     xm_t = []
     for (i, nm_i) in enumerate(nm_0):
-      # Compute corrections
-      f_i = self.active_lays["correct"][i](f_in, training=training)
-      # Compute solution update
+      # Compose inputs
       q_i = tf.concat([qa, qm[i]], axis=-1)
-      inputs = (t, na, Ts, q_i, nm_i, f_i)
+      inputs = (t, na, Ts, q_i, nm_i, f[i])
+      # Compute solution update
       xm_i = self.active_lays["sol_update"][i](inputs, training=training)
       # Store solution update
       xm_t.append(xm_i)

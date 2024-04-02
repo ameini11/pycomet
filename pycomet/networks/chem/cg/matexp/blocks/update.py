@@ -25,6 +25,14 @@ class PreProcessor(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=None):
+    # Extract inputs:
+    # > qoi_t: time-dependant QoIs
+    #   > t:   time
+    #   > na:  atom's number density
+    #   > nm:  molecule's number density
+    #   > T:   translational temperature
+    # > nm_0:  molecule's initial distribution function
+    # > f_in:  inputs for state-wise corrective factors
     qoi_t, nm_0, f_in = utils.unpack_list(inputs, nb_elem=3)
     t, na, nm, T = tf.split(qoi_t, num_or_size_splits=4, axis=-1)
     # Precomputed temperature vectors
@@ -43,7 +51,6 @@ class PFUpdate(nn_elem.Layer):
       "filename": None,
       "config": None
     },
-    split_indices=None,
     **kwargs
   ):
     super(PFUpdate, self).__init__(**kwargs)
@@ -54,32 +61,24 @@ class PFUpdate(nn_elem.Layer):
     })
     self.sp_th = st_mod.init_specie_thermos(**specie_thermos)
     st_mod.build_specie_thermos(self.sp_th)
-    # Indices for splitting states into different clusters
-    self.split_indices = split_indices
 
   # Calling
   # ===================================
-  def call(self, Ts, training=None):
-    # Extract temperature T from precomputed temperature vectors (T,ln_T,ov_T)
-    T = tf.gather(Ts, [0], axis=-1)
+  def call(self, T, training=None):
     # Update partition functions: q = [qa, qm]
     q = []
     for st in self.sp_th.values():
       st.pf.reset()
       st.pf.update(T)
       q.append(st.pf.tot.Q)
-    # Split partition functions
-    qa, qm = q
-    qm = [tf.gather(qm, i, axis=-1) for i in self.split_indices]
-    return qa, *qm
+    return q
 
   # Configuration update
   # ===================================
   def get_config(self):
     sp_th_cfg = tf.nest.map_structure(lambda st: st.get_config(), self.sp_th)
     config = {
-      "specie_thermos": {"config": sp_th_cfg},
-      "split_indices": self.split_indices
+      "specie_thermos": {"config": sp_th_cfg}
     }
     base_config = super(PFUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

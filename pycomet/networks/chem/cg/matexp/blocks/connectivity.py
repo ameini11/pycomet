@@ -67,11 +67,11 @@ class CurrentToLast(nn_elem.Layer):
       indices = self.current_to_last[i-1]
       if (indices is not None):
         # Split the previous slower timescale
-        y_i = tf.split(y, num_or_size_splits=y.shape[1], axis=-1)
+        yi = tf.split(y, num_or_size_splits=y.shape[1], axis=-1)
         # Gather the current faster timescale by indices
-        x_i = [tf.gather(x[i], j, axis=-1) for j in indices]
+        xi = [tf.gather(x[i], j, axis=-1) for j in indices]
         # Multiply slower and faster timescales
-        y = [z[0] * z[1] for z in zip(y_i, x_i)]
+        y = [z[0] * z[1] for z in zip(yi, xi)]
         # Concatenate
         y = tf.concat(y, axis=-1) if (len(y) > 1) else y[-1]
     # Return the last timescale

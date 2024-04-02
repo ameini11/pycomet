@@ -969,6 +969,57 @@ class GaussianNoise(Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class Gather(Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    indices,
+    validate_indices=None,
+    axis=None,
+    batch_dims=0,
+    **kwargs
+  ):
+    super(Gather, self).__init__(**kwargs)
+    # Indices
+    self.indices = indices
+    self.is_list = False
+    if isinstance(self.indices[0], (list,tuple)):
+      self.is_list = True
+    # Extra arguments
+    self.validate_indices = validate_indices
+    self.axis = axis
+    self.batch_dims = batch_dims
+    self.kwargs = {
+      "validate_indices": self.validate_indices,
+      "axis": self.axis,
+      "batch_dims": self.batch_dims
+    }
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    if self.is_list:
+      y = [tf.gather(inputs, indices=i, **self.kwargs) for i in self.indices]
+    else:
+      y = tf.gather(inputs, indices=self.indices, **self.kwargs)
+    return y
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      'indices': self.indices,
+      'validate_indices': self.validate_indices,
+      'axis': self.axis,
+      'batch_dims': self.batch_dims
+    }
+    base_config = super(Gather, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class GatheredAdd(tf_layers.Add):
 
   # Initialization
