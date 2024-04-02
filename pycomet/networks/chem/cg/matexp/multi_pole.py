@@ -1,9 +1,9 @@
-from pycomet import utils
+from .blocks import *
 from pycomet.networks.basenet import BaseNet
 
 
 class MultiPoleME(BaseNet):
-  """Master equation solution using a multi-pole matrix exponential-based
+  """Master equation integral solution using multi-pole matrix exponential
   neural operator with a state-specific corrective factor."""
 
   # Initialization
@@ -11,10 +11,13 @@ class MultiPoleME(BaseNet):
   def __init__(
     self,
     dim,
+    groups_graph,
     lays_name=None,
     lays_propty=None,
     noisy_io=None,
     inference=None,
+    masking=False,
+    force_siso=False,
     *args,
     **kwargs
   ):
@@ -24,53 +27,52 @@ class MultiPoleME(BaseNet):
       lays_propty=lays_propty,
       noisy_io=noisy_io,
       inference=inference,
-      masking=False,
-      force_siso=False,
+      masking=masking,
+      force_siso=force_siso,
       *args,
       **kwargs
     )
-    self.process_layers(lays_name)
-
-  def process_layers(self, lays_name):
+    self.grp_conn = GroupsConnectivity(groups_graph)
     # Layers names
     if (lays_name is None):
-      self.lays_name = self.lays_name + ("corr_factor", "update")
+      self.lays_name = self.lays_name + ("xform_fcorr", "timescales")
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("corr_factor", "update"),
+      not_opt=("xform_fcorr", "timescales"),
       default=self.default_lays_propty
     )
     # Initializing layers
     self.active_lays = self.init_layers()
-    self.init_preinput_lay()
 
   # Layers initialization
   # -----------------------------------
   def init_layers(self):
-    lays = {}
+    lays = {
+      "preproc": PreProcessor(),
+      "connect": CurrentToLast(self.grp_conn.current_to_last)
+    }
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier in ("input", "output")):
+      if (identifier == "xform_fcorr"):
         lays[identifier] = self.init_inout_lay(propty)
-      elif (identifier in ("corr_factor", "update")):
-        lays[identifier] = self.init_lay(identifier, propty)
-    # lays.update(self.init_kernel_layers())
+      elif (identifier == "timescales"):
+        lays[identifier] = self.init_timescales_lay(propty)
     return lays
 
-  # def init_kernel_layers(self):
-  #   lay_ids = {
-  #     "update": "FwdEulerME"
-  #   }
-  #   lays = {}
-  #   for (identifier, propty) in self.lays_propty.items():
-  #     lay_id = lay_ids.get(identifier, None)
-  #     if (lay_id is not None):
-  #       lays[identifier] = self.init_lay(
-  #         identifier, propty, lay_id=lay_id, default_lay_id=lay_id
-  #       )
-  #   return lays
+  def init_timescales_lay(self, propty):
+    lays = []
+    for (i, ipropty) in enumerate(propty):
+      lays.append(
+        TimeScale(
+          dim=ipropty["dim"],
+          lays_propty=ipropty["lays_propty"],
+          current_indices=self.grp_conn.current_to_last[str(i)],
+          last_to_current=self.grp_conn.last_to_current[str(i+1)]
+        )
+      )
+    return lays
 
   # Calling
   # ===================================
@@ -82,7 +84,7 @@ class MultiPoleME(BaseNet):
     f_in = self.active_lays["xform_fcorr"](f_in, training=training)
     # Loop over timescales
     y = [nm]
-    for ts_lay in self.active_lays["timescales"]:
-      y.append(ts_lay((*qoi_t, nm_0, f_in), training=training))
+    for lay in self.active_lays["timescales"]:
+      y.append(lay((*qoi_t, nm_0, f_in), training=training))
     # Merge timescales
     return self.active_lays["connect"](y)

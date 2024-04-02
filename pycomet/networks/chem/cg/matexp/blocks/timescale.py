@@ -49,7 +49,10 @@ class TimeScale(BaseNet):
   # Layers initialization
   # -----------------------------------
   def init_layers(self):
-    lays = {}
+    lays = {
+      "connect": LastToCurrent(self.last_to_current),
+      "gather": nn_elem.Gather(indices=self.current_indices, axis=-1)
+    }
     for (identifier, propty) in self.lays_propty.items():
       if (identifier == "pf_update"):
         lays[identifier] = self.init_lay_kernel(identifier, propty)
@@ -57,10 +60,6 @@ class TimeScale(BaseNet):
         lays[identifier] = self.init_lay_kernel(identifier, propty)
       elif (identifier == "sol_update"):
         lays[identifier] = self.init_lay_sol_update(identifier, propty)
-    # Connecting layer
-    lays["connect"] = LastToCurrent(self.last_to_current)
-    # Splitting layer
-    lays["gather"] = nn_elem.Gather(indices=self.current_indices, axis=-1)
     return lays
 
   # def init_lay_correct(self, identifier, propty):

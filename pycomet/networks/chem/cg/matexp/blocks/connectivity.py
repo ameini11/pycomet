@@ -4,7 +4,6 @@ import tensorflow as tf
 from pycomet import utils
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
-from tensorflow.python.training.tracking.data_structures import NoDependency
 _CFG = get_config()
 
 
@@ -64,7 +63,7 @@ class CurrentToLast(nn_elem.Layer):
   def call(self, x, training=None):
     y = x[0]
     for i in range(1,len(x)):
-      indices = self.current_to_last[i-1]
+      indices = self.current_to_last[str(i-1)]
       if (indices is not None):
         # Split the previous slower timescale
         yi = tf.split(y, num_or_size_splits=y.shape[1], axis=-1)
@@ -96,17 +95,21 @@ class GroupsConnectivity(object):
     groups_graph
   ):
     self.groups_graph = groups_graph
-    self.last_to_current = {
-      f"TS{k}": indices for (k, indices) in \
-        self.connect_fastest_to_current_ts(groups_graph).items()
-    }
-    self.current_to_last = NoDependency(
-      self.connect_current_to_next_ts(groups_graph)
+    # Last-to-current timescale connectivity
+    self.last_to_current = self._convert_keys(
+      self.connect_last_to_current(groups_graph)
     )
+    # Current-to-last timescale connectivity
+    self.current_to_last = self._convert_keys(
+      self.connect_current_to_next(groups_graph)
+    )
+
+  def _convert_keys(self, d):
+    return {str(k): v for (k, v) in d.items()}
 
   # Groups connectivity/indexing
   # ===================================
-  def connect_current_to_next_ts(
+  def connect_current_to_next(
     self,
     graph,
     level=0,
@@ -125,13 +128,13 @@ class GroupsConnectivity(object):
     else:
       connectivity[level] = None
     if (d != {}):
-      return self.connect_current_to_next_ts(
+      return self.connect_current_to_next(
         d, level=level+1, connectivity=connectivity
       )
     else:
       return connectivity
 
-  def connect_fastest_to_current_ts(
+  def connect_last_to_current(
     self,
     graph,
     ts={}

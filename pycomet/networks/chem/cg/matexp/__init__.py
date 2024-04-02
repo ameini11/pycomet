@@ -1,7 +1,5 @@
 __all__ = [
-  "MultiPoleME",
-  "TimeScale"
+  "MultiPoleME"
 ]
 
-from .blocks import *
 from .multi_pole import MultiPoleME
