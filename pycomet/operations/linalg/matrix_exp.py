@@ -20,15 +20,19 @@ def expm(
     return A
   # Reshape in
   A, batch_shape = _reshape_in(A)
-  # Compute optimal Taylor expansion
-  I = tf.eye(
-    num_rows=tf.shape(A)[-2],
-    batch_shape=batch_shape,
-    dtype=A.dtype
-  )
-  E = _taylor(I, A, max_degree, max_nb_squarings)
+  if (A.shape[-2:] == [2, 2]):
+    # 2x2 matrix
+    eA = _expm_2by2(A)
+  else:
+    # Compute optimal Taylor expansion
+    I = tf.eye(
+      num_rows=tf.shape(A)[-2],
+      batch_shape=batch_shape,
+      dtype=A.dtype
+    )
+    eA = _taylor(I, A, max_degree, max_nb_squarings)
   # Reshape out
-  return _reshape_out(A, E, batch_shape)
+  return _reshape_out(A, eA, batch_shape)
 
 # Reshaping operations
 # =====================================
@@ -44,16 +48,44 @@ def _reshape_in(A):
   )
   return A, batch_shape
 
-def _reshape_out(A, E, batch_shape):
+def _reshape_out(A, eA, batch_shape):
   if (not A.shape.is_fully_defined()):
     return tf.reshape(
-      tensor=E,
-      shape=tf.concat((batch_shape, tf.shape(E)[-2:]), axis=0)
+      tensor=eA,
+      shape=tf.concat((batch_shape, tf.shape(eA)[-2:]), axis=0)
     )
   return tf.reshape(
-    tensor=E,
-    shape=batch_shape.concatenate(E.shape[-2:])
+    tensor=eA,
+    shape=batch_shape.concatenate(eA.shape[-2:])
   )
+
+# 2x2 matrix (from SciPy)
+# =====================================
+def _expm_2by2(A):
+  # Split the 4 entries
+  A = tf.reshape(A, shape=(-1,4))
+  A00, A01, A10, A11 = tf.split(A, num_or_size_splits=4, axis=-1)
+  ddiag = A00 - A11
+  # Cosh and sinh
+  mu = 0.5*tf.math.sqrt(ddiag**2 + 4*A01*A10)
+  cosh_mu = tf.math.cosh(mu)
+  sinh_mu = tf.ones_like(cosh_mu)
+  sinh_mu = tf.where(
+    condition=tf.math.not_equal(x=mu, y=tf.constant(0, dtype=mu.dtype)),
+    x=tf.math.sinh(mu)/mu,
+    y=sinh_mu
+  )
+  # Compose the 4 entries
+  AmD2 = 0.5*ddiag
+  eApD2 = tf.math.exp(0.5*(A00+A11))
+  eA00 = eApD2 * (cosh_mu + AmD2*sinh_mu)
+  eA01 = eApD2 * A01 * sinh_mu
+  eA10 = eApD2 * A10 * sinh_mu
+  eA11 = eApD2 * (cosh_mu - AmD2*sinh_mu)
+  # Concat the 4 entries into a 2x2 matrix
+  eA = tf.concat([eA00,eA01,eA10,eA11], axis=-1)
+  eA = tf.reshape(eA, shape=(-1,2,2))
+  return tf.math.real(eA)
 
 # Optimized Taylor polynomial approximations
 # =====================================
@@ -82,12 +114,12 @@ def _taylor(I, A, max_degree, max_nb_squarings):
     return j, e
   # > Perform computations
   i = tf.cast(0, dtype=tf.int32)
-  _, E = tf.while_loop(
+  _, eA = tf.while_loop(
     cond=cond,
     body=body,
     loop_vars=[i, A]
   )
-  return E
+  return eA
 
 # Polynomial norms and degrees
 # -------------------------------------
@@ -158,9 +190,9 @@ def _taylor_px(I, A, deg, l1_norm, max_nb_squarings):
   elif (deg == 18):
     maxnorm = _get_maxnorm(A.dtype, deg=18)
     squarings, As, is_finite = _scaling(A, l1_norm, maxnorm, max_nb_squarings)
-    E = _taylor_p18(I, As)
-    E = _squaring(E, squarings, is_finite)
-    return E
+    eA = _taylor_p18(I, As)
+    eA = _squaring(eA, squarings, is_finite)
+    return eA
 
 # Linear combination
 # -------------------------------------
@@ -346,7 +378,7 @@ def _scaling(A, l1_norm, maxnorm, max_nb_squarings):
     squarings = tf.math.minimum(squarings, max_nb_squarings)
   return squarings, As, is_finite
 
-def _squaring(E, squarings, is_finite):
+def _squaring(eA, squarings, is_finite):
   # Maximum number of squarings operation
   max_squarings = tf.math.reduce_max(squarings)
   if (is_finite and (max_squarings > 0)):
@@ -364,9 +396,9 @@ def _squaring(E, squarings, is_finite):
       return j, e
     # Perform squarings
     i = 0.0
-    _, E = tf.while_loop(
+    _, eA = tf.while_loop(
       cond=cond,
       body=body,
-      loop_vars=[i, E]
+      loop_vars=[i, eA]
     )
-  return E
+  return eA
