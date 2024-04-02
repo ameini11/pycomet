@@ -27,10 +27,13 @@ def _set_device(device, index):
   if (is_gpu_available() and (device.upper() == "GPU")):
     _DEVICE = "GPU"
   _PHY_DEVICE = tf.config.list_physical_devices(_DEVICE)[index]
-  if (_DEVICE == "GPU"):
-    tf.config.set_visible_devices(_PHY_DEVICE, _DEVICE)
-  else:
-    tf.config.set_visible_devices(_PHY_DEVICE)
+  try:
+    if (_DEVICE == "GPU"):
+      tf.config.set_visible_devices(_PHY_DEVICE, _DEVICE)
+    else:
+      tf.config.set_visible_devices(_PHY_DEVICE)
+  except:
+    pass
   _DEVICE += f":{index}"
 
 def get_device(name_only=True):
@@ -43,8 +46,11 @@ def get_device(name_only=True):
 # -------------------------------------
 def _set_cpu_threads(n):
   n = int(n)
-  tf.config.threading.set_inter_op_parallelism_threads(n)
-  tf.config.threading.set_intra_op_parallelism_threads(n)
+  try:
+    tf.config.threading.set_inter_op_parallelism_threads(n)
+    tf.config.threading.set_intra_op_parallelism_threads(n)
+  except:
+    pass
   os.environ = set_cpu_threads_env(n, os.environ)
 
 def set_cpu_threads_env(n, env):

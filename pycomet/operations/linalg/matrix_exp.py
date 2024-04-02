@@ -20,7 +20,7 @@ def expm(
     return A
   # Reshape in
   A, batch_shape = _reshape_in(A)
-  if (A.shape[-2:] == [2, 2]):
+  if (A.shape[-1] == 2):
     # 2x2 matrix
     eA = _expm_2by2(A)
   else:

@@ -1,8 +1,7 @@
 import copy
 import tensorflow as tf
 
-from .utils import *
-from .timescale import TimeScale
+from .utils import split_rates
 from .correction import Correction
 from .update import PFUpdate, SolUpdate
 from .connectivity import LastToCurrent
