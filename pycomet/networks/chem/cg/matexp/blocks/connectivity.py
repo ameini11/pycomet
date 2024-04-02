@@ -1,3 +1,4 @@
+import json
 import itertools
 import tensorflow as tf
 
@@ -95,13 +96,16 @@ class GroupsConnectivity(object):
     groups_graph
   ):
     self.groups_graph = groups_graph
+    if isinstance(self.groups_graph, str):
+      with open(self.groups_graph) as file:
+        self.groups_graph = json.load(file)
     # Last-to-current timescale connectivity
     self.last_to_current = self._convert_keys(
-      self.connect_last_to_current(groups_graph)
+      self.connect_last_to_current(self.groups_graph)
     )
     # Current-to-last timescale connectivity
     self.current_to_last = self._convert_keys(
-      self.connect_current_to_next(groups_graph)
+      self.connect_current_to_next(self.groups_graph)
     )
 
   def _convert_keys(self, d):
@@ -121,6 +125,7 @@ class GroupsConnectivity(object):
       for g in graph.values():
         if hasattr(g, "keys"):
           l = list(g.keys())
+          l = tf.nest.map_structure(int, l)
           d = {**d, **g}
         else:
           l = d = g
@@ -139,7 +144,7 @@ class GroupsConnectivity(object):
     graph,
     ts={}
   ):
-    nb_ts = utils.depth(graph)
+    nb_ts = utils.compute_dict_depth(graph)
     connectivity = self.graph_to_nested_list(graph)
     for l in range(-1,nb_ts):
       ts[l+1] = self.merge(connectivity, it_max=l+1)

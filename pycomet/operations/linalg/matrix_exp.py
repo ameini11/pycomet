@@ -187,7 +187,7 @@ def _taylor_px(I, A, deg, l1_norm, max_nb_squarings):
     return _taylor_p8(I, A)
   elif (deg == 12):
     return _taylor_p12(I, A)
-  elif (deg == 18):
+  else:
     maxnorm = _get_maxnorm(A.dtype, deg=18)
     squarings, As, is_finite = _scaling(A, l1_norm, maxnorm, max_nb_squarings)
     eA = _taylor_p18(I, As)
@@ -198,9 +198,11 @@ def _taylor_px(I, A, deg, l1_norm, max_nb_squarings):
 # -------------------------------------
 def _linear_comb(scalars, *tensors):
   y = tf.zeros_like(tensors[0])
+  scalars = tf.split(scalars, scalars.shape[0])
+  scalars = tf.nest.map_structure(tf.squeeze, scalars)
   for (i, s) in enumerate(scalars):
-    if (s != 0.0):
-      if (s == 1.0):
+    if tf.math.not_equal(x=s, y=tf.constant(0, dtype=s.dtype)):
+      if tf.math.equal(x=s, y=tf.constant(1, dtype=s.dtype)):
         y += tensors[i]
       else:
         y += s * tensors[i]
@@ -229,7 +231,7 @@ def _taylor_p4_coeff():
   return {
     "a": tf.constant(a)
   }
-_c4 = _taylor_p4_coeff()
+_c4 = tf.nest.map_structure(tf.squeeze, _taylor_p4_coeff())
 
 def _taylor_p4(I, A):
   c = tf.nest.map_structure(lambda x: tf.cast(x, dtype=A.dtype), _c4)
@@ -266,7 +268,7 @@ def _taylor_p8_coeff():
     "b": tf.constant(b),
     "c": tf.constant(c)
   }
-_c8 = _taylor_p8_coeff()
+_c8 = tf.nest.map_structure(tf.squeeze, _taylor_p8_coeff())
 
 def _taylor_p8(I, A):
   c = tf.nest.map_structure(lambda x: tf.cast(x, dtype=A.dtype), _c8)
@@ -304,12 +306,14 @@ def _taylor_p12_coeff():
   a[3,3] = - 0.00675951846863086359778560766482
   # Return coefficients
   return {
-    "a": tf.constant(a)
+    "a": tf.split(tf.constant(a), a.shape[0], axis=0)
   }
-_c12 = _taylor_p12_coeff()
+_c12 = tf.nest.map_structure(tf.squeeze, _taylor_p12_coeff())
 
 def _taylor_p12(I, A):
+  # Prepare coefficients
   c = tf.nest.map_structure(lambda x: tf.cast(x, dtype=A.dtype), _c12)
+  # Compute
   A2 = tf.matmul(A, A)
   A3 = tf.matmul(A2, A)
   Bs = [_linear_comb(ai, I, A, A2, A3) for ai in c["a"]]
@@ -348,9 +352,9 @@ def _taylor_p18_coeff():
   a[4,4] = - 0.0000140086798182036159794363205726
   # Return coefficients
   return {
-    "a": tf.constant(a)
+    "a": tf.split(tf.constant(a), a.shape[0], axis=0)
   }
-_c18 = _taylor_p18_coeff()
+_c18 = tf.nest.map_structure(tf.squeeze, _taylor_p18_coeff())
 
 def _taylor_p18(I, A):
   c = tf.nest.map_structure(lambda x: tf.cast(x, dtype=A.dtype), _c18)
@@ -366,14 +370,15 @@ def _taylor_p18(I, A):
 def _scaling(A, l1_norm, maxnorm, max_nb_squarings):
   is_finite = tf.math.is_finite(tf.math.reduce_max(l1_norm))
   if is_finite:
+    two = tf.constant(2.0, l1_norm.dtype)
     # Compute scaling
-    ov_log2 = 1/tf.math.log(tf.constant(2.0, l1_norm.dtype))
+    ov_log2 = 1/tf.math.log(two)
     squarings = ov_log2 * tf.math.log((1/maxnorm) * l1_norm)
     squarings = tf.math.maximum(tf.math.floor(squarings), 0)
     # Apply scaling
-    As = (1 / tf.math.pow(2.0, squarings)) * A
+    As = (1 / tf.math.pow(two, squarings)) * A
   else:
-    squarings, As = np.zeros_like(l1_norm), A
+    squarings, As = tf.zeros_like(l1_norm), A
   if ((max_nb_squarings is not None) and (max_nb_squarings >= 0)):
     squarings = tf.math.minimum(squarings, max_nb_squarings)
   return squarings, As, is_finite
@@ -395,7 +400,7 @@ def _squaring(eA, squarings, is_finite):
       )
       return j, e
     # Perform squarings
-    i = 0.0
+    i = tf.constant(0.0, max_squarings.dtype)
     _, eA = tf.while_loop(
       cond=cond,
       body=body,

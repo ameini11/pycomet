@@ -17,6 +17,7 @@ _common = {
   "layer_norm": False,
   "trainable": True
 }
+_path_to_physics = "/home/zanardi/Codes/ML/PyCOMET/run/mp_meno/physics"
 
 noisy_io = {
   "inputs": {
@@ -35,30 +36,7 @@ noisy_io = {
   }
 }
 
-
-
-
-groups_graph = {
-  0: {
-    0: {
-      0: [ 0, 1, 2],
-      1: [ 3, 4, 5],
-      2: [ 6, 7, 8],
-      3: [ 6, 7, 8]
-    },
-    1: {
-      3: [ 9,10,11],
-      4: [12,13,14],
-      5: [15,16,17]
-    },
-    2: {
-      6: [18,19,20],
-      7: [21,22,23],
-      8: [24,25,26]
-    }
-  }
-}
-
+groups_graph = "./../datagen/data/groups_graph.json"
 
 lays_propty = {
 
@@ -72,32 +50,42 @@ lays_propty = {
     }
   },
 
-  "corr_factor": {
-    "lay_id": "PFCorr",
-    "kwargs": {
-      "layer_size": [8+2, 48, 24, 2],
-      "activation": ["tanh"]*2 + ["linear"],
-      "static_prop": "./../../datagen/data/physics/states/energies_norm.txt",
-      **_common
-    }
-  },
-
-  "update": {
-    "lay_id": "MatExpME",
-    "kwargs": {
-      "rates": "./../../datagen/data/physics/rates.hdf5",
-      "specie_thermos": {
-        "filename": "./../../physics/thermo/specie_thermos_ng.json",
-        "config": None
+  "timescales": [
+    {
+      "dim": {
+        "inp": [1, 1, 3, 60, 9],
+        "out": [g]
       },
-      "use_eig": False,
-      "use_pinv": False,
-      "real_only": True,
-      "use_corr": True,
-      "use_tril_corr": False,
-      "use_state_corr": True,
-      "use_state_corr_lin": True
-    }
-  }
+      "lays_propty": {
+        "pf_update": {
+          "lay_id": "PFUpdate",
+          "kwargs": {
+            "specie_thermos": {
+              "filename": f"{_path_to_physics}/NRVE{g}/thermo/specie_thermos_ng.json",
+              "config": None
+            },
+            "trainable": False
+          }
+        },
+        "correct": {
+          "lay_id": "Correction",
+          "kwargs": {
+            "layer_size": [1, 32, 16, 2],
+            "activation": ["tanh"]*2 + ["linear"],
+            "static_prop": f"./../datagen/data/physics/NRVE{g}/states/energies_norm.txt",
+            **_common
+          }
+        },
+        "sol_update": {
+          "lay_id": "SolUpdate",
+          "kwargs": {
+            "rates": f"./../datagen/data/physics/NRVE{g}/rates.hdf5",
+            "use_pinv": False,
+            "trainable": False
+          }
+        }
+      }
+    } for g in (5, 20, 60)
+  ]
 
 }

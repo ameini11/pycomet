@@ -32,6 +32,7 @@ class MultiPoleME(BaseNet):
       *args,
       **kwargs
     )
+    # Groups connectivity
     self.grp_conn = GroupsConnectivity(groups_graph)
     # Layers names
     if (lays_name is None):
@@ -46,6 +47,7 @@ class MultiPoleME(BaseNet):
     )
     # Initializing layers
     self.active_lays = self.init_layers()
+    self.init_preinput_lay()
 
   # Layers initialization
   # -----------------------------------
@@ -56,7 +58,7 @@ class MultiPoleME(BaseNet):
     }
     for (identifier, propty) in self.lays_propty.items():
       if (identifier == "xform_fcorr"):
-        lays[identifier] = self.init_inout_lay(propty)
+        lays[identifier] = self.init_lay(identifier, propty)
       elif (identifier == "timescales"):
         lays[identifier] = self.init_timescales_lay(propty)
     return lays

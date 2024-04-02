@@ -1210,7 +1210,8 @@ class LinODE(Layer):
       expa, ainv = self.apply_eig(t, a, eig, training)
     else:
       z = a * tf.expand_dims(t, axis=-1)
-      expa = self.expm(z, training=training)
+      # expa = self.expm(z, training=training)
+      expa = tf.linalg.expm(z)
       ainv = tf.linalg.pinv(a) if self.use_pinv else tf.linalg.inv(a)
     # Op: exp(At)-I
     expa_i = tf.linalg.set_diag(

@@ -204,10 +204,12 @@ class SolUpdate(nn_elem.Layer):
     self.operators = Operators(
       rates=rates
     )
+    self.rates = self.operators
     # LinODE Layer
+    self.use_pinv = use_pinv
     self.linode = nn_elem.LinODE(
       use_eig=False,
-      use_pinv=use_pinv,
+      use_pinv=self.use_pinv,
       real_only=True,
       expm_max_degree=None,
       expm_max_nb_squarings=None
@@ -224,7 +226,8 @@ class SolUpdate(nn_elem.Layer):
     # > q:    updated partition functions at temperature T
     # > nm_0: molecule's initial distribution function
     # > f:    state-wise corrective factors
-    t, na, Ts, q, nm_0, f = inputs
+    t, na, Ts, *q, nm_0, f = inputs
+    q = tf.concat(q, axis=-1)
     # Compute operators
     # -------------
     k, wr = self.operators((na, Ts, q, f), training=training)
@@ -233,3 +236,13 @@ class SolUpdate(nn_elem.Layer):
     nm_t = self.linode((t, nm_0, k, wr), training=training)
     # Compute relative molar fractions
     return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
+      "use_pinv": self.use_pinv
+    }
+    base_config = super(SolUpdate, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
