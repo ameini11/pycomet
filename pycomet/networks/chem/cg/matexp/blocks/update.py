@@ -93,6 +93,7 @@ class Operators(nn_elem.Layer):
   def __init__(
     self,
     rates=None,
+    use_corr=True,
     **kwargs
   ):
     super(Operators, self).__init__(**kwargs)
@@ -101,10 +102,12 @@ class Operators(nn_elem.Layer):
       lambda x: tf.expand_dims(tf.constant(x), axis=0),
       read_rates(rates)
     )
+    # Corrections
+    self.use_corr = use_corr
 
   # Calling
   # ===================================
-  def call(self, inputs, use_corr=True, training=None):
+  def call(self, inputs, training=None):
     # Extract inputs:
     # > na: atom number density
     # > Ts: precomputed temperature vectors (T,ln_T,ov_T)
@@ -112,15 +115,15 @@ class Operators(nn_elem.Layer):
     # > f:  state-wise corrective factors
     na, Ts, q, f = inputs
     # Compute reaction rates
-    rates = self.compute_rates(Ts, q, f, use_corr)
+    rates = self.compute_rates(Ts, q, f)
     # Compute operators
     return self.compute_ops(rates, na)
 
-  def compute_rates(self, Ts, q, f, use_corr):
+  def compute_rates(self, Ts, q, f):
     # Compute fwd reaction rates
     rates = self.compute_fwd_rates(Ts)
     # Correct fwd reaction rates
-    if use_corr:
+    if self.use_corr:
       fe, fd = self.compose_corr(f)
       rates["kef"] *= fe
       rates["kd"] *= fd
@@ -181,7 +184,8 @@ class Operators(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.rates)
+      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "use_corr": self.use_corr
     }
     base_config = super(Operators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
