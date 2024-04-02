@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+from pycomet import utils
 from .utils import read_rates
 from pycomet import operations as ops
 from pycomet.config import get_config
@@ -9,6 +10,26 @@ _CFG = get_config()
 # HyperNet library
 from hypernet.thermophysics import specie_thermo as st_mod
 
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class PreProcessor(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    **kwargs
+  ):
+    super(PreProcessor, self).__init__(**kwargs)
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    qoi_t, nm_0, f_in = utils.unpack_list(inputs, nb_elem=3)
+    t, na, nm, T = tf.split(qoi_t, num_or_size_splits=4, axis=-1)
+    # Precomputed temperature vectors
+    Ts = tf.concat([T, tf.math.log(T), 1/T], axis=-1)
+    return t, na, Ts, nm, nm_0, f_in
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class PFUpdate(nn_elem.Layer):

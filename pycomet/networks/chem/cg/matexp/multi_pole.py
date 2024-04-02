@@ -2,9 +2,9 @@ from pycomet import utils
 from pycomet.networks.basenet import BaseNet
 
 
-class MEIntCorrFE(BaseNet):
-  """Master equation integral using a forward Euler-type update 
-  combined with a state or group-specific corrective factor."""
+class MultiPoleME(BaseNet):
+  """Master equation solution using a multi-pole matrix exponential-based
+  neural operator with a state-specific corrective factor."""
 
   # Initialization
   # ===================================
@@ -18,7 +18,7 @@ class MEIntCorrFE(BaseNet):
     *args,
     **kwargs
   ):
-    super(MEIntCorrFE, self).__init__(
+    super(MultiPoleME, self).__init__(
       dim=dim,
       lays_name=lays_name,
       lays_propty=lays_propty,
@@ -75,18 +75,14 @@ class MEIntCorrFE(BaseNet):
   # Calling
   # ===================================
   def forward(self, inputs, training=None):
-    # Unpack inputs
-    qt, x, f = utils.unpack_list(inputs, nb_elem=3)
-    # Input nodes manipulation
-    f = self._manipulate_inout(
-      inputs=dict(x=f, y=f), identifier="input", training=training
-    )
-    # State/group-specific corrective factor
-    f = self.active_lays["corr_factor"](f, training=training)
-    # Forward Euler-type update
-    y = self.active_lays["update"]((qt, x, f), training=training)
-    # Output nodes manipulation
-    y = self._manipulate_inout(
-      inputs=dict(x=x, y=y), identifier="output", training=training
-    )
-    return y
+    # Preprocess inputs
+    x = self.active_lays["preproc"](inputs, training=training)
+    *qoi_t, nm, nm_0, f_in = x
+    # Transform inputs for state-wise corrective factors
+    f_in = self.active_lays["xform_fcorr"](f_in, training=training)
+    # Loop over timescales
+    y = [nm]
+    for ts_lay in self.active_lays["timescales"]:
+      y.append(ts_lay((*qoi_t, nm_0, f_in), training=training))
+    # Merge timescales
+    return self.active_lays["connect"](y)
