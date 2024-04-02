@@ -7,7 +7,7 @@ from pycomet import utils as pcm_utils
 
 # Graph data
 # =====================================
-_GRAPH_DATA = ("node_attr", "edge_attr", "cond_attr", "edge_index")
+# _GRAPH_DATA = ("node_attr", "edge_attr", "cond_attr", "edge_index")
 
 # def manipulate_input_graph(graph):
 #   graph = pcm_utils.unpack_list(graph, nb_elem=4)
