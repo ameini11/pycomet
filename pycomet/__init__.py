@@ -45,6 +45,8 @@ import tensorflow as tf
 # Backend
 from pycomet import backend
 backend.set(_CFG)
+from pycomet import device
+device.set(_CFG)
 
 # Logging
 tf.get_logger().setLevel('ERROR')

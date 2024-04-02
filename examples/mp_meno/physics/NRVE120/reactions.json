@@ -1,0 +1,42 @@
+[
+  {
+    "equation": "O2(*)+O=3O",
+    "process": 2,
+    "rates": {
+      "forward": {
+        "model": "Arrhenius"
+      },
+      "backward": {
+        "model": "MicroReversible"
+      }
+    },
+    "source": {
+      "format": "hdf5",
+      "units": "cm^3/s",
+      "kwargs": {
+        "filename": "/home/zanardi/Workspace/AirDatabase/HDF5/QCT/Orig/O3_UMN/STS/O3_UMN.hdf5",
+        "group": "CGRates/NRVE120/Arrhenius/Proc2"
+      }
+    }
+  },
+  {
+    "equation": "O2(*)+O=O2(*)+O",
+    "process": 5,
+    "rates": {
+      "forward": {
+        "model": "Arrhenius"
+      },
+      "backward": {
+        "model": "MicroReversible"
+      }
+    },
+    "source": {
+      "format": "hdf5",
+      "units": "cm^3/s",
+      "kwargs": {
+        "filename": "/home/zanardi/Workspace/AirDatabase/HDF5/QCT/Orig/O3_UMN/STS/O3_UMN.hdf5",
+        "group": "CGRates/NRVE120/Arrhenius/Proc5"
+      }
+    }
+  }
+]

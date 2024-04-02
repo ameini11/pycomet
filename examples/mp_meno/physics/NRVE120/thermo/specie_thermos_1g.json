@@ -1,0 +1,39 @@
+{
+
+  "O2": {
+    "specie": {
+      "internal": {
+        "levels": "/home/zanardi/Codes/TC/HyperNet/database/levels/O3_UMN/O2.csv",
+        "mappings": {
+          "lev": {
+            "filename": "/home/zanardi/Codes/TC/HyperNet/database/grouping/O3_UMN/O2/LevelsMap_RVE1.csv",
+            "is_prob_mat": false
+          }
+        }
+      }
+    },
+    "thermo": {
+      "modes": {
+        "internal": {
+          "model": "LinCoarseGrained",
+          "kwargs": {
+            "order": 0,
+            "T_lim": [
+              300.0,
+              20000.0
+            ],
+            "nb_pts": 200,
+            "interp_inv": true
+          }
+        }
+      },
+      "Tc_index": {
+        "int": [0],
+        "chem": [0],
+        "trans": [0]
+      },
+      "derivatives": false
+    }
+  }
+
+}

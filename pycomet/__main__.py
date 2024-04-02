@@ -34,8 +34,8 @@ def main():
   # Updating configuration
   update_config(args)
 
-  # Set device
-  device.set(_CFG)
+  # # Set device
+  # device.set(_CFG)
 
   # Setting seed
   if hasattr(args, "seed"):
