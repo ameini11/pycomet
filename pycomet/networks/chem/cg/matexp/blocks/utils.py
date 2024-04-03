@@ -26,7 +26,6 @@ def read_static_prop(prop):
   return prop
 
 def split_static_prop(prop, indices):
-  prop = read_static_prop(prop)
   return [prop[i] for i in indices]
 
 # Reaction rates
@@ -37,7 +36,6 @@ def read_rates(rates):
   return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
 
 def split_rates(rates, indices):
-  rates = read_rates(rates)
   return [
     tf.nest.map_structure(lambda x: _split_rates(x, i), rates) for i in indices
   ]

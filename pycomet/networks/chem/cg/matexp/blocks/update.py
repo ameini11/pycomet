@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 from pycomet import utils
-from .utils import read_rates
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
+from .utils import read_rates, split_rates
 _CFG = get_config()
 
 # HyperNet library
@@ -64,7 +64,8 @@ class PFUpdate(nn_elem.Layer):
 
   # Calling
   # ===================================
-  def call(self, T, training=None):
+  def call(self, Ts, training=None):
+    T = tf.gather(Ts, indices=[0], axis=-1)
     # Update partition functions: q = [qa, qm]
     q = []
     for st in self.sp_th.values():
@@ -210,7 +211,6 @@ class SolUpdate(nn_elem.Layer):
       rates=rates,
       use_corr=use_corr
     )
-    self.rates = self.operators
     # LinODE Layer
     self.linode = nn_elem.LinODE(
       use_eig=False,
@@ -231,8 +231,7 @@ class SolUpdate(nn_elem.Layer):
     # > q:    updated partition functions at temperature T
     # > nm_0: molecule's initial distribution function
     # > f:    state-wise corrective factors
-    t, na, Ts, *q, nm_0, f = inputs
-    q = tf.concat(q, axis=-1)
+    t, na, Ts, q, nm_0, f = inputs
     # Compute operators
     # -------------
     k, wr = self.operators((na, Ts, q, f), training=training)
@@ -251,4 +250,67 @@ class SolUpdate(nn_elem.Layer):
       "use_pinv": self.linode.use_pinv
     }
     base_config = super(SolUpdate, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class MultiSolUpdate(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    rates=None,
+    use_corr=True,
+    use_pinv=False,
+    split_indices=None,
+    **kwargs
+  ):
+    super(MultiSolUpdate, self).__init__(**kwargs)
+    # Inputs
+    self.rates = read_rates(rates=rates)
+    self.use_corr = use_corr
+    self.use_pinv = use_pinv
+    self.split_indices = split_indices
+    # Sub-layers
+    # -------------
+    self.update = []
+    for irates in split_rates(rates=self.rates, indices=self.split_indices):
+      self.update.append(
+        SolUpdate(
+          rates=irates,
+          use_corr=self.use_corr,
+          use_pinv=self.use_pinv
+        )
+      )
+    self.gather = nn_elem.Gather(indices=self.split_indices, axis=1)
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    # Extract inputs
+    t, na, Ts, qa, qm, nm_0, f = inputs
+    # Split QoI
+    qm, nm_0, f = [self.gather(z) for z in (qm, nm_0, f)]
+    # Compute molecule's relative molar fractions
+    xm_t = []
+    for (i, nm_i) in enumerate(nm_0):
+      # Compose inputs
+      q_i = tf.concat([qa, qm[i]], axis=1)
+      inputs = (t, na, Ts, q_i, nm_i, f[i])
+      # Compute solution update
+      xm_t.append(self.update[i](inputs, training=training))
+    # Concatenate final solution
+    return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "use_corr": self.use_corr,
+      "use_pinv": self.use_pinv,
+      "split_indices": self.split_indices
+    }
+    base_config = super(MultiSolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
