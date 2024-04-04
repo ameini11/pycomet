@@ -1,6 +1,6 @@
 # Model/architecture properties
 # =====================================
-model_name = "me_int"
+model_name = "mp_meno"
 
 dim = {
   "inp": [4, 60, 9],

@@ -80,7 +80,7 @@ lays_propty = {
           "lay_id": "SolUpdate",
           "kwargs": {
             "rates": f"./../datagen/data/physics/NRVE{g}/rates.hdf5",
-            "use_corr": True,
+            "use_corr": False,
             "use_pinv": False,
             "trainable": False
           }
