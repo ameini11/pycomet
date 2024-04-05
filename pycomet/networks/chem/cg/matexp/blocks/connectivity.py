@@ -55,7 +55,7 @@ class LastToCurrent(nn_elem.Layer):
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class CurrentToNext(nn_elem.Layer):
-  """Current-to-last timescale connectivity."""
+  """Current-to-next timescale connectivity."""
 
   # Initialization
   # ===================================
