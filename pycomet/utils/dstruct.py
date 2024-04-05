@@ -278,9 +278,11 @@ def close_all_hdf5():
 # Text files
 # =====================================
 def replace(
-  file,
+  file_in,
   patterns,
   replaces,
+  inplace=True,
+  file_out=None,
   use_startswith=True
 ):
   """
@@ -304,9 +306,11 @@ def replace(
   the corresponding lines from the 'replaces' list. The modified content is
   then saved back to the same file.
   """
-  file_old = open(file, 'r')
-  file_new = open(file+'_new', 'w')
-  for line in file_old:
+  fin = open(file_in, 'r')
+  if (inplace or (file_out is None)):
+    file_out = file_in + '_new'
+  fout = open(file_out, 'w')
+  for line in fin:
     if use_startswith:
       cond = any([line.startswith(p) for p in patterns])
     else:
@@ -318,10 +322,11 @@ def replace(
           break
     else:
       line_new = line
-    file_new.write(line_new)
-  file_new.close()
-  file_old.close()
-  os.rename(file+'_new', file)
+    fout.write(line_new)
+  fout.close()
+  fin.close()
+  if (inplace or (file_out is None)):
+    os.rename(file_out, file_in)
 
 def generate_rnd_name(
   ref_name,
