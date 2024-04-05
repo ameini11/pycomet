@@ -4,6 +4,7 @@ from pycomet import utils
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
+from .operators import Operators
 from .utils import read_rates, split_rates
 _CFG = get_config()
 
@@ -86,113 +87,6 @@ class PFUpdate(nn_elem.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class Operators(nn_elem.Layer):
-  """Compute the master equation operators for triatomic systems."""
-
-  # Initialization
-  # ===================================
-  def __init__(
-    self,
-    rates=None,
-    use_corr=True,
-    **kwargs
-  ):
-    super(Operators, self).__init__(**kwargs)
-    # Reaction rates
-    self.rates = tf.nest.map_structure(
-      lambda x: tf.expand_dims(tf.constant(x), axis=0),
-      read_rates(rates)
-    )
-    # Corrections
-    self.use_corr = use_corr
-
-  # Calling
-  # ===================================
-  def call(self, inputs, training=None):
-    # Extract inputs:
-    # > na: atom number density
-    # > Ts: precomputed temperature vectors (T,ln_T,ov_T)
-    # > q:  updated partition functions at temperature T
-    # > f:  state-wise corrective factors
-    na, Ts, q, f = inputs
-    # Compute reaction rates
-    rates = self.compute_rates(Ts, q, f)
-    # Compute operators
-    return self.compute_ops(rates, na)
-
-  def compute_rates(self, Ts, q, f):
-    # Compute fwd reaction rates
-    rates = self.compute_fwd_rates(Ts)
-    # Correct fwd reaction rates
-    if self.use_corr:
-      fe, fd = self.compose_corr(f)
-      rates["kef"] *= fe
-      rates["kd"] *= fd
-    # Compute bwd reaction rates
-    rates = self.compute_bwd_rates(rates, q)
-    return rates
-
-  def compute_ops(self, rates, na):
-    # > Excitation-Relaxation-Dissociation processes
-    ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
-    ke_diag = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
-    ke = tf.transpose(ke, perm=[0,2,1]) - ke_diag
-    k = (ke - tf.linalg.diag(rates["kd"])) * tf.expand_dims(na, axis=-1)
-    # > Recombination processes
-    wr = rates["kr"] * na**3
-    return k, wr
-
-  # Reaction rates corrections
-  # -----------------------------------
-  def compose_corr(self, f):
-    # Excitation processes
-    fe = tf.math.exp(tf.einsum("nik,njk->nij", f, -f))
-    # Dissociation processes
-    fd = tf.math.exp(tf.einsum("nik->ni", f))
-    return fe, fd
-
-  # Reaction rates
-  # -----------------------------------
-  def compute_fwd_rates(self, Ts):
-    # Precomputed temperature vectors
-    T, ln_T, ov_T = tf.split(Ts, num_or_size_splits=3, axis=-1)
-    # Loop over processes
-    rates = {}
-    for k in ("kef", "kd"):
-      # Extract Arrhenius law parameters
-      param = [self.rates[k][p] for p in ("A", "beta", "Ta")]
-      # Apply Arrhenius law
-      rates[k] = self._arrhenius(ln_T, ov_T, *param)
-    return rates
-
-  def _arrhenius(self, ln_T, ov_T, A, beta, Ta):
-    # Reshape temperature vectors
-    shape = [-1] + [1 for _ in A.shape[1:]]
-    ln_T, ov_T = [tf.reshape(x, shape) for x in (ln_T, ov_T)]
-    # Apply Arrhenius law
-    return A * tf.math.exp(beta*ln_T - Ta*ov_T)
-
-  def compute_bwd_rates(self, rates, q):
-    # Unpack partition functions
-    qa, qm = tf.split(q, num_or_size_splits=[1,q.shape[1]-1], axis=-1)
-    # Excitation processes
-    rates["keb"] = tf.einsum("nij,ni,nj->nij", rates["kef"], qm, 1/qm)
-    # Dissociation processes
-    rates["kr"] = rates["kd"] * qm * (1/(qa**2))
-    return rates
-
-  # Configuration update
-  # ===================================
-  def get_config(self):
-    config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
-      "use_corr": self.use_corr
-    }
-    base_config = super(Operators, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
-
-
-@tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class SolUpdate(nn_elem.Layer):
   """Matrix exponential-based update for the master equation."""
 
@@ -203,6 +97,7 @@ class SolUpdate(nn_elem.Layer):
     rates=None,
     use_corr=True,
     use_pinv=False,
+    expm_use_pade=False,
     **kwargs
   ):
     super(SolUpdate, self).__init__(**kwargs)
@@ -216,6 +111,7 @@ class SolUpdate(nn_elem.Layer):
       use_eig=False,
       use_pinv=use_pinv,
       real_only=True,
+      expm_use_pade=expm_use_pade,
       expm_max_degree=None,
       expm_max_nb_squarings=None
     )
@@ -247,7 +143,8 @@ class SolUpdate(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
       "use_corr": self.operators.use_corr,
-      "use_pinv": self.linode.use_pinv
+      "use_pinv": self.linode.use_pinv,
+      "expm_use_pade": self.linode.expm_use_pade
     }
     base_config = super(SolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -263,6 +160,7 @@ class MultiSolUpdate(nn_elem.Layer):
     rates=None,
     use_corr=True,
     use_pinv=False,
+    expm_use_pade=False,
     split_indices=None,
     **kwargs
   ):
@@ -271,6 +169,7 @@ class MultiSolUpdate(nn_elem.Layer):
     self.rates = read_rates(rates=rates)
     self.use_corr = use_corr
     self.use_pinv = use_pinv
+    self.expm_use_pade = expm_use_pade
     self.split_indices = split_indices
     # Sub-layers
     # -------------
@@ -280,7 +179,8 @@ class MultiSolUpdate(nn_elem.Layer):
         SolUpdate(
           rates=irates,
           use_corr=self.use_corr,
-          use_pinv=self.use_pinv
+          use_pinv=self.use_pinv,
+          expm_use_pade=self.expm_use_pade
         )
       )
     self.gather = nn_elem.Gather(indices=self.split_indices, axis=1)
@@ -310,6 +210,7 @@ class MultiSolUpdate(nn_elem.Layer):
       "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
       "use_corr": self.use_corr,
       "use_pinv": self.use_pinv,
+      "expm_use_pade": self.expm_use_pade,
       "split_indices": self.split_indices
     }
     base_config = super(MultiSolUpdate, self).get_config()

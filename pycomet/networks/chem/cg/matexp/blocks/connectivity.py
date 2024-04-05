@@ -92,7 +92,7 @@ class GroupsConnectivity(object):
   """
   Example:
   -------
-    groups_graph = {
+    graph = {
       0: {
         0: [0,1,2],
         1: [3,4,5],
@@ -105,20 +105,29 @@ class GroupsConnectivity(object):
   # ===================================
   def __init__(
     self,
-    groups_graph
+    graph
   ):
-    self.groups_graph = groups_graph
-    if isinstance(self.groups_graph, str):
-      with open(self.groups_graph) as file:
-        self.groups_graph = json.load(file)
-    # Current-to-next timescale connectivity index
-    self.current_to_next = self.get_indices(
-      self.connect_current_to_next(self.groups_graph)
+    self.graph = graph
+    if isinstance(self.graph, str):
+      with open(self.graph) as file:
+        self.graph = json.load(file)
+    # Current-to-next timescale connectivity/indexing
+    self.current_to_next = {
+      "conn": self._convert_keys(self.connect_current_to_next(self.graph))
+    }
+    self.current_to_next["indices"] = self.get_indices(
+      self.current_to_next["conn"]
     )
-    # Last-to-current timescale connectivity index
-    self.last_to_current = self.get_indices(
-      self.connect_last_to_current(self.groups_graph)
+    # Last-to-current timescale connectivity/indexing
+    self.last_to_current = {
+      "conn": self._convert_keys(self.connect_last_to_current(self.graph))
+    }
+    self.last_to_current["indices"] = self.get_indices(
+      self.last_to_current["conn"]
     )
+
+  def _convert_keys(self, d):
+    return {str(k): v for (k, v) in d.items()}
 
   # Groups graph indexing
   # ===================================
@@ -128,7 +137,7 @@ class GroupsConnectivity(object):
       if (lindices is not None):
         lindices = [np.full(len(idx), j) for (j,idx) in enumerate(lindices)]
         lindices = np.concatenate(lindices)
-      indices[str(l)] = lindices
+      indices[l] = lindices
     return indices
 
   # Groups graph connectivity
