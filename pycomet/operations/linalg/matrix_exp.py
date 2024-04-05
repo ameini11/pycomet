@@ -10,8 +10,10 @@ import pycomet as pcm
 import tensorflow as tf
 
 
+@tf.function
 def expm(
   A,
+  use_pade=False,
   max_degree=None,
   max_nb_squarings=None
 ):
@@ -20,11 +22,15 @@ def expm(
     return A
   # Reshape in
   A, batch_shape = _reshape_in(A)
+  # Compute matrix exponential
   if (A.shape[-1] == 2):
-    # 2x2 matrix
+    # > Analytical expression for a 2x2 matrix
     eA = _expm_2by2(A)
+  elif use_pade:
+    # > Pade approximation
+    eA = tf.linalg.expm(A)
   else:
-    # Compute optimal Taylor expansion
+    # > Optimal Taylor expansion
     I = tf.eye(
       num_rows=tf.shape(A)[-2],
       batch_shape=batch_shape,

@@ -1114,13 +1114,14 @@ class Eigen(Layer):
   def decompose(self, x):
     l, v = tf.linalg.eig(x)
     self.v, self.vinv = v, None
-    return l
+    return tf.expand_dims(l, axis=-1) 
 
   def reconstruct(self, x):
     # > f(x) = V @ diag(x) @ V^(-1)
+    # > Shapes: v=[n,i,j], x=[n,j,1], vinv=[n,j,i]
     v = tf.cast(self.v, dtype=x.dtype)
     vinv = tf.cast(self.vinv, dtype=x.dtype)
-    return tf.einsum("nij,nj,njk->nik", v, x, vinv)
+    return tf.matmul(v, x*vinv)
 
   # Configuration update
   # ===================================
@@ -1139,11 +1140,13 @@ class MatrixExp(Layer):
   # ===================================
   def __init__(
     self,
+    use_pade=False,
     max_degree=None,
     max_nb_squarings=None,
     **kwargs
   ):
     super(MatrixExp, self).__init__(**kwargs)
+    self.use_pade = use_pade
     self.max_degree = max_degree
     self.max_nb_squarings = max_nb_squarings
 
@@ -1152,6 +1155,7 @@ class MatrixExp(Layer):
   def call(self, inputs, training=None):
     return expm(
       A=inputs,
+      use_pade=self.use_pade,
       max_degree=self.max_degree,
       max_nb_squarings=self.max_nb_squarings
     )
@@ -1160,6 +1164,7 @@ class MatrixExp(Layer):
   # ===================================
   def get_config(self):
     config = {
+      "use_pade": self.use_pade,
       "max_degree": self.max_degree,
       "max_nb_squarings": self.max_nb_squarings
     }
@@ -1182,6 +1187,7 @@ class LinODE(Layer):
     use_eig=False,
     use_pinv=False,
     real_only=False,
+    expm_use_pade=False,
     expm_max_degree=None,
     expm_max_nb_squarings=None,
     **kwargs
@@ -1190,6 +1196,7 @@ class LinODE(Layer):
     self.use_eig = use_eig
     self.use_pinv = use_pinv
     self.real_only = real_only
+    self.expm_use_pade = expm_use_pade
     self.expm_max_degree = expm_max_degree
     self.expm_max_nb_squarings = expm_max_nb_squarings
     if self.use_eig:
@@ -1198,6 +1205,7 @@ class LinODE(Layer):
       )
     else:
       self.expm = MatrixExp(
+        use_pade=self.expm_use_pade,
         max_degree=self.expm_max_degree,
         max_nb_squarings=self.expm_max_nb_squarings
       )
@@ -1206,12 +1214,13 @@ class LinODE(Layer):
   # ===================================
   def call(self, inputs, eig=None, training=None):
     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
+    # Reshape vectors
+    t, y0, b = [tf.expand_dims(z, axis=-1) for z in (t, y0, b)]
+    # Op: exp(At) and A^(-1)
     if self.use_eig:
       expa, ainv = self.apply_eig(t, a, eig, training)
     else:
-      z = a * tf.expand_dims(t, axis=-1)
-      # expa = self.expm(z, training=training)
-      expa = tf.linalg.expm(z)
+      expa = self.expm(a*t, training=training)
       ainv = tf.linalg.pinv(a) if self.use_pinv else tf.linalg.inv(a)
     # Op: exp(At)-I
     expa_i = tf.linalg.set_diag(
@@ -1219,9 +1228,7 @@ class LinODE(Layer):
       diagonal=tf.linalg.diag_part(expa) - 1.0
     )
     # Compute solution
-    y = tf.einsum("nij,nj->ni", expa, y0) \
-      + tf.einsum("nij,nj->ni", tf.matmul(expa_i, ainv), b)
-      # + tf.einsum("nij,njk,nk->ni", expa_i, ainv, b)
+    y = tf.matmul(expa, y0) + tf.matmul(expa_i, tf.matmul(ainv, b))
     return y
 
   def apply_eig(self, t, a, eig=None, training=None):
@@ -1248,6 +1255,7 @@ class LinODE(Layer):
       "use_eig": self.use_eig,
       "use_pinv": self.use_pinv,
       "real_only": self.real_only,
+      "expm_use_pade": self.expm_use_pade,
       "expm_max_degree": self.expm_max_degree,
       "expm_max_nb_squarings": self.expm_max_nb_squarings
     }
