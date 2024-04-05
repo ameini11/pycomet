@@ -1,11 +1,11 @@
 import tensorflow as tf
 
 from pycomet import utils
+from .operators import Operators
 from pycomet import operations as ops
 from pycomet.config import get_config
-from pycomet.networks import elements as nn_elem
-from .operators import Operators
 from .utils import read_rates, split_rates
+from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
 # HyperNet library
@@ -174,7 +174,8 @@ class MultiSolUpdate(nn_elem.Layer):
     # Sub-layers
     # -------------
     self.update = []
-    for irates in split_rates(rates=self.rates, indices=self.split_indices):
+    multi_rates = split_rates(rates=self.rates, indices=self.split_indices)
+    for irates in multi_rates:
       self.update.append(
         SolUpdate(
           rates=irates,

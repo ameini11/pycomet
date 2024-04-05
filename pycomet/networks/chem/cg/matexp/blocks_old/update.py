@@ -106,10 +106,6 @@ class Operators(nn_elem.Layer):
     # Corrections
     self.use_corr = use_corr
 
-    self.processes = ["2","5","6"]
-    self.rates_indices = ...
-    self.rates_param = ...
-
   # Calling
   # ===================================
   def call(self, inputs, training=None):
@@ -121,23 +117,19 @@ class Operators(nn_elem.Layer):
     na, Ts, q, f = inputs
     # Compute reaction rates
     rates = self.compute_rates(Ts, q, f)
-    # Compute reaction rates
-    rates = self.compose_rates(rates)
     # Compute operators
     return self.compute_ops(rates, na)
 
   def compute_rates(self, Ts, q, f):
-    rates = {}
     # Compute fwd reaction rates
-    rates["fwd"] = self.compute_fwd_rates(Ts)
+    rates = self.compute_fwd_rates(Ts)
     # Correct fwd reaction rates
     if self.use_corr:
-      rates["fwd"] = self.apply_corr(rates["fwd"], f)
+      fe, fd = self.compose_corr(f)
+      rates["kef"] *= fe
+      rates["kd"] *= fd
     # Compute bwd reaction rates
-    rates["bwd"] = self.compute_bwd_rates(rates["fwd"], q)
-    return rates
-
-  def compose_rates(self, rates):
+    rates = self.compute_bwd_rates(rates, q)
     return rates
 
   def compute_ops(self, rates, na):
@@ -152,60 +144,42 @@ class Operators(nn_elem.Layer):
 
   # Reaction rates corrections
   # -----------------------------------
-  def apply_corr(self, fwd_rates, f):
-    # Loop over processes
-    for k in ("d", "e"):
-      if (k in fwd_rates.keys()):
-        # Extract correction
-        ck = tf.gather(f, indices=self.rates["indices"][k][0], axis=-2)
-        if (k == "e"):
-          ck -= tf.gather(f, indices=self.rates["indices"][k][1], axis=-2)
-        # Apply correction
-        fwd_rates[k] *= tf.math.exp(tf.math.reduce_sum(ck, axis=-1))
-    return fwd_rates
+  def compose_corr(self, f):
+    # Excitation processes
+    fe = tf.math.exp(tf.einsum("nik,njk->nij", f, -f))
+    # Dissociation processes
+    fd = tf.math.exp(tf.einsum("nik->ni", f))
+    return fe, fd
 
   # Reaction rates
   # -----------------------------------
   def compute_fwd_rates(self, Ts):
     # Precomputed temperature vectors
-    _, ln_T, ov_T = tf.split(Ts, num_or_size_splits=3, axis=-1)
+    T, ln_T, ov_T = tf.split(Ts, num_or_size_splits=3, axis=-1)
     # Loop over processes
-    fwd_rates = {}
-    for p in self.processes:
-      fwd_rates_p = self._arrhenius(ln_T, ov_T, self.rates["value"][p])
-      if (p == "2"):
-        # Dissociation processes
-        fwd_rates["d"] = fwd_rates_p
-      elif (p in ("5", "6")):
-        # Excitation processes
-        if ("e" in fwd_rates.keys()):
-          fwd_rates["e"] += fwd_rates_p
-        else:
-          fwd_rates["e"] = fwd_rates_p
-      else:
-        utils.raise_err(NotImplementedError)
-    return fwd_rates
+    rates = {}
+    for k in ("kef", "kd"):
+      # Extract Arrhenius law parameters
+      param = [self.rates[k][p] for p in ("A", "beta", "Ta")]
+      # Apply Arrhenius law
+      rates[k] = self._arrhenius(ln_T, ov_T, *param)
+    return rates
 
-  def _arrhenius(self, ln_T, ov_T, param):
-    return param["A"] * tf.math.exp(param["beta"]*ln_T - param["Ta"]*ov_T)
+  def _arrhenius(self, ln_T, ov_T, A, beta, Ta):
+    # Reshape temperature vectors
+    shape = [-1] + [1 for _ in A.shape[1:]]
+    ln_T, ov_T = [tf.reshape(x, shape) for x in (ln_T, ov_T)]
+    # Apply Arrhenius law
+    return A * tf.math.exp(beta*ln_T - Ta*ov_T)
 
-  def compute_bwd_rates(self, fwd_rates, q):
-    # Unpack partition functions (atom, molecule)
+  def compute_bwd_rates(self, rates, q):
+    # Unpack partition functions
     qa, qm = tf.split(q, num_or_size_splits=[1,q.shape[1]-1], axis=-1)
-    # Loop over processes
-    bwd_rates = {}
-    for k in ("d", "e"):
-      if (k in fwd_rates.keys()):
-        qi = tf.gather(qm, indices=self.rates["indices"][k][0], axis=-1)
-        if (k == "d"):
-          # Dissociation processes
-          ov_qj = 1/(qa**2)
-        else:
-          # Excitation processes
-          ov_qj = 1/tf.gather(qm, indices=self.rates["indices"][k][1], axis=-1)
-        # Compute value
-        bwd_rates[k] = fwd_rates[k] * qi * ov_qj
-    return bwd_rates
+    # Excitation processes
+    rates["keb"] = tf.einsum("nij,ni,nj->nij", rates["kef"], qm, 1/qm)
+    # Dissociation processes
+    rates["kr"] = rates["kd"] * qm * (1/(qa**2))
+    return rates
 
   # Configuration update
   # ===================================
@@ -229,7 +203,6 @@ class SolUpdate(nn_elem.Layer):
     rates=None,
     use_corr=True,
     use_pinv=False,
-    expm_use_pade=False,
     **kwargs
   ):
     super(SolUpdate, self).__init__(**kwargs)
@@ -243,7 +216,6 @@ class SolUpdate(nn_elem.Layer):
       use_eig=False,
       use_pinv=use_pinv,
       real_only=True,
-      expm_use_pade=expm_use_pade,
       expm_max_degree=None,
       expm_max_nb_squarings=None
     )
@@ -275,8 +247,7 @@ class SolUpdate(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
       "use_corr": self.operators.use_corr,
-      "use_pinv": self.linode.use_pinv,
-      "expm_use_pade": self.linode.expm_use_pade
+      "use_pinv": self.linode.use_pinv
     }
     base_config = super(SolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -292,7 +263,6 @@ class MultiSolUpdate(nn_elem.Layer):
     rates=None,
     use_corr=True,
     use_pinv=False,
-    expm_use_pade=False,
     split_indices=None,
     **kwargs
   ):
@@ -301,19 +271,16 @@ class MultiSolUpdate(nn_elem.Layer):
     self.rates = read_rates(rates=rates)
     self.use_corr = use_corr
     self.use_pinv = use_pinv
-    self.expm_use_pade = expm_use_pade
     self.split_indices = split_indices
     # Sub-layers
     # -------------
     self.update = []
-    multi_rates = split_rates(rates=self.rates, indices=self.split_indices)
-    for irates in multi_rates:
+    for irates in split_rates(rates=self.rates, indices=self.split_indices):
       self.update.append(
         SolUpdate(
           rates=irates,
           use_corr=self.use_corr,
-          use_pinv=self.use_pinv,
-          expm_use_pade=self.expm_use_pade
+          use_pinv=self.use_pinv
         )
       )
     self.gather = nn_elem.Gather(indices=self.split_indices, axis=1)
@@ -343,7 +310,6 @@ class MultiSolUpdate(nn_elem.Layer):
       "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
       "use_corr": self.use_corr,
       "use_pinv": self.use_pinv,
-      "expm_use_pade": self.expm_use_pade,
       "split_indices": self.split_indices
     }
     base_config = super(MultiSolUpdate, self).get_config()
