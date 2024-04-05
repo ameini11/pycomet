@@ -1,10 +1,10 @@
 __all__ = [
-  "CurrentToLast",
+  "CurrentToNext",
   "GroupsConnectivity",
   "TimeScale",
   "PreProcessor"
 ]
 
-from .connectivity import CurrentToLast, GroupsConnectivity
+from .connectivity import CurrentToNext, GroupsConnectivity
 from .timescale import TimeScale
 from .update import PreProcessor

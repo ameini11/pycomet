@@ -49,27 +49,30 @@ class Correction(nn_elem.Layer):
         layer_norm=self.layer_norm,
         dropout=self.dropout
       )
+    # > Latent space
+    self.latent = self.layer_size[-1]
+    self.splits = [self.latent, 1, 1]
 
   # Calling
   # ===================================
   def call(self, inputs, training=None):
-    # Encode 'time' inputs
+    # Encode 'time' inputs > shape=[n,1,p]
     # -------------
     ft = self.blocks["time"](inputs, training=training)
-    # Encode static 'energy' inputs
+    ft = tf.expand_dims(ft, axis=1)
+    # Encode static 'energy' inputs > shape=[1,m,p+2]
     # -------------
     fe = self.blocks["energy"](self.static_prop, training=training)
-    fe, d, c = tf.split(fe, num_or_size_splits=[fe.shape[1]-2,1,1], axis=-1)
+    fe = tf.expand_dims(fe, axis=0)
+    # > Splitting
+    fe, d, c = tf.split(fe, num_or_size_splits=self.splits, axis=-1)
     # > Scaling
     fe *= d
-    # > Reshape shifting
-    c = tf.expand_dims(c, axis=0)
+    # > Shifting
     c = tf.repeat(input=c, repeats=tf.shape(ft)[0], axis=0)
     # Linerly combine latent spaces
     # -------------
-    y = tf.einsum("...p,mp->...mp", ft, fe)
-    y = tf.concat([y,c], axis=-1)
-    return y
+    return tf.concat([ft*fe,c], axis=-1)
 
   # Configuration update
   # ===================================

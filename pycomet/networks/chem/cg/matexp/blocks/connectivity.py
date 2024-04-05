@@ -1,8 +1,10 @@
 import json
 import itertools
+import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
+from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
@@ -10,84 +12,94 @@ _CFG = get_config()
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class LastToCurrent(nn_elem.Layer):
+  """Last-to-current timescale connectivity."""
 
   # Initialization
   # ===================================
   def __init__(
     self,
-    last_to_current,
+    indices=None,
     **kwargs
   ):
     super(LastToCurrent, self).__init__(**kwargs)
-    # Last-to-current timescale connectivity
-    self.last_to_current = last_to_current
+    self.nb_elem = 1
+    self.indices = indices
+    if (self.indices is not None):
+      self.indices = tf.constant(self.indices, dtype=tf.int32)
+      self.indices = tf.reshape(self.indices, shape=[-1])
+      self.nb_elem = tf.math.reduce_max(self.indices)+1
 
   # Calling
   # ===================================
   def call(self, x, training=None):
-    if (self.last_to_current is not None):
-      y = []
-      for indices in self.last_to_current:
-        yi = tf.gather(x, indices, axis=-1)
-        yi = tf.math.reduce_sum(yi, axis=-1, keepdims=True)
-        y.append(yi)
-      return tf.concat(y, axis=-1) if (len(y) > 1) else y[-1]
-    else:
-      return x
-
-  # Configuration update
-  # ===================================
-  def get_config(self):
-    config = {
-      "last_to_current": self.last_to_current
-    }
-    base_config = super(LastToCurrent, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
-
-
-@tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class CurrentToLast(nn_elem.Layer):
-
-  # Initialization
-  # ===================================
-  def __init__(
-    self,
-    current_to_last,
-    **kwargs
-  ):
-    super(CurrentToLast, self).__init__(**kwargs)
-    # Current-to-last timescale connectivity
-    self.current_to_last = current_to_last
-
-  # Calling
-  # ===================================
-  def call(self, x, training=None):
-    y = x[0]
-    for i in range(1,len(x)):
-      indices = self.current_to_last[str(i-1)]
-      if (indices is not None):
-        # Split the previous slower timescale
-        yi = tf.split(y, num_or_size_splits=y.shape[1], axis=-1)
-        # Gather the current faster timescale by indices
-        xi = [tf.gather(x[i], j, axis=-1) for j in indices]
-        # Multiply slower and faster timescales
-        y = [z[0] * z[1] for z in zip(yi, xi)]
-        # Concatenate
-        y = tf.concat(y, axis=-1) if (len(y) > 1) else y[-1]
-    # Return the last timescale
+    y = x
+    if (self.indices is not None):
+      y = tf.transpose(y)
+      y = tf.math.unsorted_segment_sum(
+        data=y,
+        segment_ids=self.indices,
+        num_segments=self.nb_elem
+      )
+      y = tf.transpose(y)
     return y
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      "current_to_last": self.current_to_last
+      "indices": ops.to_numpy(self.indices)
     }
-    base_config = super(CurrentToLast, self).get_config()
+    base_config = super(LastToCurrent, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class CurrentToNext(nn_elem.Layer):
+  """Current-to-last timescale connectivity."""
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    indices={},
+    **kwargs
+  ):
+    super(CurrentToNext, self).__init__(**kwargs)
+    self.indices = tf.nest.map_structure(
+      lambda x: tf.reshape(tf.constant(x, dtype=tf.int32), shape=[-1]),
+      indices
+    )
+
+  # Calling
+  # ===================================
+  def call(self, x, training=None):
+    y = x[0]
+    for i in range(len(x)-1):
+      y = x[i+1] * tf.gather(y, indices=self.indices[str(i)], axis=-1)
+    return y
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "indices": tf.nest.map_structure(ops.to_numpy, self.indices)
+    }
+    base_config = super(CurrentToNext, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
 class GroupsConnectivity(object):
+  """
+  Example:
+  -------
+    groups_graph = {
+      0: {
+        0: [0,1,2],
+        1: [3,4,5],
+        2: [6,7,8]
+      }
+    }
+  """
 
   # Initialization
   # ===================================
@@ -99,19 +111,27 @@ class GroupsConnectivity(object):
     if isinstance(self.groups_graph, str):
       with open(self.groups_graph) as file:
         self.groups_graph = json.load(file)
-    # Last-to-current timescale connectivity
-    self.last_to_current = self._convert_keys(
-      self.connect_last_to_current(self.groups_graph)
-    )
-    # Current-to-last timescale connectivity
-    self.current_to_last = self._convert_keys(
+    # Current-to-next timescale connectivity index
+    self.current_to_next = self.get_indices(
       self.connect_current_to_next(self.groups_graph)
     )
+    # Last-to-current timescale connectivity index
+    self.last_to_current = self.get_indices(
+      self.connect_last_to_current(self.groups_graph)
+    )
 
-  def _convert_keys(self, d):
-    return {str(k): v for (k, v) in d.items()}
+  # Groups graph indexing
+  # ===================================
+  def get_indices(self, connectivity):
+    indices = {}
+    for (l, lindices) in connectivity.items():
+      if (lindices is not None):
+        lindices = [np.full(len(idx), j) for (j,idx) in enumerate(lindices)]
+        lindices = np.concatenate(lindices)
+      indices[str(l)] = lindices
+    return indices
 
-  # Groups connectivity/indexing
+  # Groups graph connectivity
   # ===================================
   def connect_current_to_next(
     self,
@@ -190,42 +210,3 @@ class GroupsConnectivity(object):
       return self.join(ls)
     except:
       return ls
-
-
-# -------------------------------------
-# Example
-# -------------------------------------
-#
-# groups_graph = {
-#     0: {
-#         0: [0,1,2],
-#         1: [3,4,5],
-#         2: [6,7,8]
-#     }
-# }
-#
-# last_to_current = {
-#     0: [
-#         [0, 1, 2, 3, 4, 5, 6, 7, 8]
-#     ],
-#     1: [
-#         [0, 1, 2],
-#         [3, 4, 5],
-#         [6, 7, 8]
-#     ],
-#     2: None
-# }
-#
-# current_to_last = {
-#     0: [
-#         [0, 1, 2]
-#     ],
-#     1: [
-#         [0, 1, 2],
-#         [3, 4, 5],
-#         [6, 7, 8]
-#     ],
-#     2: None
-# }
-#
-# -------------------------------------

@@ -113,7 +113,7 @@ def _taylor(I, A, max_degree, max_nb_squarings):
     upper_bound = tf.math.less(l1_norm, thetas[j])
     # Computations
     e = tf.where(
-      tf.math.logical_and(lower_bound, upper_bound),
+      condition=tf.math.logical_and(lower_bound, upper_bound),
       x=_taylor_px(I, a, degrees[i], l1_norm, max_nb_squarings),
       y=a
     )
@@ -400,7 +400,7 @@ def _squaring(eA, squarings, is_finite):
     def body(i, e):
       j = i + 1
       e = tf.where(
-        tf.math.less(i, squarings),
+        condition=tf.math.less(i, squarings),
         x=tf.matmul(e, e),
         y=e
       )
