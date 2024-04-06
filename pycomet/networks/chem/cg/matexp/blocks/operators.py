@@ -44,7 +44,7 @@ class Operators(nn_elem.Layer):
     na, Ts, q, f = inputs
     # Compute reaction rates
     rates = self.compute_rates(Ts, q, f)
-    # Compute reaction rates
+    # Compose reaction rates into matrices
     rates = self.compose_rates(rates)
     # Compute operators
     return self.compute_ops(rates, na)
@@ -65,12 +65,13 @@ class Operators(nn_elem.Layer):
 
   def compute_ops(self, rates, na):
     # > Excitation-Relaxation-Dissociation processes
-    ke = rates["kef"] + tf.transpose(rates["keb"], perm=[0,2,1])
-    ke_diag = tf.linalg.diag(tf.math.reduce_sum(ke, axis=-1))
-    ke = tf.transpose(ke, perm=[0,2,1]) - ke_diag
-    k = (ke - tf.linalg.diag(rates["kd"])) * tf.expand_dims(na, axis=-1)
+    k = tf.linalg.set_diag(
+      input=tf.transpose(rates["e"], perm=[0,2,1]),
+      diagonal=tf.math.reduce_sum(rates["e"], axis=-1) - rates["d"]
+    )
+    k *= tf.expand_dims(na, axis=-1)
     # > Recombination processes
-    wr = rates["kr"] * na**3
+    wr = rates["r"] * na**3
     return k, wr
 
   # Reaction rates corrections
@@ -80,11 +81,11 @@ class Operators(nn_elem.Layer):
     for k in ("d", "e"):
       if (k in fwd_rates.keys()):
         # Extract correction
-        ck = tf.gather(f, indices=self.rates["indices"][k][0], axis=-2)
+        kcorr = tf.gather(f, indices=self.rates["indices"][k][0], axis=-2)
         if (k == "e"):
-          ck -= tf.gather(f, indices=self.rates["indices"][k][1], axis=-2)
+          kcorr -= tf.gather(f, indices=self.rates["indices"][k][1], axis=-2)
         # Apply correction
-        fwd_rates[k] *= tf.math.exp(tf.math.reduce_sum(ck, axis=-1))
+        fwd_rates[k] *= tf.math.exp(tf.math.reduce_sum(kcorr, axis=-1))
     return fwd_rates
 
   # Reaction rates
