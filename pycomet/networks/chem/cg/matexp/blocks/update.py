@@ -256,7 +256,7 @@ class SolUpdate(nn_elem.Layer):
     # Splitting layer
     self.indices_split = indices_split
     if (self.indices_split is not None):
-      self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
+      self.split = nn_elem.Gather(indices=self.indices_split, axis=1)
 
   def construct_prob_mat(self, mapping):
     # Define dimensions and indices
@@ -280,22 +280,27 @@ class SolUpdate(nn_elem.Layer):
     # > nm_0: molecule's initial distribution function
     # > k:    linear matrix operator
     # > w:    linear source operator
-    # > qm:   updated molecule's partition functions at temperature T
-    # Extract inputs
+    # > qm:   updated molecule's partition functions (temperature T)
     t, nm_0, k, w, qm = inputs
-    # Split QoI
-    Qm, nm_0 = [self.gather(z) for z in (qm, nm_0, f)]
-    # Compute molecule's relative molar fractions
-    xm_t = []
-    for (i, nm_i) in enumerate(nm_0):
-      # Compose inputs
-      q_i = tf.concat([qa, qm[i]], axis=1)
-      inputs = (t, na, Ts, q_i, nm_i, f[i])
-      # Compute solution update
-      xm_t.append(self.update[i](inputs, training=training))
-    # Concatenate final solution
-    return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
-
+    # Compress
+    # -------------
+    if (self.indices_compress is not None):
+      nm_0 = self.compress(nm_0)
+      k, w = self.compress_ops(k, w, qm)
+    # Solution
+    # -------------
+    if (self.indices_split is not None):
+      xm_t = []
+      for indices in self.indices_split:
+        # Slicing
+        si, ei = tf.math.reduce_min(indices), tf.math.reduce_max(indices)
+        xm_t.append(self.update(
+          t, nm_0[:,si:ei], k[:,si:ei,si:ei], w[:,si:ei], training
+        ))
+        # Concatenate final solution
+        return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
+    else:
+      return self.update(t, nm_0, k, w, training)
 
   # Compress operators
   # -----------------------------------
@@ -327,6 +332,14 @@ class SolUpdate(nn_elem.Layer):
     y = tf.sparse.sparse_dense_matmul(a, b)
     y = tf.reshape(y, (ash[0], bsh[1], bsh[2]))
     return tf.transpose(y, perm=[2,0,1])
+
+  # Update solution
+  # -----------------------------------
+  def update(self, t, nm_0, k, w, training):
+    # Compute updated solution
+    nm_t = self.linode((t, nm_0, k, w), training=training)
+    # Compute relative molar fractions
+    return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
 
   # Configuration update
   # ===================================
