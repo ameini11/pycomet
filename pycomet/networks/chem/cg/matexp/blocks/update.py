@@ -65,8 +65,7 @@ class PFUpdate(nn_elem.Layer):
 
   # Calling
   # ===================================
-  def call(self, Ts, training=None):
-    T = tf.gather(Ts, indices=[0], axis=-1)
+  def call(self, T, training=None):
     # Update partition functions: q = [qa, qm]
     q = []
     for st in self.sp_th.values():

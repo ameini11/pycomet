@@ -86,10 +86,10 @@ class Operators(nn_elem.Layer):
     na, T, q, f = inputs
     # Compute reaction rates
     rates = self.compute_rates(T, q, f)
-    # Compose reaction rates
-    rates = self.compose_rates(rates, batch_size=tf.shape(T)[0])
-    # Compose operators
-    return self.compose_ops(rates, na)
+    # Compose reaction rates matrices
+    rates = self.compose_rates_mat(rates, batch_size=tf.shape(T)[0])
+    # Compose linear operators: A and b from dydt=A@y+b
+    return self.compose_lin_ops(rates, na)
 
   def compute_rates(self, T, q, f):
     # Compute fwd reaction rates
@@ -101,23 +101,23 @@ class Operators(nn_elem.Layer):
     rates["bwd"] = self.compute_bwd_rates(rates["fwd"], q)
     return rates
 
-  def compose_rates(self, rates, batch_size):
-    _rates = {}
+  def compose_rates_mat(self, rates, batch_size):
+    rates_mat = {}
     for z in ("fwd", "bwd"):
-      _rates[z] = {}
+      rates_mat[z] = {}
       for p in self.processes:
-        _rates[z][p] = tf.transpose(tf.scatter_nd(
+        rates_mat[z][p] = tf.transpose(tf.scatter_nd(
           indices=self.scatter_indices[p],
           updates=tf.transpose(rates[z][p]),
           shape=[self.scatter_sizes[p], batch_size]
         ))
       if ("e" in self.processes):
-        _rates[z]["e"] = tf.reshape(
-          _rates[z]["e"], (-1, self.nb_comp, self.nb_comp)
+        rates_mat[z]["e"] = tf.reshape(
+          rates_mat[z]["e"], (-1, self.nb_comp, self.nb_comp)
         )
-    return _rates
+    return rates_mat
 
-  def compose_ops(self, rates, na):
+  def compose_lin_ops(self, rates, na):
     # > Excitation-Relaxation-Dissociation processes
     k = rates["fwd"]["e"] + tf.transpose(rates["bwd"]["e"], perm=[0,2,1])
     k = tf.linalg.set_diag(

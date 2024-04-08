@@ -25,7 +25,7 @@ class LastToCurrent(nn_elem.Layer):
     self.nb_elem = 1
     self.indices = indices
     if (self.indices is not None):
-      self.indices = tf.constant(self.indices, dtype=tf.int32)
+      self.indices = tf.constant(self.indices, dtype="int32")
       self.indices = tf.reshape(self.indices, shape=[-1])
       self.nb_elem = tf.math.reduce_max(self.indices)+1
 
@@ -34,13 +34,13 @@ class LastToCurrent(nn_elem.Layer):
   def call(self, x, training=None):
     y = x
     if (self.indices is not None):
-      y = tf.transpose(y)
-      y = tf.math.unsorted_segment_sum(
-        data=y,
-        segment_ids=self.indices,
-        num_segments=self.nb_elem
+      y = tf.transpose(
+        tf.math.unsorted_segment_sum(
+          data=tf.transpose(y),
+          segment_ids=self.indices,
+          num_segments=self.nb_elem
+        )
       )
-      y = tf.transpose(y)
     return y
 
   # Configuration update
@@ -66,7 +66,7 @@ class CurrentToNext(nn_elem.Layer):
   ):
     super(CurrentToNext, self).__init__(**kwargs)
     self.indices = tf.nest.map_structure(
-      lambda x: tf.reshape(tf.constant(x, dtype=tf.int32), shape=[-1]),
+      lambda x: tf.reshape(tf.constant(x, dtype="int32"), shape=[-1]),
       indices
     )
 
