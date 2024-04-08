@@ -1,8 +1,11 @@
+import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
 from .operators import Operators
+from .connectivity import LastToCurrent
 from pycomet import operations as ops
+from pycomet import backend as bkd
 from pycomet.config import get_config
 from .utils import read_rates, split_rates
 from pycomet.networks import elements as nn_elem
@@ -85,68 +88,68 @@ class PFUpdate(nn_elem.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class SolUpdate(nn_elem.Layer):
-  """Matrix exponential-based update for the master equation."""
+# @tf.keras.utils.register_keras_serializable(package=_CFG.name)
+# class SolUpdate(nn_elem.Layer):
+#   """Matrix exponential-based update for the master equation."""
 
-  # Initialization
-  # ===================================
-  def __init__(
-    self,
-    rates=None,
-    use_corr=True,
-    use_pinv=False,
-    expm_use_pade=False,
-    **kwargs
-  ):
-    super(SolUpdate, self).__init__(**kwargs)
-    # Operators layer
-    self.operators = Operators(
-      rates=rates,
-      use_corr=use_corr
-    )
-    # LinODE Layer
-    self.linode = nn_elem.LinODE(
-      use_eig=False,
-      use_pinv=use_pinv,
-      real_only=True,
-      expm_use_pade=expm_use_pade,
-      expm_max_degree=None,
-      expm_max_nb_squarings=None
-    )
+#   # Initialization
+#   # ===================================
+#   def __init__(
+#     self,
+#     rates=None,
+#     use_corr=True,
+#     use_pinv=False,
+#     expm_use_pade=False,
+#     **kwargs
+#   ):
+#     super(SolUpdate, self).__init__(**kwargs)
+#     # Operators layer
+#     self.operators = Operators(
+#       rates=rates,
+#       use_corr=use_corr
+#     )
+#     # LinODE Layer
+#     self.linode = nn_elem.LinODE(
+#       use_eig=False,
+#       use_pinv=use_pinv,
+#       real_only=True,
+#       expm_use_pade=expm_use_pade,
+#       expm_max_degree=None,
+#       expm_max_nb_squarings=None
+#     )
 
-  # Calling
-  # ===================================
-  def call(self, inputs, training=None):
-    # Extract inputs
-    # -------------
-    # > t:    time
-    # > na:   atom's number density
-    # > Ts:   precomputed temperature vectors (T,ln_T,ov_T)
-    # > q:    updated partition functions at temperature T
-    # > nm_0: molecule's initial distribution function
-    # > f:    state-wise corrective factors
-    t, na, Ts, q, nm_0, f = inputs
-    # Compute operators
-    # -------------
-    k, wr = self.operators((na, Ts, q, f), training=training)
-    # Compute updated solution
-    # -------------
-    nm_t = self.linode((t, nm_0, k, wr), training=training)
-    # Compute relative molar fractions
-    return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
+#   # Calling
+#   # ===================================
+#   def call(self, inputs, training=None):
+#     # Extract inputs
+#     # -------------
+#     # > t:    time
+#     # > na:   atom's number density
+#     # > Ts:   precomputed temperature vectors (T,ln_T,ov_T)
+#     # > q:    updated partition functions at temperature T
+#     # > nm_0: molecule's initial distribution function
+#     # > f:    state-wise corrective factors
+#     t, na, Ts, q, nm_0, f = inputs
+#     # Compute operators
+#     # -------------
+#     k, wr = self.operators((na, Ts, q, f), training=training)
+#     # Compute updated solution
+#     # -------------
+#     nm_t = self.linode((t, nm_0, k, wr), training=training)
+#     # Compute relative molar fractions
+#     return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
 
-  # Configuration update
-  # ===================================
-  def get_config(self):
-    config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
-      "use_corr": self.operators.use_corr,
-      "use_pinv": self.linode.use_pinv,
-      "expm_use_pade": self.linode.expm_use_pade
-    }
-    base_config = super(SolUpdate, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
+#   # Configuration update
+#   # ===================================
+#   def get_config(self):
+#     config = {
+#       "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
+#       "use_corr": self.operators.use_corr,
+#       "use_pinv": self.linode.use_pinv,
+#       "expm_use_pade": self.linode.expm_use_pade
+#     }
+#     base_config = super(SolUpdate, self).get_config()
+#     return dict(list(base_config.items()) + list(config.items()))
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
@@ -214,4 +217,120 @@ class MultiSolUpdate(nn_elem.Layer):
       "split_indices": self.split_indices
     }
     base_config = super(MultiSolUpdate, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class SolUpdate(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    use_eig=False,
+    use_pinv=False,
+    expm_use_pade=False,
+    indices_split=None,
+    indices_compress=None,
+    **kwargs
+  ):
+    super(SolUpdate, self).__init__(**kwargs)
+    # LinODE Layer
+    self.linode = nn_elem.LinODE(
+      use_eig=use_eig,
+      use_pinv=use_pinv,
+      real_only=True,
+      expm_use_pade=expm_use_pade,
+      expm_max_degree=None,
+      expm_max_nb_squarings=None
+    )
+    # Compressing
+    self.indices_compress = indices_compress
+    if (self.indices_compress is not None):
+      self.connect = LastToCurrent(indices=self.indices_compress)
+      self.indices_compress = self.connect.indices
+    # Splitting
+    self.indices_split = indices_split
+    if (self.indices_split is not None):
+      self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
+    self.indices_compress = indices_compress
+    if (self.indices_compress is not None):
+      self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
+
+  def construct_prob_mat(self, mapping):
+    mapping = (mapping - np.amin(mapping)).astype(int)
+    nb_comp_in, nb_comp_out = len(mapping), np.amax(mapping) + 1
+    indices = (np.arange(nb_comp_in), mapping)
+    prob_mat = np.zeros((nb_comp_in, nb_comp_out), dtype=int)
+    prob_mat[indices] = 1
+    return tf.constant(prob_mat, dtype=bkd.get_floatx())
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    # Extract inputs
+    # -------------
+    # > t:    time
+    # > nm_0: molecule's initial distribution function
+    # > k:    linear matrix operator
+    # > w:    linear source operator
+    # > qm:   updated molecule's partition functions at temperature T
+    # Extract inputs
+    t, nm_0, k, w, qm = inputs
+    # Split QoI
+    Qm, nm_0 = [self.gather(z) for z in (qm, nm_0, f)]
+    # Compute molecule's relative molar fractions
+    xm_t = []
+    for (i, nm_i) in enumerate(nm_0):
+      # Compose inputs
+      q_i = tf.concat([qa, qm[i]], axis=1)
+      inputs = (t, na, Ts, q_i, nm_i, f[i])
+      # Compute solution update
+      xm_t.append(self.update[i](inputs, training=training))
+    # Concatenate final solution
+    return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
+
+
+  def compress_ops(self, k, w, q):
+    # Compress linear operator
+    # > Compress first dimension
+    kc = self._spmm_3d(self.PT, k)
+    # > Compress second dimension
+    kc = kc * tf.expand_dims(q, axis=1)
+    kc = tf.transpose(kc, perm=[0,2,1])
+    kc = self._spmm_3d(self.PT, kc)
+    kc = tf.transpose(kc, perm=[0,2,1])
+    # > Normalize
+    qc = self._spmm_2d(self.PT, q)
+    kc = kc * (1/tf.expand_dims(qc, axis=1))
+    # Compress linear source
+    wc = self._spmm_2d(self.PT, w)
+    return kc, wc
+
+  def _spmm_2d(self, a, b):
+    b = tf.transpose(b)
+    y = tf.sparse.sparse_dense_matmul(a, b)
+    return tf.transpose(y)
+
+  def _spmm_3d(self, a, b):
+    b = tf.transpose(b, perm=[1,2,0])
+    ash, bsh = tf.shape(a), tf.shape(b)
+    b = tf.reshape(b, (bsh[0], -1))
+    y = tf.sparse.sparse_dense_matmul(a, b)
+    y = tf.reshape(y, (ash[0], bsh[1], bsh[2]))
+    return tf.transpose(b, perm=[2,0,1])
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "use_eig": self.linode.use_eig,
+      "use_pinv": self.linode.use_pinv,
+      "expm_use_pade": self.linode.expm_use_pade,
+      "split_indices": self.split_indices
+    }
+    base_config = super(SolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
