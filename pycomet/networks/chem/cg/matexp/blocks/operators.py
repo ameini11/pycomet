@@ -176,7 +176,7 @@ class Operators(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "rates": self.rates,
       "use_corr": self.use_corr
     }
     base_config = super(Operators, self).get_config()
