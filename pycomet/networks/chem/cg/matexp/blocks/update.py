@@ -238,7 +238,7 @@ class SolUpdate(nn_elem.Layer):
     **kwargs
   ):
     super(SolUpdate, self).__init__(**kwargs)
-    # LinODE Layer
+    # Linear ODE layer
     self.linode = nn_elem.LinODE(
       use_eig=use_eig,
       use_pinv=use_pinv,
@@ -247,35 +247,16 @@ class SolUpdate(nn_elem.Layer):
       expm_max_degree=None,
       expm_max_nb_squarings=None
     )
-    # Compressing
+    # Compressing layer
+    self.prob_mat = None
     self.indices_compress = indices_compress
     if (self.indices_compress is not None):
-      self.connect = LastToCurrent(indices=self.indices_compress)
-      self.indices_compress = self.connect.indices
-    # Splitting
+      self.compress = LastToCurrent(indices=self.indices_compress)
+      self.prob_mat = self.construct_prob_mat(indices_compress.squeeze())
+    # Splitting layer
     self.indices_split = indices_split
     if (self.indices_split is not None):
       self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
-    self.indices_compress = indices_compress
-    if (self.indices_compress is not None):
-      self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
-
-  def construct_prob_mat(self, mapping):
-    # Construct probability matrix
-    mapping = (mapping - np.amin(mapping)).astype(int)
-    nb_comp_in, nb_comp_out = len(mapping), np.amax(mapping)+1
-    indices = (np.arange(nb_comp_in), mapping)
-    prob_mat = np.zeros((nb_comp_in, nb_comp_out), dtype=int)
-    prob_mat[indices] = 1
-    # Make probability matrix sparse
-    prob_mat = prob_mat.T.astype(bkd.get_floatx("np"))
-    indices = (mapping, np.arange(nb_comp_in))
-    prob_mat = tf.sparse.SparseTensor(
-      indices=np.vstack((mapping, np.arange(nb_comp_in))).T,
-      values=tf.ones(nb_comp_in),
-      dense_shape=(nb_comp_in, nb_comp_out)
-    )
-    return prob_mat
 
   def construct_prob_mat(self, mapping):
     # Define dimensions and indices
@@ -329,7 +310,7 @@ class SolUpdate(nn_elem.Layer):
     kc = tf.transpose(kc, perm=[0,2,1])
     # > Normalize
     qc = self._spmm_2d(self.prob_mat, q)
-    kc *= (1/tf.expand_dims(qc, axis=1))
+    kc *= tf.expand_dims(1/qc, axis=1)
     # Compress linear source
     wc = self._spmm_2d(self.prob_mat, w)
     return kc, wc
@@ -354,7 +335,8 @@ class SolUpdate(nn_elem.Layer):
       "use_eig": self.linode.use_eig,
       "use_pinv": self.linode.use_pinv,
       "expm_use_pade": self.linode.expm_use_pade,
-      "split_indices": self.split_indices
+      "indices_split": self.indices_split,
+      "indices_compress": self.indices_compress
     }
     base_config = super(SolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
