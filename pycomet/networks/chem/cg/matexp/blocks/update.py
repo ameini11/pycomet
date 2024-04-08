@@ -255,8 +255,6 @@ class SolUpdate(nn_elem.Layer):
       self.prob_mat = self.construct_prob_mat(indices_compress.squeeze())
     # Splitting layer
     self.indices_split = indices_split
-    if (self.indices_split is not None):
-      self.split = nn_elem.Gather(indices=self.indices_split, axis=1)
 
   def construct_prob_mat(self, mapping):
     # Define dimensions and indices
