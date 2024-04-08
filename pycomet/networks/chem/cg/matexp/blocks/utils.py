@@ -30,10 +30,11 @@ def split_static_prop(prop, indices):
 
 # Reaction rates
 # =====================================
-def read_rates(rates):
-  if isinstance(rates, str):
-    rates = h5todict(h5file=rates)
-  return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
+def read_rates(rates=None):
+  if (rates is not None):
+    if isinstance(rates, str):
+      rates = h5todict(h5file=rates)
+    return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
 
 def split_rates(rates, indices):
   return [
