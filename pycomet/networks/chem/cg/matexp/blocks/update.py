@@ -261,12 +261,34 @@ class SolUpdate(nn_elem.Layer):
       self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
 
   def construct_prob_mat(self, mapping):
+    # Construct probability matrix
     mapping = (mapping - np.amin(mapping)).astype(int)
-    nb_comp_in, nb_comp_out = len(mapping), np.amax(mapping) + 1
+    nb_comp_in, nb_comp_out = len(mapping), np.amax(mapping)+1
     indices = (np.arange(nb_comp_in), mapping)
     prob_mat = np.zeros((nb_comp_in, nb_comp_out), dtype=int)
     prob_mat[indices] = 1
-    return tf.constant(prob_mat, dtype=bkd.get_floatx())
+    # Make probability matrix sparse
+    prob_mat = prob_mat.T.astype(bkd.get_floatx("np"))
+    indices = (mapping, np.arange(nb_comp_in))
+    prob_mat = tf.sparse.SparseTensor(
+      indices=np.vstack((mapping, np.arange(nb_comp_in))).T,
+      values=tf.ones(nb_comp_in),
+      dense_shape=(nb_comp_in, nb_comp_out)
+    )
+    return prob_mat
+
+  def construct_prob_mat(self, mapping):
+    # Define dimensions and indices
+    mapping = (mapping - np.amin(mapping)).astype(int)
+    nb_comp_in, nb_comp_out = len(mapping), np.amax(mapping)+1
+    indices = (mapping, np.arange(nb_comp_in))
+    # Sparse tensor
+    prob_mat = tf.sparse.SparseTensor(
+      indices=np.vstack(indices).T,
+      values=tf.ones(nb_comp_in, dtype=bkd.get_floatx()),
+      dense_shape=(nb_comp_out, nb_comp_in)
+    )
+    return prob_mat
 
   # Calling
   # ===================================
@@ -294,6 +316,8 @@ class SolUpdate(nn_elem.Layer):
     return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
 
 
+  # Compress operators
+  # -----------------------------------
   def compress_ops(self, k, w, q):
     # Compress linear operator
     # > First dimension
