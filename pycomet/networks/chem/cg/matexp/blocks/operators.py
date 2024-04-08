@@ -53,6 +53,7 @@ class Operators(nn_elem.Layer):
     for r in self.reactions:
       p = self.get_process(r)
       a[p] = a[p] + self.rates[r]["A"]
+      # Get number of components
       if (self.nb_comp is None):
         self.nb_comp = a[p].shape[0]
     # Get non-zero indices
