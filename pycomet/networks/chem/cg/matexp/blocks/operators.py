@@ -4,7 +4,6 @@ import tensorflow as tf
 from pycomet import utils
 from .utils import read_rates
 from pycomet import backend as bkd
-from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
@@ -24,6 +23,7 @@ class Operators(nn_elem.Layer):
   ):
     super(Operators, self).__init__(**kwargs)
     # Reaction rates
+    self.nb_comp = None
     self.rates = read_rates(rates)
     # Reactive processes
     self.reactions = list(self.rates.keys()).sort()
@@ -47,10 +47,12 @@ class Operators(nn_elem.Layer):
 
   def get_rates_values_indices(self, eps=1e-50):
     # Assemble Arrhenius 'A' matrix
-    a = {k: 0.0 for k in self.processes}
+    a = {p: 0.0 for p in self.processes}
     for r in self.reactions:
-      p = self._get_process(r)
+      p = self.get_process(r)
       a[p] = a[p] + self.rates[r]["A"]
+      if (self.nb_comp is None):
+        self.nb_comp = a[p].shape[0]
     # Get non-zero indices
     indices = tf.nest.map_structure(lambda z: np.where(z > eps), a)
     indices_1d = tf.nest.map_structure(
@@ -59,13 +61,13 @@ class Operators(nn_elem.Layer):
     # Get non-zero rates constant
     values = {}
     for r in self.reactions:
-      p = self._get_process(r)
+      p = self.get_process(r)
       values[r] = tf.nest.map_structure(
         lambda x: x[indices[p]].reshape(1,-1), self.rates[r]
       )
     return values, np.vstack(indices), indices_1d
 
-  def _get_process(reaction):
+  def get_process(reaction):
     return "d" if (reaction == "2") else "e"
 
   # Calling
@@ -95,19 +97,19 @@ class Operators(nn_elem.Layer):
     return rates
 
   def compose_rates(self, rates, batch_size):
-    for k in self.processes:
-      size = self.nb_comp if (k == "d") else self.nb_comp**2
+    for p in self.processes:
+      size = self.nb_comp if (p == "d") else self.nb_comp**2
       for z in ("fwd", "bwd"):
-        rates_zk = tf.transpose(rates[z][k])
-        rates_zk = tf.scatter_nd(
-          indices=self.scatter_indices[k],
-          updates=rates_zk,
+        rates_zp = tf.transpose(rates[z][p])
+        rates_zp = tf.scatter_nd(
+          indices=self.scatter_indices[p],
+          updates=rates_zp,
           shape=[size, batch_size]
         )
-        rates_zk = tf.transpose(rates_zk)
-        if (k == "e"):
-          rates_zk = tf.reshape(rates_zk, (-1, self.nb_comp, self.nb_comp))
-        rates[z][k] = rates_zk
+        rates_zp = tf.transpose(rates_zp)
+        if (p == "e"):
+          rates_zp = tf.reshape(rates_zp, (-1, self.nb_comp, self.nb_comp))
+        rates[z][p] = rates_zp
     return rates
 
   def compose_ops(self, rates, na):
@@ -125,19 +127,14 @@ class Operators(nn_elem.Layer):
   # -----------------------------------
   def compute_fwd_rates(self, T):
     ln_T, ov_T = tf.math.log(T), 1/T
-    # Loop over processes
     rates = {}
     for r in self.reactions:
-      rates_p = self._arrhenius(ln_T, ov_T, self.rates_values[p])
-      if (r == "2"):
-        # Dissociation processes
-        rates["d"] = rates_p
+      rates_r = self._arrhenius(ln_T, ov_T, self.rates_values[r])
+      p = self.get_process(r)
+      if (p in rates.keys()):
+        rates[p] += rates_r
       else:
-        # Excitation processes
-        if ("e" in rates.keys()):
-          rates["e"] += rates_p
-        else:
-          rates["e"] = rates_p
+        rates[p] = rates_r
     return rates
 
   def _arrhenius(self, ln_T, ov_T, param):
@@ -145,13 +142,13 @@ class Operators(nn_elem.Layer):
 
   def correct_fwd_rates(self, fwd_rates, f):
     # Loop over processes
-    for k in self.processes:
+    for p in self.processes:
       # Compose correction
-      kcorr = tf.gather(f, indices=self.rates_indices[k][0], axis=-2)
-      if (k == "e"):
-        kcorr -= tf.gather(f, indices=self.rates_indices[k][1], axis=-2)
+      pcorr = tf.gather(f, indices=self.rates_indices[p][0], axis=-2)
+      if (p == "e"):
+        pcorr -= tf.gather(f, indices=self.rates_indices[p][1], axis=-2)
       # Apply correction
-      fwd_rates[k] *= tf.math.exp(tf.math.reduce_sum(kcorr, axis=-1))
+      fwd_rates[p] *= tf.math.exp(tf.math.reduce_sum(pcorr, axis=-1))
     return fwd_rates
 
   def compute_bwd_rates(self, fwd_rates, q):
@@ -160,16 +157,16 @@ class Operators(nn_elem.Layer):
     ov_qa_sq = 1/qa**2
     # Loop over processes
     bwd_rates = {}
-    for k in self.processes:
-      qi = tf.gather(qm, indices=self.rates_indices[k][0], axis=-1)
-      if (k == "d"):
+    for p in self.processes:
+      qi = tf.gather(qm, indices=self.rates_indices[p][0], axis=-1)
+      if (p == "d"):
         # Dissociation processes
         keq = qi * ov_qa_sq
       else:
         # Excitation processes
-        keq = qi / tf.gather(qm, indices=self.rates_indices[k][1], axis=-1)
+        keq = qi / tf.gather(qm, indices=self.rates_indices[p][1], axis=-1)
       # Compute value
-      bwd_rates[k] = fwd_rates[k] * keq
+      bwd_rates[p] = fwd_rates[p] * keq
     return bwd_rates
 
   # Configuration update
