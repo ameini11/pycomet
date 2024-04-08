@@ -296,18 +296,18 @@ class SolUpdate(nn_elem.Layer):
 
   def compress_ops(self, k, w, q):
     # Compress linear operator
-    # > Compress first dimension
-    kc = self._spmm_3d(self.PT, k)
-    # > Compress second dimension
-    kc = kc * tf.expand_dims(q, axis=1)
+    # > First dimension
+    kc = self._spmm_3d(self.prob_mat, k)
+    # > Second dimension
+    kc *= tf.expand_dims(q, axis=1)
     kc = tf.transpose(kc, perm=[0,2,1])
-    kc = self._spmm_3d(self.PT, kc)
+    kc = self._spmm_3d(self.prob_mat, kc)
     kc = tf.transpose(kc, perm=[0,2,1])
     # > Normalize
-    qc = self._spmm_2d(self.PT, q)
-    kc = kc * (1/tf.expand_dims(qc, axis=1))
+    qc = self._spmm_2d(self.prob_mat, q)
+    kc *= (1/tf.expand_dims(qc, axis=1))
     # Compress linear source
-    wc = self._spmm_2d(self.PT, w)
+    wc = self._spmm_2d(self.prob_mat, w)
     return kc, wc
 
   def _spmm_2d(self, a, b):
@@ -321,7 +321,7 @@ class SolUpdate(nn_elem.Layer):
     b = tf.reshape(b, (bsh[0], -1))
     y = tf.sparse.sparse_dense_matmul(a, b)
     y = tf.reshape(y, (ash[0], bsh[1], bsh[2]))
-    return tf.transpose(b, perm=[2,0,1])
+    return tf.transpose(y, perm=[2,0,1])
 
   # Configuration update
   # ===================================
