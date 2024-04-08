@@ -26,7 +26,8 @@ class Operators(nn_elem.Layer):
     self.nb_comp = None
     self.rates = read_rates(rates)
     # Reactive processes
-    self.reactions = list(self.rates.keys()).sort()
+    self.reactions = list(self.rates.keys())
+    self.reactions.sort()
     self.processes = []
     for r in self.reactions:
       if (r == "2"):
@@ -36,12 +37,13 @@ class Operators(nn_elem.Layer):
       else:
         utils.raise_err(NotImplementedError)
     # Reaction rates values and indices
-    rates_vi = tf.nest.map_structure(
-      tf.constant, self.get_rates_values_indices()
-    )
-    self.rates_values = tf.cast(rates_vi[0], dtype=bkd.floatx())
-    self.rates_indices = tf.cast(rates_vi[1], dtype="int32")
-    self.scatter_indices = tf.cast(rates_vi[2], dtype="int32")
+    rates_vi = self.get_rates_values_indices()
+    for (i, dtype) in enumerate((bkd.get_floatx(), "int32", "int32")):
+      rates_vi[i] = tf.nest.map_structure(
+        lambda z: tf.constant(z, dtype=dtype), rates_vi[i]
+      )
+    self.rates_values, self.rates_indices, self.scatter_indices = rates_vi
+    self.scatter_sizes = {"d": self.nb_comp, "e": self.nb_comp**2}
     # Corrections
     self.use_corr = use_corr
 
@@ -65,9 +67,11 @@ class Operators(nn_elem.Layer):
       values[r] = tf.nest.map_structure(
         lambda x: x[indices[p]].reshape(1,-1), self.rates[r]
       )
-    return values, np.vstack(indices), indices_1d
+    # Return values and indices
+    indices = {p: np.vstack(indices[p]) for p in self.processes}
+    return [values, indices, indices_1d]
 
-  def get_process(reaction):
+  def get_process(self, reaction):
     return "d" if (reaction == "2") else "e"
 
   # Calling
@@ -97,27 +101,27 @@ class Operators(nn_elem.Layer):
     return rates
 
   def compose_rates(self, rates, batch_size):
-    for p in self.processes:
-      size = self.nb_comp if (p == "d") else self.nb_comp**2
-      for z in ("fwd", "bwd"):
-        rates_zp = tf.transpose(rates[z][p])
-        rates_zp = tf.scatter_nd(
+    _rates = {}
+    for z in ("fwd", "bwd"):
+      _rates[z] = {}
+      for p in self.processes:
+        _rates[z][p] = tf.transpose(tf.scatter_nd(
           indices=self.scatter_indices[p],
-          updates=rates_zp,
-          shape=[size, batch_size]
+          updates=tf.transpose(rates[z][p]),
+          shape=[self.scatter_sizes[p], batch_size]
+        ))
+      if ("e" in self.processes):
+        _rates[z]["e"] = tf.reshape(
+          _rates[z]["e"], (-1, self.nb_comp, self.nb_comp)
         )
-        rates_zp = tf.transpose(rates_zp)
-        if (p == "e"):
-          rates_zp = tf.reshape(rates_zp, (-1, self.nb_comp, self.nb_comp))
-        rates[z][p] = rates_zp
-    return rates
+    return _rates
 
   def compose_ops(self, rates, na):
     # > Excitation-Relaxation-Dissociation processes
     k = rates["fwd"]["e"] + tf.transpose(rates["bwd"]["e"], perm=[0,2,1])
     k = tf.linalg.set_diag(
       input=tf.transpose(k, perm=[0,2,1]),
-      diagonal=tf.math.reduce_sum(k, axis=-1) - rates["fwd"]["d"]
+      diagonal=-tf.math.reduce_sum(k, axis=-1)-rates["fwd"]["d"]
     ) * tf.expand_dims(na, axis=-1)
     # > Recombination processes
     w = rates["bwd"]["d"] * na**3
