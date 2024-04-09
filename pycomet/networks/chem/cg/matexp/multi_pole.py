@@ -37,8 +37,8 @@ class MultiPoleME(BaseNet):
     self.grp_conn = GroupsConnectivity(groups_graph)
     # Layers names
     default_lays_name = (
-      "update_pf", "xform_fcorr", "compute_fcorr", \
-        "operators", "update_sols", "connect"
+      "pf_update", "fcorr_xform", "fcorr_compute", \
+        "operators", "sol_updates", "connect"
       )
     if (lays_name is None):
       self.lays_name = self.lays_name + default_lays_name
@@ -57,32 +57,34 @@ class MultiPoleME(BaseNet):
   # Layers initialization
   # -----------------------------------
   def init_layers(self):
-    lays = {
-      "update_pf": PreProcessor(),
-      "xform_fcorr": PreProcessor(),
-      "compute_fcorr": PreProcessor(),
-      "compute_fcorr": PreProcessor(),
-      "compute_fcorr": PreProcessor(),
-      "connect": CurrentToNext(self.grp_conn.current_to_next["indices"])
-    }
+    lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier == "xform_fcorr"):
+      if (identifier == "fcorr_xform"):
         lays[identifier] = self.init_lay(identifier, propty)
-      elif (identifier == "update_sols"):
-        lays[identifier] = self.init_timescales_lay(propty)
+      if (identifier in ("pf_update", "fcorr_compute", "operators")):
+        lays[identifier] = self.init_kernel_layers(identifier, propty)
+      elif (identifier == "sol_updates"):
+        lays[identifier] = self.init_sol_update_lays(identifier, propty)
+    lays["connect"] = CurrentToNext(self.grp_conn.current_to_next["indices"])
     return lays
 
-  def init_timescales_lay(self, propty):
+  def init_kernel_layers(self, identifier, propty):
+    propty["lay_id"] = {
+      "pf_update": PFUpdate,
+      "fcorr_compute": Correction,
+      "operators": Operators
+    }[identifier]
+    return self.init_lay(identifier, propty)
+
+  def init_sol_update_lays(self, identifier, propty):
     lays = []
     for (i, ipropty) in enumerate(propty):
-      lays.append(
-        TimeScale(
-          dim=ipropty["dim"],
-          lays_propty=ipropty["lays_propty"],
-          current_indices=self.grp_conn.current_to_last[str(i)],
-          last_to_current=self.grp_conn.last_to_current[str(i+1)]
-        )
-      )
+      isplit = self.grp_conn.last_to_current["conn"][str(i)]
+      icompr = self.grp_conn.last_to_current["indices"][str(i+1)]
+      ipropty["lay_id"] = SolUpdate
+      ipropty["kwargs"]["indices_split"] = isplit if (i != 0) else None
+      ipropty["kwargs"]["indices_compress"] = icompr
+      lays.append(self.init_lay(identifier, ipropty))
     return lays
 
   # Calling
@@ -99,20 +101,20 @@ class MultiPoleME(BaseNet):
     t, na, nm, T, nm_0, f = utils.unpack_list(inputs, nb_elem=6)
     # Update partition functions
     # -------------
-    qa, qm = self.active_lays["update_pf"](T)
+    qa, qm = self.active_lays["pf_update"](T)
     # Compute state-wise latent space
     # -------------
     # > Transforming
-    f = self.active_lays["xform_fcorr"](f, training=training)
+    f = self.active_lays["fcorr_xform"](f, training=training)
     # > Computing
-    f = self.active_lays["compute_fcorr"](f, training=training)
+    f = self.active_lays["fcorr_compute"](f, training=training)
     # Compute operators
     # -------------
     k, w = self.active_lays["operators"]((na, T, qa, qm, f))
     # Loop over timescales
     # -------------
     y = [nm]
-    for lay in self.active_lays["update_sols"]:
+    for lay in self.active_lays["sol_updates"]:
       y.append(lay((t, nm_0, k, w, qm)))
     # Merge timescales
     # -------------
