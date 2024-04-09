@@ -73,13 +73,12 @@ class Compressing(nn_elem.Layer):
   def construct_prob_mat(self):
     # Define dimensions
     mapping = self.mapping - np.amin(self.mapping)
-    dim_in, dim_out = len(mapping), np.amax(mapping)+1
-    self.dim_out = dim_out
+    dim_in, self.dim_out = len(mapping), np.amax(mapping)+1
     # Sparse tensor
     return tf.sparse.SparseTensor(
       indices=np.vstack((mapping, np.arange(dim_in))).T,
       values=tf.ones(dim_in, dtype=bkd.get_floatx()),
-      dense_shape=(dim_out, dim_in)
+      dense_shape=(self.dim_out, dim_in)
     )
 
   # Calling

@@ -106,20 +106,22 @@ class SolUpdate(nn_elem.Layer):
     # -------------
     if (self.indices_compress is not None):
       nm_0, k, w = self.compress_vars(nm_0, k, w, qm)
-    # Solution
+    # Split and update solution
     # -------------
     if (self.indices_split is not None):
       xm_t = []
       for indices in self.indices_split:
-        # Slicing
+        # Slice
         si, ei = tf.math.reduce_min(indices), tf.math.reduce_max(indices)
-        xm_t.append(self.update_sol(
-          t, nm_0[:,si:ei], k[:,si:ei,si:ei], w[:,si:ei], training
-        ))
+        xm_t.append(
+          self.update_sol(
+            t, nm_0[:,si:ei], k[:,si:ei,si:ei], w[:,si:ei]
+          )
+        )
         # Concatenate final solution
         return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
     else:
-      return self.update_sol(t, nm_0, k, w, training)
+      return self.update_sol(t, nm_0, k, w)
 
   # Compress variables
   # -----------------------------------
@@ -134,9 +136,9 @@ class SolUpdate(nn_elem.Layer):
 
   # Update solution
   # -----------------------------------
-  def update_sol(self, t, nm_0, k, w, training):
+  def update_sol(self, t, nm_0, k, w):
     # Compute updated solution
-    nm_t = self.linode((t, nm_0, k, w), training=training)
+    nm_t = self.linode((t, nm_0, k, w))
     # Compute relative molar fractions
     return nm_t * (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True))
 
