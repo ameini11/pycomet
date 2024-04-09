@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
+from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
@@ -50,6 +51,73 @@ class LastToCurrent(nn_elem.Layer):
       "indices": ops.to_numpy(self.indices)
     }
     base_config = super(LastToCurrent, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class Compressing(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    mapping=None,
+    **kwargs
+  ):
+    super(Compressing, self).__init__(**kwargs)
+    self.mapping = mapping
+    if (self.mapping is not None):
+      self.mapping = np.array(self.mapping, dtype=np.int32).squeeze()
+      self.p = self.construct_prob_mat()
+
+  def construct_prob_mat(self):
+    # Define dimensions
+    mapping = self.mapping - np.amin(self.mapping)
+    dim_in, dim_out = len(mapping), np.amax(mapping)+1
+    self.dim_out = dim_out
+    # Sparse tensor
+    return tf.sparse.SparseTensor(
+      indices=np.vstack((mapping, np.arange(dim_in))).T,
+      values=tf.ones(dim_in, dtype=bkd.get_floatx()),
+      dense_shape=(dim_out, dim_in)
+    )
+
+  # Calling
+  # ===================================
+  def call(self, x, axis=1, training=None):
+    y = x
+    if (self.mapping is not None):
+      nb_dim = len(x.shape)
+      if (nb_dim == 2):
+        y = self.spmm_2d(y)
+      else:
+        if (axis == 2):
+          y = tf.transpose(y, perm=[0,2,1])
+        y = self.spmm_3d(y)
+        if (axis == 2):
+          y = tf.transpose(y, perm=[0,2,1])
+    return y
+
+  def spmm_2d(self, x):
+    y = tf.transpose(x)
+    y = tf.sparse.sparse_dense_matmul(self.p, y)
+    return tf.transpose(y)
+
+  def spmm_3d(self, x):
+    y = tf.transpose(x, perm=[1,2,0])
+    s = tf.shape(y)
+    y = tf.reshape(y, (s[0], -1))
+    y = tf.sparse.sparse_dense_matmul(self.p, y)
+    y = tf.reshape(y, (self.dim_out, s[1], s[2]))
+    return tf.transpose(y, perm=[2,0,1])
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "mapping": self.mapping
+    }
+    base_config = super(Compressing, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
