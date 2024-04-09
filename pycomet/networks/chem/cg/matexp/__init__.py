@@ -1,5 +1,7 @@
 __all__ = [
-  "MultiPoleME"
+  "MultiPoleME",
+  "SinglePoleME"
 ]
 
 from .multi_pole import MultiPoleME
+from .single_pole import SinglePoleME

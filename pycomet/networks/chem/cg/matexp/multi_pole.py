@@ -39,7 +39,7 @@ class MultiPoleME(BaseNet):
     default_lays_name = (
       "pf_update", "fcorr_xform", "fcorr_compute", \
         "operators", "sol_updates", "connect"
-      )
+    )
     if (lays_name is None):
       self.lays_name = self.lays_name + default_lays_name
     else:
@@ -61,7 +61,7 @@ class MultiPoleME(BaseNet):
     for (identifier, propty) in self.lays_propty.items():
       if (identifier == "fcorr_xform"):
         lays[identifier] = self.init_lay(identifier, propty)
-      if (identifier in ("pf_update", "fcorr_compute", "operators")):
+      elif (identifier in ("pf_update", "fcorr_compute", "operators")):
         lays[identifier] = self.init_kernel_layers(identifier, propty)
       elif (identifier == "sol_updates"):
         lays[identifier] = self.init_sol_update_lays(identifier, propty)
@@ -111,11 +111,11 @@ class MultiPoleME(BaseNet):
     # Compute operators
     # -------------
     k, w = self.active_lays["operators"]((na, T, qa, qm, f))
-    # Loop over timescales
+    # Update solutions
     # -------------
     y = [nm]
     for lay in self.active_lays["sol_updates"]:
       y.append(lay((t, nm_0, k, w, qm)))
-    # Merge timescales
+    # Merge solutions
     # -------------
     return self.active_lays["connect"](y)
