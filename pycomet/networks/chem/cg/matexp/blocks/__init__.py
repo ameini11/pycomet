@@ -1,10 +1,11 @@
 __all__ = [
-  "CurrentToNext",
-  "GroupsConnectivity",
-  "TimeScale",
-  "PreProcessor"
+  "Correction",
+  "Operators",
+  "PFUpdate",
+  "SolUpdate"
 ]
 
-from .connectivity import CurrentToNext, GroupsConnectivity
-from .timescale import TimeScale
-from .update import PreProcessor
+from .connectivity import *
+from .correction import Correction
+from .operators import Operators
+from .update import PFUpdate, SolUpdate
