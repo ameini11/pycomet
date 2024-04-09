@@ -1,9 +1,8 @@
-import numpy as np
 import tensorflow as tf
 
-from pycomet import backend as bkd
+from pycomet import operations as ops
 from pycomet.config import get_config
-from .connectivity import LastToCurrent
+from .connectivity import Compressing
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
@@ -81,31 +80,16 @@ class SolUpdate(nn_elem.Layer):
       expm_max_nb_squarings=None
     )
     # Compressing layer
-    self.prob_mat = None
     self.indices_compress = indices_compress
     if (self.indices_compress is not None):
-      self.compress = LastToCurrent(indices=self.indices_compress)
-      self.prob_mat = self.construct_prob_mat(indices_compress.squeeze())
+      self.compress = Compressing(mapping=self.indices_compress)
     # Splitting layer
     self.indices_split = indices_split
     if (self.indices_split is not None):
-      self.indices_compress = [
+      self.indices_split = [
         tf.reshape(tf.constant(indices, dtype="int32"), shape=[-1]) \
           for indices in self.indices_split
       ]
-
-  def construct_prob_mat(self, mapping):
-    # Define dimensions and indices
-    mapping = (mapping - np.amin(mapping)).astype(int)
-    nb_comp_in, nb_comp_out = len(mapping), np.amax(mapping)+1
-    indices = (mapping, np.arange(nb_comp_in))
-    # Sparse tensor
-    prob_mat = tf.sparse.SparseTensor(
-      indices=np.vstack(indices).T,
-      values=tf.ones(nb_comp_in, dtype=bkd.get_floatx()),
-      dense_shape=(nb_comp_out, nb_comp_in)
-    )
-    return prob_mat
 
   # Calling
   # ===================================
@@ -121,8 +105,7 @@ class SolUpdate(nn_elem.Layer):
     # Compress
     # -------------
     if (self.indices_compress is not None):
-      nm_0 = self.compress(nm_0)
-      k, w = self.compress_ops(k, w, qm)
+      nm_0, k, w = self.compress_vars(nm_0, k, w, qm)
     # Solution
     # -------------
     if (self.indices_split is not None):
@@ -130,52 +113,28 @@ class SolUpdate(nn_elem.Layer):
       for indices in self.indices_split:
         # Slicing
         si, ei = tf.math.reduce_min(indices), tf.math.reduce_max(indices)
-        xm_t.append(self.update(
+        xm_t.append(self.update_sol(
           t, nm_0[:,si:ei], k[:,si:ei,si:ei], w[:,si:ei], training
         ))
         # Concatenate final solution
         return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
     else:
-      return self.update(t, nm_0, k, w, training)
+      return self.update_sol(t, nm_0, k, w, training)
 
-  # Compress operators
+  # Compress variables
   # -----------------------------------
-  def compress_ops(self, k, w, q):
+  def compress_vars(self, nm_0, k, w, qm):
+    nm_0, w = [self.compress(z) for z in (nm_0, w)]
     # Compress linear operator
-    # > First dimension
-    kc = self._spmm_3d(self.prob_mat, k)
-    # > Second dimension
-    kc *= tf.expand_dims(q, axis=1)
-    kc = tf.transpose(
-      self._spmm_3d(
-        self.prob_mat,
-        tf.transpose(kc, perm=[0,2,1])
-      ),
-      perm=[0,2,1]
-    )
-    # > Normalize
-    qc = self._spmm_2d(self.prob_mat, q)
-    kc *= tf.expand_dims(1/qc, axis=1)
-    # Compress linear source
-    wc = self._spmm_2d(self.prob_mat, w)
-    return kc, wc
-
-  def _spmm_2d(self, a, b):
-    b = tf.transpose(b)
-    y = tf.sparse.sparse_dense_matmul(a, b)
-    return tf.transpose(y)
-
-  def _spmm_3d(self, a, b):
-    b = tf.transpose(b, perm=[1,2,0])
-    ash, bsh = tf.shape(a), tf.shape(b)
-    b = tf.reshape(b, (bsh[0], -1))
-    y = tf.sparse.sparse_dense_matmul(a, b)
-    y = tf.reshape(y, (ash[0], bsh[1], bsh[2]))
-    return tf.transpose(y, perm=[2,0,1])
+    # > Compress first dimension + Scaling
+    k = self.compress(k, axis=1) * tf.expand_dims(qm, axis=1)
+    # > Compress second dimension + Normalizing
+    k = self.compress(k, axis=2) * tf.expand_dims(1/self.compress(qm), axis=1)
+    return nm_0, k, w
 
   # Update solution
   # -----------------------------------
-  def update(self, t, nm_0, k, w, training):
+  def update_sol(self, t, nm_0, k, w, training):
     # Compute updated solution
     nm_t = self.linode((t, nm_0, k, w), training=training)
     # Compute relative molar fractions
@@ -188,8 +147,8 @@ class SolUpdate(nn_elem.Layer):
       "use_eig": self.linode.use_eig,
       "use_pinv": self.linode.use_pinv,
       "expm_use_pade": self.linode.expm_use_pade,
-      "indices_split": self.compress.indices,
-      "indices_compress": self.indices_compress
+      "indices_split": tf.nest.map_structure(ops.to_numpy, self.indices_split),
+      "indices_compress": self.compress.mapping
     }
     base_config = super(SolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
