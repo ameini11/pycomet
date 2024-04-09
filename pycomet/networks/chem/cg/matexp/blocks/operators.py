@@ -83,7 +83,7 @@ class Operators(nn_elem.Layer):
     # > T:  translational temperature
     # > q:  updated partition functions at temperature T
     # > f:  state-wise corrective factors
-    na, T, q, f = inputs
+    na, T, *q, f = inputs
     # Compute reaction rates
     rates = self.compute_rates(T, q, f)
     # Compose reaction rates matrices
@@ -158,7 +158,7 @@ class Operators(nn_elem.Layer):
 
   def compute_bwd_rates(self, fwd_rates, q):
     # Unpack partition functions (atom, molecule)
-    qa, qm = tf.split(q, num_or_size_splits=[1,q.shape[1]-1], axis=-1)
+    qa, qm = q
     ov_qa_sq = 1/qa**2
     # Loop over processes
     bwd_rates = {}

@@ -1,4 +1,5 @@
 from .blocks import *
+from pycomet import utils
 from pycomet.networks.basenet import BaseNet
 
 
@@ -79,14 +80,32 @@ class MultiPoleME(BaseNet):
   # Calling
   # ===================================
   def forward(self, inputs, training=None):
-    # Preprocess inputs
-    x = self.active_lays["preproc"](inputs, training=training)
-    *qoi_t, nm, nm_0, f_in = x
-    # Transform inputs for state-wise corrective factors
-    f_in = self.active_lays["xform_fcorr"](f_in, training=training)
+    # Extract inputs
+    # -------------
+    # > t:    time
+    # > na:   atom's number density
+    # > nm:   molecule's number density
+    # > T:    translational temperature
+    # > nm_0: molecule's initial distribution function
+    # > f:    inputs for state-wise corrective factors
+    t, na, nm, T, nm_0, f = utils.unpack_list(inputs, nb_elem=6)
+    # Update partition functions
+    # -------------
+    qa, qm = self.active_lays["update_pf"](T)
+    # Compute state-wise latent space
+    # -------------
+    # > Transforming
+    f = self.active_lays["xform_fcorr"](f, training=training)
+    # > Computing
+    f = self.active_lays["compute_fcorr"](f, training=training)
+    # Compute operators
+    # -------------
+    k, w = self.active_lays["operators"]((na, T, qa, qm, f))
     # Loop over timescales
+    # -------------
     y = [nm]
-    for lay in self.active_lays["timescales"]:
-      y.append(lay((*qoi_t, nm_0, f_in), training=training))
+    for lay in self.active_lays["update_sols"]:
+      y.append(lay((t, nm_0, k, w, qm)))
     # Merge timescales
+    # -------------
     return self.active_lays["connect"](y)
