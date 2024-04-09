@@ -36,14 +36,18 @@ class MultiPoleME(BaseNet):
     # Groups connectivity
     self.grp_conn = GroupsConnectivity(groups_graph)
     # Layers names
+    default_lays_name = (
+      "update_pf", "xform_fcorr", "compute_fcorr", \
+        "operators", "update_sols", "connect"
+      )
     if (lays_name is None):
-      self.lays_name = self.lays_name + ("xform_fcorr", "timescales")
+      self.lays_name = self.lays_name + default_lays_name
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("xform_fcorr", "timescales"),
+      not_opt=default_lays_name,
       default=self.default_lays_propty
     )
     # Initializing layers
@@ -54,13 +58,17 @@ class MultiPoleME(BaseNet):
   # -----------------------------------
   def init_layers(self):
     lays = {
-      "preproc": PreProcessor(),
-      "connect": CurrentToLast(self.grp_conn.current_to_last)
+      "update_pf": PreProcessor(),
+      "xform_fcorr": PreProcessor(),
+      "compute_fcorr": PreProcessor(),
+      "compute_fcorr": PreProcessor(),
+      "compute_fcorr": PreProcessor(),
+      "connect": CurrentToNext(self.grp_conn.current_to_next["indices"])
     }
     for (identifier, propty) in self.lays_propty.items():
       if (identifier == "xform_fcorr"):
         lays[identifier] = self.init_lay(identifier, propty)
-      elif (identifier == "timescales"):
+      elif (identifier == "update_sols"):
         lays[identifier] = self.init_timescales_lay(propty)
     return lays
 
