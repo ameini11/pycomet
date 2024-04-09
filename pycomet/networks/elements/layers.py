@@ -1229,7 +1229,7 @@ class LinODE(Layer):
     )
     # Compute solution
     y = tf.matmul(expa, y0) + tf.matmul(expa_i, tf.matmul(ainv, b))
-    return y
+    return tf.squeeze(y, axis=-1)
 
   def apply_eig(self, t, a, eig=None, training=None):
     # Eigen-decomposition

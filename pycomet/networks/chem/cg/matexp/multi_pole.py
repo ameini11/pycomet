@@ -1,7 +1,9 @@
+import copy
 from .blocks import *
 from pycomet import utils
 from pycomet.networks.basenet import BaseNet
 
+import tensorflow as tf
 
 class MultiPoleME(BaseNet):
   """Master equation integral solution using multi-pole matrix exponential
@@ -38,7 +40,7 @@ class MultiPoleME(BaseNet):
     # Layers names
     default_lays_name = (
       "pf_update", "fcorr_xform", "fcorr_compute", \
-        "operators", "sol_updates", "connect"
+        "operators", "sol_update", "connect"
     )
     if (lays_name is None):
       self.lays_name = self.lays_name + default_lays_name
@@ -47,7 +49,7 @@ class MultiPoleME(BaseNet):
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=default_lays_name,
+      not_opt=default_lays_name[:-1],
       default=self.default_lays_propty
     )
     # Initializing layers
@@ -63,7 +65,7 @@ class MultiPoleME(BaseNet):
         lays[identifier] = self.init_lay(identifier, propty)
       elif (identifier in ("pf_update", "fcorr_compute", "operators")):
         lays[identifier] = self.init_kernel_layers(identifier, propty)
-      elif (identifier == "sol_updates"):
+      elif (identifier == "sol_update"):
         lays[identifier] = self.init_sol_update_lays(identifier, propty)
     lays["connect"] = CurrentToNext(self.grp_conn.current_to_next["indices"])
     return lays
@@ -72,19 +74,20 @@ class MultiPoleME(BaseNet):
     propty["lay_id"] = {
       "pf_update": PFUpdate,
       "fcorr_compute": Correction,
-      "operators": Operators
+      "operators": Operators,
+      "sol_update": SolUpdate
     }[identifier]
     return self.init_lay(identifier, propty)
 
   def init_sol_update_lays(self, identifier, propty):
     lays = []
-    for (i, ipropty) in enumerate(propty):
+    for i in range(self.grp_conn.depth):
+      ipropty = copy.deepcopy(propty)
       isplit = self.grp_conn.last_to_current["conn"][str(i)]
-      icompr = self.grp_conn.last_to_current["indices"][str(i+1)]
-      ipropty["lay_id"] = SolUpdate
+      ireduc = self.grp_conn.last_to_current["indices"][str(i+1)]
       ipropty["kwargs"]["indices_split"] = isplit if (i != 0) else None
-      ipropty["kwargs"]["indices_compress"] = icompr
-      lays.append(self.init_lay(identifier, ipropty))
+      ipropty["kwargs"]["indices_reduce"] = ireduc
+      lays.append(self.init_kernel_layers(identifier, ipropty))
     return lays
 
   # Calling
@@ -114,7 +117,7 @@ class MultiPoleME(BaseNet):
     # Update solutions
     # -------------
     y = [nm]
-    for lay in self.active_lays["sol_updates"]:
+    for lay in self.active_lays["sol_update"]:
       y.append(lay((t, nm_0, k, w, qm)))
     # Merge solutions
     # -------------

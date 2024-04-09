@@ -1,6 +1,6 @@
 {
   "specie_thermos": {
-    "filename": "/home/zanardi/Codes/ML/PyCOMET/run/mp_meno/physics/NRVE45/specie_thermos.json",
+    "filename": "/home/zanardi/Codes/ML/PyCOMET/run/meno/physics/NRVE45/specie_thermos.json",
     "thermo_process": 0,
     "eos_model": "PerfectGas"
   },
@@ -10,7 +10,7 @@
   "kinetics": {
     "model": "OneTemp",
     "kwargs": {
-      "reacfile": "/home/zanardi/Codes/ML/PyCOMET/run/mp_meno/physics/NRVE45/reactions.json",
+      "reacfile": "/home/zanardi/Codes/ML/PyCOMET/run/meno/physics/NRVE45/reactions.json",
       "anal_jac": false,
       "T_lim": [
         200.0,

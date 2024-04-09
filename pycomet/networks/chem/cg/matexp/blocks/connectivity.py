@@ -55,69 +55,118 @@ class LastToCurrent(nn_elem.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class Compressing(nn_elem.Layer):
+class Reducing(nn_elem.Layer):
 
   # Initialization
   # ===================================
   def __init__(
     self,
-    mapping=None,
+    indices=None,
     **kwargs
   ):
-    super(Compressing, self).__init__(**kwargs)
-    self.mapping = mapping
-    if (self.mapping is not None):
-      self.mapping = np.array(self.mapping, dtype=np.int32).squeeze()
-      self.p = self.construct_prob_mat()
-
-  def construct_prob_mat(self):
-    # Define dimensions
-    mapping = self.mapping - np.amin(self.mapping)
-    dim_in, self.dim_out = len(mapping), np.amax(mapping)+1
-    # Sparse tensor
-    return tf.sparse.SparseTensor(
-      indices=np.vstack((mapping, np.arange(dim_in))).T,
-      values=tf.ones(dim_in, dtype=bkd.get_floatx()),
-      dense_shape=(self.dim_out, dim_in)
-    )
+    super(Reducing, self).__init__(**kwargs)
+    self.nb_elem = 1
+    self.indices = indices
+    if (self.indices is not None):
+      self.indices = tf.constant(self.indices, dtype="int32")
+      self.indices = tf.reshape(self.indices, shape=[-1])
+      self.nb_elem = tf.math.reduce_max(self.indices)+1
 
   # Calling
   # ===================================
   def call(self, x, axis=1, training=None):
     y = x
-    if (self.mapping is not None):
-      nb_dim = len(x.shape)
-      if (nb_dim == 2):
-        y = self.spmm_2d(y)
-      else:
-        if (axis == 2):
-          y = tf.transpose(y, perm=[0,2,1])
-        y = self.spmm_3d(y)
-        if (axis == 2):
-          y = tf.transpose(y, perm=[0,2,1])
+    if (self.indices is not None):
+      nb_dim = len(tf.shape(x))
+      axes = tf.range(0, nb_dim, delta=1)
+      # Transpose in
+      perm = tf.roll(axes, shift=-axis, axis=0)
+      y = tf.transpose(y, perm=perm)
+      # Reduce sum
+      y = tf.math.unsorted_segment_sum(
+        data=y,
+        segment_ids=self.indices,
+        num_segments=self.nb_elem
+      )
+      # Transpose out
+      perm = tf.roll(axes, shift=axis, axis=0)
+      y = tf.transpose(y, perm=perm)
     return y
-
-  def spmm_2d(self, x):
-    y = tf.transpose(x)
-    y = tf.sparse.sparse_dense_matmul(self.p, y)
-    return tf.transpose(y)
-
-  def spmm_3d(self, x):
-    y = tf.transpose(x, perm=[1,2,0])
-    s = tf.shape(y)
-    y = tf.reshape(y, (s[0], -1))
-    y = tf.sparse.sparse_dense_matmul(self.p, y)
-    y = tf.reshape(y, (self.dim_out, s[1], s[2]))
-    return tf.transpose(y, perm=[2,0,1])
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      "mapping": self.mapping
+      "indices": ops.to_numpy(self.indices)
     }
-    base_config = super(Compressing, self).get_config()
+    base_config = super(Reducing, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
+
+
+# @tf.keras.utils.register_keras_serializable(package=_CFG.name)
+# class Reducing(nn_elem.Layer):
+
+#   # Initialization
+#   # ===================================
+#   def __init__(
+#     self,
+#     mapping=None,
+#     **kwargs
+#   ):
+#     super(Reducing, self).__init__(**kwargs)
+#     self.mapping = mapping
+#     if (self.mapping is not None):
+#       self.mapping = np.array(self.mapping, dtype=np.int32).squeeze()
+#       self.p = self.construct_prob_mat()
+
+#   def construct_prob_mat(self):
+#     # Define dimensions
+#     mapping = self.mapping - np.amin(self.mapping)
+#     dim_in, self.dim_out = len(mapping), np.amax(mapping)+1
+#     # Sparse tensor
+#     return tf.sparse.SparseTensor(
+#       indices=np.vstack((mapping, np.arange(dim_in))).T,
+#       values=tf.ones(dim_in, dtype=bkd.get_floatx()),
+#       dense_shape=(self.dim_out, dim_in)
+#     )
+
+#   # Calling
+#   # ===================================
+#   def call(self, x, axis=1, training=None):
+#     y = x
+#     if (self.mapping is not None):
+#       nb_dim = len(x.shape)
+#       if (nb_dim == 2):
+#         y = self.spmm_2d(y)
+#       else:
+#         if (axis == 2):
+#           y = tf.transpose(y, perm=[0,2,1])
+#         y = self.spmm_3d(y)
+#         if (axis == 2):
+#           y = tf.transpose(y, perm=[0,2,1])
+#     return y
+
+#   def spmm_2d(self, x):
+#     y = tf.transpose(x)
+#     y = tf.sparse.sparse_dense_matmul(self.p, y)
+#     return tf.transpose(y)
+
+#   def spmm_3d(self, x):
+#     y = tf.transpose(x, perm=[1,2,0])
+#     s = tf.shape(y)
+#     y = tf.reshape(y, (s[0], -1))
+#     y = tf.sparse.sparse_dense_matmul(self.p, y)
+#     y = tf.reshape(y, (self.dim_out, s[1], s[2]))
+#     return tf.transpose(y, perm=[2,0,1])
+
+#   # Configuration update
+#   # ===================================
+#   def get_config(self):
+#     config = {
+#       "mapping": self.mapping
+#     }
+#     base_config = super(Reducing, self).get_config()
+#     return dict(list(base_config.items()) + list(config.items()))
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
@@ -132,10 +181,11 @@ class CurrentToNext(nn_elem.Layer):
     **kwargs
   ):
     super(CurrentToNext, self).__init__(**kwargs)
-    self.indices = tf.nest.map_structure(
-      lambda x: tf.reshape(tf.constant(x, dtype="int32"), shape=[-1]),
-      indices
-    )
+    self.indices = tf.nest.map_structure(self._convert, indices)
+  
+  def _convert(self, x):
+    if (x is not None):
+      return tf.reshape(tf.constant(x, dtype="int32"), shape=[-1])
 
   # Calling
   # ===================================
@@ -174,6 +224,7 @@ class GroupsConnectivity(object):
     self,
     graph
   ):
+    self.depth = 1
     self.graph = graph
     if isinstance(self.graph, str):
       with open(self.graph) as file:
@@ -240,9 +291,9 @@ class GroupsConnectivity(object):
     graph,
     ts={}
   ):
-    nb_ts = utils.compute_dict_depth(graph)
+    self.depth = utils.compute_dict_depth(graph)
     connectivity = self.graph_to_nested_list(graph)
-    for l in range(-1,nb_ts):
+    for l in range(-1,self.depth):
       ts[l+1] = self.merge(connectivity, it_max=l+1)
     return ts
 
