@@ -69,7 +69,8 @@ int main() {
   }
 
   // Allocate output tensor
-  std::vector<double> y(n * model->out_tot_dim);
+  std::cout << "> Performing inference" << std::endl;
+  std::vector<double> y(n * model.out_tot_dim);
   // > Test evaluation
   y = model.call(x, n);
 

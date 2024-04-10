@@ -11,6 +11,7 @@ test_cases = 20
 # Time space
 time_lim = [1e-12, 1e0]
 time_eps = 1e-13
+time_eval = [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3]
 
 # Input space
 inp_space = {
@@ -19,7 +20,7 @@ inp_space = {
   "Ti":  [ 1e3,   8e3],
   "T":   [ 8e3, 1.5e4]
 }
-read_init_sols = False
+read_init_sols = True
 
 # Physics
 ref_phy_model = "NRVE45"

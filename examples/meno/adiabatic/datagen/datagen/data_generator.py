@@ -29,6 +29,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self,
     time_lim=[0,1],
     time_eps=1e-15,
+    time_eval=None,
     inp_space={},
     svd=None,
     read_init_sols=False,
@@ -69,6 +70,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Dynamics sampler
     self.time_lim = time_lim
     self.time_eps = time_eps
+    self.time_eval = time_eval
+    if (self.time_eval is not None):
+      self.time_eval = np.array(self.time_eval).squeeze()
     self.dyn_sampler = DifferentialBased(
       method="source",
       grad_split=grad_split,
@@ -85,8 +89,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       self.set_states_and_rates()
     # Initializing thermophysical models
     # -----------------------------------
-    with open(self.path_to_data+'/groups_graph.json', 'w') as f:
-      json.dump(self.generate_graph(groups_splits), f, indent=2)
+    if ((not self.save_sols_only) and (groups_splits is not None)):
+      with open(self.path_to_data+'/groups_graph.json', 'w') as f:
+        json.dump(self.generate_graph(groups_splits), f, indent=2)
     # SVD decomposition
     # -----------------------------------
     self.svd = svd
@@ -380,13 +385,16 @@ class DataGenerator(pcm.data.BaseDataGenerator):
 
   # Postprocess solution
   # -----------------------------------
-  def postproc_solution(self, sol, nb_pts=-1):
+  def postproc_solution(self, sol, nb_pts=-1, teval=None):
     sol = [sol[k] for k in ("t", "y")]
     # Get SVD coefficients for decomposition
     if self.compute_svd_coeff:
       w = self.svd_decomp(*sol)
     # Limit solution in time
     sol = self.limit_solution(*sol)
+    # Interpolate solution in time
+    if (teval is not None):
+      sol = self.interpolate_solution(*sol, teval)
     # Sample solution in time
     if (nb_pts > 0):
       sol = self.sample_solution(*sol, nb_pts)
@@ -402,6 +410,11 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       (t.squeeze() >= self.time_lim[0]) * (t.squeeze() <= self.time_lim[1])
     ).squeeze()
     return t[idx], y[idx]
+
+  def interpolate_solution(self, t, y, teval):
+    t, y = t.squeeze(), np.log(y)
+    y = sp.interpolate.interp1d(t, y.T, kind='cubic')(teval).T
+    return teval, np.exp(y)
 
   def sample_solution(self, t, y, nb_pts):
     idx = self.dyn_sampler.sample(
@@ -482,8 +495,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
 
   # Manage data
   # ===================================
-  def get_data(self, sol, nb_pts=-1):
-    sol = self.postproc_solution(sol, nb_pts)
+  def get_data(self, sol, nb_pts=-1, teval=None):
+    sol = self.postproc_solution(sol, nb_pts, teval)
     # Extract variables
     t, T, n = [sol[k].reshape(-1,1) for k in ("t", "T", "n")]
     na, nm = [sol[f"X_{s}"] * n for s in self.sp_th.keys()]
@@ -548,11 +561,40 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         pcm.utils.print_fn(f"Sampling 0D cases: {k}", lev=2)
         nb_pts = self.train_pts if (k == "train") else self.valid_pts
         for sol in tqdm(sols.values(), ncols=80):
-          idata = self.get_data(sol, nb_pts)
-          data = self.stack_data(data, idata, k)
+          data_i = self.get_data(sol, nb_pts)
+          data = self.stack_data(data, data_i, k)
         # Save data in a 'csv' file
         filename = self.path_to_data + f"/{k}"
         self.save_data(filename, data[k], bounds=True)
+      # Specific time instants to evaluate
+      if (self.time_eval is not None):
+        pcm.utils.print_fn(
+          f"Extract solution at specific time instants: {k}", lev=2
+        )
+        # Prepare data container
+        teval = ["{:.2e}".format(tj) for tj in self.time_eval]
+        teval_data = {tj: [] for tj in teval}
+        # Interpolate solution
+        _teval_data = jl.Parallel(self.nb_workers)(
+          jl.delayed(self.get_data)(
+            sol, teval=self.time_eval
+          ) for sol in tqdm(sols.values(), ncols=80)
+        )
+        _teval_data = [np.hstack(tf.nest.flatten(d)) for d in _teval_data]
+        # Assemble interpolated data
+        for data_i in _teval_data:
+          for (j, data_ij) in enumerate(data_i):
+            teval_data[teval[j]].append(data_ij)
+        teval_data = {
+          tj: np.vstack(data_j) for (tj, data_j) in teval_data.items()
+        }
+        # Save interpolated data
+        dicttoh5(
+          treedict=teval_data,
+          h5file=self.path_to_data + f"/{k}_teval.hdf5",
+          overwrite_data=True,
+          create_dataset_args={"compression": "gzip"}
+        )
     return data
 
   # Testing data

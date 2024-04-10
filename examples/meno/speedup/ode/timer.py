@@ -78,24 +78,27 @@ class ODESolveTimer(object):
   def __call__(
     self,
     t_ends,
+    init_sols=None,
     read_init_sols=False
   ):
     # Sample initial conditions
-    if read_init_sols:
-      print("Reading sampled input space")
-      init_sols = pd.read_csv(self.path_to_data+"/init_sols.csv").to_numpy()
-    else:
-      print("Sampling input space")
-      init_sols = self.sample_inp_space()
+    if (init_sols is None):
+      if read_init_sols:
+        print("Reading sampled input space")
+        init_sols = pd.read_csv(self.path_to_data+"/init_sols.csv").to_numpy()
+      else:
+        print("Sampling input space")
+        init_sols = self.sample_inp_space()
     # Evaluate execution time
     print("Evaluating execution time")
     timings = [self.eval_exec_time(t_end, init_sols) for t_end in t_ends]
     timings = np.vstack(timings)
-    # Saving and returning sampled initial solutions
+    # Save timings
     timings = pd.DataFrame(
       data=timings,
       columns=["t_end [s]", "mean [s]", "std [s]"]
     )
+    timings = timings.sort_values(by=["t_end [s]"])
     timings.to_csv(
       path_or_buf=self.path_to_data+"/timings.csv",
       float_format="%.8e",

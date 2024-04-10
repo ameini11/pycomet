@@ -15,29 +15,29 @@ _common = {
   },
   "dropout": {"rate": 1e-3},
   "layer_norm": False,
-  "trainable": True
+  "trainable": False
 }
 _paths = {
   "data": "/home/zanardi/Codes/ML/PyCOMET/run/meno/adiabatic/datagen/data",
   "physics": "/home/zanardi/Codes/ML/PyCOMET/run/meno/physics/NRVE45"
 }
 
-noisy_io = {
-  "inputs": {
-    "lay_id": "GaussianNoise",
-    "kwargs": {
-      "stddev": 0.02,
-      "seed": 0
-    }
-  },
-  "outputs": {
-    "lay_id": "GaussianNoise",
-    "kwargs": {
-      "stddev": 0.02,
-      "seed": 0
-    }
-  }
-}
+# noisy_io = {
+#   "inputs": {
+#     "lay_id": "GaussianNoise",
+#     "kwargs": {
+#       "stddev": 0.02,
+#       "seed": 0
+#     }
+#   },
+#   "outputs": {
+#     "lay_id": "GaussianNoise",
+#     "kwargs": {
+#       "stddev": 0.02,
+#       "seed": 0
+#     }
+#   }
+# }
 
 lays_propty = {
 
@@ -65,7 +65,7 @@ lays_propty = {
   "fcorr_compute": {
     "lay_id": "Correction",
     "kwargs": {
-      "layer_size": [1, 32, 16, 2],
+      "layer_size": [1, 32, 16, 4],
       "activation": ["tanh"]*2 + ["linear"],
       "static_prop": _paths["data"] + "/physics/NRVE45/states/energies_norm.txt",
       **_common
@@ -76,7 +76,7 @@ lays_propty = {
     "lay_id": "Operators",
     "kwargs": {
       "rates": _paths["data"] + "/physics/NRVE45/rates.hdf5",
-      "use_corr": False
+      "use_corr": True
     }
   },
 

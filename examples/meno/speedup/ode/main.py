@@ -13,6 +13,7 @@ for lib in libs.values():
   sys.path.append(lib)
 
 from timer import ODESolveTimer
+from silx.io.dictdump import h5todict
 
 
 if __name__ == '__main__':
@@ -30,6 +31,7 @@ if __name__ == '__main__':
     "Ti":  [ 1e3,   8e3],
     "T":   [ 8e3, 1.5e4]
   }
+  path_to_init_sols = "/home/zanardi/Codes/ML/PyCOMET/run/meno/adiabatic/datagen/datagen/runs/samples/init_sols.hdf5"
   # Physics
   path_to_physics = "../../physics/NRVE45/"
   load_plato = "module load plato/dev-gcc-11.3.0-openmpi-4.1.4"
@@ -39,7 +41,7 @@ if __name__ == '__main__':
 
   # Execution time
   # =====================================
-  ode_timer = ODESolveTimer(    
+  ode_timer = ODESolveTimer(
     inp_space=inp_space,
     scenarios=scenarios,
     path_to_physics=path_to_physics,
@@ -47,4 +49,7 @@ if __name__ == '__main__':
     nb_workers=nb_workers,
     nb_threads=nb_threads
   )
-  timings = ode_timer(t_ends)
+  init_sols = None
+  if (path_to_init_sols is not None):
+    init_sols = h5todict(path_to_init_sols)["train"]
+  timings = ode_timer(t_ends, init_sols=init_sols)

@@ -78,8 +78,8 @@ class BaseNet(object):
     self.force_siso = force_siso
     if self.force_siso:
       self.call = self.make_siso_call(self.call, self.input_dim)
-      self.input_dim = [np.sum(self.input_dim)]
-      self.output_dim = [np.sum(self.output_dim)]
+      self.input_dim = np.sum(self.input_dim)
+      self.output_dim = np.sum(self.output_dim)
       self.name += '_siso'
     # Layers
     # -----------------------------
@@ -245,7 +245,7 @@ class BaseNet(object):
     input_dim
   ):
     def siso_call(x, training=None, *args, **kwargs):
-      x = nn_elem.Split(input_dim, axis=1)(x)
+      x = nn_elem.Split(num_or_size_splits=input_dim, axis=-1)(x)
       y = call_fun(x, training=training, *args, **kwargs)
       y = tf.nest.flatten(y)
       y = tf_layers.Concatenate()(y) if (len(y) > 1) else y[-1]

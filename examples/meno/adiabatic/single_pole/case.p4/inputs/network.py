@@ -2,7 +2,7 @@ from inputs.data import data_src, cols
 
 # Architecture properties
 # =====================================
-architecture = "MultiPoleME"
+architecture = "SinglePoleME"
 
 # Layers
 # -------------------------------------
@@ -39,8 +39,6 @@ noisy_io = {
   }
 }
 
-groups_graph = _paths["data"] + "/groups_graph.json"
-
 lays_propty = {
 
   "pf_update": {
@@ -67,7 +65,7 @@ lays_propty = {
   "fcorr_compute": {
     "lay_id": "Correction",
     "kwargs": {
-      "layer_size": [1, 32, 16, 2],
+      "layer_size": [1, 32, 16, 4],
       "activation": ["tanh"]*2 + ["linear"],
       "static_prop": _paths["data"] + "/physics/NRVE45/states/energies_norm.txt",
       **_common
@@ -78,7 +76,7 @@ lays_propty = {
     "lay_id": "Operators",
     "kwargs": {
       "rates": _paths["data"] + "/physics/NRVE45/rates.hdf5",
-      "use_corr": False
+      "use_corr": True
     }
   },
 
