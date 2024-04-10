@@ -48,7 +48,6 @@ class SurrogateTimer(object):
     self,
     data={}
   ):
-    print("Evaluating execution time")
     timings = []
     for (t_end, tdata) in data.items():
       t_end = float(t_end)
@@ -85,7 +84,7 @@ class SurrogateTimer(object):
   def eval_exec_time(
     self,
     nb_points,
-    nb_repeat=2
+    nb_repeat=100
   ):
     os.chdir(self.paths["bkd"])
     # Update inputs

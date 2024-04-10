@@ -22,15 +22,17 @@ if __name__ == '__main__':
   # Inputs
   # =====================================
   # Paths
-  path_to_bkd = "./bkd"
-  path_to_data = "/home/zanardi/Codes/ML/PyCOMET/run/meno/adiabatic/datagen/data/train_teval.hdf5"
   prefix = "/home/zanardi/Codes/ML/PyCOMET/run/meno/adiabatic/"
+  path_to_bkd = "./bkd"
+  path_to_data = prefix + "/datagen/data/train_teval.hdf5"
   path_to_models = {
-    "sp": prefix + "/single_pole/case.p4.siso/saving/sp_meno_siso/inpfile.json",
-    "mp": prefix + "/single_pole/case.p4.siso/saving/sp_meno_siso/inpfile.json"
+    "sp_pade": prefix + "/single_pole/case.p4.siso.pade/saving/sp_meno_siso/inpfile.json",
+    "sp_taylor": prefix + "/single_pole/case.p4.siso.taylor/saving/sp_meno_siso/inpfile.json",
+    "mp_pade": prefix + "/multi_pole/case.p16.siso.pade/saving/mp_meno_siso/inpfile.json",
+    "mp_taylor": prefix + "/multi_pole/case.p16.siso.taylor/saving/mp_meno_siso/inpfile.json"
   }
   # Data
-  repeat_data = 1
+  repeat_data = 10
   # Devices
   devices = ("cpu", "gpu")
   gpu_index = 1
@@ -51,11 +53,13 @@ if __name__ == '__main__':
     "CUDA_VISIBLE_DEVICES": str(gpu_index)
   }
   data = h5todict(path_to_data)
-
-  data = tf.nest.map_structure(lambda x: x[:5], data)
-
   for device in devices:
     for (name, path_to_model) in path_to_models.items():
+      print(
+        "Evaluating execution time for:" \
+        f"\n - model:  '{name}'" \
+        f"\n - device: '{device}'"
+      )
       sur_timer = SurrogateTimer(    
         paths={
           "bkd": path_to_bkd,

@@ -21,7 +21,7 @@ if __name__ == '__main__':
   # Inputs
   # =====================================
   # Number of scenarios
-  scenarios = int(1e1)
+  scenarios = int(1e3)
   # Final times
   t_ends = [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3]
   # Input space

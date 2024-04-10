@@ -1,5 +1,5 @@
 {
-  "path_to_modelfile": "/home/zanardi/Codes/ML/PyCOMET/run/meno/adiabatic//single_pole/case.p4.siso/saving/sp_meno_siso/inpfile.json",
+  "path_to_modelfile": "/home/zanardi/Codes/ML/PyCOMET/run/meno/adiabatic//multi_pole/case.p16.siso.taylor/saving/mp_meno_siso/inpfile.json",
   "path_to_datafile": "/home/zanardi/Codes/ML/PyCOMET/run/meno/speedup/sur/data//xdata.csv",
   "nb_points": 5,
   "nb_repeat": 2
