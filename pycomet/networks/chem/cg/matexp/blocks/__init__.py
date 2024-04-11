@@ -3,11 +3,15 @@ __all__ = [
   "CurrentToNext",
   "Correction",
   "Operators",
+  "TimeScale",
+  "TempUpdate",
   "PFUpdate",
-  "SolUpdate"
+  "SolUpdate",
+  "MultiSolUpdate"
 ]
 
 from .connectivity import GroupsConnectivity, CurrentToNext
 from .correction import Correction
 from .operators import Operators
-from .update import PFUpdate, SolUpdate
+from .timescale import TimeScale
+from .update import TempUpdate, PFUpdate, SolUpdate, MultiSolUpdate

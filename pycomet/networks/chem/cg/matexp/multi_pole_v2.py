@@ -3,7 +3,6 @@ from .blocks import *
 from pycomet import utils
 from pycomet.networks.basenet import BaseNet
 
-import tensorflow as tf
 
 class MultiPoleME(BaseNet):
   """Master equation integral solution using multi-pole matrix exponential

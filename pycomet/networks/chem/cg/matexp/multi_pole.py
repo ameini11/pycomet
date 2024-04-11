@@ -1,9 +1,7 @@
-import copy
 from .blocks import *
 from pycomet import utils
 from pycomet.networks.basenet import BaseNet
 
-import tensorflow as tf
 
 class MultiPoleME(BaseNet):
   """Master equation integral solution using multi-pole matrix exponential
@@ -38,10 +36,7 @@ class MultiPoleME(BaseNet):
     # Groups connectivity
     self.grp_conn = GroupsConnectivity(groups_graph)
     # Layers names
-    default_lays_name = (
-      "pf_update", "fcorr_xform", "fcorr_compute", \
-        "operators", "sol_update", "connect"
-    )
+    default_lays_name = ("fcorr_xform", "pf_update", "timescales")
     if (lays_name is None):
       self.lays_name = self.lays_name + default_lays_name
     else:
@@ -49,7 +44,7 @@ class MultiPoleME(BaseNet):
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=default_lays_name[:-1],
+      not_opt=default_lays_name,
       default=self.default_lays_propty
     )
     # Initializing layers
@@ -63,31 +58,26 @@ class MultiPoleME(BaseNet):
     for (identifier, propty) in self.lays_propty.items():
       if (identifier == "fcorr_xform"):
         lays[identifier] = self.init_lay(identifier, propty)
-      elif (identifier in ("pf_update", "fcorr_compute", "operators")):
-        lays[identifier] = self.init_kernel_layers(identifier, propty)
-      elif (identifier == "sol_update"):
-        lays[identifier] = self.init_sol_update_lays(identifier, propty)
+      elif (identifier == "pf_update"):
+        propty["lay_id"] = PFUpdate
+        lays[identifier] = self.init_lay(identifier, propty)
+      elif (identifier == "timescales"):
+        lays[identifier] = self.init_timescales_lay(propty)
+    lays["temp_update"] = TempUpdate()
     lays["connect"] = CurrentToNext(self.grp_conn.current_to_next["indices"])
     return lays
 
-  def init_kernel_layers(self, identifier, propty):
-    propty["lay_id"] = {
-      "pf_update": PFUpdate,
-      "fcorr_compute": Correction,
-      "operators": Operators,
-      "sol_update": SolUpdate
-    }[identifier]
-    return self.init_lay(identifier, propty)
-
-  def init_sol_update_lays(self, identifier, propty):
+  def init_timescales_lay(self, propty):
     lays = []
-    for i in range(self.grp_conn.depth):
-      ipropty = copy.deepcopy(propty)
-      isplit = self.grp_conn.last_to_current["conn"][str(i)]
-      ireduc = self.grp_conn.last_to_current["indices"][str(i+1)]
-      ipropty["kwargs"]["indices_split"] = isplit if (i != 0) else None
-      ipropty["kwargs"]["indices_reduce"] = ireduc
-      lays.append(self.init_kernel_layers(identifier, ipropty))
+    for (i, ipropty) in enumerate(propty):
+      lays.append(
+        TimeScale(
+          dim=ipropty["dim"],
+          lays_propty=ipropty["lays_propty"],
+          indices_split=self.grp_conn.last_to_current["conn"][str(i)],
+          indices_reduce=self.grp_conn.last_to_current["indices"][str(i+1)]
+        )
+      )
     return lays
 
   # Calling
@@ -102,23 +92,18 @@ class MultiPoleME(BaseNet):
     # > nm_0: molecule's initial distribution function
     # > f:    inputs for state-wise corrective factors
     t, na, nm, T, nm_0, f = utils.unpack_list(inputs, nb_elem=6)
-    # Update partition functions
+    # Update thermodynamics
     # -------------
-    qa, qm = self.active_lays["pf_update"](T)
-    # Compute state-wise latent space
+    T = self.active_lays["temp_update"](T)
+    qa = self.active_lays["pf_update"](T, species="atom")
+    # Transform inputs for state-wise latent space
     # -------------
-    # > Transforming
     f = self.active_lays["fcorr_xform"](f, training=training)
-    # > Computing
-    f = self.active_lays["fcorr_compute"](f, training=training)
-    # Compute operators
-    # -------------
-    k, w = self.active_lays["operators"]((na, T, qa, qm, f))
-    # Update solutions
+    # Loop over timescales
     # -------------
     y = [nm]
-    for lay in self.active_lays["sol_update"]:
-      y.append(lay((t, nm_0, k, w, qm)))
-    # Merge solutions
+    for lay in self.active_lays["timescales"]:
+      y.append(lay((t, na, T, qa, nm_0, f)))
+    # Merge timescales
     # -------------
     return self.active_lays["connect"](y)
