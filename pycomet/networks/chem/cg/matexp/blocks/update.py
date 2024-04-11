@@ -3,7 +3,6 @@ import tensorflow as tf
 from .operators import Operators
 from pycomet import operations as ops
 from pycomet.config import get_config
-from .connectivity import Reducing
 from .utils import read_rates, split_rates
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()

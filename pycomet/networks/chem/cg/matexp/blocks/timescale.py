@@ -1,5 +1,4 @@
 from .correction import Correction
-from .connectivity import LastToCurrent
 from .update import PFUpdate, MultiSolUpdate
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
@@ -14,8 +13,8 @@ class TimeScale(BaseNet):
     dim,
     lays_name=None,
     lays_propty=None,
-    current_indices=None,
-    last_to_current=None,
+    indices_split=None,
+    indices_reduce=None,
     *args,
     **kwargs
   ):
@@ -28,8 +27,8 @@ class TimeScale(BaseNet):
       **kwargs
     )
     # Timescale connectivity
-    self.current_indices = current_indices
-    self.last_to_current = last_to_current
+    self.indices_split = indices_split
+    self.indices_reduce = indices_reduce
     # Layers names
     if (lays_name is None):
       self.lays_name = self.lays_name + ("pf_update", "correct", "sol_update")
@@ -55,9 +54,9 @@ class TimeScale(BaseNet):
       elif (identifier == "correct"):
         lays[identifier] = self.init_lay_kernel(identifier, propty)
       elif (identifier == "sol_update"):
-        propty["kwargs"]["indices_split"] = self.current_indices
+        propty["kwargs"]["indices_split"] = self.indices_split
         lays[identifier] = self.init_lay_kernel(identifier, propty)
-    lays["reduce"] = nn_elem.Reduction(self.last_to_current)
+    lays["reduce"] = nn_elem.Reduction(self.indices_reduce)
     return lays
 
   def init_lay_kernel(self, identifier, propty):
