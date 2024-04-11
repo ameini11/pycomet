@@ -1,13 +1,33 @@
 import tensorflow as tf
 
+from .operators import Operators
 from pycomet import operations as ops
 from pycomet.config import get_config
 from .connectivity import Reducing
+from .utils import read_rates, split_rates
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
 # HyperNet library
 from hypernet.thermophysics import specie_thermo as st_mod
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class TempUpdate(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    **kwargs
+  ):
+    super(TempUpdate, self).__init__(**kwargs)
+
+  # Calling
+  # ===================================
+  def call(self, T, training=None):
+    # Precomputed temperature vectors
+    return tf.concat([T, tf.math.log(T), 1/T], axis=-1)
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
@@ -32,17 +52,31 @@ class PFUpdate(nn_elem.Layer):
     })
     self.sp_th = st_mod.init_specie_thermos(**specie_thermos)
     st_mod.build_specie_thermos(self.sp_th)
+    # Species identifiers
+    self.species = {}
+    for st in self.sp_th.values():
+      if (st.specie.nb_comp > 1):
+        self.species["molecule"] = st.specie.name
+      else:
+        self.species["atom"] = st.specie.name
 
   # Calling
   # ===================================
-  def call(self, T, training=None):
-    # Update partition functions: q = [qa, qm]
-    q = []
-    for st in self.sp_th.values():
-      st.pf.reset()
-      st.pf.update(T)
-      q.append(st.pf.tot.Q)
-    return q
+  def call(self, T, species=None, training=None):
+    T = tf.gather(T, indices=[0], axis=-1)
+    if (species is None):
+      sp = [self.species["atom"], self.species["molecule"]]
+    elif (species in ("atom", "molecule")):
+      sp = self.species[species]
+    else:
+      sp = species
+    q = [self.update(T, s) for s in tf.nest.flatten(sp)]
+    return q[0] if (len(q) == 1) else q
+
+  def update(self, T, species):
+    self.sp_th[species].pf.reset()
+    self.sp_th[species].pf.update(T)
+    return self.sp_th[species].pf.tot.Q
 
   # Configuration update
   # ===================================
@@ -57,20 +91,26 @@ class PFUpdate(nn_elem.Layer):
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class SolUpdate(nn_elem.Layer):
+  """Matrix exponential-based update for the master equation."""
 
   # Initialization
   # ===================================
   def __init__(
     self,
+    rates=None,
+    use_corr=True,
     use_eig=False,
     use_pinv=False,
     expm_use_pade=False,
-    indices_split=None,
-    indices_reduce=None,
     **kwargs
   ):
     super(SolUpdate, self).__init__(**kwargs)
-    # Linear ODE layer
+    # Operators layer
+    self.operators = Operators(
+      rates=rates,
+      use_corr=use_corr
+    )
+    # LinODE Layer
     self.linode = nn_elem.LinODE(
       use_eig=use_eig,
       use_pinv=use_pinv,
@@ -79,79 +119,96 @@ class SolUpdate(nn_elem.Layer):
       expm_max_degree=None,
       expm_max_nb_squarings=None
     )
-    # Reducing layer
-    self.indices_reduce = indices_reduce
-    if (self.indices_reduce is not None):
-      self.reduce = Reducing(indices=self.indices_reduce)
-      self.indices_reduce = self.reduce.indices
-    # Splitting layer
-    self.indices_split = indices_split
-    if (self.indices_split is not None):
-      self.indices_split = [
-        tf.reshape(tf.constant(indices, dtype="int32"), shape=[-1]) \
-          for indices in self.indices_split
-      ]
 
   # Calling
   # ===================================
   def call(self, inputs, training=None):
     # Extract inputs
-    # -------------
-    # > t:    time
-    # > nm_0: molecule's initial distribution function
-    # > k:    linear matrix operator
-    # > w:    linear source operator
-    # > qm:   updated molecule's partition functions (temperature T)
-    t, nm_0, k, w, qm = inputs
-    # Compress
-    # -------------
-    if (self.indices_reduce is not None):
-      nm_0, k, w = self.compress_vars(nm_0, k, w, qm)
-    # Split and update solution
-    # -------------
-    if (self.indices_split is not None):
-      xm_t = []
-      for indices in self.indices_split:
-        # Slice
-        si, ei = tf.math.reduce_min(indices), tf.math.reduce_max(indices)+1
-        xm_t.append(
-          self.update_sol(
-            t, nm_0[:,si:ei], k[:,si:ei,si:ei], w[:,si:ei]
-          )
-        )
-      # Concatenate final solution
-      return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
-    else:
-      return self.update_sol(t, nm_0, k, w)
-
-  # Compress variables
-  # -----------------------------------
-  def compress_vars(self, nm_0, k, w, qm):
-    nm_0, w, Qm = [self.reduce(z, axis=1) for z in (nm_0, w, qm)]
-    # Compress linear operator
-    # > Compress first dimension + Scaling
-    k = self.reduce(k, axis=1) * tf.expand_dims(qm, axis=1)
-    # > Compress second dimension + Normalizing
-    k = self.reduce(k, axis=2) * tf.expand_dims(1/Qm, axis=1)
-    return nm_0, k, w
-
-  # Update solution
-  # -----------------------------------
-  def update_sol(self, t, nm_0, k, w):
-    # Compute updated solution
-    nm_t = self.linode((t, nm_0, k, w))
+    t, na, T, *q, nm_0, f = inputs
+    # Compute operators
+    k, w = self.operators((na, T, q, f))
     # Compute relative molar fractions
-    return nm_t * (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True))
+    nm_t = self.linode((t, nm_0, k, w))
+    return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
+      "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
+      "use_corr": self.operators.use_corr,
       "use_eig": self.linode.use_eig,
       "use_pinv": self.linode.use_pinv,
-      "expm_use_pade": self.linode.expm_use_pade,
-      "indices_split": tf.nest.map_structure(ops.to_numpy, self.indices_split),
-      "indices_reduce": ops.to_numpy(self.indices_reduce)
+      "expm_use_pade": self.linode.expm_use_pade
     }
     base_config = super(SolUpdate, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class MultiSolUpdate(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    rates=None,
+    use_corr=True,
+    use_eig=False,
+    use_pinv=False,
+    expm_use_pade=False,
+    indices_split=None,
+    **kwargs
+  ):
+    super(MultiSolUpdate, self).__init__(**kwargs)
+    # Inputs
+    self.rates = read_rates(rates=rates)
+    self.use_corr = use_corr
+    self.use_eig = use_eig
+    self.use_pinv = use_pinv
+    self.expm_use_pade = expm_use_pade
+    self.indices_split = indices_split
+    # Sub-layers
+    # -------------
+    self.update = []
+    rates_split = split_rates(rates=self.rates, indices=self.indices_split)
+    for irates in rates_split:
+      self.update.append(
+        SolUpdate(
+          rates=irates,
+          use_corr=self.use_corr,
+          use_eig=self.use_eig,
+          use_pinv=self.use_pinv,
+          expm_use_pade=self.expm_use_pade
+        )
+      )
+    self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
+
+  # Calling
+  # ===================================
+  def call(self, inputs, training=None):
+    # Extract inputs
+    t, na, T, qa, qm, nm_0, f = inputs
+    # Split QoI
+    qm, nm_0, f = [self.gather(z) for z in (qm, nm_0, f)]
+    # Compute molecule's relative molar fractions
+    xm_t = []
+    for (i, nm_i) in enumerate(nm_0):
+      # Compute solution update
+      xm_t.append(self.update[i]((t, na, T, qa, qm[i], nm_i, f[i])))
+    # Concatenate final solution
+    return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "use_corr": self.use_corr,
+      "use_eig": self.use_eig,
+      "use_pinv": self.use_pinv,
+      "expm_use_pade": self.expm_use_pade,
+      "indices_split": self.indices_split
+    }
+    base_config = super(MultiSolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

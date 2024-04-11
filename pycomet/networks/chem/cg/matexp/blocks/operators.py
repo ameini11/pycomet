@@ -57,7 +57,7 @@ class Operators(nn_elem.Layer):
       if (self.nb_comp is None):
         self.nb_comp = a[p].shape[0]
     # Get non-zero indices
-    indices = tf.nest.map_structure(lambda z: np.where(z > eps), a)
+    indices_2d = tf.nest.map_structure(lambda z: np.where(z > eps), a)
     indices_1d = tf.nest.map_structure(
       lambda z: np.where(z.reshape(-1) > eps)[0].reshape(-1,1), a
     )
@@ -66,11 +66,11 @@ class Operators(nn_elem.Layer):
     for r in self.reactions:
       p = self.get_process(r)
       values[r] = tf.nest.map_structure(
-        lambda x: x[indices[p]].reshape(1,-1), self.rates[r]
+        lambda x: x[indices_2d[p]].reshape(1,-1), self.rates[r]
       )
     # Return values and indices
-    indices = {p: np.vstack(indices[p]) for p in self.processes}
-    return [values, indices, indices_1d]
+    indices_2d = {p: np.vstack(indices_2d[p]) for p in self.processes}
+    return [values, indices_2d, indices_1d]
 
   def get_process(self, reaction):
     return "d" if (reaction == "2") else "e"
@@ -131,7 +131,10 @@ class Operators(nn_elem.Layer):
   # Reaction rates
   # -----------------------------------
   def compute_fwd_rates(self, T):
-    ln_T, ov_T = tf.math.log(T), 1/T
+    if (T.shape[1] > 1):
+      ln_T, ov_T = [tf.gather(T, indices=[i], axis=-1) for i in (1,2)]
+    else:
+      ln_T, ov_T = tf.math.log(T), 1/T
     rates = {}
     for r in self.reactions:
       rates_r = self._arrhenius(ln_T, ov_T, self.rates_values[r])

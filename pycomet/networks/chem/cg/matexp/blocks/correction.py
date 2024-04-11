@@ -1,7 +1,8 @@
 import copy
 import tensorflow as tf
 
-from .utils import read_static_prop
+from .utils import read_prop
+from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
@@ -21,13 +22,14 @@ class Correction(nn_elem.Layer):
     regularizer=None,
     dropout=dict(rate=0),
     layer_norm=None,
-    static_prop=None,
+    state_prop=None,
     **kwargs
   ):
     super(Correction, self).__init__(**kwargs)
-    # Static state/group-specific physical properties
-    self.static_prop = tf.constant(read_static_prop(static_prop))
-    # Blocks for encoding 'time' and 'energy' spaces
+    # Static state-specific properties
+    self.state_prop = read_prop(state_prop)
+    self.state_prop = tf.constant(self.state_prop, dtype=bkd.get_floatx())
+    # Blocks for encoding 'time' and 'state' spaces
     # > Hyperparameters
     self.layer_size = layer_size
     self.activation = activation
@@ -37,9 +39,9 @@ class Correction(nn_elem.Layer):
     self.layer_norm = layer_norm
     # > Initialization
     self.blocks = {}
-    for name in ("time", "energy"):
+    for name in ("time", "state"):
       layer_size_i = copy.deepcopy(self.layer_size)
-      if (name == "energy"):
+      if (name == "state"):
         layer_size_i[-1] += 2
       self.blocks[name] = nn_elem.FFBlock(
         layer_size=layer_size_i,
@@ -56,23 +58,23 @@ class Correction(nn_elem.Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=None):
-    # Encode 'time' inputs > shape=[n,1,p]
+    # Encode 'time' inputs > shape = [n,1,p]
     # -------------
-    ft = self.blocks["time"](inputs, training=training)
-    ft = tf.expand_dims(ft, axis=1)
-    # Encode static 'energy' inputs > shape=[1,m,p+2]
+    yt = self.blocks["time"](inputs, training=training)
+    yt = tf.expand_dims(yt, axis=1)
+    # Encode static state-specific properties > shape = [1,m,p+2]
     # -------------
-    fe = self.blocks["energy"](self.static_prop, training=training)
-    fe = tf.expand_dims(fe, axis=0)
+    ys = self.blocks["state"](self.state_prop, training=training)
+    ys = tf.expand_dims(ys, axis=0)
     # > Splitting
-    fe, d, c = tf.split(fe, num_or_size_splits=self.splits, axis=-1)
+    ys, d, c = tf.split(ys, num_or_size_splits=self.splits, axis=-1)
     # > Scaling
-    fe *= d
+    ys *= d
     # > Shifting
-    c = tf.repeat(input=c, repeats=tf.shape(ft)[0], axis=0)
+    c = tf.repeat(input=c, repeats=tf.shape(yt)[0], axis=0)
     # Linerly combine latent spaces
     # -------------
-    return tf.concat([ft*fe,c], axis=-1)
+    return tf.concat([yt*ys,c], axis=-1)
 
   # Configuration update
   # ===================================
@@ -84,7 +86,7 @@ class Correction(nn_elem.Layer):
       "regularizer": self.regularizer,
       "dropout": self.dropout,
       "layer_norm": self.layer_norm,
-      "static_prop": ops.to_numpy(self.static_prop)
+      "state_prop": ops.to_numpy(self.state_prop)
     }
     base_config = super(Correction, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

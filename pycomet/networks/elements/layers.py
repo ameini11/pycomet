@@ -1114,7 +1114,7 @@ class Eigen(Layer):
   def decompose(self, x):
     l, v = tf.linalg.eig(x)
     self.v, self.vinv = v, None
-    return tf.expand_dims(l, axis=-1) 
+    return tf.expand_dims(l, axis=-1)
 
   def reconstruct(self, x):
     # > f(x) = V @ diag(x) @ V^(-1)
@@ -1260,4 +1260,66 @@ class LinODE(Layer):
       "expm_max_nb_squarings": self.expm_max_nb_squarings
     }
     base_config = super(LinODE, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class Reduction(Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    indices=None,
+    reduction="sum",
+    **kwargs
+  ):
+    super(Reduction, self).__init__(**kwargs)
+    # Indices
+    self.nb_elem = 1
+    self.indices = indices
+    if (self.indices is not None):
+      self.indices = tf.constant(self.indices, dtype="int32")
+      self.indices = tf.reshape(self.indices, shape=[-1])
+      self.nb_elem = tf.math.reduce_max(self.indices)+1
+    # Reduction operation
+    self.reduction = str(reduction)
+    self.reduction_fun = {
+      "max": tf.math.unsorted_segment_max,
+      "mean": tf.math.unsorted_segment_mean,
+      "min": tf.math.unsorted_segment_min,
+      "prod": tf.math.unsorted_segment_prod,
+      "sqrt_n": tf.math.unsorted_segment_sqrt_n,
+      "sum": tf.math.unsorted_segment_sum
+    }[self.reduction]
+
+  # Calling
+  # ===================================
+  def call(self, x, axis=1, training=None):
+    y = x
+    if (self.indices is not None):
+      nb_dim = len(tf.shape(x))
+      axes = tf.range(0, nb_dim, delta=1)
+      # Transpose in
+      perm = tf.roll(axes, shift=-axis, axis=0)
+      y = tf.transpose(y, perm=perm)
+      # Reduce
+      y = self.reduction_fun(
+        data=y,
+        segment_ids=self.indices,
+        num_segments=self.nb_elem
+      )
+      # Transpose out
+      perm = tf.roll(axes, shift=axis, axis=0)
+      y = tf.transpose(y, perm=perm)
+    return y
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      "indices": ops.to_numpy(self.indices),
+      "reduction": self.reduction
+    }
+    base_config = super(Reduction, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
