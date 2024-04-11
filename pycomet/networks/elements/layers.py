@@ -1298,8 +1298,8 @@ class Reduction(Layer):
   def call(self, x, axis=1, training=None):
     y = x
     if (self.indices is not None):
-      nb_dim = len(tf.shape(x))
-      axes = tf.range(0, nb_dim, delta=1)
+      ndim = tf.rank(x)
+      axes = tf.range(0, ndim, delta=1)
       # Transpose in
       perm = tf.roll(axes, shift=-axis, axis=0)
       y = tf.transpose(y, perm=perm)

@@ -74,7 +74,7 @@ class MultiPoleME(BaseNet):
         TimeScale(
           dim=ipropty["dim"],
           lays_propty=ipropty["lays_propty"],
-          indices_split=self.grp_conn.last_to_current["conn"][str(i)],
+          indices_split=self.grp_conn.current_to_next["conn"][str(i)],
           indices_reduce=self.grp_conn.last_to_current["indices"][str(i+1)]
         )
       )

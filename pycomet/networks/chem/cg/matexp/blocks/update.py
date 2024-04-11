@@ -125,7 +125,7 @@ class SolUpdate(nn_elem.Layer):
     # Extract inputs
     t, na, T, *q, nm_0, f = inputs
     # Compute operators
-    k, w = self.operators((na, T, q, f))
+    k, w = self.operators((na, T, *q, f))
     # Compute relative molar fractions
     nm_t = self.linode((t, nm_0, k, w))
     return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
