@@ -10,8 +10,8 @@ def pinv(
   use_svd=True
 ):
   if (not use_svd):
-    ata = tf.matmul(tf.transpose(a), a)
-    return tf.matmul(tf.linalg.inv(ata), tf.transpose(a))
+    at = tf.transpose(a)
+    return tf.matmul(tf.linalg.inv(tf.matmul(at, a)), at)
   else:
     if (rcond is not None):
       dtype = a.dtype.as_numpy_dtype
