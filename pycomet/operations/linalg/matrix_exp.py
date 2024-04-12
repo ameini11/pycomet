@@ -10,7 +10,6 @@ import pycomet as pcm
 import tensorflow as tf
 
 
-@tf.function
 def expm(
   A,
   use_pade=False,

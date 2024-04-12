@@ -18,8 +18,9 @@ from pycomet import utils
 from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
+from pycomet.operations import linalg
 from pycomet.operations import interpolant
-from pycomet.operations.linalg.matrix_exp import expm
+# from pycomet.operations.linalg.matrix_exp import expm
 _CFG = get_config()
 
 
@@ -1097,7 +1098,7 @@ class Eigen(Layer):
   def vinv(self, value=None):
     if (value is None):
       if self.use_pinv:
-        self._vinv = tf.linalg.pinv(self.v)
+        self._vinv = linalg.pinv(self.v, rcond=1e-10)
       else:
         self._vinv = tf.linalg.inv(self.v)
     else:
@@ -1153,7 +1154,7 @@ class MatrixExp(Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=None):
-    return expm(
+    return linalg.expm(
       A=inputs,
       use_pade=self.use_pade,
       max_degree=self.max_degree,
@@ -1221,7 +1222,10 @@ class LinODE(Layer):
       expa, ainv = self.apply_eig(t, a, eig, training)
     else:
       expa = self.expm(a*t, training=training)
-      ainv = tf.linalg.pinv(a) if self.use_pinv else tf.linalg.inv(a)
+      if self.use_pinv:
+        ainv = linalg.pinv(a, rcond=1e-10)
+      else:
+        ainv = tf.linalg.inv(a)
     # Op: exp(At)-I
     expa_i = tf.linalg.set_diag(
       input=expa,
