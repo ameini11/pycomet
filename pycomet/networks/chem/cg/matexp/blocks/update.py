@@ -101,6 +101,8 @@ class SolUpdate(nn_elem.Layer):
     use_eig=False,
     use_pinv=False,
     expm_use_pade=False,
+    add_det_loss=False,
+    det_loss_weight=1e-3,
     **kwargs
   ):
     super(SolUpdate, self).__init__(**kwargs)
@@ -116,7 +118,9 @@ class SolUpdate(nn_elem.Layer):
       real_only=True,
       expm_use_pade=expm_use_pade,
       expm_max_degree=None,
-      expm_max_nb_squarings=None
+      expm_max_nb_squarings=None,
+      add_det_loss=add_det_loss,
+      det_loss_weight=det_loss_weight
     )
 
   # Calling
@@ -138,7 +142,9 @@ class SolUpdate(nn_elem.Layer):
       "use_corr": self.operators.use_corr,
       "use_eig": self.linode.use_eig,
       "use_pinv": self.linode.use_pinv,
-      "expm_use_pade": self.linode.expm_use_pade
+      "expm_use_pade": self.linode.expm_use_pade,
+      "add_det_loss": self.linode.add_det_loss,
+      "det_loss_weight": self.linode.det_loss_weight
     }
     base_config = super(SolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -155,6 +161,8 @@ class MultiSolUpdate(nn_elem.Layer):
     use_corr=True,
     use_eig=False,
     use_pinv=False,
+    add_det_loss=False,
+    det_loss_weight=1e-3,
     expm_use_pade=False,
     indices_split=None,
     **kwargs
@@ -165,6 +173,8 @@ class MultiSolUpdate(nn_elem.Layer):
     self.use_corr = use_corr
     self.use_eig = use_eig
     self.use_pinv = use_pinv
+    self.add_det_loss = add_det_loss
+    self.det_loss_weight = det_loss_weight
     self.expm_use_pade = expm_use_pade
     self.indices_split = indices_split
     # Sub-layers
@@ -178,7 +188,9 @@ class MultiSolUpdate(nn_elem.Layer):
           use_corr=self.use_corr,
           use_eig=self.use_eig,
           use_pinv=self.use_pinv,
-          expm_use_pade=self.expm_use_pade
+          expm_use_pade=self.expm_use_pade,
+          add_det_loss=self.add_det_loss,
+          det_loss_weight=self.det_loss_weight
         )
       )
     self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
@@ -206,6 +218,8 @@ class MultiSolUpdate(nn_elem.Layer):
       "use_corr": self.use_corr,
       "use_eig": self.use_eig,
       "use_pinv": self.use_pinv,
+      "add_det_loss": self.add_det_loss,
+      "det_loss_weight": self.det_loss_weight,
       "expm_use_pade": self.expm_use_pade,
       "indices_split": self.indices_split
     }

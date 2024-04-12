@@ -1191,6 +1191,8 @@ class LinODE(Layer):
     expm_use_pade=False,
     expm_max_degree=None,
     expm_max_nb_squarings=None,
+    add_det_loss=False,
+    det_loss_weight=1e-3,
     **kwargs
   ):
     super(LinODE, self).__init__(**kwargs)
@@ -1210,11 +1212,16 @@ class LinODE(Layer):
         max_degree=self.expm_max_degree,
         max_nb_squarings=self.expm_max_nb_squarings
       )
+    # Additional loss to avoid non-invertibility of the matrix
+    self.add_det_loss = add_det_loss
+    self.det_loss_weight = det_loss_weight
 
   # Calling
   # ===================================
   def call(self, inputs, eig=None, training=None):
     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
+    # Additional loss to avoid non-invertibility of the matrix
+    self.det_loss(a)
     # Reshape vectors
     t, y0, b = [tf.expand_dims(z, axis=-1) for z in (t, y0, b)]
     # Op: exp(At) and A^(-1)
@@ -1251,6 +1258,18 @@ class LinODE(Layer):
     # Op: A^(-1)
     ainv = self.eigen(1/l, training=training, mode="reconstruct")
     return expa, ainv
+
+  def det_loss(self, a):
+    if self.add_det_loss:
+      ws, wb = self.det_loss_weight
+      # Compute determinant
+      det = tf.math.abs(tf.linalg.det(a)) + bkd.get_epsilon()
+      # Too small determinant: avoiding singular matrix
+      loss = ws * tf.math.reduce_mean(tf.math.log(1.0/det+1.0))
+      # Too big determinant: avoiding numerical overflow
+      loss += wb * tf.math.reduce_mean(tf.math.log(det+1.0))
+      # Add loss
+      self.add_loss(loss)
 
   # Configuration update
   # ===================================
