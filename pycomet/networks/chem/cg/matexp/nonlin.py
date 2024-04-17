@@ -5,8 +5,6 @@ from pycomet import networks
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks.don.opnn import _init_input_lay, _manipulate_input
 
-from hypernet import const
-
 
 class NonLinME(BaseNet):
 
@@ -138,11 +136,11 @@ class NonLinME(BaseNet):
     # Kernel - Mass / Number density (OpNN)
     # -------------
     n0 = tf.gather(inputs[0], [self.mass_index], axis=-1)
-    na = n0 * self.active_lays["mass"](y, training=training)
-    nt = tf.concat([na, 0.5*(n0-na)], axis=-1)
+    na = n0 * tf.math.sigmoid(self.active_lays["mass"](y, training=training))
+    nm = 0.5*(n0-na)
     # Kernel - Temperature (OpNN)
     # -------------
-    T = self.active_lays["temp"](y, training=training)
+    T = tf.math.exp(self.active_lays["temp"](y, training=training))
     # Return number densities and temperature
     # -------------
-    return nt, T
+    return na, nm, T
