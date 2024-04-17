@@ -133,8 +133,18 @@ class SolUpdate(nn_elem.Layer):
     # Compute operators
     k, w = self.operators((na, T, *q, f))
     # Compute number densities
+    nm_0 *= nm / tf.math.reduce_sum(nm_0, axis=-1, keepdims=True)
     nm_t = self.linode((t, nm_0, k, w))
-    return (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
+    return nm_t * (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True))
+
+  # def call(self, inputs, training=None):
+  #   # Extract inputs
+  #   t, na, nm, T, *q, nm_0, f = inputs
+  #   # Compute operators
+  #   k, w = self.operators((na, T, *q, f))
+  #   # Compute number densities
+  #   nm_t = self.linode((t, nm_0, k, w))
+  #   return (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
 
 #   def call(self, inputs, training=None):
 #     # Extract inputs
@@ -173,7 +183,7 @@ class MultiSolUpdate(nn_elem.Layer):
     use_eig=False,
     use_pinv=False,
     add_inv_loss=False,
-    inv_loss_weight=[1e-3,1e-3],
+    inv_loss_weight=1e-3,
     expm_use_pade=False,
     indices_split=None,
     **kwargs

@@ -1202,7 +1202,7 @@ class LinODE(Layer):
     expm_max_nb_squarings=None,
     add_inv_loss=False,
     inv_loss_weight=1e-3,
-    inv_scaling=None,
+    inv_scaling=1.0,
     **kwargs
   ):
     super(LinODE, self).__init__(**kwargs)
@@ -1237,7 +1237,11 @@ class LinODE(Layer):
     # Compute matrix exponential
     expa = self.compute_expa(t, a, eig, training)
     # Compute solution
-    y = tf.linalg.solve(a, tf.expand_dims(b, axis=-1))
+    y = tf.linalg.solve(
+      matrix=a*self.inv_scaling,
+      rhs=tf.expand_dims(b, axis=-1)*self.inv_scaling
+    )
+    # y = tf.linalg.lu_solve(*tf.linalg.lu(a), rhs=tf.expand_dims(b, axis=-1))
     y = tf.squeeze(y, axis=-1)
     return tf.linalg.matvec(expa, y0+y) - y
 
@@ -1282,19 +1286,16 @@ class LinODE(Layer):
 
   def compute_inv_loss(self, a):
     if self.add_inv_loss:
-      ws, wb = self.inv_loss_weight
-      # Perform eigen decomposition
-      l, _ = tf.linalg.eig(a)
-      # Compute min/max squared eigenvalues
-      l = tf.math.square(l)
-      lmin = tf.math.reduce_min(l, axis=-1) + bkd.get_epsilon()
-      lmax = tf.math.reduce_max(l, axis=-1)
-      # Too small eigenvalues: avoiding singular matrix
-      loss = ws * tf.math.reduce_mean(tf.math.log(1.0/lmin+1.0))
-      # Too big eigenvalues: avoiding numerical overflow
-      loss += wb * tf.math.reduce_mean(tf.math.log(lmax+1.0))
+      # Compute singular values
+      s = tf.linalg.svd(a, compute_uv=False)
+      # Compute condition number
+      smin = tf.math.reduce_min(s, axis=-1) + bkd.get_epsilon()
+      smax = tf.math.reduce_max(s, axis=-1)
+      cond = smax / smin
+      # Minimize condition number
+      loss = tf.math.reduce_mean(tf.math.log(cond))
       # Add loss
-      self.add_loss(loss)
+      self.add_loss(self.inv_loss_weight * loss)
 
   # Configuration update
   # ===================================
