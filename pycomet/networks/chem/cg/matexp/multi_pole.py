@@ -101,9 +101,32 @@ class MultiPoleME(BaseNet):
     f = self.active_lays["fcorr_xform"](f, training=training)
     # Loop over timescales
     # -------------
-    y = [nm]
     for lay in self.active_lays["timescales"]:
-      y.append(lay((t, na, T, qa, nm_0, f)))
-    # Merge timescales
-    # -------------
-    return self.active_lays["connect"](y)
+      nm = lay((t, na, nm, T, qa, nm_0, f))
+    return nm
+
+  # def forward(self, inputs, training=None):
+  #   # Extract inputs
+  #   # -------------
+  #   # > t:    time
+  #   # > na:   atom's number density
+  #   # > nm:   molecule's number density
+  #   # > T:    translational temperature
+  #   # > nm_0: molecule's initial distribution function
+  #   # > f:    inputs for state-wise corrective factors
+  #   t, na, nm, T, nm_0, f = utils.unpack_list(inputs, nb_elem=6)
+  #   # Update thermodynamics
+  #   # -------------
+  #   T = self.active_lays["temp_update"](T)
+  #   qa = self.active_lays["pf_update"](T, species="atom")
+  #   # Transform inputs for state-wise latent space
+  #   # -------------
+  #   f = self.active_lays["fcorr_xform"](f, training=training)
+  #   # Loop over timescales
+  #   # -------------
+  #   y = [nm]
+  #   for lay in self.active_lays["timescales"]:
+  #     y.append(lay((t, na, T, qa, nm_0, f)))
+  #   # Merge timescales
+  #   # -------------
+  #   return self.active_lays["connect"](y)

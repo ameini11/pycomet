@@ -8,6 +8,7 @@ from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
 # HyperNet library
+from hypernet import const
 from hypernet.thermophysics import specie_thermo as st_mod
 
 
@@ -101,8 +102,8 @@ class SolUpdate(nn_elem.Layer):
     use_eig=False,
     use_pinv=False,
     expm_use_pade=False,
-    add_det_loss=False,
-    det_loss_weight=1e-3,
+    add_inv_loss=False,
+    inv_loss_weight=1e-3,
     **kwargs
   ):
     super(SolUpdate, self).__init__(**kwargs)
@@ -119,20 +120,30 @@ class SolUpdate(nn_elem.Layer):
       expm_use_pade=expm_use_pade,
       expm_max_degree=None,
       expm_max_nb_squarings=None,
-      add_det_loss=add_det_loss,
-      det_loss_weight=det_loss_weight
+      add_inv_loss=add_inv_loss,
+      inv_loss_weight=inv_loss_weight,
+      inv_scaling=1.0/const.UNA
     )
 
   # Calling
   # ===================================
   def call(self, inputs, training=None):
     # Extract inputs
-    t, na, T, *q, nm_0, f = inputs
+    t, na, nm, T, *q, nm_0, f = inputs
     # Compute operators
     k, w = self.operators((na, T, *q, f))
-    # Compute relative molar fractions
+    # Compute number densities
     nm_t = self.linode((t, nm_0, k, w))
-    return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
+    return (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
+
+#   def call(self, inputs, training=None):
+#     # Extract inputs
+#     t, na, T, *q, nm_0, f = inputs
+#     # Compute operators
+#     k, w = self.operators((na, T, *q, f))
+#     # Compute relative molar fractions
+#     nm_t = self.linode((t, nm_0, k, w))
+#     return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
 
   # Configuration update
   # ===================================
@@ -143,8 +154,8 @@ class SolUpdate(nn_elem.Layer):
       "use_eig": self.linode.use_eig,
       "use_pinv": self.linode.use_pinv,
       "expm_use_pade": self.linode.expm_use_pade,
-      "add_det_loss": self.linode.add_det_loss,
-      "det_loss_weight": self.linode.det_loss_weight
+      "add_inv_loss": self.linode.add_inv_loss,
+      "inv_loss_weight": self.linode.inv_loss_weight
     }
     base_config = super(SolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -161,8 +172,8 @@ class MultiSolUpdate(nn_elem.Layer):
     use_corr=True,
     use_eig=False,
     use_pinv=False,
-    add_det_loss=False,
-    det_loss_weight=1e-3,
+    add_inv_loss=False,
+    inv_loss_weight=[1e-3,1e-3],
     expm_use_pade=False,
     indices_split=None,
     **kwargs
@@ -173,13 +184,14 @@ class MultiSolUpdate(nn_elem.Layer):
     self.use_corr = use_corr
     self.use_eig = use_eig
     self.use_pinv = use_pinv
-    self.add_det_loss = add_det_loss
-    self.det_loss_weight = det_loss_weight
+    self.add_inv_loss = add_inv_loss
+    self.inv_loss_weight = inv_loss_weight
     self.expm_use_pade = expm_use_pade
     self.indices_split = indices_split
     # Sub-layers
     # -------------
     self.update = []
+    self.nb_splits = len(self.indices_split)
     rates_split = split_rates(rates=self.rates, indices=self.indices_split)
     for irates in rates_split:
       self.update.append(
@@ -189,8 +201,8 @@ class MultiSolUpdate(nn_elem.Layer):
           use_eig=self.use_eig,
           use_pinv=self.use_pinv,
           expm_use_pade=self.expm_use_pade,
-          add_det_loss=self.add_det_loss,
-          det_loss_weight=self.det_loss_weight
+          add_inv_loss=self.add_inv_loss,
+          inv_loss_weight=self.inv_loss_weight
         )
       )
     self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
@@ -199,16 +211,32 @@ class MultiSolUpdate(nn_elem.Layer):
   # ===================================
   def call(self, inputs, training=None):
     # Extract inputs
-    t, na, T, qa, qm, nm_0, f = inputs
+    t, na, nm, T, qa, qm, nm_0, f = inputs
     # Split QoI
+    nm = tf.split(nm, num_or_size_splits=nm.shape[-1], axis=-1)
     qm, nm_0, f = [self.gather(z) for z in (qm, nm_0, f)]
     # Compute molecule's relative molar fractions
-    xm_t = []
-    for (i, nm_i) in enumerate(nm_0):
+    nm_t = []
+    for i in range(self.nb_splits):
       # Compute solution update
-      xm_t.append(self.update[i]((t, na, T, qa, qm[i], nm_i, f[i])))
+      nm_t.append(self.update[i](
+        (t, na, nm[i], T, qa, qm[i], nm_0[i], f[i])
+      ))
     # Concatenate final solution
-    return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
+    return tf.concat(nm_t, axis=-1) if (len(nm_t) > 1) else nm_t[-1]
+
+#   def call(self, inputs, training=None):
+#     # Extract inputs
+#     t, na, T, qa, qm, nm_0, f = inputs
+#     # Split QoI
+#     qm, nm_0, f = [self.gather(z) for z in (qm, nm_0, f)]
+#     # Compute molecule's relative molar fractions
+#     xm_t = []
+#     for (i, nm_i) in enumerate(nm_0):
+#       # Compute solution update
+#       xm_t.append(self.update[i]((t, na, T, qa, qm[i], nm_i, f[i])))
+#     # Concatenate final solution
+#     return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
 
   # Configuration update
   # ===================================
@@ -218,8 +246,8 @@ class MultiSolUpdate(nn_elem.Layer):
       "use_corr": self.use_corr,
       "use_eig": self.use_eig,
       "use_pinv": self.use_pinv,
-      "add_det_loss": self.add_det_loss,
-      "det_loss_weight": self.det_loss_weight,
+      "add_inv_loss": self.add_inv_loss,
+      "inv_loss_weight": self.inv_loss_weight,
       "expm_use_pade": self.expm_use_pade,
       "indices_split": self.indices_split
     }

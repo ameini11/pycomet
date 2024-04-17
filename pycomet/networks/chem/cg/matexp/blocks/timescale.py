@@ -71,7 +71,7 @@ class TimeScale(BaseNet):
   # ===================================
   def forward(self, inputs, training=None):
     # Extract inputs
-    t, na, T, qa, nm_0, f = inputs
+    t, na, nm, T, qa, nm_0, f = inputs
     # Merge states
     nm_0 = self.active_lays["reduce"](nm_0, axis=1)
     # Update partition functions
@@ -79,4 +79,16 @@ class TimeScale(BaseNet):
     # Compute state-wise latent space
     f = self.active_lays["correct"](f, training=training)
     # Compute solution
-    return self.active_lays["sol_update"]((t, na, T, qa, qm, nm_0, f))
+    return self.active_lays["sol_update"]((t, na, nm, T, qa, qm, nm_0, f))
+
+  # def forward(self, inputs, training=None):
+  #   # Extract inputs
+  #   t, na, T, qa, nm_0, f = inputs
+  #   # Merge states
+  #   nm_0 = self.active_lays["reduce"](nm_0, axis=1)
+  #   # Update partition functions
+  #   qm = self.active_lays["pf_update"](T, species="molecule")
+  #   # Compute state-wise latent space
+  #   f = self.active_lays["correct"](f, training=training)
+  #   # Compute solution
+  #   return self.active_lays["sol_update"]((t, na, T, qa, qm, nm_0, f))

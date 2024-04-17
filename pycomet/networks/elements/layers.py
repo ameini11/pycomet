@@ -1075,10 +1075,12 @@ class Eigen(Layer):
   def __init__(
     self,
     use_pinv=False,
+    inv_scaling=None,
     **kwargs
   ):
     super(Eigen, self).__init__(**kwargs)
     self.use_pinv = use_pinv
+    self.inv_scaling = inv_scaling
 
   # Properties
   # ===================================
@@ -1097,10 +1099,16 @@ class Eigen(Layer):
   @vinv.setter
   def vinv(self, value=None):
     if (value is None):
+      _v = self.v
+      if (self.inv_scaling is not None):
+        _v = _v * self.inv_scaling
       if self.use_pinv:
-        self._vinv = linalg.pinv(self.v, rcond=1e-10)
+        _vinv = linalg.pinv(_v, rcond=1e-10)
       else:
-        self._vinv = tf.linalg.inv(self.v)
+        _vinv = tf.linalg.inv(_v)
+      if (self.inv_scaling is not None):
+        _vinv *= self.inv_scaling
+      self._vinv = _vinv
     else:
       self._vinv = value
 
@@ -1128,7 +1136,8 @@ class Eigen(Layer):
   # ===================================
   def get_config(self):
     config = {
-      "use_pinv": self.use_pinv
+      "use_pinv": self.use_pinv,
+      "inv_scaling": self.inv_scaling
     }
     base_config = super(Eigen, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -1191,8 +1200,9 @@ class LinODE(Layer):
     expm_use_pade=False,
     expm_max_degree=None,
     expm_max_nb_squarings=None,
-    add_det_loss=False,
-    det_loss_weight=1e-3,
+    add_inv_loss=False,
+    inv_loss_weight=1e-3,
+    inv_scaling=None,
     **kwargs
   ):
     super(LinODE, self).__init__(**kwargs)
@@ -1202,9 +1212,11 @@ class LinODE(Layer):
     self.expm_use_pade = expm_use_pade
     self.expm_max_degree = expm_max_degree
     self.expm_max_nb_squarings = expm_max_nb_squarings
+    self.inv_scaling = inv_scaling
     if self.use_eig:
       self.eigen = Eigen(
-        use_pinv=self.use_pinv
+        use_pinv=self.use_pinv,
+        inv_scaling=self.inv_scaling
       )
     else:
       self.expm = MatrixExp(
@@ -1213,34 +1225,36 @@ class LinODE(Layer):
         max_nb_squarings=self.expm_max_nb_squarings
       )
     # Additional loss to avoid non-invertibility of the matrix
-    self.add_det_loss = add_det_loss
-    self.det_loss_weight = det_loss_weight
+    self.add_inv_loss = add_inv_loss
+    self.inv_loss_weight = inv_loss_weight
 
   # Calling
   # ===================================
   def call(self, inputs, eig=None, training=None):
     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
     # Additional loss to avoid non-invertibility of the matrix
-    self.det_loss(a)
-    # Reshape vectors
-    t, y0, b = [tf.expand_dims(z, axis=-1) for z in (t, y0, b)]
+    self.compute_inv_loss(a)
     # Op: exp(At) and A^(-1)
+    t = tf.expand_dims(t, axis=-1)
     if self.use_eig:
       expa, ainv = self.apply_eig(t, a, eig, training)
     else:
       expa = self.expm(a*t, training=training)
-      if self.use_pinv:
-        ainv = linalg.pinv(a, rcond=1e-10)
-      else:
-        ainv = tf.linalg.inv(a)
-    # Op: exp(At)-I
-    expa_i = tf.linalg.set_diag(
-      input=expa,
-      diagonal=tf.linalg.diag_part(expa) - 1.0
-    )
+      ainv = self.compute_inv(a)
     # Compute solution
-    y = tf.matmul(expa, y0) + tf.matmul(expa_i, tf.matmul(ainv, b))
-    return tf.squeeze(y, axis=-1)
+    y = tf.linalg.matvec(ainv, b)
+    return tf.linalg.matvec(expa, y0+y) - y
+  
+  def compute_inv(self, a):
+    if (self.inv_scaling is not None):
+      a *= self.inv_scaling
+    if self.use_pinv:
+      ainv = linalg.pinv(a, rcond=1e-10)
+    else:
+      ainv = tf.linalg.inv(a)
+    if (self.inv_scaling is not None):
+      ainv *= self.inv_scaling
+    return ainv
 
   def apply_eig(self, t, a, eig=None, training=None):
     # Eigen-decomposition
@@ -1259,15 +1273,31 @@ class LinODE(Layer):
     ainv = self.eigen(1/l, training=training, mode="reconstruct")
     return expa, ainv
 
-  def det_loss(self, a):
-    if self.add_det_loss:
-      ws, wb = self.det_loss_weight
-      # Compute determinant
-      det = tf.math.abs(tf.linalg.det(a)) + bkd.get_epsilon()
-      # Too small determinant: avoiding singular matrix
-      loss = ws * tf.math.reduce_mean(tf.math.log(1.0/det+1.0))
-      # Too big determinant: avoiding numerical overflow
-      loss += wb * tf.math.reduce_mean(tf.math.log(det+1.0))
+  # def compute_inv_loss(self, a):
+  #   if self.add_inv_loss:
+  #     ws, wb = self.inv_loss_weight
+  #     # Compute determinant
+  #     det = tf.math.abs(tf.linalg.det(a)) + bkd.get_epsilon()
+  #     # Too small determinant: avoiding singular matrix
+  #     loss = ws * tf.math.reduce_mean(tf.math.log(1.0/det+1.0))
+  #     # Too big determinant: avoiding numerical overflow
+  #     loss += wb * tf.math.reduce_mean(tf.math.log(det+1.0))
+  #     # Add loss
+  #     self.add_loss(loss)
+
+  def compute_inv_loss(self, a):
+    if self.add_inv_loss:
+      ws, wb = self.inv_loss_weight
+      # Perform eigen decomposition
+      l, _ = tf.linalg.eig(a)
+      # Compute min/max squared eigenvalues
+      l = tf.math.square(l)
+      lmin = tf.math.reduce_min(l, axis=-1) + bkd.get_epsilon()
+      lmax = tf.math.reduce_max(l, axis=-1)
+      # Too small eigenvalues: avoiding singular matrix
+      loss = ws * tf.math.reduce_mean(tf.math.log(1.0/lmin+1.0))
+      # Too big eigenvalues: avoiding numerical overflow
+      loss += wb * tf.math.reduce_mean(tf.math.log(lmax+1.0))
       # Add loss
       self.add_loss(loss)
 
@@ -1280,7 +1310,8 @@ class LinODE(Layer):
       "real_only": self.real_only,
       "expm_use_pade": self.expm_use_pade,
       "expm_max_degree": self.expm_max_degree,
-      "expm_max_nb_squarings": self.expm_max_nb_squarings
+      "expm_max_nb_squarings": self.expm_max_nb_squarings,
+      "inv_scaling": self.inv_scaling
     }
     base_config = super(LinODE, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
