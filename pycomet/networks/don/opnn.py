@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 from pycomet import utils
 from ..basenet import BaseNet
@@ -20,6 +21,7 @@ class OpNN(BaseNet):
     inference=None,
     masking=False,
     force_siso=False,
+    return_latent_space=None,
     *args,
     **kwargs
   ):
@@ -86,6 +88,8 @@ class OpNN(BaseNet):
         ValueError,
         "The number of trunks/branches do not match the number of outputs"
       )
+    # Latent space
+    self.return_latent_space = return_latent_space
 
   # Layers initialization
   # -----------------------------------
@@ -141,7 +145,13 @@ class OpNN(BaseNet):
     # Outputs manipulation
     y = self._tensor_product(G_u, G_y)
     y = self._manipulate_output(x, y, training)
-    return y
+    # Return quantities
+    if (self.return_latent_space == 'branch'):
+      return tf.nest.flatten([y, G_u])
+    elif (self.return_latent_space == 'trunk'):
+      return tf.nest.flatten([y, G_y])
+    else:
+      return y
 
   def _eval_kernel(self, x, training):
     # Branch/Trunk

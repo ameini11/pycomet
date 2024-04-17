@@ -21,6 +21,7 @@ class AugOpNN(OpNN):
     inference=None,
     masking=False,
     force_siso=False,
+    return_latent_space=None,
     *args,
     **kwargs
   ):
@@ -32,6 +33,7 @@ class AugOpNN(OpNN):
       inference=inference,
       masking=masking,
       force_siso=force_siso,
+      return_latent_space=return_latent_space,
       *args,
       **kwargs
     )

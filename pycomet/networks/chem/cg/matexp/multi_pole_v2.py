@@ -4,7 +4,7 @@ from pycomet import utils
 from pycomet.networks.basenet import BaseNet
 
 
-class MultiPoleME(BaseNet):
+class LinMultiPoleME(BaseNet):
   """Master equation integral solution using multi-pole matrix exponential
   neural operator with a state-specific corrective factor."""
 
@@ -23,7 +23,7 @@ class MultiPoleME(BaseNet):
     *args,
     **kwargs
   ):
-    super(MultiPoleME, self).__init__(
+    super(LinMultiPoleME, self).__init__(
       dim=dim,
       lays_name=lays_name,
       lays_propty=lays_propty,

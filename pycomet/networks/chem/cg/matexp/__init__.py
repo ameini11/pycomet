@@ -1,9 +1,9 @@
 __all__ = [
-  "MultiPoleME",
-  "NonLinearQoI",
-  "SinglePoleME"
+  "LinMultiPoleME",
+  "NonLinME",
+  "LinSinglePoleME"
 ]
 
-from .multi_pole import MultiPoleME
-from .nlin_qoi import NonLinearQoI
-from .single_pole import SinglePoleME
+from .lin_mp import LinMultiPoleME
+from .nonlin import NonLinME
+from .lin_sp import LinSinglePoleME

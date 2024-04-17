@@ -3,7 +3,7 @@ from pycomet import utils
 from pycomet.networks.basenet import BaseNet
 
 
-class SinglePoleME(BaseNet):
+class LinSinglePoleME(BaseNet):
   """Master equation integral solution using a single matrix exponential
   neural operator with a state-specific corrective factor."""
 
@@ -21,7 +21,7 @@ class SinglePoleME(BaseNet):
     *args,
     **kwargs
   ):
-    super(SinglePoleME, self).__init__(
+    super(LinSinglePoleME, self).__init__(
       dim=dim,
       lays_name=lays_name,
       lays_propty=lays_propty,
@@ -60,10 +60,10 @@ class SinglePoleME(BaseNet):
       elif (identifier in (
         "pf_update", "fcorr_compute", "operators", "sol_update"
       )):
-        lays[identifier] = self.init_kernel_layers(identifier, propty)
+        lays[identifier] = self.init_kernel_lay(identifier, propty)
     return lays
 
-  def init_kernel_layers(self, identifier, propty):
+  def init_kernel_lay(self, identifier, propty):
     propty["lay_id"] = {
       "pf_update": PFUpdate,
       "fcorr_compute": Correction,
