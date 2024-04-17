@@ -1234,44 +1234,39 @@ class LinODE(Layer):
     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
     # Additional loss to avoid non-invertibility of the matrix
     self.compute_inv_loss(a)
-    # Op: exp(At) and A^(-1)
+    # Compute matrix exponential
+    expa = self.compute_expa(t, a, eig, training)
+    # Compute solution
+    y = tf.linalg.solve(a, tf.expand_dims(b, axis=-1))
+    y = tf.squeeze(y, axis=-1)
+    return tf.linalg.matvec(expa, y0+y) - y
+
+  # def compute_inv(self, a):
+  #   if (self.inv_scaling is not None):
+  #     a *= self.inv_scaling
+  #   if self.use_pinv:
+  #     ainv = linalg.pinv(a, rcond=1e-10)
+  #   else:
+  #     ainv = tf.linalg.inv(a)
+  #   if (self.inv_scaling is not None):
+  #     ainv *= self.inv_scaling
+  #   return ainv
+
+  def compute_expa(self, t, a, eig=None, training=None):
     t = tf.expand_dims(t, axis=-1)
     if self.use_eig:
-      expa, ainv = self.apply_eig(t, a, eig, training)
+      # Eigen-decomposition
+      if (eig is None):
+        l = self.eigen(a, training=training, mode="decompose")
+      else:
+        l, self.eigen.v = eig
+        self.eigen.vinv = None
+      if self.real_only:
+        l = tf.math.real(l)
+      s = tf.math.exp(t*l)
+      return self.eigen(s, training=training, mode="reconstruct")
     else:
-      expa = self.expm(a*t, training=training)
-      ainv = self.compute_inv(a)
-    # Compute solution
-    y = tf.linalg.matvec(ainv, b)
-    return tf.linalg.matvec(expa, y0+y) - y
-  
-  def compute_inv(self, a):
-    if (self.inv_scaling is not None):
-      a *= self.inv_scaling
-    if self.use_pinv:
-      ainv = linalg.pinv(a, rcond=1e-10)
-    else:
-      ainv = tf.linalg.inv(a)
-    if (self.inv_scaling is not None):
-      ainv *= self.inv_scaling
-    return ainv
-
-  def apply_eig(self, t, a, eig=None, training=None):
-    # Eigen-decomposition
-    if (eig is None):
-      # > A = V @ S @ V^(-1)
-      l = self.eigen(a, training=training, mode="decompose")
-    else:
-      l, self.eigen.v = eig
-      self.eigen.vinv = None
-    if self.real_only:
-      l = tf.math.real(l)
-    # Compute operators
-    # Op: exp(At)
-    expa = self.eigen(tf.math.exp(t*l), training=training, mode="reconstruct")
-    # Op: A^(-1)
-    ainv = self.eigen(1/l, training=training, mode="reconstruct")
-    return expa, ainv
+      return self.expm(a*t, training=training)
 
   # def compute_inv_loss(self, a):
   #   if self.add_inv_loss:
