@@ -115,6 +115,8 @@ def plot_test(
       fontsize=fs,
       ncol=int(np.ceil(n/3))
     )
+  # Tight layout
+  plt.tight_layout()
   # Save figure
   # -----------------------------------
   if save:

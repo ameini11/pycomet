@@ -99,6 +99,7 @@ class SolUpdate(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
+    no_corr_last_state=False,
     use_eig=False,
     use_pinv=False,
     expm_use_pade=False,
@@ -110,7 +111,8 @@ class SolUpdate(nn_elem.Layer):
     # Operators layer
     self.operators = Operators(
       rates=rates,
-      use_corr=use_corr
+      use_corr=use_corr,
+      no_corr_last_state=no_corr_last_state
     )
     # LinODE Layer
     self.linode = nn_elem.LinODE(
@@ -133,27 +135,17 @@ class SolUpdate(nn_elem.Layer):
     # Compute operators
     k, w = self.operators((na, T, *q, f))
     # Compute number densities
-    nm_0 *= nm / tf.math.reduce_sum(nm_0, axis=-1, keepdims=True)
     nm_t = self.linode((t, nm_0, k, w))
-    return nm_t * (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True))
+    return (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
 
   # def call(self, inputs, training=None):
   #   # Extract inputs
-  #   t, na, nm, T, *q, nm_0, f = inputs
+  #   t, na, T, *q, nm_0, f = inputs
   #   # Compute operators
   #   k, w = self.operators((na, T, *q, f))
-  #   # Compute number densities
+  #   # Compute relative molar fractions
   #   nm_t = self.linode((t, nm_0, k, w))
-  #   return (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
-
-#   def call(self, inputs, training=None):
-#     # Extract inputs
-#     t, na, T, *q, nm_0, f = inputs
-#     # Compute operators
-#     k, w = self.operators((na, T, *q, f))
-#     # Compute relative molar fractions
-#     nm_t = self.linode((t, nm_0, k, w))
-#     return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
+  #   return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
 
   # Configuration update
   # ===================================
@@ -161,6 +153,7 @@ class SolUpdate(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
       "use_corr": self.operators.use_corr,
+      "no_corr_last_state": self.operators.no_corr_last_state,
       "use_eig": self.linode.use_eig,
       "use_pinv": self.linode.use_pinv,
       "expm_use_pade": self.linode.expm_use_pade,
@@ -180,6 +173,7 @@ class MultiSolUpdate(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
+    no_corr_last_state=False,
     use_eig=False,
     use_pinv=False,
     add_inv_loss=False,
@@ -192,6 +186,7 @@ class MultiSolUpdate(nn_elem.Layer):
     # Inputs
     self.rates = read_rates(rates=rates)
     self.use_corr = use_corr
+    self.no_corr_last_state = no_corr_last_state
     self.use_eig = use_eig
     self.use_pinv = use_pinv
     self.add_inv_loss = add_inv_loss
@@ -208,6 +203,7 @@ class MultiSolUpdate(nn_elem.Layer):
         SolUpdate(
           rates=irates,
           use_corr=self.use_corr,
+          no_corr_last_state=self.no_corr_last_state,
           use_eig=self.use_eig,
           use_pinv=self.use_pinv,
           expm_use_pade=self.expm_use_pade,
@@ -254,6 +250,7 @@ class MultiSolUpdate(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
       "use_corr": self.use_corr,
+      "no_corr_last_state": self.no_corr_last_state,
       "use_eig": self.use_eig,
       "use_pinv": self.use_pinv,
       "add_inv_loss": self.add_inv_loss,

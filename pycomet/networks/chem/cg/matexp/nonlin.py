@@ -84,7 +84,7 @@ class NonLinME(BaseNet):
     for (identifier, propty) in self.lays_propty.items():
       if (identifier == "input"):
         lays[identifier] = _init_input_lay(self, identifier, propty)
-      elif (identifier == ("mass", "temp")):
+      elif (identifier in ("mass", "temp")):
         lays[identifier] = self.init_kernel_lay(propty)
       elif (identifier == "output"):
         lays[identifier] = self.init_inout_lay(propty)

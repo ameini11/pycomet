@@ -90,7 +90,7 @@ class FlexOpNN(OpNN):
     G_u = [nn_elem.Split([G_u_i.shape[1]-2,1,1], 1)(G_u_i) for G_u_i in G_u]
     G_u, d, c = list(zip(*G_u))
     y = super(FlexOpNN, self)._tensor_product(G_u, G_y)
-    return [c[i] + d[i]*y[i] for i in range(self.output_dim[-1])]
+    return [c[i] + d[i]*y[i] for i in range(self.output_dim)]
 
 # Shared functions
 # =====================================

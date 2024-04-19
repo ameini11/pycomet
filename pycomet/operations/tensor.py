@@ -39,7 +39,7 @@ def to_tensor(x=None, dtype=None):
     if (tf.is_tensor(x)):
       return tf.cast(x, dtype)
     else:
-      return tf.convert_to_tensor(to_numpy(x), dtype=dtype)
+      return tf.constant(to_numpy(x), dtype=dtype)
 
 def to_numpy(x=None, dtype=None):
   if (x is not None):
@@ -51,6 +51,6 @@ def to_numpy(x=None, dtype=None):
       return np.array(x, dtype=dtype)
     else:
       return x.astype(dtype)
-    
+
 def random_permutation(n):
-  return tf.convert_to_tensor(np.random.permutation(n))
+  return tf.constant(np.random.permutation(n), dtype="int32")

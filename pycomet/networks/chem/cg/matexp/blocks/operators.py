@@ -19,6 +19,7 @@ class Operators(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
+    no_corr_last_state=True,
     **kwargs
   ):
     super(Operators, self).__init__(**kwargs)
@@ -37,42 +38,59 @@ class Operators(nn_elem.Layer):
       else:
         utils.raise_err(NotImplementedError)
     # Reaction rates values and indices
-    rates_vi = self.get_rates_values_indices()
-    for (i, dtype) in enumerate((bkd.get_floatx(), "int32", "int32")):
-      rates_vi[i] = tf.nest.map_structure(
-        lambda z: tf.constant(z, dtype=dtype), rates_vi[i]
-      )
-    self.rates_values, self.rates_indices, self.scatter_indices = rates_vi
-    self.scatter_sizes = {"d": self.nb_comp, "e": self.nb_comp**2}
+    self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
+    self.no_corr_last_state = no_corr_last_state
 
-  def get_rates_values_indices(self, eps=1e-50):
+  def set_rates_values_indices(self, eps=1e-50):
     # Assemble Arrhenius 'A' matrix
+    # -------------
     a = {p: 0.0 for p in self.processes}
     for r in self.reactions:
-      p = self.get_process(r)
+      p = self._get_process(r)
       a[p] = a[p] + self.rates[r]["A"]
       # Get number of components
       if (self.nb_comp is None):
         self.nb_comp = a[p].shape[0]
-    # Get non-zero indices
-    indices_2d = tf.nest.map_structure(lambda z: np.where(z > eps), a)
+    # Get non-zero rates constant
+    # -------------
+    # > Indices
+    indices_2d = tf.nest.map_structure(
+      lambda z: np.where(z > eps), a
+    )
     indices_1d = tf.nest.map_structure(
       lambda z: np.where(z.reshape(-1) > eps)[0].reshape(-1,1), a
     )
-    # Get non-zero rates constant
-    values = {}
+    # > Values
+    values_2d = {}
     for r in self.reactions:
-      p = self.get_process(r)
-      values[r] = tf.nest.map_structure(
+      p = self._get_process(r)
+      values_2d[r] = tf.nest.map_structure(
         lambda x: x[indices_2d[p]].reshape(1,-1), self.rates[r]
       )
-    # Return values and indices
+    # Composing
     indices_2d = {p: np.vstack(indices_2d[p]) for p in self.processes}
-    return [values, indices_2d, indices_1d]
+    # Get non-updating rates constant
+    # -------------
+    # Get indices for not correcting the transitions involving the last state
+    indices_2d_no_corr = tf.nest.map_structure(
+      lambda z: np.where(z[0] == self.nb_comp-1)[0].reshape(-1,1), indices_2d
+    )
+    # Set rates values and indices
+    # -------------
+    for (name, value, dtype) in (
+      ("rates_values", values_2d, bkd.get_floatx()),
+      ("rates_indices", indices_2d, "int32"),
+      ("scatter_update_indices", indices_1d, "int32"),
+      ("scatter_no_corr_indices", indices_2d_no_corr, "int32")
+    ):
+      setattr(self, name, tf.nest.map_structure(
+        lambda z: tf.constant(z, dtype=dtype), value
+      ))
+    self.scatter_sizes = {"d": self.nb_comp, "e": self.nb_comp**2}
 
-  def get_process(self, reaction):
+  def _get_process(self, reaction):
     return "d" if (reaction == "2") else "e"
 
   # Calling
@@ -107,7 +125,7 @@ class Operators(nn_elem.Layer):
       rates_mat[z] = {}
       for p in self.processes:
         rates_mat[z][p] = tf.transpose(tf.scatter_nd(
-          indices=self.scatter_indices[p],
+          indices=self.scatter_update_indices[p],
           updates=tf.transpose(rates[z][p]),
           shape=[self.scatter_sizes[p], batch_size]
         ))
@@ -138,7 +156,7 @@ class Operators(nn_elem.Layer):
     rates = {}
     for r in self.reactions:
       rates_r = self._arrhenius(ln_T, ov_T, self.rates_values[r])
-      p = self.get_process(r)
+      p = self._get_process(r)
       if (p in rates.keys()):
         rates[p] += rates_r
       else:
@@ -151,12 +169,22 @@ class Operators(nn_elem.Layer):
   def correct_fwd_rates(self, fwd_rates, f):
     # Loop over processes
     for p in self.processes:
-      # Compose correction
+      # Compute correction
       pcorr = tf.gather(f, indices=self.rates_indices[p][0], axis=-2)
       if (p == "e"):
         pcorr -= tf.gather(f, indices=self.rates_indices[p][1], axis=-2)
+      pcorr = tf.math.exp(tf.math.reduce_sum(pcorr, axis=-1))
+      # > No correction for the transitions involving the last state
+      if self.no_corr_last_state:
+        ip = self.scatter_no_corr_indices[p]
+        shape = tf.concat(([tf.size(ip)], tf.shape(pcorr)[:1]), axis=0)
+        pcorr = tf.transpose(tf.tensor_scatter_nd_update(
+          tensor=tf.transpose(pcorr),
+          indices=ip,
+          updates=tf.ones(shape, dtype=bkd.get_floatx())
+        ))
       # Apply correction
-      fwd_rates[p] *= tf.math.exp(tf.math.reduce_sum(pcorr, axis=-1))
+      fwd_rates[p] *= pcorr
     return fwd_rates
 
   def compute_bwd_rates(self, fwd_rates, q):

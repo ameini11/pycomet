@@ -157,7 +157,7 @@ class PreNetBlock(nn_elem.Layer):
       if (nc == 2):
         s, c = tf.math.sin(y[0]), tf.math.cos(y[0])
         R = tf.concat([c, -s, s, c], axis=-1)
-        shape = list(R.shape[:-1] + [2,2])
+        shape = tf.concat((tf.shape(R)[:-1], [2,2]), axis=0)
         R = tf.reshape(R, shape)
       elif (nc == 3):
         s = nn_elem.Split(nc, axis=-1)(tf.math.sin(y[0]))
@@ -173,7 +173,7 @@ class PreNetBlock(nn_elem.Layer):
           c[1]*s[2],
           c[1]*c[2]
         ], axis=-1)
-        shape = list(R.shape[:-1] + [3,3])
+        shape = tf.concat((tf.shape(R)[:-1], [3,3]), axis=0)
         R = tf.reshape(R, shape)
       else:
         R = y[0]
@@ -183,7 +183,7 @@ class PreNetBlock(nn_elem.Layer):
       S = None
       R, T = nn_elem.Split([self.i*self.j, self.i], axis=-1)(y[-1])
       if (self.j > 0):
-        shape = list(R.shape[:-1] + [self.i, self.j])
+        shape = tf.concat((tf.shape(R)[:-1], [self.i, self.j]), axis=0)
         R = tf.reshape(R, shape)
       else:
         R = None
@@ -192,7 +192,7 @@ class PreNetBlock(nn_elem.Layer):
     if (len(self.coords_indices['identity']) > 0):
       y_id = tf.gather(x2, self.coords_indices['identity'], axis=-1)
     if (R is not None):
-      y = tf.einsum('...ij,...j->...i', R, y)
+      y = tf.linalg.matvec(R, y)
     if (S is not None):
       y = S * y
     if (T is not None):
