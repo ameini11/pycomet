@@ -1150,31 +1150,45 @@ class MatrixExp(Layer):
   # ===================================
   def __init__(
     self,
-    use_pade=False,
+    use_pade=True,
+    use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
     **kwargs
   ):
     super(MatrixExp, self).__init__(**kwargs)
     self.use_pade = use_pade
+    self.use_expmv = use_expmv
     self.max_degree = max_degree
     self.max_nb_squarings = max_nb_squarings
 
   # Calling
   # ===================================
-  def call(self, inputs, training=None):
-    return linalg.expm(
-      A=inputs,
-      use_pade=self.use_pade,
-      max_degree=self.max_degree,
-      max_nb_squarings=self.max_nb_squarings
-    )
+  def call(self, A, B=None, training=None):
+    if (B is None):
+      return linalg.expm(
+        A=A,
+        use_pade=self.use_pade,
+        max_degree=self.max_degree,
+        max_nb_squarings=self.max_nb_squarings
+      )
+    else:
+      if self.use_expmv:
+        return linalg.expmv(A, B, deg=self.max_degree)
+      else:
+        return tf.matmul(linalg.expm(
+          A=A,
+          use_pade=self.use_pade,
+          max_degree=self.max_degree,
+          max_nb_squarings=self.max_nb_squarings
+        ), B)
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
       "use_pade": self.use_pade,
+      "use_expmv": self.use_expmv,
       "max_degree": self.max_degree,
       "max_nb_squarings": self.max_nb_squarings
     }
@@ -1194,123 +1208,189 @@ class LinODE(Layer):
   # ===================================
   def __init__(
     self,
-    use_eig=False,
-    use_pinv=False,
-    real_only=False,
-    expm_use_pade=False,
-    expm_max_degree=None,
-    expm_max_nb_squarings=None,
+    # Matrix exponential
+    use_pade=True,
+    use_expmv=False,
+    max_degree=None,
+    max_nb_squarings=None,
+    # Non-invertibility loss
     add_inv_loss=False,
     inv_loss_weight=1e-3,
-    inv_scaling=1.0,
     **kwargs
   ):
     super(LinODE, self).__init__(**kwargs)
-    self.use_eig = use_eig
-    self.use_pinv = use_pinv
-    self.real_only = real_only
-    self.expm_use_pade = expm_use_pade
-    self.expm_max_degree = expm_max_degree
-    self.expm_max_nb_squarings = expm_max_nb_squarings
-    self.inv_scaling = inv_scaling
-    if self.use_eig:
-      self.eigen = Eigen(
-        use_pinv=self.use_pinv,
-        inv_scaling=self.inv_scaling
-      )
-    else:
-      self.expm = MatrixExp(
-        use_pade=self.expm_use_pade,
-        max_degree=self.expm_max_degree,
-        max_nb_squarings=self.expm_max_nb_squarings
-      )
+    # Matrix exponential layer
+    self.mat_exp = MatrixExp(
+      use_pade=use_pade,
+      use_expmv=use_expmv,
+      max_degree=max_degree,
+      max_nb_squarings=max_nb_squarings
+    )
     # Additional loss to avoid non-invertibility of the matrix
     self.add_inv_loss = add_inv_loss
     self.inv_loss_weight = inv_loss_weight
 
   # Calling
   # ===================================
-  def call(self, inputs, eig=None, training=None):
+  def call(self, inputs, training=None):
     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
+    # Reshape
+    t, y0, b = [tf.expand_dims(z, axis=-1) for z in (t, y0, b)]
     # Additional loss to avoid non-invertibility of the matrix
-    self.compute_inv_loss(a)
-    # Compute matrix exponential
-    expa = self.compute_expa(t, a, eig, training)
+    if (training and self.add_inv_loss):
+      self.compute_inv_loss(a)
     # Compute solution
-    y = tf.linalg.solve(
-      matrix=a*self.inv_scaling,
-      rhs=tf.expand_dims(b, axis=-1)*self.inv_scaling
-    )
-    # y = tf.linalg.lu_solve(*tf.linalg.lu(a), rhs=tf.expand_dims(b, axis=-1))
-    y = tf.squeeze(y, axis=-1)
-    return tf.linalg.matvec(expa, y0+y) - y
-
-  # def compute_inv(self, a):
-  #   if (self.inv_scaling is not None):
-  #     a *= self.inv_scaling
-  #   if self.use_pinv:
-  #     ainv = linalg.pinv(a, rcond=1e-10)
-  #   else:
-  #     ainv = tf.linalg.inv(a)
-  #   if (self.inv_scaling is not None):
-  #     ainv *= self.inv_scaling
-  #   return ainv
-
-  def compute_expa(self, t, a, eig=None, training=None):
-    t = tf.expand_dims(t, axis=-1)
-    if self.use_eig:
-      # Eigen-decomposition
-      if (eig is None):
-        l = self.eigen(a, training=training, mode="decompose")
-      else:
-        l, self.eigen.v = eig
-        self.eigen.vinv = None
-      if self.real_only:
-        l = tf.math.real(l)
-      s = tf.math.exp(t*l)
-      return self.eigen(s, training=training, mode="reconstruct")
-    else:
-      return self.expm(a*t, training=training)
-
-  # def compute_inv_loss(self, a):
-  #   if self.add_inv_loss:
-  #     ws, wb = self.inv_loss_weight
-  #     # Compute determinant
-  #     det = tf.math.abs(tf.linalg.det(a)) + bkd.get_epsilon()
-  #     # Too small determinant: avoiding singular matrix
-  #     loss = ws * tf.math.reduce_mean(tf.math.log(1.0/det+1.0))
-  #     # Too big determinant: avoiding numerical overflow
-  #     loss += wb * tf.math.reduce_mean(tf.math.log(det+1.0))
-  #     # Add loss
-  #     self.add_loss(loss)
+    y = tf.linalg.solve(a, b)
+    y = self.mat_exp(a*t, y0+y) - y
+    return tf.squeeze(y, axis=-1)
 
   def compute_inv_loss(self, a):
-    if self.add_inv_loss:
-      # Compute singular values
-      s = tf.linalg.svd(a, compute_uv=False)
-      # Compute condition number
-      smin = tf.math.reduce_min(s, axis=-1) + bkd.get_epsilon()
-      smax = tf.math.reduce_max(s, axis=-1)
-      cond = smax / smin
-      # Minimize condition number
-      loss = tf.math.reduce_mean(tf.math.log(cond))
-      # Add loss
-      self.add_loss(self.inv_loss_weight * loss)
+    # Compute singular values
+    s = tf.linalg.svd(a, compute_uv=False)
+    # Compute condition number
+    smin = tf.math.reduce_min(s, axis=-1) + bkd.get_epsilon()
+    smax = tf.math.reduce_max(s, axis=-1)
+    cond = smax / smin
+    # Minimize condition number
+    loss = tf.math.reduce_mean(tf.math.log(cond))
+    # Add loss
+    self.add_loss(self.inv_loss_weight * loss)
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      "use_eig": self.use_eig,
-      "use_pinv": self.use_pinv,
-      "real_only": self.real_only,
-      "expm_use_pade": self.expm_use_pade,
-      "expm_max_degree": self.expm_max_degree,
-      "expm_max_nb_squarings": self.expm_max_nb_squarings,
-      "inv_scaling": self.inv_scaling
+      "use_pade": self.mat_exp.use_pade,
+      "use_expmv": self.mat_exp.use_expmv,
+      "max_degree": self.mat_exp.max_degree,
+      "max_nb_squarings": self.mat_exp.max_nb_squarings,
+      "add_inv_loss": self.add_inv_loss,
+      "inv_loss_weight": self.inv_loss_weight
     }
     base_config = super(LinODE, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
+
+
+# @tf.keras.utils.register_keras_serializable(package=_CFG.name)
+# class LinODE(Layer):
+#   """
+#   Integral solution of linear ODE with constant coefficients:
+#     > dydt = a @ y + b
+#     > y(t) = exp(a*t) @ y0 + (exp(a*t)-I) @ a^(-1) @ b
+#   """
+
+#   # Initialization
+#   # ===================================
+#   def __init__(
+#     self,
+#     # Eigendecomposition
+#     use_eig=False,
+#     use_pinv=False,
+#     real_only=False,
+#     inv_scaling=1.0,
+#     # Matrix exponential
+#     use_pade=True,
+#     use_expmv=False,
+#     max_degree=None,
+#     max_nb_squarings=None,
+#     # Non-invertibility loss
+#     add_inv_loss=False,
+#     inv_loss_weight=1e-3,
+#     **kwargs
+#   ):
+#     super(LinODE, self).__init__(**kwargs)
+#     self.use_eig = use_eig
+#     self.use_pinv = use_pinv
+#     self.real_only = real_only
+#     self.inv_scaling = inv_scaling
+#     self.use_pade = use_pade
+#     self.use_expmv = use_expmv
+#     self.max_degree = max_degree
+#     self.max_nb_squarings = max_nb_squarings
+#     if self.use_eig:
+#       self.eigen = Eigen(
+#         use_pinv=self.use_pinv,
+#         inv_scaling=self.inv_scaling
+#       )
+#     else:
+#       self.mat_exp = MatrixExp(
+#         use_pade=self.use_pade,
+#         use_expmv=self.use_expmv,
+#         max_degree=self.max_degree,
+#         max_nb_squarings=self.max_nb_squarings
+#       )
+#     # Additional loss to avoid non-invertibility of the matrix
+#     self.add_inv_loss = add_inv_loss
+#     self.inv_loss_weight = inv_loss_weight
+
+#   # Calling
+#   # ===================================
+#   def call(self, inputs, training=None):
+#     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
+#     # Reshape
+#     t, y0, b = [tf.expand_dims(z, axis=-1) for z in (t, y0, b)]
+#     # Additional loss to avoid non-invertibility of the matrix
+#     self.compute_inv_loss(a)
+#     # Compute solution
+#     y = tf.linalg.solve(matrix=a, rhs=b)
+#     y = self.mat_exp(a*t, y0+y) - y
+#     return tf.squeeze(y, axis=-1)
+
+#   # def compute_expa(self, t, a, eig=None, training=None):
+#   #   t = tf.expand_dims(t, axis=-1)
+#   #   if self.use_eig:
+#   #     # Eigen-decomposition
+#   #     if (eig is None):
+#   #       l = self.eigen(a, training=training, mode="decompose")
+#   #     else:
+#   #       l, self.eigen.v = eig
+#   #       self.eigen.vinv = None
+#   #     if self.real_only:
+#   #       l = tf.math.real(l)
+#   #     s = tf.math.exp(t*l)
+#   #     return self.eigen(s, training=training, mode="reconstruct")
+#   #   else:
+#   #     return self.expm(a*t, training=training)
+
+#   # def compute_inv_loss(self, a):
+#   #   if self.add_inv_loss:
+#   #     ws, wb = self.inv_loss_weight
+#   #     # Compute determinant
+#   #     det = tf.math.abs(tf.linalg.det(a)) + bkd.get_epsilon()
+#   #     # Too small determinant: avoiding singular matrix
+#   #     loss = ws * tf.math.reduce_mean(tf.math.log(1.0/det+1.0))
+#   #     # Too big determinant: avoiding numerical overflow
+#   #     loss += wb * tf.math.reduce_mean(tf.math.log(det+1.0))
+#   #     # Add loss
+#   #     self.add_loss(loss)
+
+#   def compute_inv_loss(self, a):
+#     if self.add_inv_loss:
+#       # Compute singular values
+#       s = tf.linalg.svd(a, compute_uv=False)
+#       # Compute condition number
+#       smin = tf.math.reduce_min(s, axis=-1) + bkd.get_epsilon()
+#       smax = tf.math.reduce_max(s, axis=-1)
+#       cond = smax / smin
+#       # Minimize condition number
+#       loss = tf.math.reduce_mean(tf.math.log(cond))
+#       # Add loss
+#       self.add_loss(self.inv_loss_weight * loss)
+
+#   # Configuration update
+#   # ===================================
+#   def get_config(self):
+#     config = {
+#       "use_eig": self.use_eig,
+#       "use_pinv": self.use_pinv,
+#       "real_only": self.real_only,
+#       "use_pade": self.use_pade,
+#       "max_degree": self.max_degree,
+#       "max_nb_squarings": self.max_nb_squarings,
+#       "inv_scaling": self.inv_scaling
+#     }
+#     base_config = super(LinODE, self).get_config()
+#     return dict(list(base_config.items()) + list(config.items()))
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)

@@ -7,12 +7,14 @@ import pycomet as pcm
 import tensorflow as tf
 
 
-def expmv(A, B, deg=18):
+def expmv(A, B, deg=None):
   # Reshape
   is_B_2d = (tf.rank(B) == 2)
   if is_B_2d:
     B = tf.expand_dims(B, axis=-1)
   # Set polynomial degree
+  if (deg is None):
+    deg = 18
   deg = min(deg, 18)
   # Compute L1 norm
   l1_norm, is_finite = _compute_l1_norm(A)
