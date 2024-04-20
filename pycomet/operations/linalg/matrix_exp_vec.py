@@ -3,72 +3,43 @@ Action of the matrix exponential on a vector.
 """
 import numpy as np
 import scipy as sp
-import pycomet as pcm
 import tensorflow as tf
+
+from .matrix_exp import _compute_l1_norm, _expm_2by2, _get_maxnorm, _scaling
 
 
 def expmv(A, B, deg=None):
+  A = tf.convert_to_tensor(A)
+  if (A.shape[-2:] == [0, 0]):
+    return A
   # Reshape
   is_B_2d = (tf.rank(B) == 2)
   if is_B_2d:
     B = tf.expand_dims(B, axis=-1)
-  # Set polynomial degree
-  if (deg is None):
-    deg = 18
-  deg = min(deg, 18)
-  # Compute L1 norm
-  l1_norm, is_finite = _compute_l1_norm(A)
-  if is_finite:
-    # Max norm allowed by 'deg'
-    maxnorm = _get_maxnorm(A.dtype, deg)
-    # Scale matrix A
-    As, squarings = _scaling(A, l1_norm, maxnorm)
-    # Compute action of eA on B
-    eA_B = _taylor(As, B, deg)
-    eA_B = _squaring(As, eA_B, squarings, deg)
+  if (A.shape[-1] == 2):
+    # Analytical expression for a 2x2 matrix
+    eA_B = tf.matmul(_expm_2by2(A), B)
   else:
-    eA_B = B
+    # Set polynomial degree
+    if (deg is None):
+      deg = 18
+    deg = min(deg, 18)
+    # Compute L1 norm
+    l1_norm, is_finite = _compute_l1_norm(A)
+    if is_finite:
+      # Max norm allowed by 'deg'
+      maxnorm = _get_maxnorm(A.dtype, deg)
+      # Scale matrix A
+      As, squarings = _scaling(A, l1_norm, maxnorm)
+      # Compute action of eA on B
+      eA_B = _taylor(As, B, deg)
+      eA_B = _squaring(As, eA_B, squarings, deg)
+    else:
+      eA_B = B
   # Reshape
   if is_B_2d:
     eA_B = tf.squeeze(eA_B, axis=-1)
   return eA_B
-
-def _compute_l1_norm(A):
-  l1_norm = tf.math.reduce_sum(tf.math.abs(A), axis=-2, keepdims=True)
-  l1_norm = tf.math.reduce_max(l1_norm, axis=-1, keepdims=True)
-  is_finite = tf.math.is_finite(tf.math.reduce_max(l1_norm))
-  return l1_norm, is_finite
-
-# Polynomial norms and degrees
-# -------------------------------------
-def _get_maxnorm(dtype, deg=None):
-  if (dtype in (tf.float64, tf.complex128)):
-    maxnorm = {
-      1:  2.220446049250313e-16,
-      2:  2.580956802971767e-08,
-      4:  3.397168839976962e-04,
-      8:  4.991228871115323e-02,
-      12: 2.996158913811580e-01,
-      18: 1.090863719290036e+00
-    }
-  elif (dtype in (tf.float16, tf.float32, tf.complex64)):
-    maxnorm = {
-      1:  1.192092800768788e-07,
-      2:  5.978858893805233e-04,
-      4:  5.116619363445086e-02,
-      8:  5.800524627688768e-01,
-      12: 1.461661507209034e+00,
-      18: 3.010066362817634e+00
-    }
-  else:
-    pcm.utils.raise_err(
-      ValueError,
-      f"'linalg.expm' does not support matrices of type '{dtype}'."
-    )
-  if (deg is not None):
-    return maxnorm[deg]
-  else:
-    return maxnorm
 
 # Taylor approximation
 # -------------------------------------
@@ -89,19 +60,8 @@ def _taylor(A, B, deg):
     B += f[i-2] * Ap_B
   return B
 
-# Scaling and squaring operations
+# Squaring operation
 # -------------------------------------
-def _scaling(A, l1_norm, maxnorm):
-  # Constant value
-  two = tf.constant(2.0, l1_norm.dtype)
-  # Compute scaling
-  ov_log2 = 1/tf.math.log(two)
-  squarings = ov_log2 * tf.math.log((1/maxnorm) * l1_norm)
-  squarings = tf.math.maximum(tf.math.floor(squarings), 0)
-  # Apply scaling
-  As = (1 / tf.math.pow(two, squarings)) * A
-  return As, squarings
-
 def _squaring(A, B, squarings, deg):
   # Maximum number of squarings operation
   max_squarings = tf.math.reduce_max(squarings)

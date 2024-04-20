@@ -30,14 +30,24 @@ def expm(
     eA = tf.linalg.expm(A)
   else:
     # > Optimal Taylor expansion
-    I = tf.eye(
-      num_rows=tf.shape(A)[-2],
-      batch_shape=batch_shape,
-      dtype=A.dtype
-    )
-    eA = _taylor(I, A, max_degree, max_nb_squarings)
+    l1_norm, is_finite = _compute_l1_norm(A)
+    if is_finite:
+      I = tf.eye(
+        num_rows=tf.shape(A)[-2],
+        batch_shape=batch_shape,
+        dtype=A.dtype
+      )
+      eA = _taylor(I, A, l1_norm, max_degree, max_nb_squarings)
+    else:
+      eA = A
   # Reshape out
   return _reshape_out(A, eA, batch_shape)
+
+def _compute_l1_norm(A):
+  l1_norm = tf.math.reduce_sum(tf.math.abs(A), axis=-2, keepdims=True)
+  l1_norm = tf.math.reduce_max(l1_norm, axis=-1, keepdims=True)
+  is_finite = tf.math.is_finite(tf.math.reduce_max(l1_norm))
+  return l1_norm, is_finite
 
 # Reshaping operations
 # =====================================
@@ -94,11 +104,9 @@ def _expm_2by2(A):
 
 # Optimized Taylor polynomial approximations
 # =====================================
-def _taylor(I, A, max_degree, max_nb_squarings):
+def _taylor(I, A, l1_norm, max_degree, max_nb_squarings):
   # Get degrees and norms
   degrees, thetas, max_degree = _get_degree_norm(A, max_degree)
-  # Compute L1 norm
-  l1_norm = _compute_l1_norm(A)
   # Compute optimized Taylor polynomial approximations
   # > Define stop condition: max polynomial degree reached
   def cond(i, _):
@@ -118,7 +126,7 @@ def _taylor(I, A, max_degree, max_nb_squarings):
     )
     return j, e
   # > Perform computations
-  i = tf.cast(0, dtype=tf.int32)
+  i = tf.cast(0, dtype="int32")
   _, eA = tf.while_loop(
     cond=cond,
     body=body,
@@ -136,7 +144,7 @@ def _get_degree_norm(A, max_degree):
   degrees = list(maxnorm.keys())
   max_degree_avail = max(degrees)
   degrees += [max_degree_avail+1]
-  degrees = tf.constant(degrees, dtype=tf.int32)
+  degrees = tf.constant(degrees, dtype="int32")
   # > Max polynomial degree
   max_degree = max_degree_avail if (max_degree is None) else max_degree
   max_degree = min(max_degree_avail, max_degree)
@@ -175,10 +183,6 @@ def _get_maxnorm(dtype, deg=None):
   else:
     return maxnorm
 
-def _compute_l1_norm(A):
-  l1_norm = tf.math.reduce_sum(tf.math.abs(A), axis=-2, keepdims=True)
-  return tf.math.reduce_max(l1_norm, axis=-1, keepdims=True)
-
 # Taylor approximations
 # =====================================
 def _taylor_px(I, A, deg, l1_norm, max_nb_squarings):
@@ -194,9 +198,9 @@ def _taylor_px(I, A, deg, l1_norm, max_nb_squarings):
     return _taylor_p12(I, A)
   else:
     maxnorm = _get_maxnorm(A.dtype, deg=18)
-    squarings, As, is_finite = _scaling(A, l1_norm, maxnorm, max_nb_squarings)
+    As, squarings = _scaling(A, l1_norm, maxnorm, max_nb_squarings)
     eA = _taylor_p18(I, As)
-    eA = _squaring(eA, squarings, is_finite)
+    eA = _squaring(eA, squarings)
     return eA
 
 # Linear combination
@@ -372,26 +376,24 @@ def _taylor_p18(I, A):
 
 # Scaling and squaring operations
 # -------------------------------------
-def _scaling(A, l1_norm, maxnorm, max_nb_squarings):
-  is_finite = tf.math.is_finite(tf.math.reduce_max(l1_norm))
-  if is_finite:
-    two = tf.constant(2.0, l1_norm.dtype)
-    # Compute scaling
-    ov_log2 = 1/tf.math.log(two)
-    squarings = ov_log2 * tf.math.log((1/maxnorm) * l1_norm)
-    squarings = tf.math.maximum(tf.math.floor(squarings), 0)
-    # Apply scaling
-    As = (1 / tf.math.pow(two, squarings)) * A
-  else:
-    squarings, As = tf.zeros_like(l1_norm), A
+def _scaling(A, l1_norm, maxnorm, max_nb_squarings=None):
+  # Constant value
+  two = tf.constant(2.0, l1_norm.dtype)
+  # Compute scaling
+  ov_log2 = 1/tf.math.log(two)
+  squarings = ov_log2 * tf.math.log((1/maxnorm) * l1_norm)
+  squarings = tf.math.maximum(tf.math.floor(squarings), 0)
+  # Apply scaling
+  As = (1 / tf.math.pow(two, squarings)) * A
+  # Limit the number of squarings operations
   if ((max_nb_squarings is not None) and (max_nb_squarings >= 0)):
     squarings = tf.math.minimum(squarings, max_nb_squarings)
-  return squarings, As, is_finite
+  return As, squarings
 
-def _squaring(eA, squarings, is_finite):
+def _squaring(eA, squarings):
   # Maximum number of squarings operation
   max_squarings = tf.math.reduce_max(squarings)
-  if (is_finite and (max_squarings > 0)):
+  if (max_squarings > 0):
     # Define stop condition: max squaring reached
     def cond(i, _):
       return tf.math.less(i, max_squarings)
