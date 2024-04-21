@@ -23,7 +23,7 @@ class CurrentToNext(nn_elem.Layer):
   ):
     super(CurrentToNext, self).__init__(**kwargs)
     self.indices = tf.nest.map_structure(self._convert, indices)
-  
+
   def _convert(self, x):
     if (x is not None):
       return tf.reshape(tf.constant(x, dtype="int32"), shape=[-1])

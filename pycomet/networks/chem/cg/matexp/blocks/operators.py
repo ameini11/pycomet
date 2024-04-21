@@ -19,7 +19,6 @@ class Operators(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
-    no_corr_last_state=True,
     **kwargs
   ):
     super(Operators, self).__init__(**kwargs)
@@ -41,7 +40,6 @@ class Operators(nn_elem.Layer):
     self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
-    self.no_corr_last_state = no_corr_last_state
 
   def set_rates_values_indices(self, eps=1e-50):
     # Assemble Arrhenius 'A' matrix
@@ -71,19 +69,12 @@ class Operators(nn_elem.Layer):
       )
     # Composing
     indices_2d = {p: np.vstack(indices_2d[p]) for p in self.processes}
-    # Get non-updating rates constant
-    # -------------
-    # Get indices for not correcting the transitions involving the last state
-    indices_2d_no_corr = tf.nest.map_structure(
-      lambda z: np.where(z[0] == self.nb_comp-1)[0].reshape(-1,1), indices_2d
-    )
     # Set rates values and indices
     # -------------
     for (name, value, dtype) in (
       ("rates_values", values_2d, bkd.get_floatx()),
       ("rates_indices", indices_2d, "int32"),
-      ("scatter_update_indices", indices_1d, "int32"),
-      ("scatter_no_corr_indices", indices_2d_no_corr, "int32")
+      ("scatter_update_indices", indices_1d, "int32")
     ):
       setattr(self, name, tf.nest.map_structure(
         lambda z: tf.constant(z, dtype=dtype), value
@@ -173,18 +164,8 @@ class Operators(nn_elem.Layer):
       pcorr = tf.gather(f, indices=self.rates_indices[p][0], axis=-2)
       if (p == "e"):
         pcorr -= tf.gather(f, indices=self.rates_indices[p][1], axis=-2)
-      pcorr = tf.math.exp(tf.math.reduce_sum(pcorr, axis=-1))
-      # > No correction for the transitions involving the last state
-      if self.no_corr_last_state:
-        ip = self.scatter_no_corr_indices[p]
-        shape = tf.concat(([tf.size(ip)], tf.shape(pcorr)[:1]), axis=0)
-        pcorr = tf.transpose(tf.tensor_scatter_nd_update(
-          tensor=tf.transpose(pcorr),
-          indices=ip,
-          updates=tf.ones(shape, dtype=bkd.get_floatx())
-        ))
       # Apply correction
-      fwd_rates[p] *= pcorr
+      fwd_rates[p] *= tf.math.exp(tf.math.reduce_sum(pcorr, axis=-1))
     return fwd_rates
 
   def compute_bwd_rates(self, fwd_rates, q):

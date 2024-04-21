@@ -1,9 +1,5 @@
 __all__ = [
-  "LinMultiPoleME",
-  "NonLinME",
-  "LinSinglePoleME"
+  "LinNonlinME"
 ]
 
-from .lin_mp import LinMultiPoleME
-from .nonlin import NonLinME
-from .lin_sp import LinSinglePoleME
+from .lin_nonlin import LinNonlinME

@@ -1,3 +1,4 @@
+import tensorflow as tf
 from .blocks import *
 from pycomet import utils
 from pycomet.networks.basenet import BaseNet
@@ -85,12 +86,48 @@ class LinMultiPoleME(BaseNet):
   def forward(self, inputs, training=None):
     # Extract inputs
     # -------------
+    na_0, ni_0, T_0, t = utils.unpack_list(inputs, nb_elem=4)
+    # Update thermodynamics
+    # -------------
+    tlay = self.active_lays["thermo_update"]
+    tlay(T, species="molecule", qois="e")
+    ei_0 = tlay.sp_th[tlay.species["molecule"]].thermo.e
+
+    nm_0 = tf.math.reduce_sum(ni_0, axis=-1, keepdims=True)
+    em_0 = tf.math.reduce_sum(ni_0*ei_0, axis=-1, keepdims=True) / ni_0
+
+
     # > t:    time
     # > na:   atom's number density
     # > nm:   molecule's number density
     # > T:    translational temperature
     # > nm_0: molecule's initial distribution function
     # > f:    inputs for state-wise corrective factors
+
+
+
+    # Inputs manipulation
+    # -------------
+    # [y0, t] = inputs
+    # >> y0: initial conditions
+    # >> t:  time
+    y = _manipulate_input(self, inputs)
+    # Kernel - Mass / Number density (OpNN)
+    # -------------
+    n0 = tf.gather(inputs[0], [self.mass_index], axis=-1)
+    na = n0 * tf.math.sigmoid(self.active_lays["mass"](y, training=training))
+    nm = 0.5*(n0-na)
+    # Kernel - Temperature (OpNN)
+    # -------------
+    T = tf.math.exp(self.active_lays["temp"](y, training=training))
+    # Return number densities and temperature
+    # -------------
+    return na, nm, T
+
+
+
+
+
     t, na, nm, T, nm_0, f = utils.unpack_list(inputs, nb_elem=6)
     # Update thermodynamics
     # -------------

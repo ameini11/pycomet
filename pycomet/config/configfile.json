@@ -1,7 +1,7 @@
 {
   "name": "PyCOMET",
   "device": "cpu",
-  "cpu_threads": 1,
+  "cpu_threads": 2,
   "gpu_memory_growth": true,
   "dev_index": 0,
   "floatx": "float64",

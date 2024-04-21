@@ -1166,22 +1166,20 @@ class MatrixExp(Layer):
   # ===================================
   def call(self, A, B=None, training=None):
     if (B is None):
-      return linalg.expm(
-        A=A,
-        use_pade=self.use_pade,
-        max_degree=self.max_degree,
-        max_nb_squarings=self.max_nb_squarings
-      )
+      return self.compute_expm(A)
     else:
       if self.use_expmv:
         return linalg.expmv(A, B, deg=self.max_degree)
       else:
-        return tf.matmul(linalg.expm(
-          A=A,
-          use_pade=self.use_pade,
-          max_degree=self.max_degree,
-          max_nb_squarings=self.max_nb_squarings
-        ), B)
+        return tf.matmul(self.compute_expm(A), B)
+
+  def compute_expm(self, A):
+    return linalg.expm(
+      A=A,
+      use_pade=self.use_pade,
+      max_degree=self.max_degree,
+      max_nb_squarings=self.max_nb_squarings
+    )
 
   # Configuration update
   # ===================================
@@ -1220,6 +1218,10 @@ class LinODE(Layer):
   ):
     super(LinODE, self).__init__(**kwargs)
     # Matrix exponential layer
+    self.use_pade = use_pade
+    self.use_expmv = use_expmv
+    self.max_degree = max_degree
+    self.max_nb_squarings = max_nb_squarings
     self.mat_exp = MatrixExp(
       use_pade=use_pade,
       use_expmv=use_expmv,
@@ -1233,8 +1235,8 @@ class LinODE(Layer):
   # Calling
   # ===================================
   def call(self, inputs, training=None):
+    # Manipulate inputs
     t, y0, a, b = utils.unpack_list(inputs, nb_elem=4)
-    # Reshape
     t, y0, b = [tf.expand_dims(z, axis=-1) for z in (t, y0, b)]
     # Additional loss to avoid non-invertibility of the matrix
     if (training and self.add_inv_loss):
@@ -1260,10 +1262,10 @@ class LinODE(Layer):
   # ===================================
   def get_config(self):
     config = {
-      "use_pade": self.mat_exp.use_pade,
-      "use_expmv": self.mat_exp.use_expmv,
-      "max_degree": self.mat_exp.max_degree,
-      "max_nb_squarings": self.mat_exp.max_nb_squarings,
+      "use_pade": self.use_pade,
+      "use_expmv": self.use_expmv,
+      "max_degree": self.max_degree,
+      "max_nb_squarings": self.max_nb_squarings,
       "add_inv_loss": self.add_inv_loss,
       "inv_loss_weight": self.inv_loss_weight
     }

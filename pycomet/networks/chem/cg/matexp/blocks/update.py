@@ -8,31 +8,11 @@ from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
 # HyperNet library
-from hypernet import const
 from hypernet.thermophysics import specie_thermo as st_mod
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class TempUpdate(nn_elem.Layer):
-
-  # Initialization
-  # ===================================
-  def __init__(
-    self,
-    **kwargs
-  ):
-    super(TempUpdate, self).__init__(**kwargs)
-
-  # Calling
-  # ===================================
-  def call(self, T, training=None):
-    # Precomputed temperature vectors
-    return tf.concat([T, tf.math.log(T), 1/T], axis=-1)
-
-
-@tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class PFUpdate(nn_elem.Layer):
-  """Update total partition functions for triatomic systems."""
+class ThermoUpdate(nn_elem.Layer):
 
   # Initialization
   # ===================================
@@ -44,7 +24,7 @@ class PFUpdate(nn_elem.Layer):
     },
     **kwargs
   ):
-    super(PFUpdate, self).__init__(**kwargs)
+    super(ThermoUpdate, self).__init__(**kwargs)
     # Species thermodynamics
     specie_thermos.update({
       "thermo_process": 1,
@@ -62,7 +42,7 @@ class PFUpdate(nn_elem.Layer):
 
   # Calling
   # ===================================
-  def call(self, T, species=None, training=None):
+  def call(self, T, species=None, qois=["e","q"], training=None):
     T = tf.gather(T, indices=[0], axis=-1)
     if (species is None):
       sp = [self.species["atom"], self.species["molecule"]]
@@ -70,13 +50,29 @@ class PFUpdate(nn_elem.Layer):
       sp = self.species[species]
     else:
       sp = species
-    q = [self.update(T, s) for s in tf.nest.flatten(sp)]
-    return q[0] if (len(q) == 1) else q
+    for s in tf.nest.flatten(sp):
+      for qoi in tf.nest.flatten(qois):
+        self.update(T, s, qoi)
 
-  def update(self, T, species):
-    self.sp_th[species].pf.reset()
-    self.sp_th[species].pf.update(T)
-    return self.sp_th[species].pf.tot.Q
+  def update(self, T, species, qoi):
+    if (qoi == "e"):
+      # Energy
+      self.sp_th[species].thermo.reset()
+      self.sp_th[species].thermo.update(T)
+    else:
+      # Partition functions
+      self.sp_th[species].pf.reset()
+      self.sp_th[species].pf.update(T)
+
+  def get_updated(self, species, qoi):
+    if (species in ("atom", "molecule")):
+      species = self.species[species]
+    if (qoi == "e"):
+      # Energy
+      return self.sp_th[species].thermo.int.e
+    else:
+      # Partition functions
+      return self.sp_th[species].pf.tot.Q
 
   # Configuration update
   # ===================================
@@ -85,7 +81,7 @@ class PFUpdate(nn_elem.Layer):
     config = {
       "specie_thermos": {"config": sp_th_cfg}
     }
-    base_config = super(PFUpdate, self).get_config()
+    base_config = super(ThermoUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -99,10 +95,10 @@ class SolUpdate(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
-    no_corr_last_state=False,
-    use_eig=False,
-    use_pinv=False,
-    expm_use_pade=False,
+    use_pade=False,
+    use_expmv=False,
+    max_degree=False,
+    max_nb_squarings=False,
     add_inv_loss=False,
     inv_loss_weight=1e-3,
     **kwargs
@@ -111,41 +107,30 @@ class SolUpdate(nn_elem.Layer):
     # Operators layer
     self.operators = Operators(
       rates=rates,
-      use_corr=use_corr,
-      no_corr_last_state=no_corr_last_state
+      use_corr=use_corr
     )
     # LinODE Layer
     self.linode = nn_elem.LinODE(
-      use_eig=use_eig,
-      use_pinv=use_pinv,
-      real_only=True,
-      expm_use_pade=expm_use_pade,
-      expm_max_degree=None,
-      expm_max_nb_squarings=None,
+      use_pade=use_pade,
+      use_expmv=use_expmv,
+      max_degree=max_degree,
+      max_nb_squarings=max_nb_squarings,
       add_inv_loss=add_inv_loss,
-      inv_loss_weight=inv_loss_weight,
-      inv_scaling=1.0/const.UNA
+      inv_loss_weight=inv_loss_weight
     )
 
   # Calling
   # ===================================
   def call(self, inputs, training=None):
     # Extract inputs
-    t, na, nm, T, *q, nm_0, f = inputs
+    t, na, nm, T, *q, nmi_0, f = inputs
     # Compute operators
-    k, w = self.operators((na, T, *q, f))
-    # Compute number densities
-    nm_t = self.linode((t, nm_0, k, w))
-    return (nm / tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
-
-  # def call(self, inputs, training=None):
-  #   # Extract inputs
-  #   t, na, T, *q, nm_0, f = inputs
-  #   # Compute operators
-  #   k, w = self.operators((na, T, *q, f))
-  #   # Compute relative molar fractions
-  #   nm_t = self.linode((t, nm_0, k, w))
-  #   return (1/tf.math.reduce_sum(nm_t, axis=-1, keepdims=True)) * nm_t
+    k, w = self.operators((na, T, *q, f), training=training)
+    # Compute state-wise number densities
+    nmi = self.linode((t, nmi_0, k, w), training=training)
+    # Ensure mass conservation
+    nmi *= (nm / tf.math.reduce_sum(nmi, axis=-1, keepdims=True))
+    return nmi
 
   # Configuration update
   # ===================================
@@ -153,110 +138,12 @@ class SolUpdate(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
       "use_corr": self.operators.use_corr,
-      "no_corr_last_state": self.operators.no_corr_last_state,
-      "use_eig": self.linode.use_eig,
-      "use_pinv": self.linode.use_pinv,
-      "expm_use_pade": self.linode.expm_use_pade,
+      "use_pade": self.linode.use_pade,
+      "use_expmv": self.linode.use_expmv,
+      "max_degree": self.linode.max_degree,
+      "max_nb_squarings": self.linode.max_nb_squarings,
       "add_inv_loss": self.linode.add_inv_loss,
       "inv_loss_weight": self.linode.inv_loss_weight
     }
     base_config = super(SolUpdate, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
-
-
-@tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class MultiSolUpdate(nn_elem.Layer):
-
-  # Initialization
-  # ===================================
-  def __init__(
-    self,
-    rates=None,
-    use_corr=True,
-    no_corr_last_state=False,
-    use_eig=False,
-    use_pinv=False,
-    add_inv_loss=False,
-    inv_loss_weight=1e-3,
-    expm_use_pade=False,
-    indices_split=None,
-    **kwargs
-  ):
-    super(MultiSolUpdate, self).__init__(**kwargs)
-    # Inputs
-    self.rates = read_rates(rates=rates)
-    self.use_corr = use_corr
-    self.no_corr_last_state = no_corr_last_state
-    self.use_eig = use_eig
-    self.use_pinv = use_pinv
-    self.add_inv_loss = add_inv_loss
-    self.inv_loss_weight = inv_loss_weight
-    self.expm_use_pade = expm_use_pade
-    self.indices_split = indices_split
-    # Sub-layers
-    # -------------
-    self.update = []
-    self.nb_splits = len(self.indices_split)
-    rates_split = split_rates(rates=self.rates, indices=self.indices_split)
-    for irates in rates_split:
-      self.update.append(
-        SolUpdate(
-          rates=irates,
-          use_corr=self.use_corr,
-          no_corr_last_state=self.no_corr_last_state,
-          use_eig=self.use_eig,
-          use_pinv=self.use_pinv,
-          expm_use_pade=self.expm_use_pade,
-          add_inv_loss=self.add_inv_loss,
-          inv_loss_weight=self.inv_loss_weight
-        )
-      )
-    self.gather = nn_elem.Gather(indices=self.indices_split, axis=1)
-
-  # Calling
-  # ===================================
-  def call(self, inputs, training=None):
-    # Extract inputs
-    t, na, nm, T, qa, qm, nm_0, f = inputs
-    # Split QoI
-    nm = tf.split(nm, num_or_size_splits=nm.shape[-1], axis=-1)
-    qm, nm_0, f = [self.gather(z) for z in (qm, nm_0, f)]
-    # Compute molecule's relative molar fractions
-    nm_t = []
-    for i in range(self.nb_splits):
-      # Compute solution update
-      nm_t.append(self.update[i](
-        (t, na, nm[i], T, qa, qm[i], nm_0[i], f[i])
-      ))
-    # Concatenate final solution
-    return tf.concat(nm_t, axis=-1) if (len(nm_t) > 1) else nm_t[-1]
-
-#   def call(self, inputs, training=None):
-#     # Extract inputs
-#     t, na, T, qa, qm, nm_0, f = inputs
-#     # Split QoI
-#     qm, nm_0, f = [self.gather(z) for z in (qm, nm_0, f)]
-#     # Compute molecule's relative molar fractions
-#     xm_t = []
-#     for (i, nm_i) in enumerate(nm_0):
-#       # Compute solution update
-#       xm_t.append(self.update[i]((t, na, T, qa, qm[i], nm_i, f[i])))
-#     # Concatenate final solution
-#     return tf.concat(xm_t, axis=-1) if (len(xm_t) > 1) else xm_t[-1]
-
-  # Configuration update
-  # ===================================
-  def get_config(self):
-    config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
-      "use_corr": self.use_corr,
-      "no_corr_last_state": self.no_corr_last_state,
-      "use_eig": self.use_eig,
-      "use_pinv": self.use_pinv,
-      "add_inv_loss": self.add_inv_loss,
-      "inv_loss_weight": self.inv_loss_weight,
-      "expm_use_pade": self.expm_use_pade,
-      "indices_split": self.indices_split
-    }
-    base_config = super(MultiSolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
