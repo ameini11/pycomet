@@ -142,8 +142,8 @@ class LinNonlinME(BaseNet):
     # Update thermodynamics
     # -------------
     # Compute state energies
-    self.thermo_lay(T_0, species="molecule", qois="e")
-    emi_0 = self.thermo_lay.get_updated(species="molecule", qoi="e")
+    self.thermo_lay(T_0, species="molecule", qois="e_int")
+    emi_0 = self.thermo_lay.get_updated(species="molecule", qoi="e_int")
     # Compute moments of the distribution
     nm_0 = nn_elem.Reduction(indices=None, reduction="sum")(
       nmi_0, axis=-1, keepdims=True
@@ -177,11 +177,13 @@ class LinNonlinME(BaseNet):
     # -------------
     if ("dist" in self.callable_lays):
       # > Update partition functions
-      self.thermo_lay(T, qois="q")
-      q = [self.thermo_lay.get_updated(s, "q") for s in ("atom", "molecule")]
+      self.thermo_lay(T, qois="q_tot")
+      q = []
+      for s in ("atom", "molecule"):
+        q.append(self.thermo_lay.get_updated(s, "q_tot"))
       # > Compute state-wise latent space
-      t_pa = t * na * const.UKB * T
-      f = tf_layers.Concatenate()([y_0, tf.math.log(t_pa+1e-10)])
+      ln_t_pa = nn_elem.Log(base="e", offset=1e-10)(t * na * const.UKB * T)
+      f = tf_layers.Concatenate()([y_0, ln_t_pa])
       f = self.active_lays["fcorr_xform"](f, training=training)
       f = self.active_lays["fcorr_compute"](f, training=training)
       # > Update distribution

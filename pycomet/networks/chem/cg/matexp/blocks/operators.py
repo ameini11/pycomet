@@ -71,12 +71,12 @@ class Operators(nn_elem.Layer):
     indices_2d = {p: np.vstack(indices_2d[p]) for p in self.processes}
     # Set rates values and indices
     # -------------
-    for (name, value, dtype) in (
+    for (key, value, dtype) in (
       ("rates_values", values_2d, bkd.get_floatx()),
       ("rates_indices", indices_2d, "int32"),
       ("scatter_update_indices", indices_1d, "int32")
     ):
-      setattr(self, name, tf.nest.map_structure(
+      setattr(self, key, tf.nest.map_structure(
         lambda z: tf.constant(z, dtype=dtype), value
       ))
     self.scatter_sizes = {"d": self.nb_comp, "e": self.nb_comp**2}

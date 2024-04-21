@@ -1,9 +1,9 @@
 import tensorflow as tf
 
+from pycomet import utils
 from .operators import Operators
 from pycomet import operations as ops
 from pycomet.config import get_config
-from .utils import read_rates, split_rates
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
 
@@ -42,7 +42,7 @@ class ThermoUpdate(nn_elem.Layer):
 
   # Calling
   # ===================================
-  def call(self, T, species=None, qois=["e","q"], training=None):
+  def call(self, T, species=None, qois=["e_int", "q_tot"], training=None):
     T = tf.gather(T, indices=[0], axis=-1)
     if (species is None):
       sp = [self.species["atom"], self.species["molecule"]]
@@ -55,8 +55,8 @@ class ThermoUpdate(nn_elem.Layer):
         self.update(T, s, qoi)
 
   def update(self, T, species, qoi):
-    if (qoi == "e"):
-      # Energy
+    if (qoi == "e_int"):
+      # Internal energy
       self.sp_th[species].thermo.reset()
       self.sp_th[species].thermo.update(T)
     else:
@@ -67,12 +67,14 @@ class ThermoUpdate(nn_elem.Layer):
   def get_updated(self, species, qoi):
     if (species in ("atom", "molecule")):
       species = self.species[species]
-    if (qoi == "e"):
-      # Energy
+    if (qoi == "e_int"):
+      # Internal energy
       return self.sp_th[species].thermo.int.e
-    else:
+    elif (qoi == "q_tot"):
       # Partition functions
       return self.sp_th[species].pf.tot.Q
+    else:
+      utils.raise_err(ValueError)
 
   # Configuration update
   # ===================================
