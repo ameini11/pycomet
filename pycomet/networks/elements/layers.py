@@ -1416,27 +1416,34 @@ class Reduction(Layer):
       self.nb_elem = tf.math.reduce_max(self.indices)+1
     # Reduction operation
     self.reduction = str(reduction)
-    self.reduction_fun = {
+    self.unsorted_segment_reduce = {
       "max": tf.math.unsorted_segment_max,
       "mean": tf.math.unsorted_segment_mean,
       "min": tf.math.unsorted_segment_min,
       "prod": tf.math.unsorted_segment_prod,
-      "sqrt_n": tf.math.unsorted_segment_sqrt_n,
       "sum": tf.math.unsorted_segment_sum
+    }[self.reduction]
+    self.reduce = {
+      "max": tf.math.reduce_max,
+      "mean": tf.math.reduce_mean,
+      "min": tf.math.reduce_min,
+      "prod": tf.math.reduce_prod,
+      "sum": tf.math.reduce_sum
     }[self.reduction]
 
   # Calling
   # ===================================
-  def call(self, x, axis=1, training=None):
-    y = x
-    if (self.indices is not None):
+  def call(self, x, axis=1, keepdims=True, training=None):
+    if (self.indices is None):
+      y = self.reduce(x, axis=axis, keepdims=keepdims)
+    else:
       ndim = tf.rank(x)
       axes = tf.range(0, ndim, delta=1)
       # Transpose in
       perm = tf.roll(axes, shift=-axis, axis=0)
       y = tf.transpose(y, perm=perm)
       # Reduce
-      y = self.reduction_fun(
+      y = self.unsorted_segment_reduce(
         data=y,
         segment_ids=self.indices,
         num_segments=self.nb_elem
