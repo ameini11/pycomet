@@ -83,7 +83,7 @@ class OpNN(BaseNet):
     self.nb_branches = len(self.active_lays['branch'])
     self.nb_trunks = len(self.active_lays['trunk'])
     max_nb_blocks = max(self.nb_branches, self.nb_trunks)
-    if ((max_nb_blocks != 1) and (max_nb_blocks != self.output_dim)):
+    if ((max_nb_blocks != 1) and (max_nb_blocks != self.output_dim[-1])):
       utils.raise_err(
         ValueError,
         "The number of trunks/branches do not match the number of outputs"
@@ -125,7 +125,7 @@ class OpNN(BaseNet):
         propty['kwargs'] = {}
         if (propty['lay_id'] == 'Dense'):
           propty['kwargs'] = {
-            'units': self.output_dim,
+            'units': self.output_dim[-1],
             'kernel_initializer': 'GlorotNormal'
           }
       if ('kernel_initializer' in propty['kwargs']):
@@ -165,17 +165,17 @@ class OpNN(BaseNet):
 
   def _tensor_product(self, G_u, G_y):
     y = []
-    if (self.output_dim > 1):
+    if (self.output_dim[-1] > 1):
       if (self.nb_branches > self.nb_trunks):
-        for i in range(self.output_dim):
+        for i in range(self.output_dim[-1]):
           y.append(tf_layers.Dot(axes=1)([G_u[i], G_y[-1]]))
       elif (self.nb_branches < self.nb_trunks):
-        for i in range(self.output_dim):
+        for i in range(self.output_dim[-1]):
           y.append(tf_layers.Dot(axes=1)([G_u[-1], G_y[i]]))
       elif (self.nb_branches == self.nb_trunks == 1):
-        G_u = nn_elem.Split(self.output_dim, axis=1)(G_u[-1])
-        G_y = nn_elem.Split(self.output_dim, axis=1)(G_y[-1])
-        for i in range(self.output_dim):
+        G_u = nn_elem.Split(self.output_dim[-1], axis=1)(G_u[-1])
+        G_y = nn_elem.Split(self.output_dim[-1], axis=1)(G_y[-1])
+        for i in range(self.output_dim[-1]):
           y.append(tf_layers.Dot(axes=1)([G_u[i], G_y[i]]))
     else:
       y.append(tf_layers.Dot(axes=1)([G_u[-1], G_y[-1]]))

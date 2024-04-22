@@ -206,6 +206,7 @@ class Interpolating(Layer):
     self.axis = int(axis)
     # Interpolant properties
     self.order = int(order)
+    self.phi = interpolant.get_phi(self.order)
     self.smoothing = float(smoothing)
     # Transformation
     condx = ((xformx is not None) and (not isinstance(xformx, dict)))
@@ -263,7 +264,6 @@ class Interpolating(Layer):
         f"Full input shape received: {input_shape}"
       )
     # Solve interpolation
-    self.phi = interpolant.get_phi(self.order)
     c = interpolant.to_rank(self.train['x'], rank=2)
     f = interpolant.to_rank(self.train['y'], rank=2)
     w, v = interpolant.solve(

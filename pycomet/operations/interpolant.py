@@ -3,6 +3,7 @@ import tensorflow as tf
 from pycomet import utils
 from pycomet import backend as bkd
 _EPSILON = bkd.get_epsilon()
+_FLOATX = bkd.get_floatx()
 
 
 # Interpolant
@@ -29,18 +30,18 @@ def solve(c, f, phi, smoothing=0.0):
     # > Matrix A
     amat = phi(_pairwise_squared_distance_matrix(c))
     if (smoothing > 0):
-      amat += smoothing * tf.eye(n)
+      amat += smoothing * tf.eye(n, dtype=_FLOATX)
     # > Matrix B
-    ones = tf.ones((n, 1))
+    ones = tf.ones((n, 1), dtype=_FLOATX)
     bmat = tf.concat([c, ones], axis=1)
     bmat_ncols = bmat.shape[1]
     # > Left hand side
-    lhs_zeros = tf.zeros((bmat_ncols, bmat_ncols))
+    lhs_zeros = tf.zeros((bmat_ncols, bmat_ncols), dtype=_FLOATX)
     block_right = tf.concat([bmat, lhs_zeros], axis=0)
     block_left = tf.concat([amat, tf.transpose(bmat)], axis=0)
     lhs = tf.concat([block_left, block_right], axis=1)
     # > Right hand side
-    rhs_zeros = tf.zeros((d + 1, k))
+    rhs_zeros = tf.zeros((d + 1, k), dtype=_FLOATX)
     rhs = tf.concat([f, rhs_zeros], axis=0)
   # Solve the linear system
   with tf.name_scope("solve_linear_system"):
@@ -121,7 +122,7 @@ def _pairwise_squared_distance_matrix(x):
 # ====================================
 def to_rank(x, rank, maxrank=2):
   # Get tensor rank
-  xrank = tf.rank(x)
+  xrank = len(tf.shape(x))
   if (xrank > maxrank):
     utils.raise_err(
       ValueError,

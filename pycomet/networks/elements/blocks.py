@@ -168,9 +168,6 @@ class FFBlock(pcm_layers.Layer):
   # Configuration update
   # ===================================
   def get_config(self):
-    interp_cfg = None
-    if (self.interpolating is not None):
-      interp_cfg = self.interp_lay.get_config()
     config = {
       'layer_size': self.layer_size,
       'activation': self.activation,
@@ -178,7 +175,7 @@ class FFBlock(pcm_layers.Layer):
       'regularizer': self.regularizer,
       'layer_norm': self.layer_norm,
       'dropout': self.dropout,
-      'interpolating': interp_cfg
+      'interpolating': self.interpolating
     }
     base_config = super(FFBlock, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

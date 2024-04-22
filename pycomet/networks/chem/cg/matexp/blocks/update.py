@@ -50,31 +50,23 @@ class ThermoUpdate(nn_elem.Layer):
       sp = self.species[species]
     else:
       sp = species
+    y = []
     for s in tf.nest.flatten(sp):
       for qoi in tf.nest.flatten(qois):
-        self.update(T, s, qoi)
+        y.append(self.update(T, s, qoi))
+    return y[-1] if (len(y) == 1) else y
 
   def update(self, T, species, qoi):
     if (qoi == "e_int"):
       # Internal energy
       self.sp_th[species].thermo.reset()
       self.sp_th[species].thermo.update(T)
+      return self.sp_th[species].thermo.int.e
     else:
       # Partition functions
       self.sp_th[species].pf.reset()
       self.sp_th[species].pf.update(T)
-
-  def get_updated(self, species, qoi):
-    if (species in ("atom", "molecule")):
-      species = self.species[species]
-    if (qoi == "e_int"):
-      # Internal energy
-      return self.sp_th[species].thermo.int.e
-    elif (qoi == "q_tot"):
-      # Partition functions
       return self.sp_th[species].pf.tot.Q
-    else:
-      utils.raise_err(ValueError)
 
   # Configuration update
   # ===================================
