@@ -5,7 +5,7 @@ from pycomet import networks
 from keras import layers as tf_layers
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
-
+import tensorflow as tf
 
 class LinNonlinME(BaseNet):
   """
@@ -90,7 +90,6 @@ class LinNonlinME(BaseNet):
           "dist_update": SolUpdate
         }[identifier]
         lays[identifier] = self.init_lay(identifier, propty)
-    self.thermo_lay = lays["thermo_update"]
     return lays
 
   def init_kernel_lay(self, propty={}):
@@ -147,7 +146,7 @@ class LinNonlinME(BaseNet):
     # Predict temperature
     # -------------
     if ("temp" in self.callable_lays):
-      y["T"] = n_0 * self.active_lays["temp"](x, training=training)
+      y["T"] = T_0 * self.active_lays["temp"](x, training=training)
     elif ("dist" in self.callable_lays):
       y["T"] = nn_elem.Gather([self.qoi_indices["temp"]], axis=-1)(qoi_t)
     # Predict distribution

@@ -19,8 +19,8 @@ from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.operations import linalg
+from pycomet.optimization import losses
 from pycomet.operations import interpolant
-# from pycomet.operations.linalg.matrix_exp import expm
 _CFG = get_config()
 
 
@@ -197,6 +197,7 @@ class Interpolating(Layer):
     xformx=None, # xformx = {'dir': tf.math.log, 'inv': tf.math.exp}
     xformy=None,
     rank=2,
+    tol=1e-6,
     **kwargs
   ):
     super(Interpolating, self).__init__(**kwargs)
@@ -224,6 +225,8 @@ class Interpolating(Layer):
     self.rank = int(rank)
     # Training data
     self.get_train_data(train)
+    # Interpolation accuracy
+    self.tol = tol
 
   def get_train_data(self, train):
     if ((train is not None) and (not isinstance(train, dict))):
@@ -269,6 +272,15 @@ class Interpolating(Layer):
     w, v = interpolant.solve(
       c, f, phi=self.phi, smoothing=self.smoothing
     )
+    # Check interpolation
+    y_pred = interpolant.apply(self.train['x'], c, self.phi, w, v)
+    err = losses.mean_absolute_percentage_error(self.train['y'], y_pred)
+    err = tf.math.reduce_mean(err)
+    if (err > self.tol):
+      utils.warning(
+        "The mean relative interpolation error is higher " \
+        "than the tolerance: %.5e % > %.5e %" % (err, self.tol)
+      )
     # Add weights
     for (k, v) in (("w", w), ("v", v), ("c", c)):
       wi = self.add_weight(
@@ -306,7 +318,8 @@ class Interpolating(Layer):
       'smoothing': self.smoothing,
       'xformx': self.xformx,
       'xformy': self.xformy,
-      'rank': self.rank
+      'rank': self.rank,
+      'tol': self.tol
     }
     base_config = super(Interpolating, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
