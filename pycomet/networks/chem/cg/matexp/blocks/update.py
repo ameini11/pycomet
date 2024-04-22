@@ -91,8 +91,8 @@ class SolUpdate(nn_elem.Layer):
     use_corr=True,
     use_pade=False,
     use_expmv=False,
-    max_degree=False,
-    max_nb_squarings=False,
+    max_degree=None,
+    max_nb_squarings=None,
     add_inv_loss=False,
     inv_loss_weight=1e-3,
     **kwargs

@@ -32,16 +32,19 @@ def expm(
     # > Optimal Taylor expansion
     l1_norm, is_finite = _compute_l1_norm(A)
     if is_finite:
-      I = tf.eye(
-        num_rows=tf.shape(A)[-2],
-        batch_shape=batch_shape,
-        dtype=A.dtype
-      )
+      I = _ident_like(A)
       eA = _taylor(I, A, l1_norm, max_degree, max_nb_squarings)
     else:
       eA = A
   # Reshape out
   return _reshape_out(A, eA, batch_shape)
+
+def _ident_like(A):
+  return tf.eye(
+    num_rows=tf.shape(A)[-2],
+    batch_shape=tf.shape(A)[:-2],
+    dtype=A.dtype
+  )
 
 def _compute_l1_norm(A):
   l1_norm = tf.math.reduce_sum(tf.math.abs(A), axis=-2, keepdims=True)
