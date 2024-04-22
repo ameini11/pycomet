@@ -107,6 +107,30 @@ def _get_m_s(A):
   s = tf.math.ceil(norm / theta)
   return m, s
 
+def _loop_over_s_m(A, B, mu, s, m):
+  # Factor
+  eta = tf.math.exp(mu/s)
+  # Maximum number of iterations
+  s_max = tf.math.reduce_max(s)
+  # Define stop condition
+  def cond(i, BFi):
+    return tf.math.less(i, s_max)
+  # Define operation
+  def body(i, BFi):
+    return i+1, tf.where(
+      condition=tf.math.less(i, s),
+      x=_loop_over_m(A, BFi, m, s, eta),
+      y=BFi
+    )
+  # Perform loop
+  i = tf.constant(0.0, s_max.dtype)
+  _, BF = tf.while_loop(
+    cond=cond,
+    body=body,
+    loop_vars=[i, tf.stack([B, B], axis=-1)]
+  )
+  return tf.gather(BF, indices=-1, axis=-1)
+
 def _loop_over_m(A, BF, m, s, eta):
   # Initialize
   B, F = [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
@@ -137,27 +161,3 @@ def _loop_over_m(A, BF, m, s, eta):
     loop_vars=[i, B, F]
   )
   return tf.stack([F, eta*F], axis=-1)
-
-def _loop_over_s_m(A, B, mu, s, m):
-  # Factor
-  eta = tf.math.exp(mu/s)
-  # Maximum number of iterations
-  s_max = tf.math.reduce_max(s)
-  # Define stop condition
-  def cond(i, BFi):
-    return tf.math.less(i, s_max)
-  # Define operation
-  def body(i, BFi):
-    return i+1, tf.where(
-      condition=tf.math.less(i, s),
-      x=_loop_over_m(A, BFi, m, s, eta),
-      y=BFi
-    )
-  # Perform loop
-  i = tf.constant(0.0, s_max.dtype)
-  _, BF = tf.while_loop(
-    cond=cond,
-    body=body,
-    loop_vars=[i, tf.stack([B, B], axis=-1)]
-  )
-  return tf.gather(BF, indices=-1, axis=-1)
