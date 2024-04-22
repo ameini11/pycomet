@@ -130,7 +130,7 @@ def _loop_over_s_m(A, B, mu, s, m):
       tf.stack([B, B], axis=-1)
     ]
   )
-  return tf.gather(BF, indices=-1, axis=-1)
+  return _take_F(BF)
 
 def _loop_over_m(A, BF, m, s, eta):
   # Maximum number of iterations
@@ -152,13 +152,18 @@ def _loop_over_m(A, BF, m, s, eta):
     body=body,
     loop_vars=[i, BF]
   )
-  F = tf.gather(BF, indices=-1, axis=-1)
+  F = _take_F(BF)
   return _stack_B_F(F, eta*F)
 
 def _core(A, BF, m, s):
   B, F = _take_B_F(BF)
   B = (1.0/(s*m)) * tf.matmul(A, B)
   return _stack_B_F(B, F+B)
+
+# Tensor operations
+# -------------------------------------
+def _take_F(BF):
+  return tf.gather(BF, indices=-1, axis=-1)
 
 def _take_B_F(BF):
   return [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
