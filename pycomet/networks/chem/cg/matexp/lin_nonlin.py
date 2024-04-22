@@ -5,7 +5,7 @@ from pycomet import networks
 from keras import layers as tf_layers
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
-import tensorflow as tf
+
 
 class LinNonlinME(BaseNet):
   """
@@ -137,7 +137,7 @@ class LinNonlinME(BaseNet):
     # -------------
     # > Atom number density
     if ("mass" in self.callable_lays):
-      y["na"] = n_0 * self.active_lays["mass"](x, training=training)
+      y["na"] = na_0 * (1.0 + self.active_lays["mass"](x, training=training))
     elif ("dist" in self.callable_lays):
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
     # > Molecule number density
@@ -146,7 +146,7 @@ class LinNonlinME(BaseNet):
     # Predict temperature
     # -------------
     if ("temp" in self.callable_lays):
-      y["T"] = T_0 * self.active_lays["temp"](x, training=training)
+      y["T"] = T_0 * (1.0 + self.active_lays["temp"](x, training=training))
     elif ("dist" in self.callable_lays):
       y["T"] = nn_elem.Gather([self.qoi_indices["temp"]], axis=-1)(qoi_t)
     # Predict distribution
