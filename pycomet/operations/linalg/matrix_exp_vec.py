@@ -85,7 +85,10 @@ _thetas = _get_thetas()
 def _expmv(A, B):
   n = A.shape[-1]
   mu = (1.0/n) * tf.linalg.trace(A)
-  A = A - mu * _ident_like(A)
+  A = tf.linalg.set_diag(
+    input=A,
+    diagonal=tf.linalg.diag(A) - tf.reshape(mu, (-1,1))
+  )
   m, s = _get_m_s(A)
   return _loop_over_s_m(A, B, mu, s, m)
 
@@ -94,12 +97,8 @@ def _get_m_s(A):
   # Compute L1 norm
   norm = tf.norm(A, ord=1, axis=[1,2])
   # Get theta index
-  index = tf.math.argmin(
-    thetas[0:1] * tf.math.ceil(
-      tf.reshape(norm, (-1,1)) / thetas[1:2]
-    ),
-    axis=-1
-  )
+  ratio = tf.reshape(norm, (-1,1)) / thetas[1:]
+  index = tf.math.argmin(thetas[:1] * tf.math.ceil(ratio), axis=-1)
   # Get poly order
   m = tf.gather(thetas[0], indices=index, axis=0)
   # Get squarings
@@ -108,9 +107,8 @@ def _get_m_s(A):
   return m, s
 
 def _loop_over_s_m(A, B, mu, s, m):
-  # Factor
+  # Initialize
   eta = tf.reshape(tf.math.exp(mu/s), (-1,1))
-  f = tf.stack([tf.ones_like(eta), eta], axis=-1)
   # Maximum number of iterations
   s_max = tf.math.reduce_max(s)
   # Define stop condition
@@ -120,21 +118,21 @@ def _loop_over_s_m(A, B, mu, s, m):
   def body(i, BFi):
     return i+1, tf.where(
       condition=tf.math.less(i, s),
-      x=_loop_over_m(A, BFi, m, s, f),
+      x=_loop_over_m(A, BFi, m, s, eta),
       y=BFi
     )
   # Perform loop
-  i = tf.constant(0.0, s_max.dtype)
   _, BF = tf.while_loop(
     cond=cond,
     body=body,
-    loop_vars=[i, tf.stack([B, B], axis=-1)]
+    loop_vars=[
+      tf.constant(0.0, s_max.dtype),
+      tf.stack([B, B], axis=-1)
+    ]
   )
   return tf.gather(BF, indices=-1, axis=-1)
 
-def _loop_over_m(A, BF, m, s, f):
-  # Initialize
-  s = tf.reshape(s, (-1,1))
+def _loop_over_m(A, BF, m, s, eta):
   # Maximum number of iterations
   m_max = tf.math.reduce_max(m)
   # Define stop condition
@@ -154,9 +152,16 @@ def _loop_over_m(A, BF, m, s, f):
     body=body,
     loop_vars=[i, BF]
   )
-  return f * BF
+  F = tf.gather(BF, indices=-1, axis=-1)
+  return _stack_B_F(F, eta*F)
 
 def _core(A, BF, m, s):
-  B, F = [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
+  B, F = _take_B_F(BF)
   B = (1.0/(s*m)) * tf.matmul(A, B)
-  return tf.stack([B, F+B], axis=-1)
+  return _stack_B_F(B, F+B)
+
+def _take_B_F(BF):
+  return [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
+
+def _stack_B_F(B, F):
+  return tf.stack([B, F], axis=-1)
