@@ -7,7 +7,7 @@ import tensorflow as tf
 from .matrix_exp import _expm_2by2, _ident_like
 
 
-def expmv(A, B):
+def expmv(A, B, deg=None):
   A = tf.convert_to_tensor(A)
   if (A.shape[-2:] == [0, 0]):
     return A
