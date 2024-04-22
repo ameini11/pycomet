@@ -109,7 +109,8 @@ def _get_m_s(A):
 
 def _loop_over_s_m(A, B, mu, s, m):
   # Factor
-  eta = tf.math.exp(mu/s)
+  eta = tf.reshape(tf.math.exp(mu/s), (-1,1))
+  f = tf.stack([tf.ones_like(eta), eta], axis=-1)
   # Maximum number of iterations
   s_max = tf.math.reduce_max(s)
   # Define stop condition
@@ -119,7 +120,7 @@ def _loop_over_s_m(A, B, mu, s, m):
   def body(i, BFi):
     return i+1, tf.where(
       condition=tf.math.less(i, s),
-      x=_loop_over_m(A, BFi, m, s, eta),
+      x=_loop_over_m(A, BFi, m, s, f),
       y=BFi
     )
   # Perform loop
@@ -131,33 +132,31 @@ def _loop_over_s_m(A, B, mu, s, m):
   )
   return tf.gather(BF, indices=-1, axis=-1)
 
-def _loop_over_m(A, BF, m, s, eta):
+def _loop_over_m(A, BF, m, s, f):
   # Initialize
-  B, F = [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
+  s = tf.reshape(s, (-1,1))
   # Maximum number of iterations
   m_max = tf.math.reduce_max(m)
   # Define stop condition
-  def cond(i, Bi, Fi):
+  def cond(i, BFi):
     return tf.math.less_equal(i, m_max)
   # Define operation
-  def body(i, Bi, Fi):
-    ci = tf.math.less_equal(i, m)
-    Bi = tf.where(
-      condition=ci,
-      x=(1.0/(s*i)) * tf.matmul(A, Bi),
-      y=Bi
+  def body(i, BFi):
+    return i+1, tf.where(
+      condition=tf.math.less_equal(i, m),
+      x=_core(A, BF, i, s),
+      y=BFi
     )
-    Fi = tf.where(
-      condition=ci,
-      x=Fi+Bi,
-      y=Fi
-    )
-    return i+1, Bi, Fi
   # Perform loop
   i = tf.constant(1.0, m_max.dtype)
-  _, B, F = tf.while_loop(
+  _, BF = tf.while_loop(
     cond=cond,
     body=body,
-    loop_vars=[i, B, F]
+    loop_vars=[i, BF]
   )
-  return tf.stack([F, eta*F], axis=-1)
+  return f * BF
+
+def _core(A, BF, m, s):
+  B, F = [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
+  B = (1.0/(s*m)) * tf.matmul(A, B)
+  return tf.stack([B, F+B], axis=-1)
