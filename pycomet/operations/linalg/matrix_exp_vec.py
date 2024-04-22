@@ -74,8 +74,8 @@ def _get_thetas():
     50: 8.5,
     55: 9.9
   }
-  k = np.array(list(_thetas.keys()))
-  v = np.array(list(_thetas.values()))
+  k = np.array(list(_thetas.keys()), dtype=np.float64)
+  v = np.array(list(_thetas.values()), dtype=np.float64)
   return tf.constant(np.vstack([k, v]))
 
 _thetas = _get_thetas()
@@ -90,10 +90,10 @@ def _expmv(A, B):
   return _loop_over_s_m(A, B, mu, s, m)
 
 def _get_m_s(A):
+  thetas = tf.cast(_thetas, dtype=A.dtype)
   # Compute L1 norm
   norm = tf.norm(A, ord=1, axis=[1,2])
   # Get theta index
-  thetas = tf.cast(_thetas, dtype=A.dtype)
   index = tf.math.argmin(
     thetas[0:1] * tf.math.ceil(
       tf.reshape(norm, (-1,1)) / thetas[1:2]
@@ -104,45 +104,43 @@ def _get_m_s(A):
   m = tf.gather(thetas[0], indices=index, axis=0)
   # Get squarings
   theta = tf.gather(thetas[1], indices=index, axis=0)
-  s = tf.math.maximum(tf.math.ceil(norm / theta), 1)
+  s = tf.math.ceil(norm / theta)
   return m, s
 
-def _loop_over_m(A, BF, m, s):
+def _loop_over_m(A, BF, m, s, eta):
   # Initialize
   B, F = [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
   # Maximum number of iterations
   m_max = tf.math.reduce_max(m)
   # Define stop condition
   def cond(i, Bi, Fi):
-    return tf.math.less(i, m_max)
+    return tf.math.less_equal(i, m_max)
   # Define operation
   def body(i, Bi, Fi):
-    c = tf.math.less(i, m)
+    ci = tf.math.less_equal(i, m)
     Bi = tf.where(
-      condition=c,
-      x=(1.0/(s*(i+1))) * tf.matmul(A, Bi),
+      condition=ci,
+      x=(1.0/(s*i)) * tf.matmul(A, Bi),
       y=Bi
     )
     Fi = tf.where(
-      condition=c,
+      condition=ci,
       x=Fi+Bi,
       y=Fi
     )
     return i+1, Bi, Fi
   # Perform loop
-  i = tf.constant(0.0, m_max.dtype)
+  i = tf.constant(1.0, m_max.dtype)
   _, B, F = tf.while_loop(
     cond=cond,
     body=body,
     loop_vars=[i, B, F]
   )
-  return tf.stack([B, F], axis=-1)
+  return tf.stack([F, eta*F], axis=-1)
 
 def _loop_over_s_m(A, B, mu, s, m):
   # Factor
-  eta = tf.reshape(tf.math.exp(mu/s), (-1,1))
-  one = tf.ones_like(eta)
-  factor = tf.stack([one, eta], axis=-1)
+  eta = tf.math.exp(mu/s)
   # Maximum number of iterations
   s_max = tf.math.reduce_max(s)
   # Define stop condition
@@ -152,7 +150,7 @@ def _loop_over_s_m(A, B, mu, s, m):
   def body(i, BFi):
     return i+1, tf.where(
       condition=tf.math.less(i, s),
-      x=_loop_over_m(A, BFi, m, i) * factor,
+      x=_loop_over_m(A, BFi, m, s, eta),
       y=BFi
     )
   # Perform loop
