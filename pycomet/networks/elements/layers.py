@@ -1167,7 +1167,7 @@ class MatrixExp(Layer):
     use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
-    expm_dtype="float32",
+    expm_dtype=None, # "float32" None
     **kwargs
   ):
     super(MatrixExp, self).__init__(**kwargs)
@@ -1213,7 +1213,7 @@ class MatrixExp(Layer):
       "use_expmv": self.use_expmv,
       "max_degree": self.max_degree,
       "max_nb_squarings": self.max_nb_squarings,
-      "dtype": self.dtype
+      "expm_dtype": self.expm_dtype
     }
     base_config = super(MatrixExp, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -1267,7 +1267,10 @@ class LinODE(Layer):
     if (training and self.add_inv_loss):
       self.compute_inv_loss(a)
     # Compute solution
-    y = tf.linalg.solve(a, b)
+    if training:
+      y = tf.matmul(tf.linalg.inv(a), b)
+    else:
+      y = tf.linalg.solve(a, b)
     y = self.mat_exp(a*t, y0+y) - y
     return tf.squeeze(y, axis=-1)
 

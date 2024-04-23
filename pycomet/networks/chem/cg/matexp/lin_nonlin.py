@@ -142,7 +142,7 @@ class LinNonlinME(BaseNet):
     # -------------
     # > Atom number density
     if ("mass" in self.callable_lays):
-      y["na"] = na_0 * (ONE + self.active_lays["mass"](x, training=training))
+      y["na"] = n_0 * (ONE + self.active_lays["mass"](x, training=training))
     elif ("dist" in self.callable_lays):
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
       _dist_only = True
