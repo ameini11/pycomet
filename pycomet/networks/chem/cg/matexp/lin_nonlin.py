@@ -147,7 +147,8 @@ class LinNonlinME(BaseNet):
     # -------------
     # > Atom number density
     if ("mass" in self.callable_lays):
-      y["na"] = n_0 * (1.0 + self.active_lays["mass"](x, training=training))
+      # y["na"] = n_0 * (1.0 + self.active_lays["mass"](x, training=training))
+      y["na"] = n_0 * self.active_lays["mass"](x, training=training)
     elif ("dist" in self.callable_lays):
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
       _dist_only = True
@@ -157,7 +158,8 @@ class LinNonlinME(BaseNet):
     # Predict temperature
     # -------------
     if ("temp" in self.callable_lays):
-      y["T"] = T_0 * (1.0 + self.active_lays["temp"](x, training=training))
+      # y["T"] = T_0 * (1.0 + self.active_lays["temp"](x, training=training))
+      y["T"] = T_0 * self.active_lays["temp"](x, training=training)
     elif ("dist" in self.callable_lays):
       y["T"] = nn_elem.Gather([self.qoi_indices["temp"]], axis=-1)(qoi_t)
       _dist_only = True
