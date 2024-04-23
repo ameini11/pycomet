@@ -2,9 +2,10 @@
 Action of the matrix exponential on a vector.
 """
 import numpy as np
+import scipy as sp
 import tensorflow as tf
 
-from .matrix_exp import _expm_2by2
+from .matrix_exp import _compute_l1_norm, _expm_2by2, _get_maxnorm, _scaling
 
 
 def expmv(A, B, deg=None):
@@ -19,156 +20,67 @@ def expmv(A, B, deg=None):
     # Analytical expression for a 2x2 matrix
     eA_B = tf.matmul(_expm_2by2(A), B)
   else:
-    # Compute action of eA on B
-    eA_B = _expmv(A, B)
+    # Set polynomial degree
+    if (deg is None):
+      deg = 18
+    deg = min(deg, 18)
+    # Compute L1 norm
+    l1_norm, is_finite = _compute_l1_norm(A)
+    if is_finite:
+      # Max norm allowed by 'deg'
+      maxnorm = _get_maxnorm(A.dtype, deg)
+      # Scale matrix A
+      As, squarings = _scaling(A, l1_norm, maxnorm)
+      # Compute action of eA on B
+      eA_B = _taylor(As, B, deg)
+      eA_B = _squaring(As, eA_B, squarings, deg)
+    else:
+      eA_B = B
   # Reshape
   if is_B_2d:
     eA_B = tf.squeeze(eA_B, axis=-1)
   return eA_B
 
-# Polynomial norms and degrees
+# Taylor approximation
 # -------------------------------------
-def _get_thetas():
-  # This table helps to compute bounds.
-  # They seem to have been difficult to calculate, involving symbolic
-  # manipulation of equations, followed by numerical root finding.
-  _thetas = {
-    # The first 30 values are from table A.3 of Computing Matrix Functions.
-    1: 2.29e-16,
-    2: 2.58e-8,
-    3: 1.39e-5,
-    4: 3.40e-4,
-    5: 2.40e-3,
-    6: 9.07e-3,
-    7: 2.38e-2,
-    8: 5.00e-2,
-    9: 8.96e-2,
-    10: 1.44e-1,
-    # 11
-    11: 2.14e-1,
-    12: 3.00e-1,
-    13: 4.00e-1,
-    14: 5.14e-1,
-    15: 6.41e-1,
-    16: 7.81e-1,
-    17: 9.31e-1,
-    18: 1.09,
-    19: 1.26,
-    20: 1.44,
-    # 21
-    21: 1.62,
-    22: 1.82,
-    23: 2.01,
-    24: 2.22,
-    25: 2.43,
-    26: 2.64,
-    27: 2.86,
-    28: 3.08,
-    29: 3.31,
-    30: 3.54,
-    # The rest are from table 3.1 of
-    # Computing the Action of the Matrix Exponential.
-    35: 4.7,
-    40: 6.0,
-    45: 7.2,
-    50: 8.5,
-    55: 9.9
-  }
-  k = np.array(list(_thetas.keys()), dtype=np.float64)
-  v = np.array(list(_thetas.values()), dtype=np.float64)
-  return tf.constant(np.vstack([k, v]))
+def _ov_factorial(deg):
+  f = []
+  for i in range(2,deg+1):
+    fi = 1.0 / sp.special.factorial(n=i, exact=True)
+    f.append(fi)
+  return tf.constant(np.array(f), dtype="float64")
+_f = _ov_factorial(deg=18)
 
-_thetas = _get_thetas()
+def _taylor(A, B, deg):
+  Ap_B = tf.matmul(A, B)
+  B += Ap_B
+  f = tf.cast(_f, dtype=B.dtype)
+  for i in range(2,deg+1):
+    Ap_B = tf.matmul(A, Ap_B)
+    B += f[i-2] * Ap_B
+  return B
 
-# Core computation
+# Squaring operation
 # -------------------------------------
-def _expmv(A, B):
-  n = A.shape[-1]
-  mu = (1.0/n) * tf.linalg.trace(A)
-  A = tf.linalg.set_diag(
-    input=A,
-    diagonal=tf.linalg.diag_part(A) - tf.reshape(mu, (-1,1))
-  )
-  m, s = _get_m_s(A)
-  return _loop_over_s_m(A, B, mu, s, m)
-
-def _get_m_s(A):
-  thetas = tf.cast(_thetas, dtype=A.dtype)
-  # Compute L1 norm
-  norm = tf.norm(A, ord=1, axis=[1,2])
-  # Get theta index
-  ratio = tf.reshape(norm, (-1,1)) / thetas[1:]
-  index = tf.math.argmin(thetas[:1] * tf.math.ceil(ratio), axis=-1)
-  # Get poly order
-  m = tf.gather(thetas[0], indices=index, axis=0)
-  # Get squarings
-  theta = tf.gather(thetas[1], indices=index, axis=0)
-  s = tf.math.ceil(norm / theta)
-  return m, s
-
-def _loop_over_s_m(A, B, mu, s, m):
-  # Initialize
-  eta = tf.reshape(tf.math.exp(mu/s), (-1,1))
-  # Maximum number of iterations
-  s_max = tf.math.reduce_max(s)
-  # Define stop condition
-  def cond(i, BFi):
-    return tf.math.less(i, s_max)
-  # Define operation
-  def body(i, BFi):
-    return i+1, tf.where(
-      condition=tf.math.less(i, s),
-      x=_loop_over_m(A, BFi, m, s, eta),
-      y=BFi
+def _squaring(A, B, squarings, deg):
+  # Maximum number of squarings operation
+  max_squarings = tf.math.reduce_max(squarings)
+  if (max_squarings > 0):
+    # Define stop condition: max squaring reached
+    def cond(i, _):
+      return tf.math.less(i, max_squarings)
+    # Define squaring operation
+    def body(i, Bi):
+      return i+1, tf.where(
+        condition=tf.math.less(i, squarings),
+        x=_taylor(A, Bi, deg),
+        y=Bi
+      )
+    # Perform squarings
+    i = tf.constant(0.0, max_squarings.dtype)
+    _, B = tf.while_loop(
+      cond=cond,
+      body=body,
+      loop_vars=[i, B]
     )
-  # Perform loop
-  _, BF = tf.while_loop(
-    cond=cond,
-    body=body,
-    loop_vars=[
-      tf.constant(0.0, s_max.dtype),
-      tf.stack([B, B], axis=-1)
-    ]
-  )
-  return _take_F(BF)
-
-def _loop_over_m(A, BF, m, s, eta):
-  # Initialize
-  s = tf.reshape(s, (-1,1))
-  # Maximum number of iterations
-  m_max = tf.math.reduce_max(m)
-  # Define stop condition
-  def cond(i, BFi):
-    return tf.math.less_equal(i, m_max)
-  # Define operation
-  def body(i, BFi):
-    return i+1, tf.where(
-      condition=tf.math.less_equal(i, m),
-      x=_core(A, BF, i, s),
-      y=BFi
-    )
-  # Perform loop
-  i = tf.constant(1.0, m_max.dtype)
-  _, BF = tf.while_loop(
-    cond=cond,
-    body=body,
-    loop_vars=[i, BF]
-  )
-  F = _take_F(BF)
-  return _stack_B_F(F, eta*F)
-
-def _core(A, BF, m, s):
-  B, F = _take_B_F(BF)
-  B = (1.0/(s*m)) * tf.matmul(A, B)
-  return _stack_B_F(B, F+B)
-
-# Tensor operations
-# -------------------------------------
-def _take_F(BF):
-  return tf.gather(BF, indices=-1, axis=-1)
-
-def _take_B_F(BF):
-  return [tf.gather(BF, indices=i, axis=-1) for i in (0,1)]
-
-def _stack_B_F(B, F):
-  return tf.stack([B, F], axis=-1)
+  return B
