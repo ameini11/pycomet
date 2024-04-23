@@ -4,7 +4,7 @@ Action of the matrix exponential on a vector.
 import numpy as np
 import tensorflow as tf
 
-from .matrix_exp import _expm_2by2, _ident_like
+from .matrix_exp import _expm_2by2
 
 
 def expmv(A, B, deg=None):
@@ -87,7 +87,7 @@ def _expmv(A, B):
   mu = (1.0/n) * tf.linalg.trace(A)
   A = tf.linalg.set_diag(
     input=A,
-    diagonal=tf.linalg.diag(A) - tf.reshape(mu, (-1,1))
+    diagonal=tf.linalg.diag_part(A) - tf.reshape(mu, (-1,1))
   )
   m, s = _get_m_s(A)
   return _loop_over_s_m(A, B, mu, s, m)
@@ -133,6 +133,8 @@ def _loop_over_s_m(A, B, mu, s, m):
   return _take_F(BF)
 
 def _loop_over_m(A, BF, m, s, eta):
+  # Initialize
+  s = tf.reshape(s, (-1,1))
   # Maximum number of iterations
   m_max = tf.math.reduce_max(m)
   # Define stop condition
