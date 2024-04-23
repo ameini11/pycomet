@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-from pycomet import utils
 from .operators import Operators
 from pycomet import operations as ops
 from pycomet.config import get_config
@@ -93,6 +92,7 @@ class SolUpdate(nn_elem.Layer):
     use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
+    expm_dtype=None,
     add_inv_loss=False,
     inv_loss_weight=1e-3,
     **kwargs
@@ -109,6 +109,7 @@ class SolUpdate(nn_elem.Layer):
       use_expmv=use_expmv,
       max_degree=max_degree,
       max_nb_squarings=max_nb_squarings,
+      expm_dtype=expm_dtype,
       add_inv_loss=add_inv_loss,
       inv_loss_weight=inv_loss_weight
     )
@@ -136,6 +137,7 @@ class SolUpdate(nn_elem.Layer):
       "use_expmv": self.linode.use_expmv,
       "max_degree": self.linode.max_degree,
       "max_nb_squarings": self.linode.max_nb_squarings,
+      "expm_dtype": self.linode.expm_dtype,
       "add_inv_loss": self.linode.add_inv_loss,
       "inv_loss_weight": self.linode.inv_loss_weight
     }

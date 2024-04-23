@@ -2,11 +2,15 @@ import tensorflow as tf
 
 from .blocks import *
 from pycomet import utils
-from hypernet import const
 from pycomet import networks
-from keras import layers as tf_layers
+from pycomet import backend as bkd
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
+from keras import layers as tf_layers
+
+# HyperNet library
+from hypernet import const
+UKB = tf.constant(const.UKB, dtype=bkd.get_floatx())
 
 
 class LinNonlinME(BaseNet):
@@ -22,7 +26,6 @@ class LinNonlinME(BaseNet):
   def __init__(
     self,
     dim,
-    t_pa_eps=1e-10,
     qoi_indices={"mass": 0, "temp": 1},
     callable_lays=None,
     lays_name=None,
@@ -45,14 +48,16 @@ class LinNonlinME(BaseNet):
       *args,
       **kwargs
     )
-    self.t_pa_eps = t_pa_eps
+    # Time-dependent inputs
+    # -------------
+    # Only for training the model for the distribution function (optional)
     self.qoi_indices = qoi_indices
     # Layers
     # -------------
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
-        "ic_xform", "mass", "temp", "thermo_update", \
+        "log_t_pa", "ic_xform", "mass", "temp", "thermo_update", \
         "fcorr_xform", "fcorr_compute", "dist_update"
       )
     else:
@@ -60,7 +65,7 @@ class LinNonlinME(BaseNet):
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("ic_xform", "thermo_update"),
+      not_opt=("log_t_pa", "ic_xform", "thermo_update"),
       default=self.default_lays_propty
     )
     # Initializing
@@ -77,9 +82,11 @@ class LinNonlinME(BaseNet):
   # Layers initialization
   # -----------------------------------
   def init_layers(self):
-    lays = {"log": nn_elem.Log(base="e", offset=self.t_pa_eps)}
+    lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier == "ic_xform"):
+      if (identifier == "log_t_pa"):
+        lays[identifier] = self.init_lay(identifier, propty)
+      elif (identifier == "ic_xform"):
         lays[identifier] = self.init_lay(identifier, propty)
       elif (identifier in ("mass", "temp")):
         lays[identifier] = self.init_kernel_lay(propty)
@@ -116,8 +123,6 @@ class LinNonlinME(BaseNet):
     # Extract inputs
     # -------------
     na_0, nmi_0, T_0, t, qoi_t = utils.unpack_list(inputs, nb_elem=5)
-    # Constants
-    ONE, UKB = [tf.constant(c, dtype=na_0.dtype) for c in (1.0, const.UKB)]
     # Update thermodynamics
     # -------------
     # Compute state energies
@@ -136,13 +141,13 @@ class LinNonlinME(BaseNet):
     n_0 = na_0 + tf_layers.Rescaling(scale=2.0)(nm_0)
     y_0 = tf_layers.Concatenate()([na_0, n_0, em_0, T_0])
     y_0_xform = self.active_lays["ic_xform"](y_0)
-    ln_t_pa_0 = self.active_lays["log"](t * na_0 * UKB * T_0)
+    ln_t_pa_0 = self.active_lays["log_t_pa"](t * na_0 * UKB * T_0)
     x = [y_0_xform, ln_t_pa_0]
     # Predict species
     # -------------
     # > Atom number density
     if ("mass" in self.callable_lays):
-      y["na"] = n_0 * (ONE + self.active_lays["mass"](x, training=training))
+      y["na"] = n_0 * (1.0 + self.active_lays["mass"](x, training=training))
     elif ("dist" in self.callable_lays):
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
       _dist_only = True
@@ -152,7 +157,7 @@ class LinNonlinME(BaseNet):
     # Predict temperature
     # -------------
     if ("temp" in self.callable_lays):
-      y["T"] = T_0 * (ONE + self.active_lays["temp"](x, training=training))
+      y["T"] = T_0 * (1.0 + self.active_lays["temp"](x, training=training))
     elif ("dist" in self.callable_lays):
       y["T"] = nn_elem.Gather([self.qoi_indices["temp"]], axis=-1)(qoi_t)
       _dist_only = True
@@ -162,7 +167,7 @@ class LinNonlinME(BaseNet):
       # > Update partition functions
       q = self.active_lays["thermo_update"](y["T"], qois="q_tot")
       # > Compute state-wise latent space
-      ln_t_pa = self.active_lays["log"](t * y["na"] * UKB * y["T"])
+      ln_t_pa = self.active_lays["log_t_pa"](t * y["na"] * UKB * y["T"])
       f = tf_layers.Concatenate()([y_0, ln_t_pa])
       f = self.active_lays["fcorr_xform"](f, training=training)
       f = self.active_lays["fcorr_compute"](f, training=training)

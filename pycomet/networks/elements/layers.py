@@ -1167,7 +1167,7 @@ class MatrixExp(Layer):
     use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
-    expm_dtype=None, # "float32" None
+    expm_dtype=None,
     **kwargs
   ):
     super(MatrixExp, self).__init__(**kwargs)
@@ -1180,7 +1180,7 @@ class MatrixExp(Layer):
   # Calling
   # ===================================
   def call(self, A, B=None, training=None):
-    A, B = [self.recast(x, self.expm_dtype) for x in (A, B)]
+    A, B = [self.recast(x, dtype=self.expm_dtype) for x in (A, B)]
     if (B is None):
       y = self.compute_expm(A)
     else:
@@ -1188,9 +1188,9 @@ class MatrixExp(Layer):
         y = linalg.expmv(A, B, deg=self.max_degree)
       else:
         y = tf.matmul(self.compute_expm(A), B)
-    return self.recast(y, bkd.get_floatx())
+    return self.recast(y, dtype=bkd.get_floatx())
 
-  def recast(self, x, dtype):
+  def recast(self, x, dtype=None):
     if (x is not None):
       if (dtype is not None):
         return tf.cast(x, dtype=dtype)
@@ -1236,6 +1236,7 @@ class LinODE(Layer):
     use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
+    expm_dtype=None,
     # Non-invertibility loss
     add_inv_loss=False,
     inv_loss_weight=1e-3,
@@ -1247,11 +1248,13 @@ class LinODE(Layer):
     self.use_expmv = use_expmv
     self.max_degree = max_degree
     self.max_nb_squarings = max_nb_squarings
+    self.expm_dtype = expm_dtype
     self.mat_exp = MatrixExp(
       use_pade=use_pade,
       use_expmv=use_expmv,
       max_degree=max_degree,
-      max_nb_squarings=max_nb_squarings
+      max_nb_squarings=max_nb_squarings,
+      expm_dtype=expm_dtype
     )
     # Additional loss to avoid non-invertibility of the matrix
     self.add_inv_loss = add_inv_loss
@@ -1267,10 +1270,7 @@ class LinODE(Layer):
     if (training and self.add_inv_loss):
       self.compute_inv_loss(a)
     # Compute solution
-    if training:
-      y = tf.matmul(tf.linalg.inv(a), b)
-    else:
-      y = tf.linalg.solve(a, b)
+    y = tf.linalg.solve(a, b)
     y = self.mat_exp(a*t, y0+y) - y
     return tf.squeeze(y, axis=-1)
 
@@ -1294,6 +1294,7 @@ class LinODE(Layer):
       "use_expmv": self.use_expmv,
       "max_degree": self.max_degree,
       "max_nb_squarings": self.max_nb_squarings,
+      "expm_dtype": self.expm_dtype,
       "add_inv_loss": self.add_inv_loss,
       "inv_loss_weight": self.inv_loss_weight
     }
