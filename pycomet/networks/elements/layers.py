@@ -1167,6 +1167,7 @@ class MatrixExp(Layer):
     use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
+    expm_dtype="float32",
     **kwargs
   ):
     super(MatrixExp, self).__init__(**kwargs)
@@ -1174,17 +1175,27 @@ class MatrixExp(Layer):
     self.use_expmv = use_expmv
     self.max_degree = max_degree
     self.max_nb_squarings = max_nb_squarings
+    self.expm_dtype = expm_dtype
 
   # Calling
   # ===================================
   def call(self, A, B=None, training=None):
+    A, B = [self.recast(x, self.expm_dtype) for x in (A, B)]
     if (B is None):
-      return self.compute_expm(A)
+      y = self.compute_expm(A)
     else:
       if self.use_expmv:
-        return linalg.expmv(A, B, deg=self.max_degree)
+        y = linalg.expmv(A, B, deg=self.max_degree)
       else:
-        return tf.matmul(self.compute_expm(A), B)
+        y = tf.matmul(self.compute_expm(A), B)
+    return self.recast(y, bkd.get_floatx())
+
+  def recast(self, x, dtype):
+    if (x is not None):
+      if (dtype is not None):
+        return tf.cast(x, dtype=dtype)
+      else:
+        return x
 
   def compute_expm(self, A):
     return linalg.expm(
@@ -1201,7 +1212,8 @@ class MatrixExp(Layer):
       "use_pade": self.use_pade,
       "use_expmv": self.use_expmv,
       "max_degree": self.max_degree,
-      "max_nb_squarings": self.max_nb_squarings
+      "max_nb_squarings": self.max_nb_squarings,
+      "dtype": self.dtype
     }
     base_config = super(MatrixExp, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
