@@ -74,10 +74,12 @@ class LinNonlinME(BaseNet):
     # Callable layers
     self.callable_lays = callable_lays
     if (self.callable_lays is None):
-      self.callable_lays = []
+      self.callable_lays = {}
       for k in ("mass", "temp", "dist_update"):
         if k in self.active_lays:
-          self.callable_lays.append(k[:4])
+          self.callable_lays[k[:4]] = True
+        else:
+          self.callable_lays[k[:4]] = False
 
   # Layers initialization
   # -----------------------------------
@@ -119,7 +121,7 @@ class LinNonlinME(BaseNet):
       "nmi": None, # Molecule distribution n.d. [1/m^3]: shape = [n,g]
       "T": None    # Translation temperature [K]:        shape = [n,1]
     }
-    _dist_only = False
+    dist_only = False
     # Extract inputs
     # -------------
     na_0, nmi_0, T_0, t, qoi_t = utils.unpack_list(inputs, nb_elem=5)
@@ -146,26 +148,27 @@ class LinNonlinME(BaseNet):
     # Predict species
     # -------------
     # > Atom number density
-    if ("mass" in self.callable_lays):
-      # y["na"] = n_0 * (1.0 + self.active_lays["mass"](x, training=training))
+    if self.callable_lays["mass"]:
       y["na"] = n_0 * self.active_lays["mass"](x, training=training)
-    elif ("dist" in self.callable_lays):
+    elif self.callable_lays["dist"]:
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
-      _dist_only = True
+      dist_only = True
     # > Molecule number density
     if (y["na"] is not None):
       nm = tf_layers.Rescaling(scale=0.5)(n_0-y["na"])
+      # # > Merge number densities (for training)
+      # if (self.callable_lays["mass"] and (not self.callable_lays["dist"])):
+      #   y["na"] = tf_layers.Concatenate()([y["na"], nm])
     # Predict temperature
     # -------------
-    if ("temp" in self.callable_lays):
-      # y["T"] = T_0 * (1.0 + self.active_lays["temp"](x, training=training))
+    if self.callable_lays["temp"]:
       y["T"] = T_0 * self.active_lays["temp"](x, training=training)
-    elif ("dist" in self.callable_lays):
+    elif self.callable_lays["dist"]:
       y["T"] = nn_elem.Gather([self.qoi_indices["temp"]], axis=-1)(qoi_t)
-      _dist_only = True
+      dist_only = True
     # Predict distribution
     # -------------
-    if ("dist" in self.callable_lays):
+    if self.callable_lays["dist"]:
       # > Update partition functions
       q = self.active_lays["thermo_update"](y["T"], qois="q_tot")
       # > Compute state-wise latent space
@@ -179,7 +182,7 @@ class LinNonlinME(BaseNet):
       )
     # Return predictions
     # -------------
-    if _dist_only:
+    if dist_only:
       return y["nmi"]
     else:
       return [y[k] for k in ("na", "nmi", "T") if (y[k] is not None)]

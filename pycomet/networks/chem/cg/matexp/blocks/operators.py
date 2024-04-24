@@ -19,6 +19,7 @@ class Operators(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
+    corr_scale=1.0,
     **kwargs
   ):
     super(Operators, self).__init__(**kwargs)
@@ -40,6 +41,7 @@ class Operators(nn_elem.Layer):
     self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
+    self.corr_scale = tf.constant(corr_scale, dtype=bkd.get_floatx())
 
   def set_rates_values_indices(self, eps=1e-50):
     # Assemble Arrhenius 'A' matrix
@@ -165,7 +167,9 @@ class Operators(nn_elem.Layer):
       if (p == "e"):
         pcorr -= tf.gather(f, indices=self.rates_indices[p][1], axis=-2)
       # Apply correction
-      fwd_rates[p] *= tf.math.exp(tf.math.reduce_sum(pcorr, axis=-1))
+      fwd_rates[p] *= tf.math.exp(
+        self.corr_scale * tf.math.reduce_sum(pcorr, axis=-1)
+      )
     return fwd_rates
 
   def compute_bwd_rates(self, fwd_rates, q):

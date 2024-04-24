@@ -88,6 +88,7 @@ class SolUpdate(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
+    corr_scale=1.0,
     use_pade=False,
     use_expmv=False,
     max_degree=None,
@@ -101,7 +102,8 @@ class SolUpdate(nn_elem.Layer):
     # Operators layer
     self.operators = Operators(
       rates=rates,
-      use_corr=use_corr
+      use_corr=use_corr,
+      corr_scale=corr_scale
     )
     # LinODE Layer
     self.linode = nn_elem.LinODE(
@@ -133,6 +135,7 @@ class SolUpdate(nn_elem.Layer):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
       "use_corr": self.operators.use_corr,
+      "corr_scale": self.operators.corr_scale,
       "use_pade": self.linode.use_pade,
       "use_expmv": self.linode.use_expmv,
       "max_degree": self.linode.max_degree,
