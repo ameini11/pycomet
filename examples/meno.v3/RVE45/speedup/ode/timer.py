@@ -23,15 +23,17 @@ class ODESolveTimer(object):
     inp_space={},
     scenarios=100,
     path_to_physics="./physics",
+    integrator="lsode",
     load_plato="module load plato",
     nb_workers=1,
     nb_threads=1
   ):
+    self.integrator = integrator
     # Paths
     # ---------------------------------
     self.cwd = os.getcwd()
-    self.path_to_data = self.cwd + "/data/"
-    self.path_to_runs = self.cwd + "/runs/"
+    self.path_to_data = self.cwd + f"/data/{self.integrator}/"
+    self.path_to_runs = self.cwd + f"/runs/{self.integrator}/"
     self.path_to_physics = path_to_physics
     os.makedirs(self.path_to_data, exist_ok=True)
     # Data quantities
@@ -78,6 +80,7 @@ class ODESolveTimer(object):
   def __call__(
     self,
     t_ends,
+    max_order=2,
     init_sols=None,
     read_init_sols=False
   ):
@@ -91,7 +94,9 @@ class ODESolveTimer(object):
         init_sols = self.sample_inp_space()
     # Evaluate execution time
     print("Evaluating execution time")
-    timings = [self.eval_exec_time(t_end, init_sols) for t_end in t_ends]
+    timings = [
+      self.eval_exec_time(t_end, init_sols, max_order) for t_end in t_ends
+    ]
     timings = np.vstack(timings)
     # Save timings
     timings = pd.DataFrame(
@@ -100,7 +105,7 @@ class ODESolveTimer(object):
     )
     timings = timings.sort_values(by=["t_end [s]"])
     timings.to_csv(
-      path_or_buf=self.path_to_data+"/timings.csv",
+      path_or_buf=self.path_to_data + f"/timings_ord{max_order}.csv",
       float_format="%.8e",
       index=False
     )
@@ -157,14 +162,20 @@ class ODESolveTimer(object):
   def eval_exec_time(
     self,
     t_end,
-    init_sols
+    init_sols,
+    max_order=2
   ):
     print("> t_end = %.5e s" % t_end)
-    t_end_str = ("%.5e" % t_end).replace("e", "d")
     pcm.utils.replace(
       file_in=self.path_to_runs + "/run.bkp/inputfile.sh",
-      patterns=("TE",),
-      replaces=(f"TE = {t_end_str}\n",),
+      patterns=(
+        "TE",
+        "MAX_ORDER"
+      ),
+      replaces=(
+        "TE = " + ("%.5e" % t_end).replace("e", "d") + "\n",
+        "MAX_ORDER = " + str(max_order) + "\n"
+      ),
       inplace=True,
       use_startswith=True
     )

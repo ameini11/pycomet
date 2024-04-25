@@ -14,15 +14,13 @@ for lib in libs.values():
 from timer import SurrogateTimer
 from silx.io.dictdump import h5todict
 
-import tensorflow as tf
-
 
 if __name__ == '__main__':
 
   # Inputs
   # =====================================
   # Paths
-  prefix = "/home/zanardi/Codes/ML/PyCOMET/run/meno/adiabatic/"
+  prefix =  "./../../adiabatic/"
   path_to_bkd = "./bkd"
   path_to_data = prefix + "/datagen/data/train_teval.hdf5"
   path_to_models = {
