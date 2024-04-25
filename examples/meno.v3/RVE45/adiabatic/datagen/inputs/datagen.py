@@ -2,7 +2,7 @@
 # =====================================
 # Training/Validation data
 scenarios = 1000
-train_pts = 160
+train_pts = 320
 validation_split = 0.2
 
 # Testing data
@@ -20,7 +20,7 @@ inp_space = {
   "Ti":  [ 1e3,   8e3],
   "T":   [ 8e3, 1.5e4]
 }
-read_init_sols = False
+read_init_sols = True
 
 # Physics
 path_to_physics = {

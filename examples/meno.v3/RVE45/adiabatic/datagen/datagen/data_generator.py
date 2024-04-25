@@ -109,17 +109,10 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self.xi_names = [f"X_{s}" for s in self.species]
     self.box_lbl = ["t"] + self.xi_names + ["T", "rho", "p", "n", "E"]
     # Dataset
-    # self.data_lbl = ["t"] \
-    #   + [f"n_{self.atom}", f"n_{self.molecule}", "T"] \
-    #   + [f"n_{self.atom}_0", "n_0", f"e_{self.molecule}_0", "T_0"] \
-    #   + [f"n_{s}_0" for s in self.species[1:]] + [f"t_p{self.atom}"]
-    # if self.compute_svd_coeff:
-    #   for (k, nb) in self.svd_nb_coeff.items():
-    #     self.data_lbl += [f"w{i+1}_{k}" for i in range(nb)]
-    # self.data_lbl += [f"n_{s}" for s in self.species[1:]]
     self.data_lbl = [f"n_{self.atom}_0"] \
-      + [f"n_{s}_0" for s in self.species[1:]] + ["T_0", "t"] \
-      + [f"n_{self.atom}"] + [f"n_{s}" for s in self.species[1:]] + ["T"] \
+      + [f"n_{s}_0" for s in self.species[1:]] \
+      + ["T_0", "t"] + [f"n_{self.atom}"] \
+      + [f"n_{s}" for s in self.species[1:]] + ["T", f"n_{self.molecule}"] \
       + [f"n_{self.atom}_0", "n_0", f"e_{self.molecule}_0", "T_0"] \
       + [f"log_t_p{self.atom}"]
     # Environment
@@ -395,9 +388,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   # -----------------------------------
   def postproc_solution(self, sol, nb_pts=-1, teval=None):
     sol = [sol[k] for k in ("t", "y")]
-    # Get SVD coefficients for decomposition
-    if self.compute_svd_coeff:
-      w = self.svd_decomp(*sol)
+    # # Get SVD coefficients for decomposition
+    # if self.compute_svd_coeff:
+    #   w = self.svd_decomp(*sol)
     # Limit solution in time
     sol = self.limit_solution(*sol)
     # Interpolate solution in time
@@ -408,9 +401,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       sol = self.sample_solution(*sol, nb_pts)
     # Get physical QoI
     sol = self.prim_to_phys(*sol)
-    # Store SVD coefficients for decomposition
-    if self.compute_svd_coeff:
-      sol["svd"] = w
+    # # Store SVD coefficients for decomposition
+    # if self.compute_svd_coeff:
+    #   sol["svd"] = w
     return sol
 
   def limit_solution(self, t, y):
@@ -449,57 +442,57 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       phys["X_"+name] = st.specie.X
     return phys
 
-  # SVD decomposition
-  # -----------------------------------
-  def svd_decomp(self, t, y):
-    sol = self.prim_to_phys(t, y)
-    # Extract variables
-    var = ("t", "T", "n", f"X_{self.atom}")
-    t, T, n, Xa = [sol[k].reshape(-1) for k in var]
-    # Compute QoI for SVD decomposition
-    na = Xa * n
-    pa = na * const.UKB * T
-    tp = t * pa
-    # Compute SVD coefficients
-    w = {}
-    yi = {"T": T, "na": na, "pa": pa}
-    for (k, ksvd) in self.svd.items():
-      w[k] = self._svd_coeff(
-        t_in=tp, t_out=ksvd["tp"], y=yi[k], phi=ksvd["phi"]
-      )
-    # Return all the coefficients
-    return w
+  # # SVD decomposition
+  # # -----------------------------------
+  # def svd_decomp(self, t, y):
+  #   sol = self.prim_to_phys(t, y)
+  #   # Extract variables
+  #   var = ("t", "T", "n", f"X_{self.atom}")
+  #   t, T, n, Xa = [sol[k].reshape(-1) for k in var]
+  #   # Compute QoI for SVD decomposition
+  #   na = Xa * n
+  #   pa = na * const.UKB * T
+  #   tp = t * pa
+  #   # Compute SVD coefficients
+  #   w = {}
+  #   yi = {"T": T, "na": na, "pa": pa}
+  #   for (k, ksvd) in self.svd.items():
+  #     w[k] = self._svd_coeff(
+  #       t_in=tp, t_out=ksvd["tp"], y=yi[k], phi=ksvd["phi"]
+  #     )
+  #   # Return all the coefficients
+  #   return w
 
-  def _svd_coeff(self, t_in, t_out, y, phi):
-    # Interpolate data onto bases grid
-    y = self._svd_interpolate(t_in, t_out, y)
-    # Normalize data
-    m = np.mean(y).reshape(1)
-    s = np.std(y).reshape(1)
-    y = (y - m) / s
-    # Compute SVD coefficients using OLS
-    w = self._svd_ols(phi, y)
-    # Return all the coefficients
-    return np.concatenate([m,s,w]).reshape(-1)
+  # def _svd_coeff(self, t_in, t_out, y, phi):
+  #   # Interpolate data onto bases grid
+  #   y = self._svd_interpolate(t_in, t_out, y)
+  #   # Normalize data
+  #   m = np.mean(y).reshape(1)
+  #   s = np.std(y).reshape(1)
+  #   y = (y - m) / s
+  #   # Compute SVD coefficients using OLS
+  #   w = self._svd_ols(phi, y)
+  #   # Return all the coefficients
+  #   return np.concatenate([m,s,w]).reshape(-1)
 
-  def _svd_interpolate(self, t_in, t_out, y):
-    # Extend domain
-    t_in = np.concatenate([t_in, t_in[-1:]*1e2])
-    y = np.concatenate([y, y[-1:]])
-    # Interpolate
-    return sp.interpolate.interp1d(t_in, y, kind='cubic')(t_out)
+  # def _svd_interpolate(self, t_in, t_out, y):
+  #   # Extend domain
+  #   t_in = np.concatenate([t_in, t_in[-1:]*1e2])
+  #   y = np.concatenate([y, y[-1:]])
+  #   # Interpolate
+  #   return sp.interpolate.interp1d(t_in, y, kind='cubic')(t_out)
 
-  def _svd_ols(self, x, y):
-    # Ordinary least squares (OLS) algorithm
-    # > Compute Gram matrix
-    gr = np.matmul(x.T, x)
-    # > Inverse of Gram matrix
-    gri = np.linalg.inv(gr)
-    # > Moment matrix
-    ym = np.matmul(x.T, y)
-    # > Compute coefficients
-    w = np.matmul(gri, ym)
-    return w
+  # def _svd_ols(self, x, y):
+  #   # Ordinary least squares (OLS) algorithm
+  #   # > Compute Gram matrix
+  #   gr = np.matmul(x.T, x)
+  #   # > Inverse of Gram matrix
+  #   gri = np.linalg.inv(gr)
+  #   # > Moment matrix
+  #   ym = np.matmul(x.T, y)
+  #   # > Compute coefficients
+  #   w = np.matmul(gri, ym)
+  #   return w
 
   # Manage data
   # ===================================
@@ -526,43 +519,10 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     x_norm = np.hstack([x_0, ln_t_pa])
     # Outputs
     # -------------
-    y = [na, nmi, T]
+    nm = np.sum(nmi, axis=-1, keepdims=True)
+    y = [na, nmi, T, nm]
     # Return data
     return [x, y, x_norm]
-
-  # def get_data(self, sol, nb_pts=-1, teval=None):
-  #   sol = self.postproc_solution(sol, nb_pts, teval)
-  #   # Extract variables
-  #   t, T, n = [sol[k].reshape(-1,1) for k in ("t", "T", "n")]
-  #   na, nm = [sol[f"X_{s}"] * n for s in self.sp_th.keys()]
-  #   # Update thermo
-  #   st_mod.update_specie_thermos(self.sp_th, T)
-  #   em = self.sp_th[self.molecule].thermo.int.e
-  #   # Compose inputs
-  #   # -------------
-  #   nb_pts = len(t)
-  #   # > Time-dependent QoI
-  #   nt = np.sum(nm, axis=-1, keepdims=True)
-  #   qoi_t = np.hstack([t, na, nt, T])
-  #   # > Initial conditions
-  #   n0 = na[0] + 2*nt[0]
-  #   e0 = np.sum(nm[0]*em[0]) / nt[0]
-  #   x0 = np.array([na[0], n0, e0, T[0]])
-  #   x0 = np.tile(x0.reshape(1,-1), (nb_pts,1))
-  #   # > Initial distribution
-  #   nm_0 = np.tile(nm[0].reshape(1,-1), (nb_pts,1))
-  #   # > Correction factor
-  #   tp = t * na * const.UKB * T
-  #   f = np.log(tp + 1e-10)
-  #   if self.compute_svd_coeff:
-  #     w = list(sol["svd"].values())
-  #     w = np.concatenate(w).reshape(1,-1)
-  #     w = np.tile(w, (nb_pts,1))
-  #     f = np.hstack([f, w])
-  #   # Compose data
-  #   # -------------
-  #   x, y = [qoi_t, x0, nm_0, f], nm
-  #   return [x, y]
 
   def stack_data(self, data, data_new, data_type):
     if (data_type not in data):

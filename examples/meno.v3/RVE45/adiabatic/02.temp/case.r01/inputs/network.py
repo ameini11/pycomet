@@ -1,19 +1,26 @@
 import numpy as np
+import tensorflow as tf
 
 from inputs.data import data_src
 
 # Architecture properties
 # =====================================
 architecture = "LinNonlinME"
+# Variable name
+_name = "temp"
 
 # Extra inputs
 # -------------------------------------
-_name = "temp"
 qoi_indices = {
   "mass": 0,
   "temp": 1
 }
-callable_lays = (_name,)
+callable_lays = {
+  "mass": False,
+  "temp": False,
+  "dist": False
+}
+callable_lays[_name] = True
 
 # Layers
 # -------------------------------------
@@ -42,8 +49,7 @@ _common = {
     "l2": 1e-4
   },
   "dropout": {"rate": 1e-3},
-  "layer_norm": False,
-  "trainable": True
+  "layer_norm": False
 }
 
 lays_propty = {
@@ -73,7 +79,7 @@ lays_propty = {
     "kwargs": {
       "mean_var_file": "./saving/normalization_mean_var.txt",
       "data_files": [data_src[k] for k in ("train", "valid")],
-      "columns": [95, 96, 97, 98],
+      "columns": (96 + np.arange(4)).tolist(),
       "trainable": False
     }
   },
@@ -85,28 +91,46 @@ lays_propty = {
       "out": [1]
     },
     "lays_propty": {
+      'prenet': {
+        'from': 'branch',
+        'to': 'trunk',
+        'kwargs': {
+          'layer_size': [4, 24, 24],
+          'activation': ['tanh']*2 + ['linear'],
+          'out_xform': None,
+          'transformation': 'affine',
+          'num_coords': 1,
+          "name": _name + "_prenet",
+          "trainable": True,
+          **_common
+        }
+      },
       "branch": {
         "lay_id": "FFBlock",
         "kwargs": {
-          "layer_size": [4, 32, 32, 12],
+          "layer_size": [4, 64, 32, 8],
           "activation": ["tanh"]*2 + ["linear"],
           "name": _name + "_branch",
+          "trainable": True,
           **_common
         }
       },
       "trunk": {
         "lay_id": "FFBlock",
         "kwargs": {
-          "layer_size": [1, 32, 32, 12],
+          "layer_size": [1, 64, 32, 8],
           "activation": ["tanh"]*2 + ["linear"],
-          "interpolating": {
-            "file": f"./../../datagen/decomp/tensors/{_name}.txt",
-            "columns": {"x": [0], "y": np.arange(1,13).tolist()},
-            "axis": 1,
-            "order": 3
-          },
-          "trainable": False,
-          "name": _name + "_trunk"
+          "name": _name + "_trunk",
+          "trainable": True,
+          **_common
+        }
+      },
+      "output": {
+        "lay_id": "Transform",
+        "kwargs": {
+          "xform": tf.math.exp,
+          "name": _name + "_xform",
+          "trainable": False
         }
       }
     }

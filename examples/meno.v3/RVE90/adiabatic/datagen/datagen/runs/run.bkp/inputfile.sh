@@ -1,7 +1,7 @@
 #---------------------------
 # Path to data and mixture, reaction, transfer files
-PATH     = /home/zanardi/Workspace/AirDatabase/ThermoChemModels/CG/database/O3_UMN/RVE45
-MIXTURE  = 45g
+PATH     = /home/zanardi/Workspace/AirDatabase/ThermoChemModels/CG/database/O3_UMN/RVE90
+MIXTURE  = 90g
 REACTION = kFull.dat
 TRANSFER = empty
 
@@ -26,7 +26,7 @@ READ_INIT_SOL = T
 TS = 0.d0
 TE = 1.d3
 DT_MAX = 1.d3
-DT_MIN = 1.d-14
+DT_MIN = 1.d-12
 SF = 1.015d0
 
 #---------------------------

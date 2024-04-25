@@ -23,6 +23,6 @@ header = 0
 # Batching
 # -------------------------------------
 batch_size = {
-  "train": 256*4,
-  "valid": 256*4
+  "train": 256*20,
+  "valid": 256*20
 }

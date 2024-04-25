@@ -2,7 +2,7 @@
 # =====================================
 # Training/Validation data
 scenarios = 1000
-train_pts = 160
+train_pts = 320
 validation_split = 0.2
 
 # Testing data
@@ -24,9 +24,9 @@ read_init_sols = False
 
 # Physics
 path_to_physics = {
-  "RVE45": "/home/zanardi/Codes/ML/PyCOMET/run/meno.v3/RVE45/physics/"
+  "RVE90": "/home/zanardi/Codes/ML/PyCOMET/run/meno.v3/RVE90/physics/"
 }
-ref_phy_model = "RVE45"
+ref_phy_model = "RVE90"
 load_plato = "module load plato/dev-gcc-9.3.0-openmpi-3.1.3-sundials-5.8.0"
 
 # SVD decomposition
