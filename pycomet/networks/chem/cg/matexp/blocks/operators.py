@@ -4,6 +4,7 @@ import tensorflow as tf
 from pycomet import utils
 from .utils import read_rates
 from pycomet import backend as bkd
+from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
 _CFG = get_config()
@@ -19,7 +20,7 @@ class Operators(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
-    corr_scale=1.0,
+    corr_scale=None,
     **kwargs
   ):
     super(Operators, self).__init__(**kwargs)
@@ -41,7 +42,11 @@ class Operators(nn_elem.Layer):
     self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
-    self.corr_scale = tf.constant(corr_scale, dtype=bkd.get_floatx())
+    self.corr_scale = corr_scale
+    if (self.corr_scale is not None):
+      self.corr_scale = tf.squeeze(
+        tf.constant(self.corr_scale, dtype=bkd.get_floatx())
+      )
 
   def set_rates_values_indices(self, eps=1e-50):
     # Assemble Arrhenius 'A' matrix
@@ -162,14 +167,15 @@ class Operators(nn_elem.Layer):
   def correct_fwd_rates(self, fwd_rates, f):
     # Loop over processes
     for p in self.processes:
-      # Compute correction
+      # Compose correction
       pcorr = tf.gather(f, indices=self.rates_indices[p][0], axis=-2)
       if (p == "e"):
         pcorr -= tf.gather(f, indices=self.rates_indices[p][1], axis=-2)
       # Apply correction
-      fwd_rates[p] *= tf.math.exp(
-        self.corr_scale * tf.math.reduce_sum(pcorr, axis=-1)
-      )
+      pcorr = tf.math.reduce_sum(pcorr, axis=-1)
+      if (self.corr_scale is not None):
+        pcorr *= self.corr_scale
+      fwd_rates[p] *= tf.math.exp(pcorr)
     return fwd_rates
 
   def compute_bwd_rates(self, fwd_rates, q):
@@ -195,7 +201,8 @@ class Operators(nn_elem.Layer):
   def get_config(self):
     config = {
       "rates": self.rates,
-      "use_corr": self.use_corr
+      "use_corr": self.use_corr,
+      "corr_scale": ops.to_numpy(self.corr_scale)
     }
     base_config = super(Operators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
