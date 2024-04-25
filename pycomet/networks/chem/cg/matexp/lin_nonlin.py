@@ -57,8 +57,8 @@ class LinNonlinME(BaseNet):
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
-        "log_t_pa", "ic_xform", "mass", "temp", "thermo_update", \
-        "fcorr_xform", "fcorr_compute", "dist_update"
+        "log_t_pa", "ic_xform", "mass", "temp", \
+        "thermo_update", "fcorr_compute", "dist_update"
       )
     else:
       self.lays_name = lays_name
@@ -92,8 +92,6 @@ class LinNonlinME(BaseNet):
         lays[identifier] = self.init_lay(identifier, propty)
       elif (identifier in ("mass", "temp")):
         lays[identifier] = self.init_kernel_lay(propty)
-      elif (identifier == "fcorr_xform"):
-        lays[identifier] = self.init_lay(identifier, propty)
       elif (identifier in ("thermo_update", "fcorr_compute", "dist_update")):
         propty["lay_id"] = {
           "thermo_update": ThermoUpdate,
@@ -156,9 +154,6 @@ class LinNonlinME(BaseNet):
     # > Molecule number density
     if (y["na"] is not None):
       nm = tf_layers.Rescaling(scale=0.5)(n_0-y["na"])
-      # # > Merge number densities (for training)
-      # if (self.callable_lays["mass"] and (not self.callable_lays["dist"])):
-      #   y["na"] = tf_layers.Concatenate()([y["na"], nm])
     # Predict temperature
     # -------------
     if self.callable_lays["temp"]:
@@ -172,10 +167,9 @@ class LinNonlinME(BaseNet):
       # > Update partition functions
       q = self.active_lays["thermo_update"](y["T"], qois="q_tot")
       # > Compute state-wise latent space
-      ln_t_pa = self.active_lays["log_t_pa"](t * y["na"] * UKB * y["T"])
-      f = tf_layers.Concatenate()([y_0, ln_t_pa])
-      f = self.active_lays["fcorr_xform"](f, training=training)
-      f = self.active_lays["fcorr_compute"](f, training=training)
+      f = self.active_lays["fcorr_compute"](
+        tf_layers.Concatenate()(x), training=training
+      )
       # > Update distribution
       y["nmi"] = self.active_lays["dist_update"](
         (t, y["na"], nm, y["T"], *q, nmi_0, f), training=training

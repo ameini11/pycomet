@@ -102,6 +102,7 @@ class PreNetBlock(nn_elem.Layer):
     self.dropout = dropout
     self.layer_norm = layer_norm
     self.blocks = []
+    i = 0
     for d in self.output_dim:
       if (d != 0):
         self.blocks.append(
@@ -111,9 +112,11 @@ class PreNetBlock(nn_elem.Layer):
             kernel_initializer=self.kernel_initializer,
             regularizer=self.regularizer,
             dropout=self.dropout,
-            layer_norm=self.layer_norm
+            layer_norm=self.layer_norm,
+            name=self.name + f'_coeff_{i}'
           )
         )
+        i += 1
       else:
         self.blocks.append(None)
     # Outputs manipulation
@@ -141,7 +144,7 @@ class PreNetBlock(nn_elem.Layer):
     if (self.out_xform is not None):
       y = self.out_xform(y)
     return y
-  
+
   def transform(self, x1, x2, training):
     # Kernel
     y = []
