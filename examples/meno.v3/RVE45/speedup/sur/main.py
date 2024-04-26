@@ -20,14 +20,12 @@ if __name__ == '__main__':
   # Inputs
   # =====================================
   # Paths
-  prefix =  "./../../adiabatic/"
+  prefix = "/home/zanardi/Codes/ML/PyCOMET/run/meno.v3/RVE45/adiabatic/"
   path_to_bkd = "./bkd"
   path_to_data = prefix + "/datagen/data/train_teval.hdf5"
   path_to_models = {
-    "sp_pade": prefix + "/single_pole/case.p4.siso.pade/saving/sp_meno_siso/inpfile.json",
-    "sp_taylor": prefix + "/single_pole/case.p4.siso.taylor/saving/sp_meno_siso/inpfile.json",
-    "mp_pade": prefix + "/multi_pole/case.p16.siso.pade/saving/mp_meno_siso/inpfile.json",
-    "mp_taylor": prefix + "/multi_pole/case.p16.siso.taylor/saving/mp_meno_siso/inpfile.json"
+    "full_f32": prefix + "/04.full/case.r02.p4.siso.f32/saving/full_me_siso/inpfile.json",
+    "full_f64": prefix + "/04.full/case.r02.p4.siso.f64/saving/full_me_siso/inpfile.json"
   }
   # Data
   repeat_data = 10

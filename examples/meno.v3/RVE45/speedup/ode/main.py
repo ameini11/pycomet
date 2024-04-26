@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
   # Inputs
   # =====================================
-  prefix = "./../../"
+  prefix = "/home/zanardi/Codes/ML/PyCOMET/run/meno.v3/RVE45/"
   # Number of scenarios
   scenarios = int(1e3)
   # Max order

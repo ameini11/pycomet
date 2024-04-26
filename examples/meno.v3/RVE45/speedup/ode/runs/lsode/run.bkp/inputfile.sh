@@ -24,7 +24,7 @@ READ_INIT_SOL = T
 # ---------------------------
 # Time-grid parameters
 TS = 0.d0
-TE = 1.00000d-03
+TE = 1.00000d-09
 DT_MAX = 1.d0
 DT_MIN = 1.d-15
 SF = 1.015d0

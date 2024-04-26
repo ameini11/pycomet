@@ -90,7 +90,7 @@ class SurrogateTimer(object):
     # Update inputs
     with open("./inputs.json") as file:
       inputs = json.load(file)
-    inputs["path_to_modelfile"] = self.paths["modelfile"]
+    inputs["path_to_modelfile"] = os.path.abspath(self.paths["modelfile"])
     inputs["path_to_datafile"] = self.paths["data"] + "/xdata.csv"
     inputs["nb_points"] = nb_points
     inputs["nb_repeat"] = nb_repeat
