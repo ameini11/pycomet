@@ -13,26 +13,23 @@ __all__ = [
 
 _NN_MOD = []
 
+from .chemkin import *
 from .don import *
-from .fno import *
 from .gno import *
+from .meno import *
 from .ffnn import FFNN
 from .mixednet import MixedNet
 
+from . import chemkin
 from . import elements as nn_elem
 from .don import blocks as don_blk
 from .gno import blocks as gno_blk
 from .gno import layers as gno_lay
-_NN_MOD.extend([nn_elem, don_blk, gno_blk, gno_lay])
-
-# Thermochemistry-specific models
-# =====================================
-import importlib
-lib = importlib.util.find_spec("hypernet")
-if (lib is not None):
-  from .chem import *
-  from . import chem
-  _NN_MOD.append(chem)
+from .meno import blocks as meno_blk
+from .meno import layers as meno_lay
+_NN_MOD.extend(
+  [chemkin, nn_elem, don_blk, gno_blk, gno_lay, meno_blk, meno_lay]
+)
 
 # TensorFlow default layers
 # =====================================

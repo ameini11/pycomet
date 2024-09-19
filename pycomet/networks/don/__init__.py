@@ -6,7 +6,7 @@ __all__ = [
   "OpNN"
 ]
 
-from .blocks import *
+# from .blocks import *
 from .augopnn import AugOpNN
 from .flexopnn import FlexOpNN
 from .mionet import MIONet

@@ -2,11 +2,11 @@ import numpy as np
 import tensorflow as tf
 
 from pycomet import utils
-from .utils import read_rates
 from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
+from silx.io.dictdump import h5todict
 _CFG = get_config()
 
 
@@ -26,7 +26,7 @@ class Operators(nn_elem.Layer):
     super(Operators, self).__init__(**kwargs)
     # Reaction rates
     self.nb_comp = None
-    self.rates = read_rates(rates)
+    self.rates = self.read_rates(rates)
     # Reactive processes
     self.reactions = list(self.rates.keys())
     self.reactions.sort()
@@ -47,6 +47,12 @@ class Operators(nn_elem.Layer):
       self.corr_scale = tf.squeeze(
         tf.constant(self.corr_scale, dtype=bkd.get_floatx())
       )
+
+  def read_rates(self, rates=None):
+    if (rates is not None):
+      if isinstance(rates, str):
+        rates = h5todict(h5file=rates)
+      return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
 
   def set_rates_values_indices(self, eps=1e-50):
     # Assemble Arrhenius 'A' matrix
