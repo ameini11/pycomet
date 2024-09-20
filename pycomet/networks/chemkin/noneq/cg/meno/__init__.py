@@ -1,5 +1,5 @@
 __all__ = [
-  "LinNonlinME"
+  "MENONonEqReac"
 ]
 
-from .lin_nonlin import LinNonlinME
+from .reactor import MENONonEqReac

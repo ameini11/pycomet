@@ -92,7 +92,8 @@ class Operators(nn_elem.Layer):
         updates=tf.transpose(data["sign"]*rates[data["direction"]])
       )
     k = ne * tf.transpose(k)
-    return tf.reshape(k, (-1,self.nb_comp,self.nb_comp))
+    k = tf.reshape(k, (-1,self.nb_comp,self.nb_comp))
+    return k
 
   # Configuration update
   # ===================================

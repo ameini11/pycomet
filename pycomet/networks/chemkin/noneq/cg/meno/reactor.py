@@ -14,7 +14,7 @@ from hypernet import const
 UKB = tf.constant(const.UKB, dtype=bkd.get_floatx())
 
 
-class LinNonlinME(BaseNet):
+class MENONonEqReac(BaseNet):
   """
   Master equation integral solution using:
   - Nonlinear: DeepONet-based surrogate for the nonlinear variables (na and T)
@@ -38,7 +38,7 @@ class LinNonlinME(BaseNet):
     *args,
     **kwargs
   ):
-    super(LinNonlinME, self).__init__(
+    super(MENONonEqReac, self).__init__(
       dim=dim,
       lays_name=lays_name,
       lays_propty=lays_propty,
@@ -166,9 +166,8 @@ class LinNonlinME(BaseNet):
       # > Update partition functions
       q = self.active_lays["thermo_update"](y["T"], qois="q_tot")
       # > Compute state-wise latent space
-      f = self.active_lays["fcorr_compute"](
-        tf_layers.Concatenate()(x), training=training
-      )
+      x = tf_layers.Concatenate()(x)
+      f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update distribution
       y["nmi"] = self.active_lays["dist_update"](
         (t, y["na"], nm, y["T"], *q, nmi_0, f), training=training

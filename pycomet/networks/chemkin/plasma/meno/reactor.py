@@ -5,7 +5,6 @@ from pycomet import utils
 from pycomet import networks
 from pycomet import backend as bkd
 from pycomet.networks.basenet import BaseNet
-from pycomet.networks import elements as nn_elem
 from pycomet.networks.meno.blocks import StateCorrection
 from keras import layers as tf_layers
 
@@ -14,12 +13,6 @@ UKB = tf.constant(UKB, dtype=bkd.get_floatx())
 
 
 class MENOPlasmaReac(BaseNet):
-  """
-  Master equation integral solution using:
-  - Nonlinear: DeepONet-based surrogate for the nonlinear variables
-  - Linear:    Matrix exponential-based integral solution for the
-               distribution function with a state-specific corrective factor.
-  """
 
   # Initialization
   # ===================================
