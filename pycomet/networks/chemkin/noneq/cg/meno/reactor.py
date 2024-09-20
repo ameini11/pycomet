@@ -1,17 +1,19 @@
 import tensorflow as tf
 
-from .blocks import *
 from pycomet import utils
 from pycomet import networks
 from pycomet import backend as bkd
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
-from pycomet.networks.meno.blocks import StateCorrection
 from keras import layers as tf_layers
 
-# HyperNet library
-from hypernet import const
-UKB = tf.constant(const.UKB, dtype=bkd.get_floatx())
+# Blocks
+from .blocks import SolUpdate, ThermoUpdate
+from pycomet.networks.meno.blocks import StateCorrection
+
+# Constants
+from scipy.constants import Boltzmann as UKB
+UKB = tf.constant(UKB, dtype=bkd.get_floatx())
 
 
 class MENONonEqReac(BaseNet):
