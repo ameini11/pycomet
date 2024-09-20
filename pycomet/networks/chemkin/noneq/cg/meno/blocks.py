@@ -61,21 +61,21 @@ class Operators(nn_elem.Layer):
   def set_rates_values_indices(self, eps=1e-50):
     # Assemble Arrhenius 'A' matrix
     # -------------
-    a = {p: 0.0 for p in self.processes}
+    A = {p: 0.0 for p in self.processes}
     for r in self.reactions:
       p = self._get_process(r)
-      a[p] = a[p] + self.rates[r]["A"]
+      A[p] = A[p] + self.rates[r]["A"]
       # Get number of components
       if (self.nb_comp is None):
-        self.nb_comp = a[p].shape[0]
+        self.nb_comp = A[p].shape[0]
     # Get non-zero rates constant
     # -------------
     # > Indices
     indices_2d = tf.nest.map_structure(
-      lambda z: np.where(z > eps), a
+      lambda z: np.where(z > eps), A
     )
     indices_1d = tf.nest.map_structure(
-      lambda z: np.where(z.reshape(-1) > eps)[0].reshape(-1,1), a
+      lambda z: np.where(z.reshape(-1) > eps)[0].reshape(-1,1), A
     )
     # > Values
     values_2d = {}
@@ -145,14 +145,14 @@ class Operators(nn_elem.Layer):
 
   def compose_lin_ops(self, rates, na):
     # > Excitation-Relaxation-Dissociation processes
-    k = rates["fwd"]["e"] + tf.transpose(rates["bwd"]["e"], perm=[0,2,1])
-    k = tf.linalg.set_diag(
-      input=tf.transpose(k, perm=[0,2,1]),
-      diagonal=-tf.math.reduce_sum(k, axis=-1)-rates["fwd"]["d"]
+    A = rates["fwd"]["e"] + tf.transpose(rates["bwd"]["e"], perm=[0,2,1])
+    A = tf.linalg.set_diag(
+      input=tf.transpose(A, perm=[0,2,1]),
+      diagonal=-tf.math.reduce_sum(A, axis=-1)-rates["fwd"]["d"]
     ) * tf.expand_dims(na, axis=-1)
     # > Recombination processes
-    w = rates["bwd"]["d"] * na**3
-    return k, w
+    b = rates["bwd"]["d"] * na**3
+    return A, b
 
   # Reaction rates
   # -----------------------------------
@@ -330,9 +330,9 @@ class SolUpdate(nn_elem.Layer):
     # Extract inputs
     t, na, nm, T, *q, nmi_0, f = inputs
     # Compute operators
-    k, w = self.operators((na, T, *q, f), training=training)
+    A, b = self.operators((na, T, *q, f), training=training)
     # Compute state-wise number densities
-    nmi = self.linode((t, nmi_0, k, w), training=training)
+    nmi = self.linode((t, nmi_0, A, b), training=training)
     # Ensure mass conservation
     nmi *= (nm / tf.math.reduce_sum(nmi, axis=-1, keepdims=True))
     return nmi

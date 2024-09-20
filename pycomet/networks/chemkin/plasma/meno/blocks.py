@@ -39,7 +39,7 @@ class Operators(nn_elem.Layer):
     # Set scatter update
     self.scatter_update = []
     i = self.rates["indices"]
-    k = np.arange(self.nb_comp**2).reshape(self.nb_comp,self.nb_comp)
+    K = np.arange(self.nb_comp**2).reshape(self.nb_comp,self.nb_comp)
     for (rows, cols, sign, direction) in (
       (0, 0, -1, "fwd"),
       (0, 1,  1, "bwd"),
@@ -49,7 +49,7 @@ class Operators(nn_elem.Layer):
       data = {
         "sign": tf.constant(sign, dtype=bkd.get_floatx()),
         "direction": direction,
-        "indices": tf.constant(k[i[rows],i[cols]], dtype="int32")
+        "indices": tf.constant(K[i[rows],i[cols]], dtype="int32")
       }
       self.scatter_update.append(data)
     # Set rates values and indices
@@ -84,16 +84,16 @@ class Operators(nn_elem.Layer):
     return tf.math.exp(corr)
 
   def compose_lin_ops(self, rates, ne):
-    k = tf.zeros((self.nb_comp**2, tf.shape(ne)[0]))
+    A = tf.zeros((self.nb_comp**2, tf.shape(ne)[0]))
     for data in self.scatter_update:
-      k = tf.scatter_nd_add(
-        tensor=k,
+      A = tf.scatter_nd_add(
+        tensor=A,
         indices=data["indices"],
         updates=tf.transpose(data["sign"]*rates[data["direction"]])
       )
-    k = ne * tf.transpose(k)
-    k = tf.reshape(k, (-1,self.nb_comp,self.nb_comp))
-    return k
+    A = ne * tf.transpose(A)
+    A = tf.reshape(A, (-1,self.nb_comp,self.nb_comp))
+    return A
 
   # Configuration update
   # ===================================
@@ -148,9 +148,9 @@ class SolUpdate(nn_elem.Layer):
     # Extract inputs
     t, nar_0, ne, f = inputs
     # Compute operators
-    k = self.operators((ne, f), training=training)
+    A = self.operators((ne, f), training=training)
     # Compute state-wise number densities
-    return self.linode((t, nar_0, k, None), training=training)
+    return self.linode((t, nar_0, A), training=training)
 
   # Configuration update
   # ===================================
