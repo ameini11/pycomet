@@ -10,7 +10,7 @@ def set(cfg=None):
   if (cfg is None):
     cfg = get_config()
   _set_floatx(getattr(cfg, "floatx", "float32"))
-  _set_epsilon()
+  _set_epsilon(getattr(cfg, "epsilon", None))
 
 # Precision
 # -------------------------------------
@@ -43,8 +43,8 @@ def get_epsilon():
 def _machine_eps():
   return float(finfo().eps)
 
-def _set_epsilon():
+def _set_epsilon(value=None):
   global _EPSILON
-  _EPSILON = _machine_eps()
+  _EPSILON = _machine_eps() if (value is None) else value
   for k in (bkd_py, bkd_ke):
     k.set_epsilon(_EPSILON)

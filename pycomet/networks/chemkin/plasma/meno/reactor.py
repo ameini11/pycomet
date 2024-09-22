@@ -1,13 +1,16 @@
 import tensorflow as tf
 
-from .blocks import *
 from pycomet import utils
 from pycomet import networks
 from pycomet import backend as bkd
 from pycomet.networks.basenet import BaseNet
-from pycomet.networks.meno.blocks import StateCorrection
 from keras import layers as tf_layers
 
+# Blocks
+from .blocks import PlasmaSolUpdate
+from pycomet.networks.meno.blocks import StateCorrection
+
+# Constants
 from scipy.constants import Boltzmann as UKB
 UKB = tf.constant(UKB, dtype=bkd.get_floatx())
 
@@ -78,7 +81,7 @@ class MENOPlasmaReac(BaseNet):
       elif (identifier in ("fcorr_compute", "argon_update")):
         propty["lay_id"] = {
           "fcorr_compute": StateCorrection,
-          "argon_update": SolUpdate
+          "argon_update": PlasmaSolUpdate
         }[identifier]
         lays[identifier] = self.init_lay(identifier, propty)
     return lays

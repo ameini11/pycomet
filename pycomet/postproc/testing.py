@@ -42,7 +42,7 @@ def plot_test(
   if (scales[0] is not None):
     ax.set_xscale(scales[0])
   if (xlim is not None):
-    ax.set_xlim(xlim)
+    ax.set_xlim(*xlim)
   elif (scales[0] != 'log'):
     ax.set_xlim([min(x), max(x)])
   # y-axis

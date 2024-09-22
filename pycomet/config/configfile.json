@@ -5,6 +5,7 @@
   "gpu_memory_growth": true,
   "dev_index": 0,
   "floatx": "float64",
+  "epsilon": 1e-15,
   "env": {
     "TF_CPP_MIN_LOG_LEVEL": "3",
     "HYPNET_CONFIGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/pycomet/config/hypcfg_tf.json"

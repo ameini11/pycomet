@@ -11,7 +11,7 @@ _CFG = get_config()
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class Operators(nn_elem.Layer):
+class PlasmaOperators(nn_elem.Layer):
   """Compute the linear operators for plasma reactor."""
 
   # Initialization
@@ -22,7 +22,7 @@ class Operators(nn_elem.Layer):
     use_corr=True,
     **kwargs
   ):
-    super(Operators, self).__init__(**kwargs)
+    super(PlasmaOperators, self).__init__(**kwargs)
     # Reaction rates
     self.rates = self.read_rates(rates)
     self.set_rates_values_indices()
@@ -32,10 +32,12 @@ class Operators(nn_elem.Layer):
   def read_rates(self, rates):
     if isinstance(rates, str):
       rates = h5todict(h5file=rates)
-    return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
+    rates = tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
+    rates["indices"] = rates["indices"].astype(np.int32)
+    return rates
 
   def set_rates_values_indices(self):
-    self.nb_comp = int(np.amax(self.rates["indices"]))
+    self.nb_comp = int(np.amax(self.rates["indices"]))+1
     # Set scatter update
     self.scatter_update = []
     i = self.rates["indices"]
@@ -46,10 +48,11 @@ class Operators(nn_elem.Layer):
       (1, 0,  1, "fwd"),
       (1, 1, -1, "bwd")
     ):
+      indices = K[i[rows],i[cols]].reshape(-1,1)
       data = {
         "sign": tf.constant(sign, dtype=bkd.get_floatx()),
         "direction": direction,
-        "indices": tf.constant(K[i[rows],i[cols]], dtype="int32")
+        "indices": tf.constant(indices, dtype="int32")
       }
       self.scatter_update.append(data)
     # Set rates values and indices
@@ -68,12 +71,18 @@ class Operators(nn_elem.Layer):
     # > f:  state-wise corrective factors
     ne, f = inputs
     # Correct reaction rates
+    rates = tf.nest.map_structure(tf.identity, self.rates_values)
     if self.use_corr:
       corr = self.compute_correction(f)
       for direction in ("fwd", "bwd"):
-        rates[direction] = corr * self.rates_values[direction]
+        rates[direction] *= corr
     else:
-      rates = self.rates_values
+      for direction in ("fwd", "bwd"):
+        rates[direction] = tf.repeat(
+          input=rates[direction],
+          repeats=tf.shape(ne)[0],
+          axis=0
+        )
     # Compose linear operators: A from dydt=A@y
     return self.compose_lin_ops(rates, ne)
 
@@ -84,9 +93,9 @@ class Operators(nn_elem.Layer):
     return tf.math.exp(corr)
 
   def compose_lin_ops(self, rates, ne):
-    A = tf.zeros((self.nb_comp**2, tf.shape(ne)[0]))
+    A = tf.zeros((self.nb_comp**2, tf.shape(ne)[0]), dtype=bkd.get_floatx())
     for data in self.scatter_update:
-      A = tf.scatter_nd_add(
+      A = tf.tensor_scatter_nd_add(
         tensor=A,
         indices=data["indices"],
         updates=tf.transpose(data["sign"]*rates[data["direction"]])
@@ -102,12 +111,12 @@ class Operators(nn_elem.Layer):
       "rates": self.rates,
       "use_corr": self.use_corr
     }
-    base_config = super(Operators, self).get_config()
+    base_config = super(PlasmaOperators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class SolUpdate(nn_elem.Layer):
+class PlasmaSolUpdate(nn_elem.Layer):
   """Matrix exponential-based update for plasma reactor."""
 
   # Initialization
@@ -125,9 +134,9 @@ class SolUpdate(nn_elem.Layer):
     inv_loss_weight=1e-3,
     **kwargs
   ):
-    super(SolUpdate, self).__init__(**kwargs)
-    # Operators layer
-    self.operators = Operators(
+    super(PlasmaSolUpdate, self).__init__(**kwargs)
+    # PlasmaOperators layer
+    self.operators = PlasmaOperators(
       rates=rates,
       use_corr=use_corr
     )
@@ -150,7 +159,11 @@ class SolUpdate(nn_elem.Layer):
     # Compute operators
     A = self.operators((ne, f), training=training)
     # Compute state-wise number densities
-    return self.linode((t, nar_0, A), training=training)
+    nar = self.linode((t, nar_0, A), training=training)
+    # Ensure conservation of Argon particles
+    nar /= tf.math.reduce_sum(nar, axis=-1, keepdims=True)
+    nar *= tf.math.reduce_sum(nar_0, axis=-1, keepdims=True)
+    return nar
 
   # Configuration update
   # ===================================
@@ -166,5 +179,5 @@ class SolUpdate(nn_elem.Layer):
       "add_inv_loss": self.linode.add_inv_loss,
       "inv_loss_weight": self.linode.inv_loss_weight
     }
-    base_config = super(SolUpdate, self).get_config()
+    base_config = super(PlasmaSolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

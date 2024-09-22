@@ -15,7 +15,7 @@ from hypernet.thermophysics import specie_thermo as st_mod
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class Operators(nn_elem.Layer):
+class NonEqOperators(nn_elem.Layer):
   """Compute the master equation operators for triatomic systems."""
 
   # Initialization
@@ -27,7 +27,7 @@ class Operators(nn_elem.Layer):
     corr_scale=None,
     **kwargs
   ):
-    super(Operators, self).__init__(**kwargs)
+    super(NonEqOperators, self).__init__(**kwargs)
     # Reaction rates
     self.nb_comp = None
     self.rates = self.read_rates(rates)
@@ -214,12 +214,12 @@ class Operators(nn_elem.Layer):
       "use_corr": self.use_corr,
       "corr_scale": ops.to_numpy(self.corr_scale)
     }
-    base_config = super(Operators, self).get_config()
+    base_config = super(NonEqOperators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class ThermoUpdate(nn_elem.Layer):
+class NonEqThermoUpdate(nn_elem.Layer):
 
   # Initialization
   # ===================================
@@ -231,7 +231,7 @@ class ThermoUpdate(nn_elem.Layer):
     },
     **kwargs
   ):
-    super(ThermoUpdate, self).__init__(**kwargs)
+    super(NonEqThermoUpdate, self).__init__(**kwargs)
     # Species thermodynamics
     specie_thermos.update({
       "thermo_process": 1,
@@ -282,12 +282,12 @@ class ThermoUpdate(nn_elem.Layer):
     config = {
       "specie_thermos": {"config": sp_th_cfg}
     }
-    base_config = super(ThermoUpdate, self).get_config()
+    base_config = super(NonEqThermoUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class SolUpdate(nn_elem.Layer):
+class NonEqSolUpdate(nn_elem.Layer):
   """Matrix exponential-based update for the master equation."""
 
   # Initialization
@@ -306,9 +306,9 @@ class SolUpdate(nn_elem.Layer):
     inv_loss_weight=1e-3,
     **kwargs
   ):
-    super(SolUpdate, self).__init__(**kwargs)
-    # Operators layer
-    self.operators = Operators(
+    super(NonEqSolUpdate, self).__init__(**kwargs)
+    # NonEqOperators layer
+    self.operators = NonEqOperators(
       rates=rates,
       use_corr=use_corr,
       corr_scale=corr_scale
@@ -352,5 +352,5 @@ class SolUpdate(nn_elem.Layer):
       "add_inv_loss": self.linode.add_inv_loss,
       "inv_loss_weight": self.linode.inv_loss_weight
     }
-    base_config = super(SolUpdate, self).get_config()
+    base_config = super(NonEqSolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

@@ -8,7 +8,7 @@ from pycomet.networks import elements as nn_elem
 from keras import layers as tf_layers
 
 # Blocks
-from .blocks import SolUpdate, ThermoUpdate
+from .blocks import NonEqSolUpdate, NonEqThermoUpdate
 from pycomet.networks.meno.blocks import StateCorrection
 
 # Constants
@@ -95,9 +95,9 @@ class MENONonEqReac(BaseNet):
         lays[identifier] = self.init_kernel_lay(propty)
       elif (identifier in ("thermo_update", "fcorr_compute", "dist_update")):
         propty["lay_id"] = {
-          "thermo_update": ThermoUpdate,
+          "thermo_update": NonEqThermoUpdate,
           "fcorr_compute": StateCorrection,
-          "dist_update": SolUpdate
+          "dist_update": NonEqSolUpdate
         }[identifier]
         lays[identifier] = self.init_lay(identifier, propty)
     return lays

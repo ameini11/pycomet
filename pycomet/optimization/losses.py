@@ -133,8 +133,8 @@ def get_loss_fn(
 
 # Custom loss functions
 # =====================================
-@keras_export('keras.losses.PcmLossFunctionWrapper')
-class PcmLossFunctionWrapper(tf_losses.LossFunctionWrapper):
+@keras_export('keras.losses.PCMLossFunctionWrapper')
+class PCMLossFunctionWrapper(tf_losses.LossFunctionWrapper):
 
   def __init__(
     self,
@@ -191,7 +191,7 @@ class PcmLossFunctionWrapper(tf_losses.LossFunctionWrapper):
 # MAE
 # -------------------------------------
 @keras_export('keras.losses.MeanAbsoluteError')
-class MeanAbsoluteError(PcmLossFunctionWrapper):
+class MeanAbsoluteError(PCMLossFunctionWrapper):
 
   def __init__(
     self,
@@ -219,7 +219,7 @@ def mean_absolute_error(y_true, y_pred):
 # MALPE
 # -------------------------------------
 @keras_export('keras.losses.MeanAbsoluteLogarithmicPercentageError')
-class MeanAbsoluteLogarithmicPercentageError(PcmLossFunctionWrapper):
+class MeanAbsoluteLogarithmicPercentageError(PCMLossFunctionWrapper):
 
   def __init__(
     self,
@@ -249,7 +249,7 @@ def mean_absolute_logarithmic_percentage_error(y_true, y_pred):
 # MAPE
 # -------------------------------------
 @keras_export('keras.losses.MeanAbsolutePercentageError')
-class MeanAbsolutePercentageError(PcmLossFunctionWrapper):
+class MeanAbsolutePercentageError(PCMLossFunctionWrapper):
 
   def __init__(
     self,
@@ -278,7 +278,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
 # MSE
 # -------------------------------------
 @keras_export('keras.losses.MeanSquaredError')
-class MeanSquaredError(PcmLossFunctionWrapper):
+class MeanSquaredError(PCMLossFunctionWrapper):
 
   def __init__(
     self,
@@ -306,7 +306,7 @@ def mean_squared_error(y_true, y_pred):
 # MSLE
 # -------------------------------------
 @keras_export('keras.losses.MeanSquaredLogarithmicError')
-class MeanSquaredLogarithmicError(PcmLossFunctionWrapper):
+class MeanSquaredLogarithmicError(PCMLossFunctionWrapper):
 
   def __init__(
     self,
@@ -336,7 +336,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
 # GNLLL
 # -------------------------------------
 @keras_export('keras.losses.GaussianNLLLoss')
-class GaussianNLLLoss(PcmLossFunctionWrapper):
+class GaussianNLLLoss(PCMLossFunctionWrapper):
 
   def __init__(
     self,
@@ -376,7 +376,7 @@ def gaussian_nll_loss(y_true, y_pred, full=False):
 # ZERO
 # -------------------------------------
 @keras_export('keras.losses.Zero')
-class Zero(PcmLossFunctionWrapper):
+class Zero(PCMLossFunctionWrapper):
 
   def __init__(
     self,

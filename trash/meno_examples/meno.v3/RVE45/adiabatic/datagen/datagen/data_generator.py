@@ -1,0 +1,624 @@
+import os
+import json
+import shutil
+import subprocess
+import numpy as np
+import scipy as sp
+import pandas as pd
+import joblib as jl
+import pycomet as pcm
+import tensorflow as tf
+
+from pyDOE import lhs
+from tqdm import tqdm
+from silx.io.dictdump import dicttoh5, h5todict
+from pycomet.sampling import DifferentialBased
+
+# HyperNet package
+from hypernet import const
+from hypernet import backend as hypbkd
+from hypernet.apps import utils as hyputils
+from hypernet.thermophysics import specie_thermo as st_mod
+
+
+class DataGenerator(pcm.data.BaseDataGenerator):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    time_lim=[0,1],
+    time_eps=1e-15,
+    time_eval=None,
+    t_pa_eps=1e-10,
+    inp_space={},
+    svd=None,
+    read_init_sols=False,
+    save_sols_only=False,
+    train_pts=32,
+    scenarios=100,
+    test_cases=10,
+    validation_split=0.2,
+    path_to_physics="./physics",
+    ref_phy_model=None,
+    groups_splits=None,
+    grad_split=0.75,
+    load_plato="module load plato",
+    nb_workers=4,
+    nb_threads=4,
+    *args,
+    **kwargs
+  ):
+    super(DataGenerator, self).__init__(*args, **kwargs)
+    # Paths
+    # ---------------------------------
+    self.cwd = os.getcwd()
+    self.path_to_data = self.cwd + "/data/"
+    self.path_to_runs = self.cwd + "/datagen/runs/"
+    self.path_to_physics = path_to_physics
+    os.makedirs(self.path_to_data, exist_ok=True)
+    # Control variables
+    # -----------------------------------
+    self.read_init_sols = read_init_sols
+    # Save solutions for low-rank approximation calculations
+    self.save_sols_only = save_sols_only
+    # Data quantities
+    # ---------------------------------
+    self.valid_pts = round(validation_split*train_pts)
+    self.train_pts = train_pts - self.valid_pts
+    self.scenarios = scenarios
+    self.test_cases = test_cases
+    # Dynamics sampler
+    self.time_lim = time_lim
+    self.time_eps = time_eps
+    self.time_eval = time_eval
+    self.t_pa_eps = t_pa_eps
+    if (self.time_eval is not None):
+      self.time_eval = np.array(self.time_eval).squeeze()
+    self.dyn_sampler = DifferentialBased(
+      method="source",
+      grad_split=grad_split,
+      xlim=np.log(self.time_lim)
+    )
+    # Input space
+    self.inp_space = np.vstack(list(inp_space.values())).T
+    self.inp_space_lbl = list(inp_space.keys())
+    # Initializing thermophysical models
+    # -----------------------------------
+    self.ref_phy_model = ref_phy_model
+    self.init_thermophysics()
+    if (not self.save_sols_only):
+      self.set_states_and_rates()
+    # Initializing thermophysical models
+    # -----------------------------------
+    if ((not self.save_sols_only) and (groups_splits is not None)):
+      with open(self.path_to_data+'/groups_graph.json', 'w') as f:
+        json.dump(self.generate_graph(groups_splits), f, indent=2)
+    # SVD decomposition
+    # -----------------------------------
+    self.svd = svd
+    self.compute_svd_coeff = (self.svd is not None)
+    if self.compute_svd_coeff:
+      self.svd = tf.nest.map_structure(np.loadtxt, self.svd)
+      self.svd_nb_coeff = {}
+      for (k, ksvd) in self.svd.items():
+        self.svd_nb_coeff[k] = ksvd["phi"].shape[1] + 2
+    # Labeling data
+    # -----------------------------------
+    # Box solution
+    self.xi_names = [f"X_{s}" for s in self.species]
+    self.box_lbl = ["t"] + self.xi_names + ["T", "rho", "p", "n", "E"]
+    # Dataset
+    self.data_lbl = [f"n_{self.atom}_0"] \
+      + [f"n_{s}_0" for s in self.species[1:]] \
+      + ["T_0", "t"] + [f"n_{self.atom}"] \
+      + [f"n_{s}" for s in self.species[1:]] + ["T", f"n_{self.molecule}"] \
+      + [f"n_{self.atom}_0", "n_0", f"e_{self.molecule}_0", "T_0"] \
+      + [f"log_t_p{self.atom}"]
+    # Environment
+    # -----------------------------------
+    self.env = pcm.utils.load_external_module(load_plato)
+    # Multi-threading
+    self.nb_workers = nb_workers
+    self.nb_threads = nb_threads
+
+  # Initializing thermophysical models
+  # ===================================
+  def init_thermophysics(self):
+    self.phy_models = {}
+    for (k, path) in self.path_to_physics.items():
+      with open(path + "/inputs.json") as file:
+        inp = json.load(file)
+      # Species thermo
+      sp_th = hyputils._get_specie_thermos(inp)
+      # Mixture
+      mix = hyputils._get_mixture(inp, sp_th)
+      # Kinetics
+      kin = hyputils._get_kinetics(inp, sp_th, mix)
+      # Storing
+      self.phy_models[k] = {"sp_th": sp_th, "mix": mix, "kin": kin}
+    # Set reference thermophysical model
+    for (k, v) in self.phy_models[self.ref_phy_model].items():
+      setattr(self, k, v)
+    # Set species
+    self.species = []
+    for st in self.sp_th.values():
+      if (st.specie.nb_comp > 1):
+        self.species.extend([
+          st.specie.name + f"_{i+1}" for i in range(st.specie.nb_comp)
+        ])
+        self.molecule = st.specie.name
+      else:
+        self.species.append(st.specie.name)
+        self.atom = st.specie.name
+
+  # Set node/edge static attributes
+  # ===================================
+  def set_states_and_rates(self):
+    for (name, model) in self.phy_models.items():
+      self._set_states(name, model["sp_th"])
+      self._set_rates(name, model["kin"])
+
+  def _set_states(self, name, sp_th):
+    sp = sp_th[self.molecule].specie
+    # Probability matrix
+    P = hypbkd.to_numpy(sp.mappings["lev"])
+    # StS energies
+    ei = [hypbkd.to_numpy(sp.lev[k]) for k in ("ERot", "EVib")]
+    ei = np.stack(ei, axis=1)
+    # CG energies
+    eg = (np.matmul(ei.T, P) / np.sum(P, axis=0, keepdims=True)).T
+    # CG normalized energies
+    eg_min = np.amin(eg[eg>0])*1e-2
+    eg_norm = np.log((eg+eg_min)/const.eV_to_J)
+    eg_std = np.std(eg_norm, axis=0, keepdims=True)
+    eg_mean = np.mean(eg_norm, axis=0, keepdims=True)
+    eg_norm = (eg_norm - eg_mean) / eg_std
+    # Saving energies
+    path = self.path_to_data + f"/physics/{name}/states/"
+    os.makedirs(path, exist_ok=True)
+    np.savetxt(path + "/energies.txt", eg, fmt="%.8e")
+    np.savetxt(path + "/energies_norm.txt", eg_norm, fmt="%.8e")
+
+  def _set_rates(self, name, kin):
+    # Define function to read parameters
+    get_param = lambda reaction: {
+      k: getattr(reaction.fwd, k) for k in ("A", "beta", "Ta")
+    }
+    # Loop over processes
+    rates = {}
+    for reaction in kin.reactions:
+      p = str(reaction.param["process"])
+      rates[p] = get_param(reaction)
+    rates = tf.nest.map_structure(
+      lambda x: hypbkd.to_numpy(x).squeeze(), rates
+    )
+    # Saving rates
+    path = self.path_to_data + f"/physics/{name}/"
+    os.makedirs(path, exist_ok=True)
+    dicttoh5(
+      treedict=rates,
+      h5file=path + "/rates.hdf5",
+      overwrite_data=True
+    )
+
+  def generate_graph(self, splits, i=0):
+    idx = lambda j: splits[0]*i + j
+    if (len(splits) == 1):
+      indices = np.arange(splits[0]) + splits[0]*i
+      return indices.astype(np.int32).tolist()
+    else:
+      return {
+        idx(j): self.generate_graph(splits[1:], i=idx(j)) \
+          for j in range(splits[0])
+      }
+
+  # Generate data
+  # ===================================
+  def get_data_src(
+    self
+  ):
+    data_src = {}
+    # Sampling input space
+    if self.read_init_sols:
+      pcm.utils.print_fn("Reading sampled input space", lev=1)
+      init_sols = h5todict(self.path_to_runs + "/samples/init_sols.hdf5")
+    else:
+      pcm.utils.print_fn("Sampling input space", lev=1)
+      init_sols = self.sample_inp_space()
+    # Generate training/validation data
+    pcm.utils.print_fn("Training/validation data", lev=1)
+    data_src.update(self.training_data(init_sols))
+    # Generate testing data
+    data_src.update(self.testing_data(init_sols))
+    return data_src
+
+  # Sample initial conditions
+  # ===================================
+  def sample_inp_space(self):
+    # Contruct design matrix (DM)
+    d = self.inp_space.shape[1]
+    s = self.scenarios * 2 + self.test_cases
+    x = lhs(d, s)
+    # Sorting w.r.t. norm
+    i = np.linalg.norm(x, axis=-1).argsort()
+    x = x[i]
+    # Rescale DM
+    x = x * (self.inp_space[1] - self.inp_space[0]) + self.inp_space[0]
+    # Restructure DM
+    x = np.split(x, x.shape[-1], axis=-1)
+    x = {k: x[i].reshape(-1,1) for (i, k) in enumerate(self.inp_space_lbl)}
+    # From input space to primitive variables
+    x = self.inp_to_prim(x)
+    # Splitting sampled initial solutions
+    if (self.test_cases > 0):
+      indices = pcm.utils.stratified_sampling(np.arange(s), self.test_cases)
+      samples = [tf.nest.map_structure(lambda z: z[i], x) for i in indices]
+      samples = {
+        "train": samples[0][0::2],
+        "valid": samples[0][1::2],
+        "test": samples[1]
+      }
+    else:
+      samples = {
+        "train": x[0::2],
+        "valid": x[1::2]
+      }
+    # Saving sampled initial solutions
+    os.makedirs(self.path_to_runs + "/samples/", exist_ok=True)
+    dicttoh5(
+      treedict=samples,
+      h5file=self.path_to_runs + "/samples/init_sols.hdf5",
+      overwrite_data=True,
+      create_dataset_args={"compression": "gzip"}
+    )
+    # Returning sampled initial solutions
+    return samples
+
+  def inp_to_prim(
+    self,
+    samples
+  ):
+    samples = tf.nest.map_structure(tf.constant, samples)
+    # Set initial composition
+    samples[f"X_{self.molecule}"] = 1 - samples[f"X_{self.atom}"]
+    self.mix.init_mix(
+      x={k: samples[f"X_{k}"] for k in self.sp_th.keys()},
+      var="X",
+      p_mix=samples["p"],
+      T=samples["Ti"],
+      flatten=False
+    )
+    # Collect primitive variables
+    prim_var = []
+    for st in self.sp_th.values():
+      prim_var.append(st.specie.rho)
+    prim_var.append(samples["T"])
+    return tf.concat(tuple(prim_var), axis=1).numpy()
+
+  # Compute solutions
+  # ===================================
+  def compute_solutions(
+    self,
+    path,
+    dataid,
+    init_sols
+  ):
+    if (not os.path.exists(path + "/sols.hdf5")):
+      pcm.utils.print_fn(f"Computing 0D cases: {dataid}", lev=2)
+      # Computing solutions
+      sols = jl.Parallel(self.nb_workers)(
+        jl.delayed(self.compute_solution)(
+          path=self.path_to_runs,
+          case_nb=i,
+          init_sol=init_sol
+        ) for (i, init_sol) in enumerate(tqdm(init_sols, ncols=80))
+      )
+      # Filter solutions
+      sols = {i: c for (i, c) in sols if (c is not None)}
+      # Saving computed solutions
+      pcm.utils.print_fn(f"Saving 0D cases: {dataid}", lev=2)
+      os.makedirs(path, exist_ok=True)
+      dicttoh5(
+        treedict=sols,
+        h5file=path + "/sols.hdf5",
+        overwrite_data=True,
+        create_dataset_args={"compression": "gzip"}
+      )
+    else:
+      pcm.utils.print_fn(f"Reading 0D cases: {dataid}", lev=2)
+      sols = h5todict(path + "/sols.hdf5")
+    return sols
+
+  # Compute/Read solution
+  # -----------------------------------
+  def compute_solution(
+    self,
+    path,
+    case_nb,
+    init_sol
+  ):
+    # Create run folder
+    case_id = str(int(case_nb+1)).zfill(6)
+    case_path = shutil.copytree(
+      path + f"/run.bkp",
+      path + f"/run.{case_id}",
+      dirs_exist_ok=True
+    )
+    os.chdir(case_path)
+    # Write initial solution for PLATO
+    with open("init_sol.dat", "w") as file:
+      np.savetxt(file, init_sol.reshape(-1))
+    try:
+      # Run 0D simulation
+      subprocess.run(
+        f"box inputfile.sh {self.nb_threads}",
+        shell=True,
+        env=self.env,
+        timeout=1e2,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT
+      )
+      # Postprocess solution
+      sol = self.read_solution(path_to_sol="./output_box/")
+    except subprocess.TimeoutExpired:
+      sol = None
+    # Delete run folder
+    os.chdir(self.cwd)
+    shutil.rmtree(case_path)
+    # Return solution
+    return (case_id, sol)
+
+  def read_solution(
+    self,
+    path_to_sol=None
+  ):
+    # Read box file
+    box = np.loadtxt(path_to_sol + "/box.dat")
+    if (box < 0).any():
+      return None
+    box = pd.DataFrame(box, columns=self.box_lbl)
+    # Get solution
+    t, n, T = [box[k].to_numpy().reshape(-1,1) for k in ("t", "n", "T")]
+    n = n * box[self.xi_names].to_numpy()
+    y = np.hstack([n,T])
+    return {"t": t, "y": y}
+
+  # Postprocess solution
+  # -----------------------------------
+  def postproc_solution(self, sol, nb_pts=-1, teval=None):
+    sol = [sol[k] for k in ("t", "y")]
+    # # Get SVD coefficients for decomposition
+    # if self.compute_svd_coeff:
+    #   w = self.svd_decomp(*sol)
+    # Limit solution in time
+    sol = self.limit_solution(*sol)
+    # Interpolate solution in time
+    if (teval is not None):
+      sol = self.interpolate_solution(*sol, teval)
+    # Sample solution in time
+    if (nb_pts > 0):
+      sol = self.sample_solution(*sol, nb_pts)
+    # Get physical QoI
+    sol = self.prim_to_phys(*sol)
+    # # Store SVD coefficients for decomposition
+    # if self.compute_svd_coeff:
+    #   sol["svd"] = w
+    return sol
+
+  def limit_solution(self, t, y):
+    idx = np.argwhere(
+      (t.squeeze() >= self.time_lim[0]) * (t.squeeze() <= self.time_lim[1])
+    ).squeeze()
+    return t[idx], y[idx]
+
+  def interpolate_solution(self, t, y, teval):
+    t, y = t.squeeze(), np.log(y)
+    y = sp.interpolate.interp1d(t, y.T, kind='cubic')(teval).T
+    return teval, np.exp(y)
+
+  def sample_solution(self, t, y, nb_pts):
+    idx = self.dyn_sampler.sample(
+      x=np.log(t+self.time_eps).reshape(-1,1),
+      y=y,
+      nb_pts=nb_pts
+    )
+    return t[idx], y[idx]
+
+  def prim_to_phys(self, t, y):
+    # Manipulate primitive variables
+    n, T = y[:,:-1], y[:,-1:]
+    # Update thermochemistry and mixture
+    st_mod.update_specie_thermos(self.sp_th, T)
+    self.mix.update(n)
+    # Store physical variables
+    phys = {
+      "t": t,
+      "T": T,
+      "n": np.sum(n, axis=-1, keepdims=True)
+    }
+    phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
+    for (name, st) in self.sp_th.items():
+      phys["X_"+name] = st.specie.X
+    return phys
+
+  # # SVD decomposition
+  # # -----------------------------------
+  # def svd_decomp(self, t, y):
+  #   sol = self.prim_to_phys(t, y)
+  #   # Extract variables
+  #   var = ("t", "T", "n", f"X_{self.atom}")
+  #   t, T, n, Xa = [sol[k].reshape(-1) for k in var]
+  #   # Compute QoI for SVD decomposition
+  #   na = Xa * n
+  #   pa = na * const.UKB * T
+  #   tp = t * pa
+  #   # Compute SVD coefficients
+  #   w = {}
+  #   yi = {"T": T, "na": na, "pa": pa}
+  #   for (k, ksvd) in self.svd.items():
+  #     w[k] = self._svd_coeff(
+  #       t_in=tp, t_out=ksvd["tp"], y=yi[k], phi=ksvd["phi"]
+  #     )
+  #   # Return all the coefficients
+  #   return w
+
+  # def _svd_coeff(self, t_in, t_out, y, phi):
+  #   # Interpolate data onto bases grid
+  #   y = self._svd_interpolate(t_in, t_out, y)
+  #   # Normalize data
+  #   m = np.mean(y).reshape(1)
+  #   s = np.std(y).reshape(1)
+  #   y = (y - m) / s
+  #   # Compute SVD coefficients using OLS
+  #   w = self._svd_ols(phi, y)
+  #   # Return all the coefficients
+  #   return np.concatenate([m,s,w]).reshape(-1)
+
+  # def _svd_interpolate(self, t_in, t_out, y):
+  #   # Extend domain
+  #   t_in = np.concatenate([t_in, t_in[-1:]*1e2])
+  #   y = np.concatenate([y, y[-1:]])
+  #   # Interpolate
+  #   return sp.interpolate.interp1d(t_in, y, kind='cubic')(t_out)
+
+  # def _svd_ols(self, x, y):
+  #   # Ordinary least squares (OLS) algorithm
+  #   # > Compute Gram matrix
+  #   gr = np.matmul(x.T, x)
+  #   # > Inverse of Gram matrix
+  #   gri = np.linalg.inv(gr)
+  #   # > Moment matrix
+  #   ym = np.matmul(x.T, y)
+  #   # > Compute coefficients
+  #   w = np.matmul(gri, ym)
+  #   return w
+
+  # Manage data
+  # ===================================
+  def get_data(self, sol, nb_pts=-1, teval=None):
+    sol = self.postproc_solution(sol, nb_pts, teval)
+    # Extract variables
+    t, T, n = [sol[k].reshape(-1,1) for k in ("t", "T", "n")]
+    na, nmi = [sol[f"X_{s}"] * n for s in self.sp_th.keys()]
+    # Inputs
+    # -------------
+    nb_pts = len(t)
+    x = [np.tile(z[0].reshape(1,-1), (nb_pts,1)) for z in (na, nmi, T)] + [t]
+    # > Inputs to normalize
+    # -------------
+    # Compute moments of the distribution
+    st_mod.update_specie_thermos(self.sp_th, T[:1])
+    emi_0 = self.sp_th[self.molecule].thermo.int.e
+    nm_0 = np.sum(nmi[:1], axis=-1, keepdims=True)
+    em_0 = np.sum(nmi[:1]*emi_0, axis=-1, keepdims=True) / nm_0
+    # Assemble normalizable inputs
+    x_0 = [na[:1], na[:1]+2*nm_0, em_0, T[:1]]
+    x_0 = np.tile(np.concatenate(x_0).reshape(1,-1), (nb_pts,1))
+    ln_t_pa = np.log(t * na * const.UKB * T + self.t_pa_eps)
+    x_norm = np.hstack([x_0, ln_t_pa])
+    # Outputs
+    # -------------
+    nm = np.sum(nmi, axis=-1, keepdims=True)
+    y = [na, nmi, T, nm]
+    # Return data
+    return [x, y, x_norm]
+
+  def stack_data(self, data, data_new, data_type):
+    if (data_type not in data):
+      data[data_type] = data_new
+    else:
+      data[data_type] = tf.nest.map_structure(
+        lambda x, y: np.concatenate((x,y), axis=0),
+        data[data_type],
+        data_new
+      )
+    return data
+
+  def save_data(self, filename, data, bounds=False):
+    data = np.hstack(tf.nest.flatten(data))
+    df = pd.DataFrame(data, columns=self.data_lbl)
+    df.to_csv(filename + ".csv", index=0, float_format="%.10e")
+    if bounds:
+      bd = np.vstack([np.amin(data, axis=0), np.amax(data, axis=0)])
+      df = pd.DataFrame(bd, columns=self.data_lbl)
+      df.to_csv(filename + "_bounds.csv", index=0, float_format="%.10e")
+
+  # Training/Validation data
+  # ===================================
+  def training_data(
+    self,
+    init_sols
+  ):
+    # Generating data
+    data = {}
+    for k in ("train", "valid"):
+      # Computing 0D data
+      sols = self.compute_solutions(
+        path=self.path_to_runs + f"/samples/data/{k}/",
+        dataid=k,
+        init_sols=init_sols[k]
+      )
+      # Sampling 0D data
+      if (not self.save_sols_only):
+        pcm.utils.print_fn(f"Sampling 0D cases: {k}", lev=2)
+        nb_pts = self.train_pts if (k == "train") else self.valid_pts
+        for sol in tqdm(sols.values(), ncols=80):
+          data_i = self.get_data(sol, nb_pts)
+          data = self.stack_data(data, data_i, k)
+        # Save data in a 'csv' file
+        filename = self.path_to_data + f"/{k}"
+        self.save_data(filename, data[k], bounds=True)
+      # Specific time instants to evaluate
+      if (self.time_eval is not None):
+        pcm.utils.print_fn(
+          f"Extract solution at specific time instants: {k}", lev=2
+        )
+        # Prepare data container
+        teval = ["{:.2e}".format(tj) for tj in self.time_eval]
+        teval_data = {tj: [] for tj in teval}
+        # Interpolate solution
+        _teval_data = jl.Parallel(self.nb_workers)(
+          jl.delayed(self.get_data)(
+            sol, teval=self.time_eval
+          ) for sol in tqdm(sols.values(), ncols=80)
+        )
+        _teval_data = [np.hstack(tf.nest.flatten(d)) for d in _teval_data]
+        # Assemble interpolated data
+        for data_i in _teval_data:
+          for (j, data_ij) in enumerate(data_i):
+            teval_data[teval[j]].append(data_ij)
+        teval_data = {
+          tj: np.vstack(data_j) for (tj, data_j) in teval_data.items()
+        }
+        # Save interpolated data
+        dicttoh5(
+          treedict=teval_data,
+          h5file=self.path_to_data + f"/{k}_teval.hdf5",
+          overwrite_data=True,
+          create_dataset_args={"compression": "gzip"}
+        )
+    return data
+
+  # Testing data
+  # ===================================
+  def testing_data(
+    self,
+    init_sols
+  ):
+    data = {}
+    if (("test" in init_sols) and (not self.save_sols_only)):
+      path = self.path_to_data + "/test/"
+      os.makedirs(path, exist_ok=True)
+      # Computing 0D data
+      sols = self.compute_solutions(
+        path=self.path_to_runs + "/samples/data/test/",
+        dataid="test",
+        init_sols=init_sols["test"]
+      )
+      # Saving 0D data
+      for (i, sol) in tqdm(sols.items(), ncols=80):
+        ikey = "case_" + i
+        data[ikey] = self.get_data(sol)
+        self.save_data(filename=path+f"/{ikey}", data=data[ikey])
+    return data
