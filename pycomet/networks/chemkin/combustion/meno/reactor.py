@@ -41,14 +41,14 @@ class MENOPOLLUReac(BaseNet):
     # Layers names
     if (lays_name == None):
       self.lays_name = self.lays_name + (
-        "log_t_pe", "ic_xform", "electron", "fcorr_compute", "argon_update"
+        "log_t", "ic_xform", "electron", "fcorr_compute", "y_lin_update"
       )
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("log_t_pe", "ic_xform"),
+      not_opt=("log_t", "ic_xform"),
       default=self.default_lays_propty
     )
     # Initializing
@@ -60,21 +60,21 @@ class MENOPOLLUReac(BaseNet):
       self.callable_lays["electron"] = True \
         if ("electron" in self.active_lays) else False
       self.callable_lays["argon"] = True \
-        if ("argon_update" in self.active_lays) else False
+        if ("y_lin_update" in self.active_lays) else False
 
   # Layers initialization
   # -----------------------------------
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier in ("log_t_pe", "ic_xform")):
+      if (identifier in ("log_t", "ic_xform")):
         lays[identifier] = self.init_lay(identifier, propty)
-      elif (identifier == "electron"):
+      elif (identifier in ("y1", "y2", "y6")):
         lays[identifier] = self.init_kernel_lay(propty)
-      elif (identifier in ("fcorr_compute", "argon_update")):
+      elif (identifier in ("fcorr_compute", "y_lin_update")):
         propty["lay_id"] = {
           "fcorr_compute": StateCorrection,
-          "argon_update": POLLUSolUpdate
+          "y_lin_update": POLLUSolUpdate
         }[identifier]
         lays[identifier] = self.init_lay(identifier, propty)
     return lays
@@ -93,39 +93,41 @@ class MENOPOLLUReac(BaseNet):
     # Set outputs
     # -------------
     y = {
-      "nar": None, # Argon n.d.    [1/m^3]: shape = [n,g]
-      "ne": None   # Electron n.d. [1/m^3]: shape = [n,1]
+      "y_lin": None, # Linear state variables
+      "y_nlin": None # Nonlinear state variables
     }
-    argon_only = False
+    nlin_only = False
     # Extract inputs
     # -------------
-    nar_0, ne_0, Te, t, ne_t = utils.unpack_list(inputs, nb_elem=5)
+    y_l_0, y_nl_0, t, y_nl_t = utils.unpack_list(inputs, nb_elem=5)
     # Compose inputs
     # -------------
-    y_0 = tf_layers.Concatenate()([nar_0, ne_0])
-    y_0_xform = self.active_lays["ic_xform"](y_0)
-    ln_t_pe_0 = self.active_lays["log_t_pe"](t * ne_0 * UKB * Te)
-    x = [y_0_xform, ln_t_pe_0]
+    y_0 = tf_layers.Concatenate()([y_l_0, y_nl_0])
+    x = [
+      self.active_lays["ic_xform"](y_0),
+      self.active_lays["log_t"](t)
+    ]
     # Predict species
     # -------------
     # > Electron number density
-    if self.callable_lays["electron"]:
-      y["ne"] = ne_0 * self.active_lays["electron"](x, training=training)
-    elif self.callable_lays["argon"]:
-      y["ne"] = ne_t
-      argon_only = True
+    if self.callable_lays["y_nlin"]:
+      # y["ne"] = ne_0 * self.active_lays["electron"](x, training=training)
+      pass
+    elif self.callable_lays["y_lin"]:
+      y["y_nlin"] = y_nl_t
+      nlin_only = True
     # > Argon number density
-    if self.callable_lays["argon"]:
+    if self.callable_lays["y_lin"]:
       # > Compute state-wise latent space
       x = tf_layers.Concatenate()(x)
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update Argon distribution
-      y["nar"] = self.active_lays["argon_update"](
-        (t, nar_0, y["ne"], f), training=training
+      y["y_lin"] = self.active_lays["y_lin_update"](
+        (t, y_nl_0, y["y_nlin"], f), training=training
       )
     # Return predictions
     # -------------
-    if argon_only:
-      return y["nar"]
+    if nlin_only:
+      return y["y_lin"]
     else:
-      return [y[k] for k in ("nar", "ne") if (y[k] is not None)]
+      return [y[k] for k in ("y_lin", "y_nlin") if (y[k] is not None)]
