@@ -342,7 +342,7 @@ class NonEqSolUpdate(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
+      "rates": self.operators.rates,
       "use_corr": self.operators.use_corr,
       "corr_scale": ops.to_numpy(self.operators.corr_scale),
       "use_pade": self.linode.use_pade,
