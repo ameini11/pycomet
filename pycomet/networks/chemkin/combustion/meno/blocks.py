@@ -132,11 +132,14 @@ class POLLUOperators(nn_elem.Layer):
   def compute_rate(self, r, f, batch_size):
     k = self.rates_values[r]
     if self.use_corr:
-      pass
-      # corr = tf.gather(f, indices=self.rates_indices[0], axis=-2) \
-      #      - tf.gather(f, indices=self.rates_indices[1], axis=-2)
-      # corr = tf.math.reduce_sum(corr, axis=-1)
-      # return tf.math.exp(corr)
+      corr = []
+      for k in ("reac", "prod"):
+        ik = tf.squeeze(tf.where(self.rates_indices[k]["i"][r]))
+        fk = tf.gather(f, indices=ik, axis=-2)
+        fk = tf.math.reduce_sum(fk, axis=-2, keepdims=True)
+        corr.append(fk)
+      corr = tf.math.reduce_sum(corr[0]-corr[1], axis=-1)
+      return tf.math.exp(corr) * k
     else:
       return tf.repeat(
         input=tf.reshape(k, (1,1)),
@@ -189,6 +192,7 @@ class POLLUOperators(nn_elem.Layer):
   def get_config(self):
     config = {
       "rates": self.rates,
+      "species_split": self.species_split,
       "use_corr": self.use_corr
     }
     base_config = super(POLLUOperators, self).get_config()
@@ -204,12 +208,15 @@ class POLLUSolUpdate(nn_elem.Layer):
   def __init__(
     self,
     rates,
+    species_split,
     use_corr=True,
+    epsilon=1e-12,
     use_pade=False,
     use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
     expm_dtype=None,
+    zeroth_indices=None,
     add_inv_loss=False,
     inv_loss_weight=1e-3,
     **kwargs
@@ -218,16 +225,19 @@ class POLLUSolUpdate(nn_elem.Layer):
     # POLLUOperators layer
     self.operators = POLLUOperators(
       rates=rates,
+      species_split=species_split,
       use_corr=use_corr
     )
     # LinODE Layer
     self.linode = meno_lay.LinODE(
       nb_eqs=self.operators.nb_comp,
+      epsilon=epsilon,
       use_pade=use_pade,
       use_expmv=use_expmv,
       max_degree=max_degree,
       max_nb_squarings=max_nb_squarings,
       expm_dtype=expm_dtype,
+      zeroth_indices=zeroth_indices,
       add_inv_loss=add_inv_loss,
       inv_loss_weight=inv_loss_weight
     )
@@ -236,27 +246,26 @@ class POLLUSolUpdate(nn_elem.Layer):
   # ===================================
   def call(self, inputs, training=None):
     # Extract inputs
-    t, nar_0, y_nl, f = inputs
+    t, y_l_0, y_nl, f = inputs
     # Compute operators
-    A = self.operators((y_nl, f), training=training)
+    A, b = self.operators((y_nl, f), training=training)
     # Compute state-wise number densities
-    nar = self.linode((t, nar_0, A), training=training)
-    # Ensure conservation of Argon particles
-    nar /= tf.math.reduce_sum(nar, axis=-1, keepdims=True)
-    nar *= tf.math.reduce_sum(nar_0, axis=-1, keepdims=True)
-    return nar
+    return self.linode((t, y_l_0, A, b), training=training)
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.operators.rates),
+      "rates": self.operators.rates,
+      "species_split": self.operators.species_split,
       "use_corr": self.operators.use_corr,
+      "epsilon": self.linode.epsilon,
       "use_pade": self.linode.use_pade,
       "use_expmv": self.linode.use_expmv,
       "max_degree": self.linode.max_degree,
       "max_nb_squarings": self.linode.max_nb_squarings,
       "expm_dtype": self.linode.expm_dtype,
+      "zeroth_indices": self.linode.zeroth_indices,
       "add_inv_loss": self.linode.add_inv_loss,
       "inv_loss_weight": self.linode.inv_loss_weight
     }

@@ -193,8 +193,8 @@ class LinODE(nn_elem.Layer):
     if (self.zeroth_indices is not None):
       self.zeroth_indices = tf.constant(self.zeroth_indices, dtype=tf.int32)
     # Diagonal matrix for stability in solving Ax=b
-    self.nb_eqs = nb_eqs
-    self.epsilon = epsilon
+    self.nb_eqs = int(nb_eqs)
+    self.epsilon = float(epsilon)
     self.a_eps = self.epsilon * tf.eye(self.nb_eqs, dtype=bkd.get_floatx())
     self.a_eps = tf.expand_dims(self.a_eps, axis=0)
     # Additional loss to avoid non-invertibility of the matrix
@@ -251,11 +251,14 @@ class LinODE(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
+      "nb_eqs": self.nb_eqs,
+      "epsilon": self.epsilon,
       "use_pade": self.use_pade,
       "use_expmv": self.use_expmv,
       "max_degree": self.max_degree,
       "max_nb_squarings": self.max_nb_squarings,
       "expm_dtype": self.expm_dtype,
+      "zeroth_indices": self.zeroth_indices,
       "add_inv_loss": self.add_inv_loss,
       "inv_loss_weight": self.inv_loss_weight
     }
