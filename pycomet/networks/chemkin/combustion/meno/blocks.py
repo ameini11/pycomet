@@ -29,73 +29,71 @@ class POLLUOperators(nn_elem.Layer):
     # Corrections
     self.use_corr = use_corr
 
-  def read_rates(self, rates):
-    if isinstance(rates, str):
-      rates = h5todict(h5file=rates)
-    rates = tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
-    rates["indices"] = rates["indices"].astype(np.int32)
-    return rates
+  # def read_rates(self, rates):
+  #   if isinstance(rates, str):
+  #     rates = h5todict(h5file=rates)
+  #   rates = tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
+  #   rates["indices"] = rates["indices"].astype(np.int32)
+  #   return rates
 
-  def set_rates_values_indices(self):
-    self.nb_comp = int(np.amax(self.rates["indices"]))+1
-    # Set scatter update
-    self.scatter_update = []
-    i = self.rates["indices"]
-    K = np.arange(self.nb_comp**2).reshape(self.nb_comp,self.nb_comp)
-    for (rows, cols, sign, direction) in (
-      (0, 0, -1, "fwd"),
-      (0, 1,  1, "bwd"),
-      (1, 0,  1, "fwd"),
-      (1, 1, -1, "bwd")
-    ):
-      indices = K[i[rows],i[cols]].reshape(-1,1)
-      data = {
-        "sign": tf.constant(sign, dtype=bkd.get_floatx()),
-        "direction": direction,
-        "indices": tf.constant(indices, dtype="int32")
-      }
-      self.scatter_update.append(data)
-    # Set rates values and indices
-    self.rates_values = {}
-    for direction in ("fwd", "bwd"):
-      self.rates_values[direction] = tf.constant(
-        self.rates[direction].reshape(1,-1), dtype=bkd.get_floatx()
-      )
-    self.rates_indices = tf.constant(self.rates["indices"], dtype="int32")
+  # def set_rates_values_indices(self):
+  #   self.nb_comp = int(np.amax(self.rates["indices"]))+1
+  #   # Set scatter update
+  #   self.scatter_update = []
+  #   i = self.rates["indices"]
+  #   K = np.arange(self.nb_comp**2).reshape(self.nb_comp,self.nb_comp)
+  #   for (rows, cols, sign, direction) in (
+  #     (0, 0, -1, "fwd"),
+  #     (0, 1,  1, "bwd"),
+  #     (1, 0,  1, "fwd"),
+  #     (1, 1, -1, "bwd")
+  #   ):
+  #     indices = K[i[rows],i[cols]].reshape(-1,1)
+  #     data = {
+  #       "sign": tf.constant(sign, dtype=bkd.get_floatx()),
+  #       "direction": direction,
+  #       "indices": tf.constant(indices, dtype="int32")
+  #     }
+  #     self.scatter_update.append(data)
+  #   # Set rates values and indices
+  #   self.rates_values = {}
+  #   for direction in ("fwd", "bwd"):
+  #     self.rates_values[direction] = tf.constant(
+  #       self.rates[direction].reshape(1,-1), dtype=bkd.get_floatx()
+  #     )
+  #   self.rates_indices = tf.constant(self.rates["indices"], dtype="int32")
 
-
-
-  def _set_amat_indices(self):
-    s_l = self.species_split["lin"]
-    nb_eqs = len(s_l)
-    ireac, iprod, creac, cprod = [], [], [], []
-    for r in range(self.nb_reactions):
-      # Species indices and stoichiometric coefficients
-      # > Reactants
-      ir_1d, cr_1d = [self.rates["reac"][k][r] for k in ("i", "c")]
-      # > Products
-      ip_1d, cp_1d = [self.rates["prod"][k][r] for k in ("i", "c")]
-      if (np.sum(ir_1d[s_l]) == 0):
-        ir = cr = ip = cp = np.zeros(nb_eqs**2)
-      else:
-        ir = np.outer(ir_1d[s_l],ir_1d[s_l]).reshape(-1)
-        ip = np.outer(ip_1d[s_l],ir_1d[s_l]).reshape(-1)
-        cr = np.outer(cr_1d[s_l],ir_1d[s_l]).reshape(-1)
-        cp = np.outer(cp_1d[s_l],ir_1d[s_l]).reshape(-1)
-      ireac.append(ir)
-      iprod.append(ip)
-      creac.append(cr)
-      cprod.append(cp)
-    return {
-      "reac": {
-        "i": np.vstack(ireac).astype(bool),
-        "c": np.vstack(creac)
-      },
-      "prod": {
-        "i": np.vstack(iprod).astype(bool),
-        "c": np.vstack(cprod)
-      }
-    }
+  # def _set_amat_indices(self):
+  #   s_l = self.species_split["lin"]
+  #   nb_eqs = len(s_l)
+  #   ireac, iprod, creac, cprod = [], [], [], []
+  #   for r in range(self.nb_reactions):
+  #     # Species indices and stoichiometric coefficients
+  #     # > Reactants
+  #     ir_1d, cr_1d = [self.rates["reac"][k][r] for k in ("i", "c")]
+  #     # > Products
+  #     ip_1d, cp_1d = [self.rates["prod"][k][r] for k in ("i", "c")]
+  #     if (np.sum(ir_1d[s_l]) == 0):
+  #       ir = cr = ip = cp = np.zeros(nb_eqs**2)
+  #     else:
+  #       ir = np.outer(ir_1d[s_l],ir_1d[s_l]).reshape(-1)
+  #       ip = np.outer(ip_1d[s_l],ir_1d[s_l]).reshape(-1)
+  #       cr = np.outer(cr_1d[s_l],ir_1d[s_l]).reshape(-1)
+  #       cp = np.outer(cp_1d[s_l],ir_1d[s_l]).reshape(-1)
+  #     ireac.append(ir)
+  #     iprod.append(ip)
+  #     creac.append(cr)
+  #     cprod.append(cp)
+  #   return {
+  #     "reac": {
+  #       "i": np.vstack(ireac).astype(bool),
+  #       "c": np.vstack(creac)
+  #     },
+  #     "prod": {
+  #       "i": np.vstack(iprod).astype(bool),
+  #       "c": np.vstack(cprod)
+  #     }
+  #   }
 
   # Calling
   # ===================================
