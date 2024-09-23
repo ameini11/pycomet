@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import tensorflow as tf
 
@@ -19,81 +20,79 @@ class POLLUOperators(nn_elem.Layer):
   def __init__(
     self,
     rates,
+    species_split,
     use_corr=True,
     **kwargs
   ):
     super(POLLUOperators, self).__init__(**kwargs)
-    # Reaction rates
+    # Read input data
     self.rates = self.read_rates(rates)
+    self.species_split = self.read_species_split(species_split)
+    # Dimensions
+    self.nb_reactions = len(self.rates["k"])
+    self.nb_comp = len(self.species_split["lin"])
     self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
 
-  # def read_rates(self, rates):
-  #   if isinstance(rates, str):
-  #     rates = h5todict(h5file=rates)
-  #   rates = tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), rates)
-  #   rates["indices"] = rates["indices"].astype(np.int32)
-  #   return rates
+  def read_rates(self, rates):
+    rates = self.read_struct(rates)
+    floatx = bkd.get_floatx("numpy")
+    if ("k" in rates):
+      rates["k"] = rates["k"].astype(floatx)
+    for k in ("reac", "prod"):
+      if (k in rates):
+        rates[k]["i"] = rates[k]["i"].astype(bool)
+        rates[k]["c"] = rates[k]["c"].astype(floatx)
+    return rates
 
-  # def set_rates_values_indices(self):
-  #   self.nb_comp = int(np.amax(self.rates["indices"]))+1
-  #   # Set scatter update
-  #   self.scatter_update = []
-  #   i = self.rates["indices"]
-  #   K = np.arange(self.nb_comp**2).reshape(self.nb_comp,self.nb_comp)
-  #   for (rows, cols, sign, direction) in (
-  #     (0, 0, -1, "fwd"),
-  #     (0, 1,  1, "bwd"),
-  #     (1, 0,  1, "fwd"),
-  #     (1, 1, -1, "bwd")
-  #   ):
-  #     indices = K[i[rows],i[cols]].reshape(-1,1)
-  #     data = {
-  #       "sign": tf.constant(sign, dtype=bkd.get_floatx()),
-  #       "direction": direction,
-  #       "indices": tf.constant(indices, dtype="int32")
-  #     }
-  #     self.scatter_update.append(data)
-  #   # Set rates values and indices
-  #   self.rates_values = {}
-  #   for direction in ("fwd", "bwd"):
-  #     self.rates_values[direction] = tf.constant(
-  #       self.rates[direction].reshape(1,-1), dtype=bkd.get_floatx()
-  #     )
-  #   self.rates_indices = tf.constant(self.rates["indices"], dtype="int32")
+  def read_species_split(self, species_split):
+    species_split = self.read_struct(species_split)
+    return tf.nest.map_structure(lambda x: x.astype(np.int32), species_split)
 
-  # def _set_amat_indices(self):
-  #   s_l = self.species_split["lin"]
-  #   nb_eqs = len(s_l)
-  #   ireac, iprod, creac, cprod = [], [], [], []
-  #   for r in range(self.nb_reactions):
-  #     # Species indices and stoichiometric coefficients
-  #     # > Reactants
-  #     ir_1d, cr_1d = [self.rates["reac"][k][r] for k in ("i", "c")]
-  #     # > Products
-  #     ip_1d, cp_1d = [self.rates["prod"][k][r] for k in ("i", "c")]
-  #     if (np.sum(ir_1d[s_l]) == 0):
-  #       ir = cr = ip = cp = np.zeros(nb_eqs**2)
-  #     else:
-  #       ir = np.outer(ir_1d[s_l],ir_1d[s_l]).reshape(-1)
-  #       ip = np.outer(ip_1d[s_l],ir_1d[s_l]).reshape(-1)
-  #       cr = np.outer(cr_1d[s_l],ir_1d[s_l]).reshape(-1)
-  #       cp = np.outer(cp_1d[s_l],ir_1d[s_l]).reshape(-1)
-  #     ireac.append(ir)
-  #     iprod.append(ip)
-  #     creac.append(cr)
-  #     cprod.append(cp)
-  #   return {
-  #     "reac": {
-  #       "i": np.vstack(ireac).astype(bool),
-  #       "c": np.vstack(creac)
-  #     },
-  #     "prod": {
-  #       "i": np.vstack(iprod).astype(bool),
-  #       "c": np.vstack(cprod)
-  #     }
-  #   }
+  def read_struct(self, struct):
+    if isinstance(struct, str):
+      struct = h5todict(h5file=struct)
+    return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), struct)
+
+  def set_rates_values_indices(self):
+    self.rates_indices = tf.nest.map_structure(tf.constant, self.rates)
+    self.rates_values = self.rates_indices.pop("k")
+    self.amat_indices = tf.nest.map_structure(
+      tf.constant, self.get_amat_indices()
+    )
+
+  def get_amat_indices(self):
+    s_l = self.species_split["lin"]
+    ireac, iprod, creac, cprod = [], [], [], []
+    for r in range(self.nb_reactions):
+      # Species indices and stoichiometric coefficients
+      # > Reactants
+      ir_1d, cr_1d = [self.rates["reac"][k][r] for k in ("i", "c")]
+      # > Products
+      ip_1d, cp_1d = [self.rates["prod"][k][r] for k in ("i", "c")]
+      if (np.sum(ir_1d[s_l]) == 0):
+        ir = cr = ip = cp = np.zeros(self.nb_comp**2)
+      else:
+        ir = np.outer(ir_1d[s_l],ir_1d[s_l]).reshape(-1)
+        ip = np.outer(ip_1d[s_l],ir_1d[s_l]).reshape(-1)
+        cr = np.outer(cr_1d[s_l],ir_1d[s_l]).reshape(-1)
+        cp = np.outer(cp_1d[s_l],ir_1d[s_l]).reshape(-1)
+      ireac.append(ir)
+      iprod.append(ip)
+      creac.append(cr)
+      cprod.append(cp)
+    floatx = bkd.get_floatx("numpy")
+    return {
+      "reac": {
+        "i": np.vstack(ireac).astype(bool),
+        "c": np.vstack(creac).astype(floatx)
+      },
+      "prod": {
+        "i": np.vstack(iprod).astype(bool),
+        "c": np.vstack(cprod).astype(floatx)
+      }
+    }
 
   # Calling
   # ===================================
@@ -224,6 +223,7 @@ class POLLUSolUpdate(nn_elem.Layer):
     )
     # LinODE Layer
     self.linode = meno_lay.LinODE(
+      nb_eqs=self.operators.nb_comp,
       use_pade=use_pade,
       use_expmv=use_expmv,
       max_degree=max_degree,

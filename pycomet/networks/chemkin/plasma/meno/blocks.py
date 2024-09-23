@@ -142,6 +142,7 @@ class PlasmaSolUpdate(nn_elem.Layer):
     )
     # LinODE Layer
     self.linode = meno_lay.LinODE(
+      nb_eqs=self.operators.nb_comp,
       use_pade=use_pade,
       use_expmv=use_expmv,
       max_degree=max_degree,

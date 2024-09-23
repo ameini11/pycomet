@@ -160,12 +160,15 @@ class LinODE(nn_elem.Layer):
   # ===================================
   def __init__(
     self,
+    nb_eqs,
+    epsilon=1e-12,
     # Matrix exponential
     use_pade=True,
     use_expmv=False,
     max_degree=None,
     max_nb_squarings=None,
     expm_dtype=None,
+    zeroth_indices=None,
     # Non-invertibility loss
     add_inv_loss=False,
     inv_loss_weight=1e-3,
@@ -185,6 +188,15 @@ class LinODE(nn_elem.Layer):
       max_nb_squarings=max_nb_squarings,
       expm_dtype=expm_dtype
     )
+    # Zeroth order solution: y = y0 + t*b given dydt = b
+    self.zeroth_indices = zeroth_indices
+    if (self.zeroth_indices is not None):
+      self.zeroth_indices = tf.constant(self.zeroth_indices, dtype=tf.int32)
+    # Diagonal matrix for stability in solving Ax=b
+    self.nb_eqs = nb_eqs
+    self.epsilon = epsilon
+    self.a_eps = self.epsilon * tf.eye(self.nb_eqs, dtype=bkd.get_floatx())
+    self.a_eps = tf.expand_dims(self.a_eps, axis=0)
     # Additional loss to avoid non-invertibility of the matrix
     self.add_inv_loss = add_inv_loss
     self.inv_loss_weight = inv_loss_weight
@@ -198,15 +210,30 @@ class LinODE(nn_elem.Layer):
     if (b is not None):
       b = tf.expand_dims(b, axis=-1)
     # Additional loss to avoid non-invertibility of the matrix
-    if (training and self.add_inv_loss):
+    if ((a is not None) and training and self.add_inv_loss):
       self.compute_inv_loss(a)
     # Compute solution
-    if (b is None):
+    if (a is None):
+      y = y0 + b*t
+      return tf.squeeze(y, axis=-1)
+    elif (b is None):
       y = self.mat_exp(a*t, y0)
+      return tf.squeeze(y, axis=-1)
     else:
-      y = tf.linalg.solve(a, b)
+      y = tf.linalg.solve(a+self.a_eps, b)
       y = self.mat_exp(a*t, y0+y) - y
-    return tf.squeeze(y, axis=-1)
+      y = tf.squeeze(y, axis=-1)
+      if (self.zeroth_indices is not None):
+        # Zeroth order solution: y = y0 + t*b given dydt = b
+        yz = tf.gather(y0, self.zeroth_indices, axis=-2) \
+           + tf.gather(b,  self.zeroth_indices, axis=-2) * t
+        yz = tf.squeeze(yz, axis=-1)
+        y = tf.transpose(tf.tensor_scatter_nd_update(
+          tensor=tf.transpose(y),
+          indices=tf.expand_dims(self.zeroth_indices, axis=-1),
+          updates=tf.transpose(yz)
+        ))
+      return y
 
   def compute_inv_loss(self, a):
     # Compute singular values
