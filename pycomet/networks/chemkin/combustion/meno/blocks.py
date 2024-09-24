@@ -63,7 +63,7 @@ class POLLUOperators(nn_elem.Layer):
       tf.constant, self.get_amat_indices()
     )
     self.species_indices = tf.nest.map_structure(
-      tf.constant, self.species_indices
+      lambda x: tf.constant(x.reshape(-1)), self.species_indices
     )
 
   def get_amat_indices(self):
@@ -226,7 +226,6 @@ class POLLUSolUpdate(nn_elem.Layer):
     max_degree=None,
     max_nb_squarings=None,
     expm_dtype=None,
-    zeroth_indices=None,
     add_inv_loss=False,
     inv_loss_weight=1e-3,
     **kwargs
@@ -248,7 +247,7 @@ class POLLUSolUpdate(nn_elem.Layer):
       max_degree=max_degree,
       max_nb_squarings=max_nb_squarings,
       expm_dtype=expm_dtype,
-      zeroth_indices=zeroth_indices,
+      zeroth_indices=self.operators.species_indices["lin_o0"],
       add_inv_loss=add_inv_loss,
       inv_loss_weight=inv_loss_weight
     )
@@ -279,7 +278,6 @@ class POLLUSolUpdate(nn_elem.Layer):
       "max_degree": self.linode.max_degree,
       "max_nb_squarings": self.linode.max_nb_squarings,
       "expm_dtype": self.linode.expm_dtype,
-      "zeroth_indices": self.linode.zeroth_indices,
       "add_inv_loss": self.linode.add_inv_loss,
       "inv_loss_weight": self.linode.inv_loss_weight
     })

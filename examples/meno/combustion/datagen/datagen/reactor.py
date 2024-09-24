@@ -29,10 +29,12 @@ class POLLUReactor(object):
     species_indices = {}
     for (k, species) in self.species_names.items():
       species_indices[k] = np.sort([self.species_to_index[s] for s in species])
-    species_indices["lin"] = np.concatenate(
-      [species_indices[f"lin_o{o}"] for o in range(2)]
-    )
+    species_indices["lin"] = [species_indices[f"lin_o{o}"] for o in range(2)]
+    species_indices["lin"] = np.concatenate(species_indices["lin"])
     species_indices["lin"] = np.sort(np.unique(species_indices["lin"]))
+    for o in range(2):
+      arrays = [species_indices[k] for k in ("lin", f"lin_o{o}")]
+      species_indices[f"lin_o{o}"] = np.where(np.isin(*arrays))[0]
     return species_indices
 
   # Reactions
