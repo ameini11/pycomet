@@ -19,7 +19,7 @@ class POLLUOperators(nn_elem.Layer):
   def __init__(
     self,
     rates,
-    species_split,
+    species_indices,
     use_corr=True,
     scale_corr=1.0,
     **kwargs
@@ -27,10 +27,10 @@ class POLLUOperators(nn_elem.Layer):
     super(POLLUOperators, self).__init__(**kwargs)
     # Read input data
     self.rates = self.read_rates(rates)
-    self.species_split = self.read_species_split(species_split)
+    self.species_indices = self.read_species_indices(species_indices)
     # Dimensions
     self.nb_reactions = len(self.rates["k"])
-    self.nb_comp = len(self.species_split["lin"])
+    self.nb_comp = len(self.species_indices["lin"])
     self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
@@ -47,9 +47,9 @@ class POLLUOperators(nn_elem.Layer):
         rates[k]["c"] = rates[k]["c"].astype(floatx)
     return rates
 
-  def read_species_split(self, species_split):
-    species_split = self.read_struct(species_split)
-    return tf.nest.map_structure(lambda x: x.astype(np.int32), species_split)
+  def read_species_indices(self, species_indices):
+    species_indices = self.read_struct(species_indices)
+    return tf.nest.map_structure(lambda x: x.astype(np.int32), species_indices)
 
   def read_struct(self, struct):
     if isinstance(struct, str):
@@ -57,15 +57,17 @@ class POLLUOperators(nn_elem.Layer):
     return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), struct)
 
   def set_rates_values_indices(self):
-    self.species_split = tf.nest.map_structure(tf.constant, self.species_split)
     self.rates_indices = tf.nest.map_structure(tf.constant, self.rates)
     self.rates_values = self.rates_indices.pop("k")
     self.amat_indices = tf.nest.map_structure(
       tf.constant, self.get_amat_indices()
     )
+    self.species_indices = tf.nest.map_structure(
+      tf.constant, self.species_indices
+    )
 
   def get_amat_indices(self):
-    s_l = self.species_split["lin"]
+    s_l = self.species_indices["lin"]
     ireac, iprod, creac, cprod = [], [], [], []
     for r in range(self.nb_reactions):
       # Species indices and stoichiometric coefficients
@@ -108,7 +110,7 @@ class POLLUOperators(nn_elem.Layer):
     batch_size = tf.shape(y_nl)[0]
     a = tf.zeros((self.nb_comp**2, batch_size), dtype=bkd.get_floatx())
     b = tf.zeros((self.nb_comp,    batch_size), dtype=bkd.get_floatx())
-    s_l, s_nl = [self.species_split[k] for k in ("lin", "nlin")]
+    s_l, s_nl = [self.species_indices[k] for k in ("lin", "nlin")]
     # Loop over reactions
     for r in tf.range(self.nb_reactions):
       # Reactants indices
@@ -198,7 +200,7 @@ class POLLUOperators(nn_elem.Layer):
   def get_config(self):
     config = {
       "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
-      "species_split": tf.nest.map_structure(ops.to_numpy, self.species_split),
+      "species_indices": tf.nest.map_structure(ops.to_numpy, self.species_indices),
       "use_corr": self.use_corr,
       "scale_corr": self.scale_corr
     }
@@ -215,7 +217,7 @@ class POLLUSolUpdate(nn_elem.Layer):
   def __init__(
     self,
     rates,
-    species_split,
+    species_indices,
     use_corr=True,
     scale_corr=1.0,
     epsilon=1e-12,
@@ -233,7 +235,7 @@ class POLLUSolUpdate(nn_elem.Layer):
     # POLLUOperators layer
     self.operators = POLLUOperators(
       rates=rates,
-      species_split=species_split,
+      species_indices=species_indices,
       use_corr=use_corr,
       scale_corr=scale_corr
     )
@@ -265,7 +267,7 @@ class POLLUSolUpdate(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {}
-    for key in ("rates", "species_split"):
+    for key in ("rates", "species_indices"):
       value = getattr(self.operators, key)
       config[key] = tf.nest.map_structure(ops.to_numpy, value)
     config.update({

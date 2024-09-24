@@ -12,7 +12,6 @@ from tensorflow.python.training.tracking.data_structures import NoDependency
 from . import utils
 from . import postproc
 from . import backend as bkd
-from . import operations as ops
 from .config import get_config
 from .backend import get_floatx
 from .networks.funcnet import FuncNet

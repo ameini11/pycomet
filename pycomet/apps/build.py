@@ -53,7 +53,7 @@ def main(args):
 
   # Model
   # -----------------------------------
-  model = autils._model(
+  _ = autils._model(
     inputs_mod=inputs,
     net=net,
     data=None,
