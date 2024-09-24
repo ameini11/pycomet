@@ -39,9 +39,9 @@ class MENOPOLLUReac(BaseNet):
     # Layers
     # -------------
     # Layers names
-    if (lays_name == None):
+    if (lays_name is None):
       self.lays_name = self.lays_name + (
-        "log_t", "ic_xform", "electron", "fcorr_compute", "y_lin_update"
+        "log_t", "ic_xform", "y1", "y2", "y6", "fcorr_compute", "y_lin_update"
       )
     else:
       self.lays_name = lays_name
@@ -57,10 +57,15 @@ class MENOPOLLUReac(BaseNet):
     # Callable layers
     self.callable_lays = callable_lays
     if (self.callable_lays is None):
-      self.callable_lays["electron"] = True \
-        if ("electron" in self.active_lays) else False
-      self.callable_lays["argon"] = True \
-        if ("y_lin_update" in self.active_lays) else False
+      self.callable_lays = {}
+      if any([(f"y{i}" in self.active_lays) for i in (1, 2, 6)]):
+        self.callable_lays["y_nlin"] = True
+      else:
+        self.callable_lays["y_nlin"] = False
+      if ("y_lin_update" in self.active_lays):
+        self.callable_lays["y_lin"] = True
+      else:
+        self.callable_lays["y_lin"] = False
 
   # Layers initialization
   # -----------------------------------
@@ -93,10 +98,10 @@ class MENOPOLLUReac(BaseNet):
     # Set outputs
     # -------------
     y = {
-      "y_lin": None, # Linear state variables
-      "y_nlin": None # Nonlinear state variables
+      "y_lin": None,  # Linear state variables
+      "y_nlin": None  # Nonlinear state variables
     }
-    nlin_only = False
+    lin_only = False
     # Extract inputs
     # -------------
     y_l_0, y_nl_0, t, y_nl_t = utils.unpack_list(inputs, nb_elem=5)
@@ -109,14 +114,18 @@ class MENOPOLLUReac(BaseNet):
     ]
     # Predict species
     # -------------
-    # > Electron number density
+    # > Nonlinear state variables
     if self.callable_lays["y_nlin"]:
-      # y["ne"] = ne_0 * self.active_lays["electron"](x, training=training)
-      pass
+      y_nl_t = []
+      for i in (1, 2, 6):
+        name = f"y{i}"
+        if (name in self.active_lays):
+          y_nl_t.append(self.active_lays[name](x, training=training))
+      y["y_nlin"] = tf_layers.Concatenate()(y_nl_t)
     elif self.callable_lays["y_lin"]:
       y["y_nlin"] = y_nl_t
-      nlin_only = True
-    # > Argon number density
+      lin_only = True
+    # > Linear state variables
     if self.callable_lays["y_lin"]:
       # > Compute state-wise latent space
       x = tf_layers.Concatenate()(x)
@@ -127,7 +136,7 @@ class MENOPOLLUReac(BaseNet):
       )
     # Return predictions
     # -------------
-    if nlin_only:
+    if lin_only:
       return y["y_lin"]
     else:
       return [y[k] for k in ("y_lin", "y_nlin") if (y[k] is not None)]

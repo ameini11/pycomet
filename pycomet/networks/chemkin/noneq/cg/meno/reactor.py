@@ -58,7 +58,7 @@ class MENONonEqReac(BaseNet):
     # Layers
     # -------------
     # Layers names
-    if (lays_name == None):
+    if (lays_name is None):
       self.lays_name = self.lays_name + (
         "log_t_pa", "ic_xform", "mass", "temp", \
         "thermo_update", "fcorr_compute", "dist_update"
@@ -77,12 +77,11 @@ class MENONonEqReac(BaseNet):
     # Callable layers
     self.callable_lays = callable_lays
     if (self.callable_lays is None):
-      self.callable_lays = {}
-      for k in ("mass", "temp", "dist_update"):
-        if (k in self.active_lays):
-          self.callable_lays[k[:4]] = True
-        else:
-          self.callable_lays[k[:4]] = False
+      self.callable_lays = {
+        "mass": True if ("mass" in self.active_lays) else False,
+        "temp": True if ("temp" in self.active_lays) else False,
+        "dist": True if ("dist_update" in self.active_lays) else False
+      }
 
   # Layers initialization
   # -----------------------------------

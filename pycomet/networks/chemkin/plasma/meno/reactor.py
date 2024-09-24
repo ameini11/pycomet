@@ -46,7 +46,7 @@ class MENOPlasmaReac(BaseNet):
     # Layers
     # -------------
     # Layers names
-    if (lays_name == None):
+    if (lays_name is None):
       self.lays_name = self.lays_name + (
         "log_t_pe", "ic_xform", "electron", "fcorr_compute", "argon_update"
       )
@@ -64,10 +64,10 @@ class MENOPlasmaReac(BaseNet):
     # Callable layers
     self.callable_lays = callable_lays
     if (self.callable_lays is None):
-      self.callable_lays["electron"] = True \
-        if ("electron" in self.active_lays) else False
-      self.callable_lays["argon"] = True \
-        if ("argon_update" in self.active_lays) else False
+      self.callable_lays = {
+        "electron": True if ("electron" in self.active_lays) else False,
+        "argon": True if ("argon_update" in self.active_lays) else False
+      }
 
   # Layers initialization
   # -----------------------------------
