@@ -1,22 +1,50 @@
-[
-  "NO2",
-  "NO",
-  "O3P",
-  "O3",
-  "HO2",
-  "OH",
-  "HCHO",
-  "CO",
-  "ALD",
-  "MEO2",
-  "C2O3",
-  "CO2",
-  "PAN",
-  "CH3O",
-  "HNO3",
-  "O1D",
-  "SO2",
-  "SO4",
-  "NO3",
-  "N2O5"
-]
+{
+  "full": [
+    "NO2",
+    "NO",
+    "O3P",
+    "O3",
+    "HO2",
+    "OH",
+    "HCHO",
+    "CO",
+    "ALD",
+    "MEO2",
+    "C2O3",
+    "CO2",
+    "PAN",
+    "CH3O",
+    "HNO3",
+    "O1D",
+    "SO2",
+    "SO4",
+    "NO3",
+    "N2O5"
+  ],
+  "lin_o0": [
+    "HNO3"
+  ],
+  "lin_o1": [
+    "O3P",
+    "O3",
+    "HO2",
+    "HCHO",
+    "CO",
+    "ALD",
+    "MEO2",
+    "C2O3",
+    "CO2",
+    "PAN",
+    "CH3O",
+    "O1D",
+    "SO2",
+    "SO4",
+    "NO3",
+    "N2O5"
+  ],
+  "nlin": [
+    "NO2",
+    "NO",
+    "OH"
+  ]
+}

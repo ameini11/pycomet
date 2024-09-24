@@ -28,7 +28,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     time_lim=[0,1],
     time_eps=1e-15,
     time_eval=None,
-    inp_space={},
+    inp_space=None,
     read_init_sols=False,
     train_pts=32,
     scenarios=100,
@@ -70,6 +70,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       xlim=np.log(self.time_lim)
     )
     # Input space
+    with open(inp_space) as file:
+      inp_space = json.load(file)
     self.inp_space = np.vstack(list(inp_space.values())).T
     self.inp_space_lbl = list(inp_space.keys())
     # Initializing plasma reactor
@@ -82,8 +84,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Labeling data
     # -----------------------------------
     # Dataset
-    self.data_lbl = [f"y_{s}_0" for s in self.reactor.species_name] \
-      + ["t"] + [f"y_{s}" for s in self.reactor.species_name]
+    species_names = self.reactor.species_to_index.keys()
+    self.data_lbl = [f"y_{s}_0" for s in species_names] + ["t"] \
+      + [f"y_{s}" for s in species_names]
     # Multi-threading
     # -----------------------------------
     self.nb_workers = nb_workers
@@ -96,34 +99,18 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   # Set node/edge static attributes
   # ===================================
   def set_species_and_rates(self):
-    self._set_species(self.species_file)
-    self._set_rates()
-
-  def _set_species(self, filename):
-    # Read energy file
-    with open(filename) as file:
-      energies = json.load(file)["energies"]
-    # Energies
-    e = []
-    for s in self.reactor.species_name:
-      if (s != "e-"):
-        e.append(energies[s])
-    # Normalized energies
-    e_norm = (e - np.mean(e)) / np.std(e)
-    # Saving energies
-    path = self.path_to_data + "/physics/species/"
-    os.makedirs(path, exist_ok=True)
-    np.savetxt(path + "/energies.txt", e, fmt="%.8e")
-    np.savetxt(path + "/energies_norm.txt", e_norm, fmt="%.8e")
-
-  def _set_rates(self):
     path = self.path_to_data + "/physics/"
     os.makedirs(path, exist_ok=True)
-    dicttoh5(
-      treedict=self.reactor.rates,
-      h5file=path + "/rates.hdf5",
-      overwrite_data=True
-    )
+    # Save species features (one-hot encoding)
+    nb_comp = len(self.reactor.species_indices["lin"])
+    np.savetxt(path + "/species_feat.txt", np.eye(nb_comp), fmt="%.8e")
+    # Save species indices and rates
+    for k in ("species_indices", "rates"):
+      dicttoh5(
+        treedict=getattr(self.reactor, k),
+        h5file=path + f"/{k}.hdf5",
+        overwrite_data=True
+      )
 
   # Generate data
   # ===================================
@@ -157,11 +144,6 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     x = x[i]
     # Rescale DM
     x = x * (self.inp_space[1] - self.inp_space[0]) + self.inp_space[0]
-    # Restructure DM
-    x = np.split(x, x.shape[-1], axis=-1)
-    x = {k: x[i].reshape(-1,1) for (i, k) in enumerate(self.inp_space_lbl)}
-    # From input space to primitive variables
-    x = self.inp_to_prim(x)
     # Splitting sampled initial solutions
     if (self.test_cases > 0):
       indices = pcm.utils.stratified_sampling(np.arange(s), self.test_cases)
@@ -187,16 +169,6 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Returning sampled initial solutions
     return samples
 
-  def inp_to_prim(
-    self,
-    samples
-  ):
-    # Molar fractions
-    X = np.hstack([samples[s] for s in self.reactor.species_name])
-    X /= np.sum(X, axis=-1, keepdims=True)
-    # Number densities
-    return samples["n"]*X
-
   # Compute solutions
   # ===================================
   def compute_solutions(
@@ -211,7 +183,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       sols = jl.Parallel(self.nb_workers)(
         jl.delayed(self.reactor.solve)(
           t=self.tvec,
-          n0=init_sol
+          y0=init_sol
         ) for init_sol in tqdm(init_sols, ncols=80)
       )
       t = self.tvec.reshape(-1,1)
@@ -243,11 +215,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     if (nb_pts > 0):
       t, y = self.sample_solution(t[1:], y[1:], nb_pts)
     # Return data
-    nb_pts = len(t)
-    Te = np.array(2.0/3.0*self.reactor.e_mean/UKB)
-    Te = np.tile(Te.reshape(1,-1), (nb_pts,1))
-    y0 = np.tile(y0.reshape(1,-1), (nb_pts,1))
-    return [[y0, Te, t], y]
+    y0 = np.tile(y0.reshape(1,-1), (len(t),1))
+    return [[y0, t], y]
 
   def interpolate_solution(self, t, y, teval):
     t, y = t.squeeze(), np.log(y)

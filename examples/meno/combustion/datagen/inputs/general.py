@@ -1,10 +1,10 @@
 # Model/architecture properties
 # =====================================
-model_name = "argon_plasma"
+model_name = "pollu"
 
 dim = {
-  "inp": [4, 1, 1],
-  "out": [4, 1]
+  "inp": [17, 3, 1],
+  "out": [17, 3]
 }
 
 # Execution Flags

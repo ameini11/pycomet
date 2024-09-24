@@ -9,22 +9,31 @@ class POLLUReactor(object):
     self,
     species_file,
     reactions_file,
-    species_nonlin_file=None,
   ) -> None:
     with open(species_file) as file:
-      self.species_name = json.load(file)
-    self.species = {name: i for (i, name) in enumerate(self.species_name)}
-    self.nb_eqs = len(self.species)
+      self.species_names = json.load(file)
+    self.species_to_index = self.get_species_to_index()
+    self.species_indices = self.get_species_indices()
+    self.nb_eqs = len(self.species_names["full"])
     with open(reactions_file) as file:
       self.reactions = json.load(file)["reactions"]
     self.nb_reactions = len(self.reactions)
     self._set_rates()
     # Matrix exponential integrator with linear/nonlinear splitting
-    if (species_nonlin_file is not None):
-      with open(species_nonlin_file) as file:
-        self.species_nonlin = json.load(file)
-      self.species_split = self._split_species()
-      self.amat_indices = self._set_amat_indices()
+    self.amat_indices = self._set_amat_indices()
+
+  def get_species_to_index(self):
+    return {name: i for (i, name) in enumerate(self.species_names["full"])}
+
+  def get_species_indices(self):
+    species_indices = {}
+    for (k, species) in self.species_names.items():
+      species_indices[k] = np.sort([self.species_to_index[s] for s in species])
+    species_indices["lin"] = np.concatenate(
+      [species_indices[f"lin_o{o}"] for o in range(2)]
+    )
+    species_indices["lin"] = np.sort(np.unique(species_indices["lin"]))
+    return species_indices
 
   # Reactions
   # -----------------------------------
@@ -62,8 +71,8 @@ class POLLUReactor(object):
     # Species indices and stoichiometric coefficients
     indices, coeff = [np.zeros(self.nb_eqs) for _ in range(2)]
     for (s, c) in side.items():
-      indices[self.species[s]] = 1.0
-      coeff[self.species[s]] = float(c)
+      indices[self.species_to_index[s]] = 1.0
+      coeff[self.species_to_index[s]] = float(c)
     return indices, coeff
 
   # ODE Solver
@@ -75,8 +84,8 @@ class POLLUReactor(object):
       y0=y0,
       method="LSODA",
       t_eval=t,
-      first_step=1e-10,
-      rtol=1e-7,
+      first_step=1e-15,
+      rtol=1e-12,
       atol=1e-20
     ).y.T
 
@@ -92,23 +101,13 @@ class POLLUReactor(object):
       w = self.rates["k"][r]*np.prod(y[ir])
       # Update RHS
       np.add.at(f, ir, -cr[ir]*w)
-      np.add.at(f, ip, +cp[ip]*w)
+      np.add.at(f, ip,  cp[ip]*w)
     return f
 
   # Matrix exponential integrator with linear/nonlinear splitting
   # -----------------------------------
-  def _split_species(self):
-    s_l, s_nl = [], []
-    for s in self.species_name:
-      si = self.species[s]
-      if (s in self.species_nonlin):
-        s_nl.append(si)
-      else:
-        s_l.append(si)
-    return {"lin": np.array(s_l), "nlin": np.array(s_nl)}
-
   def _set_amat_indices(self):
-    s_l = self.species_split["lin"]
+    s_l = self.species_indices["lin"]
     nb_eqs = len(s_l)
     ireac, iprod, creac, cprod = [], [], [], []
     for r in range(self.nb_reactions):
@@ -140,7 +139,7 @@ class POLLUReactor(object):
     }
 
   def compose_lin_ops(self, y_nl):
-    s_l, s_nl = [self.species_split[k] for k in ("lin", "nlin")]
+    s_l, s_nl = [self.species_indices[k] for k in ("lin", "nlin")]
     nb_eqs = len(s_l)
     a, b = np.zeros(nb_eqs**2), np.zeros(nb_eqs)
     for r in range(self.nb_reactions):
@@ -162,7 +161,7 @@ class POLLUReactor(object):
     ip, cp = [self.rates["prod"][k][r] for k in ("i", "c")]
     # Update 'b' vector
     np.add.at(b, ir[s_l], -cr[s_l][ir[s_l]]*w)
-    np.add.at(b, ip[s_l], +cp[s_l][ip[s_l]]*w)
+    np.add.at(b, ip[s_l],  cp[s_l][ip[s_l]]*w)
     return b
 
   def _update_amat(self, a, r, w):
@@ -173,5 +172,5 @@ class POLLUReactor(object):
     ip, cp = [self.amat_indices["prod"][k][r] for k in ("i", "c")]
     # Update 'a' vector
     np.add.at(a, ir, -cr[ir]*w)
-    np.add.at(a, ip, +cp[ip]*w)
+    np.add.at(a, ip,  cp[ip]*w)
     return a
