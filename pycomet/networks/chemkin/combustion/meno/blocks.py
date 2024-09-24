@@ -21,6 +21,7 @@ class POLLUOperators(nn_elem.Layer):
     rates,
     species_split,
     use_corr=True,
+    scale_corr=1.0,
     **kwargs
   ):
     super(POLLUOperators, self).__init__(**kwargs)
@@ -33,6 +34,7 @@ class POLLUOperators(nn_elem.Layer):
     self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
+    self.scale_corr = float(scale_corr)
 
   def read_rates(self, rates):
     rates = self.read_struct(rates)
@@ -55,6 +57,7 @@ class POLLUOperators(nn_elem.Layer):
     return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), struct)
 
   def set_rates_values_indices(self):
+    self.species_split = tf.nest.map_structure(tf.constant, self.species_split)
     self.rates_indices = tf.nest.map_structure(tf.constant, self.rates)
     self.rates_values = self.rates_indices.pop("k")
     self.amat_indices = tf.nest.map_structure(
@@ -100,6 +103,7 @@ class POLLUOperators(nn_elem.Layer):
     # > y_nl: nonlinear state variables
     # > f:    state-wise corrective factors
     y_nl, f = inputs
+    f *= self.scale_corr
     # Compose linear operators: A from dydt=A@y
     batch_size = tf.shape(y_nl)[0]
     a = tf.zeros((self.nb_comp**2, batch_size), dtype=bkd.get_floatx())
@@ -109,10 +113,12 @@ class POLLUOperators(nn_elem.Layer):
     for r in tf.range(self.nb_reactions):
       # Reactants indices
       i = self.rates_indices["reac"]["i"][r]
+      i_l = tf.gather(i, indices=s_l)
+      i_nl = tf.gather(i, indices=s_nl)
       # Source term
-      w = self.compute_source_term(y_nl, f, r, i[s_nl], batch_size)
+      w = self.compute_source_term(y_nl, f, r, i_nl, batch_size)
       # Update linear operators
-      if (tf.math.reduce_sum(i[s_l]) == 0):
+      if (tf.reduce_sum(tf.cast(i_l, tf.int32)) == 0):
         b = self.update_bvec(b, r, w, s_l)
       else:
         a = self.update_amat(a, r, w)
@@ -122,7 +128,7 @@ class POLLUOperators(nn_elem.Layer):
 
   def compute_source_term(self, y_nl, f, r, i, batch_size):
     k = self.compute_rate(r, f, batch_size)
-    i = tf.squeeze(tf.where(i))
+    i = tf.reshape(tf.where(i), (-1,))
     if (tf.size(i) == 0):
       return k
     else:
@@ -130,19 +136,19 @@ class POLLUOperators(nn_elem.Layer):
       return k*tf.math.reduce_prod(yi, axis=-1, keepdims=True)
 
   def compute_rate(self, r, f, batch_size):
-    k = self.rates_values[r]
+    rate = tf.identity(self.rates_values[r])
     if self.use_corr:
       corr = []
       for k in ("reac", "prod"):
-        ik = tf.squeeze(tf.where(self.rates_indices[k]["i"][r]))
+        ik = tf.reshape(tf.where(self.rates_indices[k]["i"][r]), (-1,))
         fk = tf.gather(f, indices=ik, axis=-2)
         fk = tf.math.reduce_sum(fk, axis=-2, keepdims=True)
         corr.append(fk)
       corr = tf.math.reduce_sum(corr[0]-corr[1], axis=-1)
-      return tf.math.exp(corr) * k
+      return tf.math.exp(corr) * rate
     else:
       return tf.repeat(
-        input=tf.reshape(k, (1,1)),
+        input=tf.reshape(rate, (1,1)),
         repeats=batch_size,
         axis=0
       )
@@ -158,8 +164,8 @@ class POLLUOperators(nn_elem.Layer):
       (-1.0, ir, cr),
       ( 1.0, ip, cp)
     ):
-      i = tf.where(ix[s_l])
-      c = sign*tf.gather(cx[s_l], i)
+      i = tf.where(tf.gather(ix, indices=s_l))
+      c = sign*tf.gather(tf.gather(cx, indices=s_l), i)
       b = tf.tensor_scatter_nd_add(
         tensor=b,
         indices=i,
@@ -191,9 +197,10 @@ class POLLUOperators(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "rates": self.rates,
-      "species_split": self.species_split,
-      "use_corr": self.use_corr
+      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
+      "species_split": tf.nest.map_structure(ops.to_numpy, self.species_split),
+      "use_corr": self.use_corr,
+      "scale_corr": self.scale_corr
     }
     base_config = super(POLLUOperators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -210,6 +217,7 @@ class POLLUSolUpdate(nn_elem.Layer):
     rates,
     species_split,
     use_corr=True,
+    scale_corr=1.0,
     epsilon=1e-12,
     use_pade=False,
     use_expmv=False,
@@ -226,7 +234,8 @@ class POLLUSolUpdate(nn_elem.Layer):
     self.operators = POLLUOperators(
       rates=rates,
       species_split=species_split,
-      use_corr=use_corr
+      use_corr=use_corr,
+      scale_corr=scale_corr
     )
     # LinODE Layer
     self.linode = meno_lay.LinODE(
@@ -255,10 +264,13 @@ class POLLUSolUpdate(nn_elem.Layer):
   # Configuration update
   # ===================================
   def get_config(self):
-    config = {
-      "rates": self.operators.rates,
-      "species_split": self.operators.species_split,
+    config = {}
+    for key in ("rates", "species_split"):
+      value = getattr(self.operators, key)
+      config[key] = tf.nest.map_structure(ops.to_numpy, value)
+    config.update({
       "use_corr": self.operators.use_corr,
+      "scale_corr": self.operators.scale_corr,
       "epsilon": self.linode.epsilon,
       "use_pade": self.linode.use_pade,
       "use_expmv": self.linode.use_expmv,
@@ -268,6 +280,6 @@ class POLLUSolUpdate(nn_elem.Layer):
       "zeroth_indices": self.linode.zeroth_indices,
       "add_inv_loss": self.linode.add_inv_loss,
       "inv_loss_weight": self.linode.inv_loss_weight
-    }
+    })
     base_config = super(POLLUSolUpdate, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
