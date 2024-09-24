@@ -87,7 +87,7 @@ class MMOpNN(BaseNet):
       elif (identifier == 'dons'):
         lays[identifier] = self.init_dons_lay(propty)
       elif (identifier == 'output'):
-        lays[identifier] = self.init_inout_lay(propty)
+        lays[identifier] = self.init_inout_lay(identifier, propty)
     return lays
 
   def init_dons_lay(self, propty):

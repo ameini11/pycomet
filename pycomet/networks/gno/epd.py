@@ -53,7 +53,7 @@ class EncodeProcessDecode(BaseNet):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
       if (identifier in ("input", "output")):
-        lays[identifier] = self.init_inout_lay(propty)
+        lays[identifier] = self.init_inout_lay(identifier, propty)
     lays.update(self.init_kernel_layers())
     return lays
 

@@ -104,7 +104,7 @@ class MENOPOLLUReac(BaseNet):
     lin_only = False
     # Extract inputs
     # -------------
-    y_l_0, y_nl_0, t, y_nl_t = utils.unpack_list(inputs, nb_elem=5)
+    y_l_0, y_nl_0, t, y_nl_t = utils.unpack_list(inputs, nb_elem=4)
     # Compose inputs
     # -------------
     y_0 = tf_layers.Concatenate()([y_l_0, y_nl_0])

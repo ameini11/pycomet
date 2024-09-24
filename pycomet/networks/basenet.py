@@ -131,8 +131,14 @@ class BaseNet(object):
 
   # Layers initialization
   # ===================================
-  def init_inout_lay(self, propty):
+  def init_inout_lay(self, identifier, propty):
     _propty = {}
+    if ("xform" not in propty):
+      utils.raise_err(
+        ValueError,
+        f"The input properties of layer '{identifier}' must be a " \
+          "dictonary with 'xform' and 'with_inputs' as keys."
+      )
     for k in ('xform', 'with_inputs'):
       if ((k in propty) and (propty[k] is not None)):
         if (k == 'xform'):
@@ -150,8 +156,8 @@ class BaseNet(object):
     return _propty
 
   def init_preinput_lay(self):
-    k = 'preinput'
-    self.active_lays[k] = self.init_inout_lay(self.lays_propty[k])
+    lay = 'preinput'
+    self.active_lays[lay] = self.init_inout_lay(lay, self.lays_propty[lay])
 
   # Calling
   # ===================================

@@ -1,4 +1,4 @@
-# from .combustion import *
+from .combustion import *
 from .plasma import *
 
 import importlib

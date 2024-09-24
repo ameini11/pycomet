@@ -84,7 +84,7 @@ class MIONet(FlexOpNN):
       elif (identifier == 'end_scale'):
         lays[identifier] = self.init_end_scale_lay(identifier, propty)
       elif (identifier == 'output'):
-        lays[identifier] = self.init_inout_lay(propty)
+        lays[identifier] = self.init_inout_lay(identifier, propty)
     return lays
 
   # Calling
