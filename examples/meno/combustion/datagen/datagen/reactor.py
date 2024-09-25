@@ -79,7 +79,7 @@ class POLLUReactor(object):
 
   # ODE Solver
   # -----------------------------------
-  def solve(self, t, y0):
+  def solve(self, t, y0, atol=1e-20):
     return sp.integrate.solve_ivp(
       fun=self.rhs,
       t_span=[0.0,t[-1]],
@@ -88,7 +88,7 @@ class POLLUReactor(object):
       t_eval=t,
       first_step=1e-15,
       rtol=1e-12,
-      atol=1e-20
+      atol=atol
     ).y.T
 
   def rhs(self, t, y):

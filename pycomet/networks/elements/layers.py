@@ -452,10 +452,11 @@ class StdNormalization(Layer):
     columns=None,
     header=0,
     preproc_fn=None,
-    xform=None,
+    xform=None, # xform = {'dir': tf.math.log, 'inv': tf.math.exp}
     mean=None,
     variance=None,
     axis=-1,
+    invert=False,
     save_dir='./saving/',
     **kwargs
   ):
@@ -484,7 +485,8 @@ class StdNormalization(Layer):
       axis=axis,
       mean=self.mean,
       variance=self.variance,
-      trainable=self.trainable
+      trainable=self.trainable,
+      invert=invert
     )
 
   # Handling mean and variance
@@ -495,7 +497,7 @@ class StdNormalization(Layer):
     )
     data = self.read_datafile(self.data_files)
     if (self.xform is not None):
-      data = self.xform(data)
+      data = self.xform["dir"](data)
     self.mean, self.variance = tf.nn.moments(data, axes=0)
     array = np.vstack((self.mean, self.variance))
     os.makedirs(self.save_dir, exist_ok=True)
@@ -529,9 +531,12 @@ class StdNormalization(Layer):
   # Calling
   # ===================================
   def call(self, inputs):
-    if (self.xform is not None):
-      inputs = self.xform(inputs)
-    return self.norm_lay.call(inputs)
+    if ((self.xform is not None) and (not self.norm_lay.invert)):
+      inputs = self.xform["dir"](inputs)
+    y = self.norm_lay.call(inputs)
+    if ((self.xform is not None) and self.norm_lay.invert):
+      y = self.xform["inv"](y)
+    return y
 
   # Configuration update
   # ===================================

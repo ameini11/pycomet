@@ -9,7 +9,6 @@ import tensorflow as tf
 
 from pyDOE import lhs
 from tqdm import tqdm
-from scipy.constants import Boltzmann as UKB
 from silx.io.dictdump import dicttoh5, h5todict
 from pycomet.sampling import DifferentialBased
 
@@ -105,6 +104,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     nb_comp = len(self.reactor.species_indices["lin"])
     np.savetxt(path + "/species_feat.txt", np.eye(nb_comp), fmt="%.8e")
     # Save species indices and rates
+    self.reactor.species_indices["inp"] = np.array([
+      self.reactor.species_to_index[s] for s in self.inp_space_lbl
+    ]).astype(np.int32)
     for k in ("species_indices", "rates"):
       dicttoh5(
         treedict=getattr(self.reactor, k),
@@ -118,18 +120,18 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self
   ):
     data_src = {}
-    # Sampling input space
-    if self.read_init_sols:
-      pcm.utils.print_fn("Reading sampled input space", lev=1)
-      init_sols = h5todict(self.path_to_samples + "/samples/init_sols.hdf5")
-    else:
-      pcm.utils.print_fn("Sampling input space", lev=1)
-      init_sols = self.sample_inp_space()
-    # Generate training/validation data
-    pcm.utils.print_fn("Training/validation data", lev=1)
-    data_src.update(self.training_data(init_sols))
-    # Generate testing data
-    data_src.update(self.testing_data(init_sols))
+    # # Sampling input space
+    # if self.read_init_sols:
+    #   pcm.utils.print_fn("Reading sampled input space", lev=1)
+    #   init_sols = h5todict(self.path_to_samples + "/samples/init_sols.hdf5")
+    # else:
+    #   pcm.utils.print_fn("Sampling input space", lev=1)
+    #   init_sols = self.sample_inp_space()
+    # # Generate training/validation data
+    # pcm.utils.print_fn("Training/validation data", lev=1)
+    # data_src.update(self.training_data(init_sols))
+    # # Generate testing data
+    # data_src.update(self.testing_data(init_sols))
     return data_src
 
   # Sample initial conditions
@@ -144,6 +146,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     x = x[i]
     # Rescale DM
     x = x * (self.inp_space[1] - self.inp_space[0]) + self.inp_space[0]
+    x = self.inp_to_ic(x)
     # Splitting sampled initial solutions
     if (self.test_cases > 0):
       indices = pcm.utils.stratified_sampling(np.arange(s), self.test_cases)
@@ -168,6 +171,12 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     )
     # Returning sampled initial solutions
     return samples
+
+  def inp_to_ic(self, x):
+    y = np.zeros((len(x), self.reactor.nb_eqs)) + 1e-20
+    i = self.reactor.species_indices["inp"]
+    y[:,i] = x
+    return y
 
   # Compute solutions
   # ===================================
