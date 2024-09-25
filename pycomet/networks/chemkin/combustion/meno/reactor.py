@@ -1,6 +1,7 @@
 from pycomet import utils
 from pycomet import networks
 from pycomet.networks.basenet import BaseNet
+from pycomet.networks import elements as nn_elem
 from keras import layers as tf_layers
 
 # Blocks
@@ -117,10 +118,12 @@ class MENOPOLLUReac(BaseNet):
     # > Nonlinear state variables
     if self.callable_lays["y_nlin"]:
       y_nl_t = []
-      for i in (1, 2, 6):
-        name = f"y{i}"
+      for (i, j) in enumerate((1, 2, 6)):
+        name = f"y{j}"
         if (name in self.active_lays):
-          y_nl_t.append(self.active_lays[name](x, training=training))
+          yj_0 = nn_elem.Gather([i], axis=-1)(y_nl_0)
+          yj = yj_0 * self.active_lays[name](x, training=training)
+          y_nl_t.append(yj)
       y["y_nlin"] = tf_layers.Concatenate()(y_nl_t)
     elif self.callable_lays["y_lin"]:
       y["y_nlin"] = y_nl_t
