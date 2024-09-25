@@ -121,8 +121,8 @@ class MENOPOLLUReac(BaseNet):
       for (i, j) in enumerate((1, 2, 6)):
         name = f"y{j}"
         if (name in self.active_lays):
-          yj_0 = nn_elem.Gather([i], axis=-1)(y_nl_0)
-          yj = yj_0 * self.active_lays[name](x, training=training)
+          yj = nn_elem.Gather([i], axis=-1)(y_nl_0)
+          yj += t * self.active_lays[name](x, training=training)
           y_nl_t.append(yj)
       y["y_nlin"] = tf_layers.Concatenate()(y_nl_t)
     elif self.callable_lays["y_lin"]:
