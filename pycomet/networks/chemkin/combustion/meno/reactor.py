@@ -105,13 +105,16 @@ class MENOPOLLUReac(BaseNet):
     lin_only = False
     # Extract inputs
     # -------------
-    y_l_0, y_nl_0, t, y_nl_t = utils.unpack_list(inputs, nb_elem=4)
+    y_l_0, y_nl_0, y_inp, t, y_nl_t = utils.unpack_list(inputs, nb_elem=5)
+    print(y_l_0.shape, y_nl_0.shape, y_inp.shape, t.shape, y_nl_t.shape)
     # Compose inputs
     # -------------
-    y_0 = tf_layers.Concatenate()([y_l_0, y_nl_0])
+    y_tot = nn_elem.Reduction(indices=None, reduction="sum")(
+      y_inp, axis=-1, keepdims=True
+    )
     x = [
-      self.active_lays["ic_xform"](y_0),
-      self.active_lays["log_t"](t)
+      self.active_lays["ic_xform"](y_inp),
+      self.active_lays["log_t"](t*y_tot)
     ]
     # Predict species
     # -------------
@@ -135,7 +138,7 @@ class MENOPOLLUReac(BaseNet):
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update Argon distribution
       y["y_lin"] = self.active_lays["y_lin_update"](
-        (t, y_nl_0, y["y_nlin"], f), training=training
+        (t, y_l_0, y["y_nlin"], f), training=training
       )
     # Return predictions
     # -------------
