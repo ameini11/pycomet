@@ -198,12 +198,13 @@ class POLLUOperators(nn_elem.Layer):
   # Configuration update
   # ===================================
   def get_config(self):
-    config = {
-      "rates": tf.nest.map_structure(ops.to_numpy, self.rates),
-      "species_indices": tf.nest.map_structure(ops.to_numpy, self.species_indices),
+    config = {}
+    for key in ("rates", "species_indices"):
+      config[key] = tf.nest.map_structure(ops.to_numpy, getattr(self, key))
+    config.update({
       "use_corr": self.use_corr,
       "scale_corr": self.scale_corr
-    }
+    })
     base_config = super(POLLUOperators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
