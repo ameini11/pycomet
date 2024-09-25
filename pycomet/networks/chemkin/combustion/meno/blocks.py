@@ -7,6 +7,7 @@ from pycomet.config import get_config
 from pycomet.networks import elements as nn_elem
 from pycomet.networks.meno import layers as meno_lay
 from silx.io.dictdump import h5todict
+from tensorflow.python.training.tracking.data_structures import NoDependency
 _CFG = get_config()
 
 
@@ -49,22 +50,28 @@ class POLLUOperators(nn_elem.Layer):
 
   def read_species_indices(self, species_indices):
     species_indices = self.read_struct(species_indices)
-    return tf.nest.map_structure(lambda x: x.astype(np.int32), species_indices)
+    return tf.nest.map_structure(
+      lambda x: x.reshape(-1).astype(np.int32), species_indices
+    )
 
   def read_struct(self, struct):
     if isinstance(struct, str):
       struct = h5todict(h5file=struct)
-    return tf.nest.map_structure(lambda x: ops.to_numpy(x).squeeze(), struct)
+    return tf.nest.map_structure(
+      lambda x: ops.to_numpy(x).squeeze(), struct
+    )
 
   def set_rates_values_indices(self):
-    self.rates_indices = tf.nest.map_structure(tf.constant, self.rates)
+    self.rates_indices = NoDependency(
+      tf.nest.map_structure(tf.constant, self.rates)
+    )
     self.rates_values = self.rates_indices.pop("k")
-    self.amat_indices = tf.nest.map_structure(
+    self.amat_indices = NoDependency(tf.nest.map_structure(
       tf.constant, self.get_amat_indices()
-    )
-    self.species_indices = tf.nest.map_structure(
-      lambda x: tf.constant(x.reshape(-1)), self.species_indices
-    )
+    ))
+    self.species_indices = NoDependency(tf.nest.map_structure(
+      tf.constant, self.species_indices
+    ))
 
   def get_amat_indices(self):
     s_l = self.species_indices["lin"]

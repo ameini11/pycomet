@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from pycomet import utils
 from pycomet import backend as bkd
+from pycomet import operations as ops
 from pycomet.config import get_config
 from pycomet.operations import linalg
 from pycomet.networks import elements as nn_elem
@@ -258,7 +259,7 @@ class LinODE(nn_elem.Layer):
       "max_degree": self.max_degree,
       "max_nb_squarings": self.max_nb_squarings,
       "expm_dtype": self.expm_dtype,
-      "zeroth_indices": self.zeroth_indices,
+      "zeroth_indices": tf.nest.map_structure(ops.to_numpy, self.zeroth_indices),
       "add_inv_loss": self.add_inv_loss,
       "inv_loss_weight": self.inv_loss_weight
     }
