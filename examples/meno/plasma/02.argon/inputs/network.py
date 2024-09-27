@@ -1,20 +1,19 @@
+import tensorflow as tf
+
 from inputs.data import data_src
 
 # Architecture properties
 # =====================================
 architecture = "MENOPlasmaReac"
-# Variable name
-_name = "argon"
 # Path to data
 _path_to_data = "./../../datagen/data"
 
 # Extra inputs
 # -------------------------------------
 callable_lays = {
-  "argon": False,
+  "argon": True,
   "electron": False
 }
-callable_lays[_name] = True
 
 # Layers
 # -------------------------------------
@@ -63,6 +62,7 @@ lays_propty = {
       "mean_var_file": "./saving/normalization_mean_var.txt",
       "data_files": [data_src[k] for k in ("train", "valid")],
       "columns": list(range(5)),
+      "xform": {"dir": tf.math.log, "inv": tf.math.exp},
       "trainable": False
     }
   },
@@ -83,6 +83,7 @@ lays_propty = {
     "kwargs": {
       "rates": _path_to_data + "/physics/rates.hdf5",
       "use_corr": True,
+      "epsilon": 0.0,
       "use_pade": True,
       "use_expmv": False,
       "max_degree": None,

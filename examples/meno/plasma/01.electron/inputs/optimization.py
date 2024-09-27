@@ -5,7 +5,7 @@ from scipy.constants import Avogadro as UNA
 
 # Training
 # =====================================
-epochs = int(1e4)
+epochs = int(2e4)
 optimizer = "adam"
 
 # Learning rate scheduler
@@ -55,9 +55,9 @@ callbacks = {
     "profile_batch":  0
   },
 
-  'plotter': {
-    'figures': figures,
-    'freq':    250
+  "plotter": {
+    "figures": figures,
+    "freq":    250
   }
 
 }

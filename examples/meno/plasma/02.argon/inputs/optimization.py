@@ -5,7 +5,7 @@ from scipy.constants import Avogadro as UNA
 
 # Training
 # =====================================
-epochs = int(5e3)
+epochs = int(1e4)
 optimizer = "adam"
 
 # Learning rate scheduler
@@ -14,7 +14,7 @@ lr = 1e-3
 scheduler = {
   "name": "exponential",
   "decay_steps": 100*50,
-  "decay_rate": 0.92
+  "decay_rate": 0.98
 }
 
 # Loss and metrics

@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from inputs.data import data_src
@@ -13,9 +12,8 @@ _name = "electron"
 # -------------------------------------
 callable_lays = {
   "argon": False,
-  "electron": False
+  "electron": True
 }
-callable_lays[_name] = True
 
 # Layers
 # -------------------------------------
@@ -63,7 +61,8 @@ lays_propty = {
     "kwargs": {
       "mean_var_file": "./saving/normalization_mean_var.txt",
       "data_files": [data_src[k] for k in ("train", "valid")],
-      "columns": np.arange(5).tolist(),
+      "columns": list(range(5)),
+      "xform": {"dir": tf.math.log, "inv": tf.math.exp},
       "trainable": False
     }
   },
@@ -79,7 +78,7 @@ lays_propty = {
         "from": "branch",
         "to": "trunk",
         "kwargs": {
-          "layer_size": [5, 24, 24],
+          "layer_size": [5, 32, 16],
           "activation": ["tanh"]*2 + ["linear"],
           "out_xform": None,
           "transformation": "affine",
@@ -92,7 +91,7 @@ lays_propty = {
       "branch": {
         "lay_id": "FFBlock",
         "kwargs": {
-          "layer_size": [5, 64, 32, 8],
+          "layer_size": [5, 64, 32, 16],
           "activation": ["tanh"]*2 + ["linear"],
           "name": _name + "_branch",
           "trainable": True,
@@ -102,19 +101,11 @@ lays_propty = {
       "trunk": {
         "lay_id": "FFBlock",
         "kwargs": {
-          "layer_size": [1, 64, 32, 8],
+          "layer_size": [1, 64, 32, 16],
           "activation": ["tanh"]*2 + ["linear"],
           "name": _name + "_trunk",
           "trainable": True,
           **_common
-        }
-      },
-      "output": {
-        "lay_id": "Transform",
-        "kwargs": {
-          "xform": tf.math.exp,
-          "name": _name + "_xform",
-          "trainable": False
         }
       }
     }

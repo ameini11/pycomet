@@ -1,25 +1,29 @@
+import numpy as np
+
 from inputs.postproc import figures
+from scipy.constants import Avogadro as UNA
 
 # Training
 # =====================================
-epochs = 5000
+epochs = 2 #int(5e3)
 optimizer = "adam"
 
 # Learning rate scheduler
 # -------------------------------------
-lr = 1e-4
+lr = 1e-5
 scheduler = {
   "name": "exponential",
   "decay_steps": 100*50,
-  "decay_rate": 0.95
+  "decay_rate": 0.98
 }
 
 # Loss and metrics
 # =====================================
 loss_info = {
-  "loss": ["mape","mape","mae"],
+  "loss": "mape",
   "axis": 0,
-  "reduction": "auto"
+  "reduction": "auto",
+  "std_scaler": np.array({"mean": 0.0, "std": UNA})
 }
 
 # Callbacks
@@ -51,9 +55,9 @@ callbacks = {
     "profile_batch":  0
   },
 
-  'plotter': {
-    'figures': figures,
-    'freq':    250
+  "plotter": {
+    "figures": figures,
+    "freq":    250
   }
 
 }

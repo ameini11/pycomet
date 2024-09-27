@@ -125,6 +125,7 @@ class PlasmaSolUpdate(nn_elem.Layer):
     self,
     rates,
     use_corr=True,
+    epsilon=1e-12,
     use_pade=False,
     use_expmv=False,
     max_degree=None,
@@ -143,6 +144,7 @@ class PlasmaSolUpdate(nn_elem.Layer):
     # LinODE Layer
     self.linode = meno_lay.LinODE(
       nb_eqs=self.operators.nb_comp,
+      epsilon=epsilon,
       use_pade=use_pade,
       use_expmv=use_expmv,
       max_degree=max_degree,
@@ -172,6 +174,7 @@ class PlasmaSolUpdate(nn_elem.Layer):
     config = {
       "rates": self.operators.rates,
       "use_corr": self.operators.use_corr,
+      "epsilon": self.linode.epsilon,
       "use_pade": self.linode.use_pade,
       "use_expmv": self.linode.use_expmv,
       "max_degree": self.linode.max_degree,

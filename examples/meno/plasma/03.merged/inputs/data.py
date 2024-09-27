@@ -13,8 +13,8 @@ data_src = {
 }
 
 _columns = {
-  "x": [[ 0],list(range(1, 46)),[46],[47]],
-  "y": [[48],list(range(49,94)),[94]]
+  "x": [list(range(4)),[4],[5],[6]],
+  "y": [list(range(7,11)), [11]]
 }
 columns = {k: _columns for k in data_src.keys()}
 
@@ -23,6 +23,6 @@ header = 0
 # Batching
 # -------------------------------------
 batch_size = {
-  "train": 256*4,
-  "valid": 256*4
+  "train": 256*20,
+  "valid": 256*20
 }

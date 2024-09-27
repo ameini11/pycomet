@@ -17,4 +17,4 @@ flags = {
   "save":  1        # Saving model        0: no, 1: yes
 }
 
-run_eagerly = True
+run_eagerly = False

@@ -2,7 +2,7 @@
 # =====================================
 # Training/Validation data
 train_pts = 320
-scenarios = 2000
+scenarios = 1000
 validation_split = 0.2
 
 # Testing data
