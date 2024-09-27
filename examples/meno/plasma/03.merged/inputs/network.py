@@ -1,12 +1,10 @@
 import tensorflow as tf
 
-from inputs.data import data_src
+from inputs.data import data_src, _path_to_data
 
 # Architecture properties
 # =====================================
 architecture = "MENOPlasmaReac"
-# Path to data
-_path_to_data = "./../../datagen/data"
 
 # Extra inputs
 # -------------------------------------

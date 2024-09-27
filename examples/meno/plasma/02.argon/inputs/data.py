@@ -5,11 +5,13 @@ data_type = "DataSet"
 # Data source
 # -------------------------------------
 from_file = True
+# Path to data
+_path_to_data = "./../../00.datagen/data/"
 
 data_src = {
-  "train": "./../../datagen/data/train.csv",
-  "valid": "./../../datagen/data/valid.csv",
-  "test": "./../../datagen/data/test/"
+  "train": _path_to_data + "/train.csv",
+  "valid": _path_to_data + "/valid.csv",
+  "test": _path_to_data + "/data/test/"
 }
 
 _columns = {

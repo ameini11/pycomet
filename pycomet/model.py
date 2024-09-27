@@ -314,7 +314,11 @@ class Model(object):
     )
     # Save 'history.history' in a file
     df = pd.DataFrame.from_dict(history.history)
-    df.to_csv(path_or_buf=self.dir['train']+'/history.csv', index=False)
+    df.to_csv(
+      path_or_buf=self.dir['train']+'/history.csv',
+      index=False,
+      float_format='%.8e'
+    )
 
   # Predicting
   # ===================================

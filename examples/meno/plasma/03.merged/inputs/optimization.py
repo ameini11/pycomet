@@ -5,7 +5,7 @@ from scipy.constants import Avogadro as UNA
 
 # Training
 # =====================================
-epochs = 2 #int(5e3)
+epochs = int(5e3)
 optimizer = "adam"
 
 # Learning rate scheduler
