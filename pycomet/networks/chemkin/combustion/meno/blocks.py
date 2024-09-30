@@ -274,12 +274,11 @@ class POLLUSolUpdate(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {}
-    for key in ("rates", "species_indices"):
+    for key in ("rates", "species_indices", "scale_corr"):
       value = getattr(self.operators, key)
       config[key] = tf.nest.map_structure(ops.to_numpy, value)
     config.update({
       "use_corr": self.operators.use_corr,
-      "scale_corr": self.operators.scale_corr,
       "epsilon": self.linode.epsilon,
       "use_pade": self.linode.use_pade,
       "use_expmv": self.linode.use_expmv,

@@ -147,7 +147,7 @@ class MENONonEqReac(BaseNet):
     # -------------
     # > Atom number density
     if self.callable_lays["mass"]:
-      y["na"] = n_0 * self.active_lays["mass"](x, training=training)
+      y["na"] = na_0 * self.active_lays["mass"](x, training=training)
     elif self.callable_lays["dist"]:
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
       dist_only = True

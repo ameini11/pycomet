@@ -24,7 +24,7 @@ class NonEqOperators(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
-    corr_scale=None,
+    scale_corr=None,
     **kwargs
   ):
     super(NonEqOperators, self).__init__(**kwargs)
@@ -46,10 +46,10 @@ class NonEqOperators(nn_elem.Layer):
     self.set_rates_values_indices()
     # Corrections
     self.use_corr = use_corr
-    self.corr_scale = corr_scale
-    if (self.corr_scale is not None):
-      self.corr_scale = tf.squeeze(
-        tf.constant(self.corr_scale, dtype=bkd.get_floatx())
+    self.scale_corr = scale_corr
+    if (self.scale_corr is not None):
+      self.scale_corr = tf.squeeze(
+        tf.constant(self.scale_corr, dtype=bkd.get_floatx())
       )
 
   def read_rates(self, rates=None):
@@ -183,8 +183,8 @@ class NonEqOperators(nn_elem.Layer):
         pcorr -= tf.gather(f, indices=self.rates_indices[p][1], axis=-2)
       # Apply correction
       pcorr = tf.math.reduce_sum(pcorr, axis=-1)
-      if (self.corr_scale is not None):
-        pcorr *= self.corr_scale
+      if (self.scale_corr is not None):
+        pcorr *= self.scale_corr
       fwd_rates[p] *= tf.math.exp(pcorr)
     return fwd_rates
 
@@ -212,7 +212,7 @@ class NonEqOperators(nn_elem.Layer):
     config = {
       "rates": self.rates,
       "use_corr": self.use_corr,
-      "corr_scale": ops.to_numpy(self.corr_scale)
+      "scale_corr": ops.to_numpy(self.scale_corr)
     }
     base_config = super(NonEqOperators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -296,7 +296,8 @@ class NonEqSolUpdate(nn_elem.Layer):
     self,
     rates=None,
     use_corr=True,
-    corr_scale=None,
+    scale_corr=None,
+    epsilon=1e-15,
     use_pade=False,
     use_expmv=False,
     max_degree=None,
@@ -311,11 +312,12 @@ class NonEqSolUpdate(nn_elem.Layer):
     self.operators = NonEqOperators(
       rates=rates,
       use_corr=use_corr,
-      corr_scale=corr_scale
+      scale_corr=scale_corr
     )
     # LinODE Layer
     self.linode = meno_lay.LinODE(
       nb_eqs=self.operators.nb_comp,
+      epsilon=epsilon,
       use_pade=use_pade,
       use_expmv=use_expmv,
       max_degree=max_degree,
@@ -344,7 +346,8 @@ class NonEqSolUpdate(nn_elem.Layer):
     config = {
       "rates": self.operators.rates,
       "use_corr": self.operators.use_corr,
-      "corr_scale": ops.to_numpy(self.operators.corr_scale),
+      "scale_corr": ops.to_numpy(self.operators.scale_corr),
+      "epsilon": self.linode.epsilon,
       "use_pade": self.linode.use_pade,
       "use_expmv": self.linode.use_expmv,
       "max_degree": self.linode.max_degree,

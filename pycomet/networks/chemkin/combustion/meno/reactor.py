@@ -106,7 +106,6 @@ class MENOPOLLUReac(BaseNet):
     # Extract inputs
     # -------------
     y_l_0, y_nl_0, y_inp, t, y_nl_t = utils.unpack_list(inputs, nb_elem=5)
-    print(y_nl_t)
     # Compose inputs
     # -------------
     y_tot = nn_elem.Reduction(indices=None, reduction="sum")(

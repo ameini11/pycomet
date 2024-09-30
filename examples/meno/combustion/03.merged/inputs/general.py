@@ -19,10 +19,10 @@ flags = {
 
 forced_loading = True
 weights_to_load = [
-  "./../../01.y1/case.r02/saving/pollu_y1/model_weights.h5",
-  "./../../01.y2/case.r01.ok/saving/pollu_y2/model_weights.h5",
-  "./../../01.y6/case.r02/saving/pollu_y6/model_weights.h5",
-  "./../../02.y_lin/case.r01.ok/saving/pollu_y_lin/model_weights.h5"
+  "./../../01.y1/saving/pollu_y1/model_weights.h5",
+  "./../../01.y2/saving/pollu_y2/model_weights.h5",
+  "./../../01.y6/saving/pollu_y6/model_weights.h5",
+  "./../../02.y_lin/saving/pollu_y_lin/model_weights.h5"
 ]
 
 run_eagerly = False

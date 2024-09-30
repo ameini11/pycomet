@@ -19,14 +19,14 @@ noisy_io = {
   "inputs": {
     "lay_id": "GaussianNoise",
     "kwargs": {
-      "stddev": 0.02,
+      "stddev": 0.04,
       "seed": 0
     }
   },
   "outputs": {
     "lay_id": "GaussianNoise",
     "kwargs": {
-      "stddev": 0.02,
+      "stddev": 0.04,
       "seed": 0
     }
   }
