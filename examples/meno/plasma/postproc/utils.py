@@ -29,9 +29,9 @@ def ratio_normal_approx(mean, std):
   rstd = np.sqrt(rmean**2 * (deltas[0]**2 + deltas[1]**2))
   return rmean, rstd
 
-def error_l2(y_true, y_pred, axis=0):
+def error_l2(y_true, y_pred, axis=0, eps=1e-10):
   err = np.linalg.norm(y_true-y_pred, ord=2, axis=axis)
-  return 100.0 * err / np.linalg.norm(y_true, ord=2, axis=axis)
+  return 100.0 * err / (np.linalg.norm(y_true, ord=2, axis=axis)+eps)
 
 def error_mape(y_true, y_pred, eps=1e-10):
   return 100.0 * np.abs(y_true-y_pred) / (np.abs(y_true)+eps)
