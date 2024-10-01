@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import scipy as sp
 import pandas as pd
 import tensorflow as tf
 import matplotlib as mpl
@@ -47,11 +48,17 @@ def load_test_cases(path):
 
 # Predict
 # =====================================
-def predict(model, data, indices):
+def predict(model, data, indices, t=None):
   x = [np.take(data, i, axis=-1) for i in indices["x"]]
   y_true = np.hstack([np.take(data, i, axis=-1) for i in indices["y"]])
   y_pred = np.hstack(tf.nest.map_structure(lambda x: x.numpy(), model(x)))
-  return x[-1], y_true, y_pred
+  if (t is not None):
+    t_old = x[-1].reshape(-1)
+    y_true = sp.interpolate.interp1d(t_old, y_true, kind="cubic", axis=0)(t)
+    y_pred = sp.interpolate.interp1d(t_old, y_pred, kind="cubic", axis=0)(t)
+  else:
+    t = x[-1]
+  return t, y_true, y_pred
 
 # Plotting
 # =====================================
@@ -155,3 +162,14 @@ def plot_test(
   if show:
     plt.show()
   plt.close()
+
+# Writing
+# =====================================
+def write_latex(error, labels, filename, format="{:.3f}"):
+  text = ""
+  for c in error.columns:
+    m, s = [format.format(error[c][k]) for k in ("mean", "std")]
+    text += "%s & $%s \pm %s$ \\\\\n" % (labels[c], m, s)
+  f = open(filename, "w", encoding='utf-8')
+  f.write(text)
+  f.close()
