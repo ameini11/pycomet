@@ -3,7 +3,7 @@
   "device": "gpu",
   "cpu_threads": 2,
   "gpu_memory_growth": true,
-  "dev_index": 0,
+  "dev_index": 1,
   "floatx": "float64",
   "epsilon": 1e-20,
   "env": {
