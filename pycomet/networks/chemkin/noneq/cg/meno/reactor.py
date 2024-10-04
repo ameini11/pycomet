@@ -122,7 +122,7 @@ class MENONonEqReac(BaseNet):
     dist_only = False
     # Extract inputs
     # -------------
-    na_0, nmi_0, T_0, t, qoi_t = utils.unpack_list(inputs, nb_elem=5)
+    na_0, nmi_0, T_0, t, qoi_eq, qoi_t = utils.unpack_list(inputs, nb_elem=6)
     # Update thermodynamics
     # -------------
     # Compute state energies
@@ -147,7 +147,9 @@ class MENONonEqReac(BaseNet):
     # -------------
     # > Atom number density
     if self.callable_lays["mass"]:
-      y["na"] = na_0 * self.active_lays["mass"](x, training=training)
+      na_eq = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_eq)
+      y["na"] = self.active_lays["mass"](x, training=training)
+      y["na"] = na_0 + (na_eq-na_0) * y["na"]
     elif self.callable_lays["dist"]:
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
       dist_only = True
@@ -157,7 +159,9 @@ class MENONonEqReac(BaseNet):
     # Predict temperature
     # -------------
     if self.callable_lays["temp"]:
-      y["T"] = T_0 * self.active_lays["temp"](x, training=training)
+      T_eq = nn_elem.Gather([self.qoi_indices["temp"]], axis=-1)(qoi_eq)
+      y["T"] = self.active_lays["temp"](x, training=training)
+      y["T"] = T_0 + (T_eq-T_0) * y["T"]
     elif self.callable_lays["dist"]:
       y["T"] = nn_elem.Gather([self.qoi_indices["temp"]], axis=-1)(qoi_t)
       dist_only = True
