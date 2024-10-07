@@ -336,8 +336,8 @@ class NonEqSolUpdate(nn_elem.Layer):
     A, b = self.operators((na, T, *q, f), training=training)
     # Compute state-wise number densities
     nmi = self.linode((t, nmi_0, A, b), training=training)
-    # Ensure mass conservation
-    nmi *= (nm / tf.math.reduce_sum(nmi, axis=-1, keepdims=True))
+    # # Ensure mass conservation
+    # nmi *= (nm / tf.math.reduce_sum(nmi, axis=-1, keepdims=True))
     return nmi
 
   # Configuration update
