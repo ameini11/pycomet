@@ -17,6 +17,7 @@ class SurrogateTimer(object):
     env={},
     device="cpu",
     filename="timings",
+    indices_file=None,
     load_pycomet="module load pycomet",
     nb_threads=1
   ):
@@ -41,6 +42,15 @@ class SurrogateTimer(object):
     # -----------------------------------
     self.repeat_data = repeat_data
     self.filename = filename
+    # Indices
+    with open(indices_file) as file:
+      self.indices = json.load(file)
+    self.x_cols = self.indices["na_0"] \
+                + self.indices["nmi_0"] \
+                + self.indices["T_0"] \
+                + self.indices["t"] \
+                + self.indices["qoi_eq"]
+    self.x_cols = np.array(self.x_cols).reshape(-1)
 
   # Generate data
   # ===================================
@@ -53,6 +63,7 @@ class SurrogateTimer(object):
       t_end = float(t_end)
       print("> t_end = %.5e s" % t_end)
       # Compose data
+      tdata = np.take(tdata, self.x_cols, axis=-1)
       tdata = np.repeat(tdata, self.repeat_data, axis=0)
       shape = tdata.shape
       # Save data

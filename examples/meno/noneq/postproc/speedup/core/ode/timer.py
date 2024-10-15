@@ -80,6 +80,7 @@ class ODESolveTimer(object):
   def __call__(
     self,
     t_ends,
+    rtol_order=8,
     max_order=2,
     init_sols=None,
     read_init_sols=False
@@ -94,8 +95,14 @@ class ODESolveTimer(object):
         init_sols = self.sample_inp_space()
     # Evaluate execution time
     print("Evaluating execution time")
+    print(f"> rtol = 1.d-{rtol_order} | order = {max_order}")
     timings = [
-      self.eval_exec_time(t_end, init_sols, max_order) for t_end in t_ends
+      self.eval_exec_time(
+        t_end=t_end,
+        init_sols=init_sols,
+        rtol_order=rtol_order,
+        max_order=max_order
+      ) for t_end in t_ends
     ]
     timings = np.vstack(timings)
     # Save timings
@@ -105,7 +112,8 @@ class ODESolveTimer(object):
     )
     timings = timings.sort_values(by=["t_end [s]"])
     timings.to_csv(
-      path_or_buf=self.path_to_data + f"/timings_ord{max_order}.csv",
+      path_or_buf=self.path_to_data \
+        + f"/timings_rtol{rtol_order}_ord{max_order}.csv",
       float_format="%.8e",
       index=False
     )
@@ -163,17 +171,20 @@ class ODESolveTimer(object):
     self,
     t_end,
     init_sols,
+    rtol_order=8,
     max_order=2
   ):
-    print("> t_end = %.5e s" % t_end)
+    print(" > t_end = %.5e s" % t_end)
     pcm.utils.replace(
       file_in=self.path_to_runs + "/run.bkp/inputfile.sh",
       patterns=(
         "TE",
+        "RTOL",
         "MAX_ORDER"
       ),
       replaces=(
         "TE = " + ("%.5e" % t_end).replace("e", "d") + "\n",
+        "RTOL = 1.d-" + str(rtol_order) + "\n",
         "MAX_ORDER = " + str(max_order) + "\n"
       ),
       inplace=True,

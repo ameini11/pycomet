@@ -20,13 +20,14 @@ if __name__ == '__main__':
   # Inputs
   # =====================================
   # Paths
-  prefix = "/home/zanardi/Codes/ML/PyCOMET/run/meno.v3/RVE45/adiabatic/"
+  prefix = "/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45/adiabatic/"
   path_to_bkd = "./bkd"
-  path_to_data = prefix + "/datagen/data/train_teval.hdf5"
+  path_to_data = prefix + "/00.datagen/data/train_teval.hdf5"
   path_to_models = {
-    "full_f32": prefix + "/04.full/case.r02.p4.siso.f32/saving/full_me_siso/inpfile.json",
-    "full_f64": prefix + "/04.full/case.r02.p4.siso.f64/saving/full_me_siso/inpfile.json"
+    "merged_f32": prefix + "/03.merged/case.r01.siso.f32/saving/noneq_siso/inpfile.json",
+    "merged_f64": None
   }
+  path_to_indices = prefix + "/00.datagen/data/indices.json"
   # Data
   repeat_data = 10
   # Devices
@@ -51,21 +52,23 @@ if __name__ == '__main__':
   data = h5todict(path_to_data)
   for device in devices:
     for (name, path_to_model) in path_to_models.items():
-      print(
-        "Evaluating execution time for:" \
-        f"\n - model:  '{name}'" \
-        f"\n - device: '{device}'"
-      )
-      sur_timer = SurrogateTimer(    
-        paths={
-          "bkd": path_to_bkd,
-          "modelfile": path_to_model
-        },
-        repeat_data=repeat_data,
-        env=env,
-        device=device,
-        filename=f"timings_{name}_{device}",
-        load_pycomet=load_pycomet[device],
-        nb_threads=nb_threads
-      )
-      timings = sur_timer(data)
+      if (path_to_model is not None):
+        print(
+          "Evaluating execution time for:" \
+          f"\n - model:  '{name}'" \
+          f"\n - device: '{device}'"
+        )
+        sur_timer = SurrogateTimer(
+          paths={
+            "bkd": path_to_bkd,
+            "modelfile": path_to_model
+          },
+          repeat_data=repeat_data,
+          env=env,
+          device=device,
+          filename=f"timings_{name}_{device}",
+          indices_file=path_to_indices,
+          load_pycomet=load_pycomet[device],
+          nb_threads=nb_threads
+        )
+        timings = sur_timer(data)

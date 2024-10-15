@@ -2,7 +2,7 @@
 set -e
 
 compile() {
-  make clean
+  ./allclean.sh
   make
   mv main.x main_${device}.x
   make clean
