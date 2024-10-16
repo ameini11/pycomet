@@ -3,6 +3,7 @@ import tensorflow as tf
 import matplotlib as mpl
 
 from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Use custom style
 # See: https://matplotlib.org/1.5.3/users/style_sheets.html
@@ -24,7 +25,12 @@ def ratio_normal_approx(mean, std):
   rstd = np.sqrt(rmean**2 * (deltas[0]**2 + deltas[1]**2))
   return rmean, rstd
 
-def plot_timings(
+def as_si(x, ndp=0):
+  s = "{x:0.{ndp:d}e}".format(x=x, ndp=ndp)
+  m, e = s.split("e")
+  return r"10^{{{e:d}}}".format(m=m, e=int(e))
+
+def plot_speedup_1d(
   x,
   mean,
   std=None,
@@ -71,6 +77,37 @@ def plot_timings(
   if save:
     for ext in tf.nest.flatten(extensions):
       fig.savefig(figname+"."+ext)
+  # Show and close figure
+  if show:
+    plt.show()
+  plt.close()
+
+def plot_speedup_2d(
+  xlbl,
+  ylbl,
+  z,
+  figname=None,
+  save=True,
+  show=False,
+  extensions=("pdf", "pgf", "png")
+):
+  fig, ax = plt.subplots(figsize=(10, 10))
+  # Set x-axis
+  ax.set_xticks(np.arange(len(xlbl)), labels=xlbl)
+  ax.set_xlabel("$t_f$ [s]")
+  # Set y-axis
+  ax.set_yticks(np.arange(len(ylbl)), labels=ylbl)
+  ax.set_ylabel("BDF RTol")
+  # Set z-axis
+  im = ax.imshow(z, rasterized=True)
+  divider = make_axes_locatable(ax)
+  cax = divider.append_axes("right", size="5%", pad=0.3)
+  cbar = fig.colorbar(im, cax=cax, orientation="vertical", label="Speedup")
+  cbar.formatter.set_powerlimits((0, 0))
+  # Save figure
+  if save:
+    for ext in tf.nest.flatten(extensions):
+      fig.savefig(figname+"."+ext, bbox_inches="tight", pad_inches=0.1)
   # Show and close figure
   if show:
     plt.show()
