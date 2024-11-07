@@ -287,6 +287,68 @@ class NonEqThermoUpdate(nn_elem.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class MoleToMassUpdate(nn_elem.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    specie_thermos={
+      "filename": None,
+      "config": None
+    },
+    **kwargs
+  ):
+    super(MoleToMassUpdate, self).__init__(**kwargs)
+    # Species thermodynamics
+    specie_thermos.update({
+      "thermo_process": 1,
+      "eos_model": "PerfectGas"
+    })
+    self.sp_th = st_mod.init_specie_thermos(**specie_thermos)
+    st_mod.build_specie_thermos(self.sp_th)
+    # Species masses and identifiers
+    self.masses = {}
+    self.species = {}
+    for st in self.sp_th.values():
+      if (st.specie.nb_comp > 1):
+        self.masses["molecule"] = st.specie.m
+        self.species["molecule"] = st.specie.name
+      else:
+        self.masses["atom"] = st.specie.m
+        self.species["atom"] = st.specie.name
+
+  # Calling
+  # ===================================
+  def call(self, x, rho=None, qoi="rho", training=None):
+    if (qoi == "rho"):
+      return self.compute_rho(n=x)
+    else:
+      return self.compute_n(w=x, rho=rho)
+
+  def compute_rho(self, n):
+    n_a, n_m = n
+    n_m = tf.math.reduce_sum(n_m, axis=-1, keepdims=True)
+    return self.masses["atom"] * n_a + self.masses["molecule"] * n_m
+
+  def compute_n(self, w, rho):
+    w_a, w_m = w
+    n_a = (1.0/self.masses["atom"]) * w_a * rho
+    n_m = (1.0/self.masses["molecule"]) * w_m * rho
+    return n_a, n_m
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    sp_th_cfg = tf.nest.map_structure(lambda st: st.get_config(), self.sp_th)
+    config = {
+      "specie_thermos": {"config": sp_th_cfg}
+    }
+    base_config = super(MoleToMassUpdate, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class NonEqSolUpdate(nn_elem.Layer):
   """Matrix exponential-based update for the master equation."""
 
