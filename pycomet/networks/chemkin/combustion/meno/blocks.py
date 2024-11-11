@@ -112,7 +112,8 @@ class POLLUOperators(nn_elem.Layer):
     # > y_nl: nonlinear state variables
     # > f:    state-wise corrective factors
     y_nl, f = inputs
-    f *= self.scale_corr
+    if self.use_corr:
+      f *= self.scale_corr
     # Compose linear operators: A from dydt=A@y
     batch_size = tf.shape(y_nl)[0]
     a = tf.zeros((self.nb_comp**2, batch_size), dtype=bkd.get_floatx())
