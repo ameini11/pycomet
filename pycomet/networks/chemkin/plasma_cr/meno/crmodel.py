@@ -3,6 +3,7 @@ import numpy as np
 import dill as pickle
 import tensorflow as tf
 
+from . import const
 from .mixture import Mixture
 from pycomet import backend as bkd
 
@@ -42,7 +43,7 @@ class CRModel(object):
         tf.constant(self.scale_corr, dtype=bkd.get_floatx())
       )
 
-  def set_rates_values_indices(self, processes, eps=1e-30):
+  def set_rates_values_indices(self, processes, eps=0.0):
     # Load processes
     # -------------
     self.processes = processes
@@ -84,6 +85,7 @@ class CRModel(object):
   # Rates
   # ===================================
   def compute_rates(self, Th, Te, f):
+    Th, Te = [self.clip_temp(z) for z in (Th, Te)]
     # Update species thermo
     self.mix["h"].update_species_thermo(Th, Te)
     self.mix["e"].update_species_thermo(Te, Te)
@@ -94,6 +96,9 @@ class CRModel(object):
       rates["fwd"] = self.correct_fwd_rates(rates["fwd"], f)
     # Compute bwd reaction rates
     return self.compute_bwd_rates(rates)
+
+  def clip_temp(self, T):
+    return tf.clip_by_value(T, const.TMIN, const.TMAX)
 
   def compute_fwd_rates(self, Th, Te):
     rates = {}
@@ -134,7 +139,7 @@ class CRModel(object):
     for k in ("h", "e"):
       q[k] = tf.split(
         value=self.mix[k].q,
-        num_or_size_splits=[1, 1, self.mix[k].nb_comp-2],
+        num_or_size_splits=[1, 1, self.nb_comp_lin],
         axis=-1
       )
     # Compute backward rates

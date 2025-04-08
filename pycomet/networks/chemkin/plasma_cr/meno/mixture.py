@@ -52,10 +52,11 @@ class Mixture(object):
   # ===================================
   def update_species_thermo(self, Th, Te):
     self.q = []
-    for s in self.species.values():
-      Ti = Te if (s.name == "em") else Th
-      s.update(Ti)
-      self.q.append(s.q)
+    for k in self.species_order:
+      sp = self.species[k]
+      Ti = Te if (sp.name == "em") else Th
+      sp.update(Ti)
+      self.q.append(sp.q)
     self.q = tf.concat(self.q, axis=-1)
 
   # Conversions
