@@ -31,7 +31,8 @@ class CRModel(object):
       "e": copy.deepcopy(mix)
     }
     # Initialize processes rates
-    self.nb_nlin = 2
+    self.nb_comp_nlin = 2
+    self.nb_comp_lin = self.mix["h"].nb_comp - self.nb_comp_nlin
     self.set_rates_values_indices(processes)
     # Corrections
     self.use_corr = use_corr
@@ -78,7 +79,7 @@ class CRModel(object):
       setattr(self, key, tf.nest.map_structure(
         lambda z: tf.constant(z, dtype=dtype), value
       ))
-    self.scatter_size = (self.mix["h"].nb_comp-self.nb_nlin)**2
+    self.scatter_size = self.nb_comp_lin**2
 
   # Rates
   # ===================================
@@ -105,7 +106,11 @@ class CRModel(object):
     for p in ("EXe", "Ie", "BF"):
       rates[p] = self._arrhenius(ln_T, ov_T, self.rates_values[p])
     # > Spontaneous emission and absorption (BB)
-    rates["BB"] = tf.identity(self.rates_values["BB"]["A"])
+    rates["BB"] = tf.repeat(
+      input=self.rates_values["BB"]["A"],
+      repeats=tf.shape(Te)[0],
+      axis=0
+    )
     return rates
 
   def _arrhenius(self, ln_T, ov_T, param):
@@ -149,6 +154,39 @@ class CRModel(object):
       rates["bwd"][p] = l * rates["fwd"][p]
       rates["fwd"][p] *= (1.0 - l)
     return rates
+
+  def compose_sources_mat(self, rates, n_em, n_ar1):
+    omega = {}
+    shape = (self.nb_comp_lin**2, tf.shape(n_em)[0])
+    for z in ("fwd", "bwd"):
+      omega[z] = tf.zeros(shape, dtype=bkd.get_floatx())
+      for p in self.processes.keys():
+        omegap = rates[z][p]
+        if ("e" in p):
+          omegap *= n_em
+        if ("h" in p):
+          omegap *= n_ar1
+        if ((z == "bwd") and ("I" in p)):
+          omegap *= n_em
+        if ((z == "bwd") and (p == "BF")):
+          omegap *= n_em
+        omega[z] = tf.tensor_scatter_nd_add(
+          tensor=omega[z],
+          indices=self.scatter_update_indices[p],
+          updates=tf.transpose(omegap)
+        )
+      omega[z] = tf.reshape(
+        tf.transpose(omega[z]), (-1, self.nb_comp_lin, self.nb_comp_lin)
+      )
+    return omega
+
+  def compose_lin_ops(self, omega):
+    A = omega["fwd"] + tf.transpose(omega["bwd"], perm=[0,2,1])
+    A = tf.linalg.set_diag(
+      input=tf.transpose(A, perm=[0,2,1]),
+      diagonal=-tf.math.reduce_sum(A, axis=-1)
+    )
+    return A
 
   # Configuration
   # ===================================
