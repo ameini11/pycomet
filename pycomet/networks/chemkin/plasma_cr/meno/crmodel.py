@@ -32,8 +32,7 @@ class CRModel(object):
       "e": copy.deepcopy(mix)
     }
     # Initialize processes rates
-    self.nb_comp_nlin = 2
-    self.nb_comp_lin = self.mix["h"].nb_comp - self.nb_comp_nlin
+    self.nb_comp = self.mix["h"].nb_comp - 1
     self.set_rates_values_indices(processes)
     # Corrections
     self.use_corr = use_corr
@@ -43,7 +42,7 @@ class CRModel(object):
         tf.constant(self.scale_corr, dtype=bkd.get_floatx())
       )
 
-  def set_rates_values_indices(self, processes, eps=0.0):
+  def set_rates_values_indices(self, processes):
     # Load processes
     # -------------
     self.processes = processes
@@ -57,10 +56,10 @@ class CRModel(object):
     # -------------
     # > Indices
     indices_2d = tf.nest.map_structure(
-      lambda z: np.where(z > eps), k
+      lambda z: np.where(z > 0.0), k
     )
     indices_1d = tf.nest.map_structure(
-      lambda z: np.where(z.reshape(-1) > eps)[0].reshape(-1,1), k
+      lambda z: np.where(z.reshape(-1) > 0.0)[0].reshape(-1,1), k
     )
     # > Values
     values_2d = {}
@@ -80,7 +79,15 @@ class CRModel(object):
       setattr(self, key, tf.nest.map_structure(
         lambda z: tf.constant(z, dtype=dtype), value
       ))
-    self.scatter_size = self.nb_comp_lin**2
+    # Indices for A and b operators
+    # -------------
+    # Matrix of indices
+    K = np.arange(self.nb_comp*self.nb_comp)
+    K = K.reshape(self.nb_comp,self.nb_comp)
+    self.lin_ops_indices = {
+      "A": tf.constant(K[1:,1:].reshape(-1), dtype="int32"),
+      "b": tf.constant(K[1:,:1].reshape(-1), dtype="int32")
+    }
 
   # Rates
   # ===================================
@@ -134,12 +141,12 @@ class CRModel(object):
 
   def compute_bwd_rates(self, rates):
     # Extract partition function
-    # > Splitting: em, Ar(1), Ar(2-34)
+    # > Splitting: em, Ar(1-33)
     q = {}
     for k in ("h", "e"):
       q[k] = tf.split(
         value=self.mix[k].q,
-        num_or_size_splits=[1, 1, self.nb_comp_lin],
+        num_or_size_splits=[1, self.nb_comp],
         axis=-1
       )
     # Compute backward rates
@@ -148,8 +155,8 @@ class CRModel(object):
     for k1 in ("EX", "I"):
       for k2 in ("h", "e"):
         p = k1 + k2
-        qf = tf.gather(q[k2][2], indices=self.rates_indices[p][0], axis=-1)
-        qb = tf.gather(q[k2][2], indices=self.rates_indices[p][1], axis=-1)
+        qf = tf.gather(q[k2][1], indices=self.rates_indices[p][0], axis=-1)
+        qb = tf.gather(q[k2][1], indices=self.rates_indices[p][1], axis=-1)
         rates["bwd"][p] = rates["fwd"][p] * qf / qb
         if (k1 == "I"):
           rates["bwd"][p] /= q[k2][0]
@@ -162,36 +169,80 @@ class CRModel(object):
 
   def compose_sources_mat(self, rates, n_em, n_ar1):
     omega = {}
-    shape = (self.nb_comp_lin**2, tf.shape(n_em)[0])
+    shape = (self.nb_comp**2, tf.shape(n_em)[0])
     for z in ("fwd", "bwd"):
       omega[z] = tf.zeros(shape, dtype=bkd.get_floatx())
       for p in self.processes.keys():
-        omegap = rates[z][p]
-        if ("e" in p):
-          omegap *= n_em
-        if ("h" in p):
-          omegap *= n_ar1
-        if ((z == "bwd") and ("I" in p)):
-          omegap *= n_em
+        if p.endswith("e"):
+          rates[z][p] *= n_em
+        if p.endswith("h"):
+          rates[z][p] *= n_ar1
+        if ((z == "bwd") and p.startswith("I")):
+          rates[z][p] *= n_em
         if ((z == "bwd") and (p == "BF")):
-          omegap *= n_em
+          rates[z][p] *= n_em
         omega[z] = tf.tensor_scatter_nd_add(
           tensor=omega[z],
           indices=self.scatter_update_indices[p],
-          updates=tf.transpose(omegap)
+          updates=tf.transpose(rates[z][p])
         )
       omega[z] = tf.reshape(
-        tf.transpose(omega[z]), (-1, self.nb_comp_lin, self.nb_comp_lin)
+        tf.transpose(omega[z]), (-1,self.nb_comp,self.nb_comp)
       )
     return omega
 
-  def compose_lin_ops(self, omega):
-    A = omega["fwd"] + tf.transpose(omega["bwd"], perm=[0,2,1])
-    A = tf.linalg.set_diag(
-      input=tf.transpose(A, perm=[0,2,1]),
-      diagonal=-tf.math.reduce_sum(A, axis=-1)
+  def compose_lin_ops(self, rates, n_em, n_ar1):
+    omega = self.compose_sources_mat(rates, n_em, n_ar1)
+    Ab = omega["fwd"] + tf.transpose(omega["bwd"], perm=[0,2,1])
+    Ab = tf.linalg.set_diag(
+      input=tf.transpose(Ab, perm=[0,2,1]),
+      diagonal=-tf.math.reduce_sum(Ab, axis=-1)
     )
-    return A
+    Ab = tf.reshape(Ab, (-1,self.nb_comp**2))
+    A = tf.gather(Ab, indices=self.lin_ops_indices["A"], axis=-1)
+    A = tf.reshape(A, (-1,self.nb_comp-1,self.nb_comp-1))
+    b = tf.gather(Ab, indices=self.lin_ops_indices["b"], axis=-1) * n_ar1
+    return A, b
+
+  # def compose_lin_ops(self, rates, n_em, n_ar1):
+  #   rates = self.compose_rates_mat(rates, tf.shape(n_em)[0])
+  #   n_em, n_ar1 = [tf.expand_dims(x, axis=-1) for x in (n_em, n_ar1)]
+  #   A = 0.0
+  #   for p in self.processes.keys():
+  #     if p not in ("EXh","EXe","BB"):
+  #       continue
+  #     Ap = rates["fwd"][p] + tf.transpose(rates["bwd"][p], perm=[0,2,1])
+  #     Ap = tf.linalg.set_diag(
+  #       input=tf.transpose(Ap, perm=[0,2,1]),
+  #       diagonal=-tf.math.reduce_sum(Ap, axis=-1)
+  #     )
+  #     if p.endswith("e"):
+  #       Ap *= n_em
+  #     elif p.endswith("h"):
+  #       Ap *= n_ar1
+
+  #     if ((z == "bwd") and p.startswith("I")):
+  #       rates[z][p] *= n_em
+  #     if ((z == "bwd") and (p == "BF")):
+  #       rates[z][p] *= n_em
+
+
+  #     A = A + Ap
+  #   return A
+
+  # def compose_rates_mat(self, rates, batch_size):
+  #   m = self.nb_comp
+  #   rates_mat = {}
+  #   for z in ("fwd", "bwd"):
+  #     rates_mat[z] = {}
+  #     for p in self.processes.keys():
+  #       rates_mat[z][p] = tf.transpose(tf.scatter_nd(
+  #         indices=self.scatter_update_indices[p],
+  #         updates=tf.transpose(rates[z][p]),
+  #         shape=[m*m, batch_size]
+  #       ))
+  #       rates_mat[z][p] = tf.reshape(rates_mat[z][p], (-1, m, m))
+  #   return rates_mat
 
   # Configuration
   # ===================================
