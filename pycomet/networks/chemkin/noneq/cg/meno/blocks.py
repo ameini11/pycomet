@@ -287,7 +287,7 @@ class NonEqThermoUpdate(nn_elem.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class MoleToMassUpdate(nn_elem.Layer):
+class NonEqMoleToMass(nn_elem.Layer):
 
   # Initialization
   # ===================================
@@ -299,7 +299,7 @@ class MoleToMassUpdate(nn_elem.Layer):
     },
     **kwargs
   ):
-    super(MoleToMassUpdate, self).__init__(**kwargs)
+    super(NonEqMoleToMass, self).__init__(**kwargs)
     # Species thermodynamics
     specie_thermos.update({
       "thermo_process": 1,
@@ -344,7 +344,7 @@ class MoleToMassUpdate(nn_elem.Layer):
     config = {
       "specie_thermos": {"config": sp_th_cfg}
     }
-    base_config = super(MoleToMassUpdate, self).get_config()
+    base_config = super(NonEqMoleToMass, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

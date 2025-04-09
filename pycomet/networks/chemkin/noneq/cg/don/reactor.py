@@ -8,7 +8,7 @@ from pycomet.networks import elements as nn_elem
 from keras import layers as tf_layers
 
 # Blocks
-from ..meno.blocks import MoleToMassUpdate, NonEqThermoUpdate
+from ..meno.blocks import NonEqMoleToMass, NonEqThermoUpdate
 
 # Constants
 from scipy.constants import Boltzmann as UKB
@@ -88,7 +88,7 @@ class DONonEqReac(BaseNet):
         lays[identifier] = self.init_kernel_lay(propty)
       elif (identifier in ("mole_to_mass", "thermo_update")):
         propty["lay_id"] = {
-          "mole_to_mass": MoleToMassUpdate,
+          "mole_to_mass": NonEqMoleToMass,
           "thermo_update": NonEqThermoUpdate
         }[identifier]
         lays[identifier] = self.init_lay(identifier, propty)
