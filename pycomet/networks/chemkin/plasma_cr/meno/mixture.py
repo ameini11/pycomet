@@ -72,6 +72,14 @@ class Mixture(object):
   def get_pe(self, Te, ne):
     return ne * const.UKB * Te
 
+  def get_x(self, w):
+    wm = w * self.m_inv
+    return wm / tf.math.reduce_sum(wm, axis=-1, keepdims=True)
+
+  def get_w(self, x):
+    xm = x * self.m
+    return xm / tf.math.reduce_sum(xm, axis=-1, keepdims=True)
+
   # Configuration
   # ===================================
   def get_config(self):
