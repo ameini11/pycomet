@@ -1,10 +1,10 @@
 # Model/architecture properties
 # =====================================
-model_name = "noneq"
+model_name = "plasma_cr"
 
 dim = {
-  "inp": [1, 45, 1, 1],
-  "out": [1, 45, 1]
+  "inp": [34, 2, 1],
+  "out": [34, 2]
 }
 
 # Execution Flags

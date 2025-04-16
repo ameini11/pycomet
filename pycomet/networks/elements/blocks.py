@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 
 from .. import _NN_MOD
@@ -6,6 +7,8 @@ from . import activations
 from . import initializers
 from . import regularizers
 from . import layers as pcm_layers
+from pycomet import backend as bkd
+from pycomet import operations as ops
 from pycomet.config import get_config
 from keras import layers as tf_layers
 _CFG = get_config()
@@ -262,6 +265,81 @@ class ResPIBlock(FFBlock):
       'uv_activation': self.uv_activation
     }
     base_config = super(ResPIBlock, self).get_config()
+    return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class LinAutoencoder(pcm_layers.Layer):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    phi,
+    psi,
+    xref,
+    xscale,
+    use_log=False,
+    **kwargs
+  ):
+    super(LinAutoencoder, self).__init__(**kwargs)
+    # Load basis
+    self.phi = self.load_tensor(phi)
+    self.psi = self.load_tensor(psi)
+    self.phi = self.phi @ tf.linalg.inv(tf.transpose(self.psi) @ self.phi)
+    self.dim = int(self.phi.shape[1])
+    # Load reference and scaling values
+    self.xref = tf.reshape(self.load_tensor(xref), (1,-1))
+    self.xscale = tf.reshape(self.load_tensor(xscale), (-1,1))
+    # Log-transformation
+    self.use_log = bool(use_log)
+    # Build encoder and decoder
+    self.encoder = self.psi / self.xscale
+    self.decoder = tf.transpose(self.phi * self.xscale)
+
+  def load_tensor(self, x):
+    if isinstance(x, str):
+      x = np.loadtxt(x)
+    return tf.constant(x, dtype=bkd.get_floatx())
+
+  # Calling
+  # ===================================
+  def call(self, x, method=1, training=None):
+    if (method == 1):
+      return self.encode(x)
+    elif (method == 2):
+      return self.decode(x)
+    elif (method == 3):
+      return self.decode(self.encode(x))
+
+  def encode(self, x):
+    # Transform
+    if self.use_log:
+      x = tf.math.log(x)
+    x = x - self.xref
+    # Encode
+    return tf.linalg.matmul(x, self.encoder)
+
+  def decode(self, z):
+    # Decode
+    x = tf.linalg.matmul(z, self.decoder)
+    # Transform
+    x = x + self.xref
+    if self.use_log:
+      x = tf.math.exp(x)
+    return x
+
+  # Configuration update
+  # ===================================
+  def get_config(self):
+    config = {
+      'phi': ops.to_numpy(self.phi).squeeze(),
+      'psi': ops.to_numpy(self.psi).squeeze(),
+      'xref': ops.to_numpy(self.xref).squeeze(),
+      'xscale': ops.to_numpy(self.xscale).squeeze(),
+      'use_log': self.use_log
+    }
+    base_config = super(LinAutoencoder, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 

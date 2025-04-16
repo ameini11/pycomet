@@ -6,19 +6,16 @@ import numpy as np
 import scipy as sp
 import pandas as pd
 import joblib as jl
+import dill as pickle
 import pycomet as pcm
 import tensorflow as tf
 
-from pyDOE import lhs
 from tqdm import tqdm
 from silx.io.dictdump import dicttoh5, h5todict
-from pycomet.sampling import DifferentialBased
 
-# HyperNet package
-from hypernet import const
-from hypernet import backend as hypbkd
-from hypernet.apps import utils as hyputils
-from hypernet.thermophysics import specie_thermo as st_mod
+from pycomet.sampling import DifferentialBased
+from pycomet.networks.elements import LinAutoencoder
+from pycomet.networks.chemkin.plasma_cr.meno import const, Mixture
 
 
 class DataGenerator(pcm.data.BaseDataGenerator):
@@ -30,14 +27,11 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     time_lim=[0,1],
     time_eps=1e-15,
     time_eval=None,
-    t_pa_eps=1e-10,
-    inp_space={},
-    read_init_sols=False,
     train_pts=32,
-    scenarios=100,
-    test_cases=10,
     validation_split=0.2,
-    path_to_physics="./physics",
+    rom_config=None,
+    path_to_dtb=None,
+    path_to_inp_space=None,
     grad_split=0.75,
     load_plato="module load plato",
     nb_workers=4,
@@ -51,19 +45,17 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self.cwd = os.getcwd()
     self.path_to_data = self.cwd + "/data/"
     self.path_to_runs = self.cwd + "/datagen/runs/"
-    self.path_to_physics = path_to_physics
+    self.path_to_dtb = path_to_dtb
+    self.path_to_inp_space = path_to_inp_space
     os.makedirs(self.path_to_data, exist_ok=True)
     # Data quantities
     # ---------------------------------
     self.valid_pts = round(validation_split*train_pts)
     self.train_pts = train_pts - self.valid_pts
-    self.scenarios = scenarios
-    self.test_cases = test_cases
     # Dynamics sampler
     self.time_lim = time_lim
     self.time_eps = time_eps
     self.time_eval = time_eval
-    self.t_pa_eps = t_pa_eps
     if (self.time_eval is not None):
       self.time_eval = np.array(self.time_eval).squeeze()
     self.dyn_sampler = DifferentialBased(
@@ -71,41 +63,53 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       grad_split=grad_split,
       xlim=np.log(self.time_lim)
     )
-    # Input space
-    self.inp_space = np.vstack(list(inp_space.values())).T
-    self.inp_space_lbl = list(inp_space.keys())
-    # Initializing thermophysical models
+    # Mixture model
     # -----------------------------------
-    self.init_thermophysics()
+    species_order = ("em", "Ar", "Arp")
+    self.mix = Mixture(
+      species={k: path_to_dtb + f"/species/{k}.json" for k in species_order},
+      species_order=species_order
+    )
     self.set_states()
-    self.set_rates()
+    # Linear autoencoder
+    # -----------------------------------
+    if isinstance(rom_config, str):
+      with open(rom_config, "rb") as file:
+        rom_config = pickle.load(file)
+    self.rom = LinAutoencoder(**rom_config)
     # Labeling data
     # -----------------------------------
     # Box solution
-    self.xi_names = [f"X_{s}" for s in self.species]
-    self.box_lbl = ["t"] + self.xi_names + ["T", "rho", "p", "n", "E"]
+    self.box_lbl = "t x_em x_Ar x_Arp Th Te rho p n E".split()
     # Dataset
+    # > Species names
+    self.species_names = []
+    for k in self.mix.species_order:
+      nc = self.mix.species[k].nb_comp
+      names = [k] if (nc == 1) else [k+f"{i+1}" for i in range(nc)]
+      self.species_names.extend(names)
     # > Labels
-    self.data_lbl = [f"n_{self.atom}_0"] \
-      + [f"n_{s}_0" for s in self.species[1:]] \
-      + ["T_0", "t"] + [f"n_{self.atom}"] \
-      + [f"n_{s}" for s in self.species[1:]] + ["T", f"n_{self.molecule}"] \
-      + [f"n_{self.atom}_0", "n_0", f"e_{self.molecule}_0", "T_0"] \
-      + [f"log_t_p{self.atom}", f"n_{self.atom}_eq", "T_eq"]
+    self.data_lbl = [f"rho_{s}_0" for s in self.species_names] \
+      + ["Th_0", "Te_0", "t"] \
+      + [f"w_{s}" for s in self.species_names] \
+      + ["Th", "Te", "pe", "n_em", "n_Ar1"] \
+      + ["rho_0"] + [f"z{i+1}_0" for i in range(self.rom.dim)] \
+      + ["Th_0", "Te_0", "ln_t_pe", "ln_t_ph"]
     # > Indices
     i = 0
     self.data_idx = {}
     for (k, ik) in (
-      ("na_0", 1),
-      ("nmi_0", len(self.species[1:])),
-      ("T_0", 1),
+      ("rho_0", self.mix.nb_comp),
+      ("Th_0", 1),
+      ("Te_0", 1),
       ("t", 1),
-      ("na", 1),
-      ("nmi", len(self.species[1:])),
-      ("T", 1),
-      ("nm", 1),
-      ("x0_norm", 5),
-      ("qoi_eq", 2)
+      ("w", self.mix.nb_comp),
+      ("Th", 1),
+      ("Te", 1),
+      ("pe", 1),
+      ("n_em", 1),
+      ("n_Ar1", 1),
+      ("x0_norm", 5+self.rom.dim)
     ):
       self.data_idx[k] = np.arange(i,i+ik).tolist()
       i += ik
@@ -118,76 +122,31 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Multi-threading
     self.nb_workers = nb_workers
     self.nb_threads = nb_threads
-    # Control variables
-    self.read_init_sols = read_init_sols
 
-  # Initializing thermophysical models
-  # ===================================
-  def init_thermophysics(self):
-    with open(self.path_to_physics + "/inputs.json") as file:
-      phyinp = json.load(file)
-    # Species thermo
-    self.sp_th = hyputils._get_specie_thermos(phyinp)
-    # Mixture
-    self.mix = hyputils._get_mixture(phyinp, self.sp_th)
-    # Kinetics
-    self.kin = hyputils._get_kinetics(phyinp, self.sp_th, self.mix)
-    # Set species
-    self.species = []
-    for st in self.sp_th.values():
-      if (st.specie.nb_comp > 1):
-        self.species.extend([
-          st.specie.name + f"_{i+1}" for i in range(st.specie.nb_comp)
-        ])
-        self.molecule = st.specie.name
-      else:
-        self.species.append(st.specie.name)
-        self.atom = st.specie.name
-
-  # Set node/edge static attributes
+  # Set node static attributes
   # ===================================
   def set_states(self):
-    sp = self.sp_th[self.molecule].specie
-    # Probability matrix
-    P = hypbkd.to_numpy(sp.mappings["lev"])
-    # StS energies
-    ei = [hypbkd.to_numpy(sp.lev[k]) for k in ("ERot", "EVib")]
-    ei = np.stack(ei, axis=1)
-    # CG energies
-    eg = (np.matmul(ei.T, P) / np.sum(P, axis=0, keepdims=True)).T
-    # CG normalized energies
-    eg_min = np.amin(eg[eg>0])*1e-2
-    eg_norm = np.log((eg+eg_min)/const.eV_to_J)
-    eg_std = np.std(eg_norm, axis=0, keepdims=True)
-    eg_mean = np.mean(eg_norm, axis=0, keepdims=True)
-    eg_norm = (eg_norm - eg_mean) / eg_std
-    # Saving energies
-    path = self.path_to_data + "/physics/states/"
-    os.makedirs(path, exist_ok=True)
-    np.savetxt(path + "/energies.txt", eg, fmt="%.8e")
-    np.savetxt(path + "/energies_norm.txt", eg_norm, fmt="%.8e")
-
-  def set_rates(self):
-    # Define function to read parameters
-    get_param = lambda reaction: {
-      k: getattr(reaction.fwd, k) for k in ("A", "beta", "Ta")
-    }
-    # Loop over processes
-    rates = {}
-    for reaction in self.kin.reactions:
-      p = str(reaction.param["process"])
-      rates[p] = get_param(reaction)
-    rates = tf.nest.map_structure(
-      lambda x: hypbkd.to_numpy(x).squeeze(), rates
-    )
-    # Saving rates
-    path = self.path_to_data + "/physics/"
-    os.makedirs(path, exist_ok=True)
-    dicttoh5(
-      treedict=rates,
-      h5file=path + "/rates.hdf5",
-      overwrite_data=True
-    )
+    q = []
+    for k in self.mix.species_order:
+      if (k != "em"):
+        # Species
+        sp = self.mix.species[k]
+        # Properties
+        es = sp.lev["E"].numpy().squeeze()
+        js = sp.lev["jc"].numpy().squeeze()
+        zs = np.full(sp.nb_comp, sp.Z)
+        # Composing
+        qs = np.vstack([es,js,zs]).T
+        if (k == "Ar"):
+          qs = qs[1:]
+        q.append(qs)
+    q = np.vstack(q)
+    # Normalization
+    qmin = np.amin(q, axis=0, keepdims=True)
+    qmax = np.amax(q, axis=0, keepdims=True)
+    qnorm = 2.0 * (q - qmin) / (qmax - qmin) - 1.0
+    # Saving states
+    np.savetxt(self.path_to_data + "/states.txt", qnorm, fmt="%.10e")
 
   # Generate data
   # ===================================
@@ -195,13 +154,9 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self
   ):
     data_src = {}
-    # Sampling input space
-    if self.read_init_sols:
-      pcm.utils.print_fn("Reading sampled input space", lev=1)
-      init_sols = h5todict(self.path_to_runs + "/samples/init_sols.hdf5")
-    else:
-      pcm.utils.print_fn("Sampling input space", lev=1)
-      init_sols = self.sample_inp_space()
+    # Input space
+    pcm.utils.print_fn("Reading sampled input space", lev=1)
+    init_sols = self.read_inp_space()
     # Generate training/validation data
     pcm.utils.print_fn("Training/validation data", lev=1)
     data_src.update(self.training_data(init_sols))
@@ -209,25 +164,16 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     data_src.update(self.testing_data(init_sols))
     return data_src
 
-  # Sample initial conditions
+  # Read input space
   # ===================================
-  def sample_inp_space(self):
+  def read_inp_space(self):
     xinp, xsol = {}, {}
-    d = self.inp_space.shape[1]
-    for (k, n) in (
-      ("train", self.scenarios),
-      ("valid", self.scenarios),
-      ("test", self.test_cases)
-    ):
-      if (n > 0):
-        # Contruct design matrix
-        x = lhs(d, n)
-        x = x * (self.inp_space[1] - self.inp_space[0]) + self.inp_space[0]
-        xinp[k] = x
-        # From input space to primitive variables
-        x = np.split(x, x.shape[-1], axis=-1)
-        x = {k: x[i].reshape(-1,1) for (i, k) in enumerate(self.inp_space_lbl)}
-        xsol[k] = self.inp_to_prim(x)
+    for k in ("train", "valid", "test"):
+      filename = self.path_to_inp_space + f"/{k}.csv"
+      if os.path.exists(filename):
+        data = pd.read_csv(filename)[:5]
+        xinp[k] = data.values
+        xsol[k] = self.inp_to_prim(data)
     # Check if test cases are in training cases
     if ("test" in xinp):
       assert (~np.isin(xinp["test"], xinp["train"]).all(-1)).all(-1)
@@ -246,66 +192,35 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Returning sampled initial solutions
     return xsol
 
-  # def sample_inp_space(self):
-  #   # Contruct design matrix (DM)
-  #   d = self.inp_space.shape[1]
-  #   s = self.scenarios * 2 + self.test_cases
-  #   x = lhs(d, s)
-  #   # Sorting w.r.t. norm
-  #   i = np.linalg.norm(x, axis=-1).argsort()
-  #   x = x[i]
-  #   # Rescale DM
-  #   x = x * (self.inp_space[1] - self.inp_space[0]) + self.inp_space[0]
-  #   # Restructure DM
-  #   x = np.split(x, x.shape[-1], axis=-1)
-  #   x = {k: x[i].reshape(-1,1) for (i, k) in enumerate(self.inp_space_lbl)}
-  #   # From input space to primitive variables
-  #   x = self.inp_to_prim(x)
-  #   # Splitting sampled initial solutions
-  #   if (self.test_cases > 0):
-  #     indices = pcm.utils.stratified_sampling(np.arange(s), self.test_cases)
-  #     samples = [tf.nest.map_structure(lambda z: z[i], x) for i in indices]
-  #     samples = {
-  #       "train": samples[0][0::2],
-  #       "valid": samples[0][1::2],
-  #       "test": samples[1]
-  #     }
-  #   else:
-  #     samples = {
-  #       "train": x[0::2],
-  #       "valid": x[1::2]
-  #     }
-  #   # Saving sampled initial solutions
-  #   os.makedirs(self.path_to_runs + "/samples/", exist_ok=True)
-  #   dicttoh5(
-  #     treedict=samples,
-  #     h5file=self.path_to_runs + "/samples/init_sols.hdf5",
-  #     overwrite_data=True,
-  #     create_dataset_args={"compression": "gzip"}
-  #   )
-  #   # Returning sampled initial solutions
-  #   return samples
-
   def inp_to_prim(
     self,
     samples
   ):
-    samples = tf.nest.map_structure(tf.constant, samples)
-    # Set initial composition
-    samples[f"X_{self.molecule}"] = 1.0 - samples[f"X_{self.atom}"]
-    self.mix.init_mix(
-      x={k: samples[f"X_{k}"] for k in self.sp_th.keys()},
-      var="X",
-      p_mix=samples["p"],
-      T=samples["Ti"],
-      flatten=False
-    )
+    # Decode latent space
+    z = samples[[f"z{i+1}" for i in range(self.rom.dim)]].values
+    w = self.rom(z, method=2).numpy()
+    # Enforce conservation: mass and charge
+    w = self._enforce_cons_mass(w)
+    w = self._enforce_cons_charge(w)
     # Collect primitive variables
-    prim_var = []
-    for st in self.sp_th.values():
-      prim_var.append(st.specie.rho)
-    prim_var.append(samples["T"])
-    return tf.concat(tuple(prim_var), axis=1).numpy()
+    rho = w * samples[["rho"]].values
+    Th, dT = [samples[[k]].values for k in ("Th", "dT")]
+    Te = Th - dT
+    return np.hstack([rho, Th, Te])
+
+  def _enforce_cons_mass(self, z):
+    i = self.mix.species["Ar"].indices[0]
+    z[:,i] = 0.0
+    z[:,i] = 1.0 - np.sum(z, axis=-1)
+    return z
+
+  def _enforce_cons_charge(self, w):
+    x = self.mix.get_x(w).numpy()
+    ie, ii = [self.mix.species[k].indices for k in ("em", "Arp")]
+    x[:,ie] = np.sum(x[:,ii], axis=-1, keepdims=True)
+    x = self._enforce_cons_mass(x)
+    w = self.mix.get_w(x).numpy()
+    return w
 
   # Compute solutions
   # ===================================
@@ -389,19 +304,36 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     if (box < 0.0).any():
       return None
     box = pd.DataFrame(box, columns=self.box_lbl)
-    # Get solution
-    t, n, T = [box[k].to_numpy().reshape(-1,1) for k in ("t", "n", "T")]
-    n = n * box[self.xi_names].to_numpy()
-    y = np.hstack([n,T])
-    return {"t": t, "y": y}
+    # Read populations
+    n = {k: self._read_pop(path_to_sol, k) for k in ("Ar", "Arp")}
+    n["em"] = (box["x_em"] * box["n"]).values.reshape(-1,1)
+    n = np.hstack([n[k] for k in self.mix.species_order])
+    # Molar fractions
+    x = n / np.sum(n, axis=-1, keepdims=True)
+    # Mass fractions
+    w = self.mix.get_w(x).numpy()
+    # Get primitive variables
+    q = {k: box[k].values.reshape(-1,1) for k in ("t", "rho", "Th", "Te")}
+    y = np.hstack([q["rho"]*w, q["Th"], q["Te"]])
+    return {"t": q["t"], "y": y}
+
+  def _read_pop(
+    self,
+    path_to_sol,
+    name
+  ):
+    filename = path_to_sol + f"/pop_{name}.dat"
+    sp = self.mix.species[name]
+    ni = np.loadtxt(filename, comments="&", skiprows=2)[:,1]
+    nt = len(ni) / sp.nb_comp
+    ni = np.vstack(np.split(ni, nt, axis=0))
+    return ni * sp.lev["g"].numpy()
 
   # Postprocess solution
   # -----------------------------------
   def postproc_solution(self, sol, nb_pts=-1, teval=None):
-    sol_eq = [sol[k][-1:] for k in ("t", "y")]
-    sol = [sol[k] for k in ("t", "y")]
     # Limit solution in time
-    sol = self.limit_solution(*sol)
+    sol = self.limit_solution(**sol)
     # Interpolate solution in time
     if (teval is not None):
       sol = self.interpolate_solution(*sol, teval)
@@ -409,9 +341,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     if (nb_pts > 0):
       sol = self.sample_solution(*sol, nb_pts)
     # Get physical QoI
-    sol = self.prim_to_phys(*sol)
-    sol_eq = self.prim_to_phys(*sol_eq)
-    return sol, sol_eq
+    return self.prim_to_phys(*sol)
 
   def limit_solution(self, t, y):
     idx = np.argwhere(
@@ -420,9 +350,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     return t[idx], y[idx]
 
   def interpolate_solution(self, t, y, teval):
-    t, y = t.squeeze(), np.log(y)
-    y = sp.interpolate.interp1d(t, y.T, kind="cubic")(teval).T
-    return teval, np.exp(y)
+    y = sp.interpolate.interp1d(t.squeeze(), y, kind="cubic", axis=0)(teval)
+    return teval, y
 
   def sample_solution(self, t, y, nb_pts):
     idx = self.dyn_sampler.sample(
@@ -434,57 +363,64 @@ class DataGenerator(pcm.data.BaseDataGenerator):
 
   def prim_to_phys(self, t, y):
     # Manipulate primitive variables
-    n, T = y[:,:-1], y[:,-1:]
-    # Update thermochemistry and mixture
-    st_mod.update_specie_thermos(self.sp_th, T)
-    self.mix.update(n)
+    nc = self.mix.nb_comp
+    rho, Th, Te = np.split(y, [nc, nc+1], axis=-1)
+    n = self.mix.get_n(rho).numpy()
     # Store physical variables
     phys = {
       "t": t,
-      "T": T,
-      "n": np.sum(n, axis=-1, keepdims=True)
+      "Th": Th,
+      "Te": Te,
+      "n": np.sum(n, axis=-1),
+      "rho": np.sum(rho, axis=-1)
     }
+    for sp in self.mix.species.values():
+      phys[f"n_{sp.name}"] = np.sum(n[:,sp.indices], axis=-1)
+      phys[f"rho_{sp.name}"] = np.sum(rho[:,sp.indices], axis=-1)
     phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
-    for (name, st) in self.sp_th.items():
-      phys["X_"+name] = st.specie.X
+    # Molar/mass fractions
+    phys["x"] = n / phys["n"]
+    phys["w"] = rho / phys["rho"]
+    # Pressures
+    ne = phys["n_em"]
+    nh = phys["n_Ar"] + phys["n_Arp"]
+    phys["pe"] = ne * const.UKB * Te
+    phys["ph"] = nh * const.UKB * Th
+    phys["p"] = phys["pe"] + phys["ph"]
+    # Return
     return phys
 
   # Manage data
   # ===================================
   def get_data(self, sol, nb_pts=-1, teval=None):
-    sol, sol_eq = self.postproc_solution(sol, nb_pts, teval)
+    # Initial time
+    sol0 = tf.nest.map_structure(lambda x: x[:1], sol)
+    sol0 = self.prim_to_phys(**sol0)
+    # Dynamics
+    sol = self.postproc_solution(sol, nb_pts, teval)
     # Extract variables
-    # > Transient dynamic
-    t, T, n = [sol[k].reshape(-1,1) for k in ("t", "T", "n")]
-    na, nmi = [sol[f"X_{s}"] * n for s in self.sp_th.keys()]
-    # Equilibrium
-    T_eq, n_eq = [sol_eq[k] for k in ("T", "n")]
-    na_eq = sol_eq["X_O"] * n_eq
+    # > Output variables
+    t, w, Th, Te = [sol[k] for k in ("t", "w", "Th", "Te")]
+    # > Additional variables
+    pe, n_em = [sol[k] for k in ("pe", "n_em")]
+    i1 = self.mix.species["Ar"].indices[:1]
+    n_Ar1 = sol["x"][:,i1] * sol["n"]
     # Inputs
-    # -------------
     nb_pts = len(t)
-    x = [np.tile(z[0].reshape(1,-1), (nb_pts,1)) for z in (na, nmi, T)] + [t]
+    x0 = np.hstack([sol0["rho"] * sol0["w"], sol0["Th"], sol0["Te"]])
+    x0 = np.tile(x0, (nb_pts,1))
+    x = [x0, t]
     # > Inputs to normalize
-    # -------------
-    # Compute moments of the distribution
-    st_mod.update_specie_thermos(self.sp_th, T[:1])
-    emi_0 = self.sp_th[self.molecule].thermo.int.e
-    nm_0 = np.sum(nmi[:1], axis=-1, keepdims=True)
-    em_0 = np.sum(nmi[:1]*emi_0, axis=-1, keepdims=True) / nm_0
-    # Assemble normalizable inputs
-    x_0 = [na[:1], na[:1]+2*nm_0, em_0, T[:1]]
-    x_0 = np.tile(np.concatenate(x_0).reshape(1,-1), (nb_pts,1))
-    ln_t_pa = np.log(t * na * const.UKB * T + self.t_pa_eps)
-    x_norm = np.hstack([x_0, ln_t_pa])
-    # Assemble equilibrium inputs
-    x_eq = np.concatenate([na_eq, T_eq]).reshape(1,-1)
-    x_eq = np.tile(x_eq, (nb_pts,1))
+    z0 = self.rom(sol0["w"], method=1).numpy()
+    mu0 = np.hstack([sol0["rho"], z0, sol0["Th"], sol0["Te"]])
+    mu0 = np.tile(mu0, (nb_pts,1))
+    ln_t_pe = np.log(t * sol0["pe"])
+    ln_t_ph = np.log(t * sol0["ph"])
+    x_norm = np.hstack([mu0, ln_t_pe, ln_t_ph])
     # Outputs
-    # -------------
-    nm = np.sum(nmi, axis=-1, keepdims=True)
-    y = [na, nmi, T, nm]
+    y = np.hstack([w, Th, Te, pe, n_em, n_Ar1])
     # Return data
-    return [x, y, x_norm, x_eq]
+    return [x, y, x_norm]
 
   def stack_data(self, data, data_new, data_type):
     if (data_type not in data):

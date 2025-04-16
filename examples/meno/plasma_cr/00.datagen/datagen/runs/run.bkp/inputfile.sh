@@ -1,21 +1,21 @@
 #---------------------------
 # Path to data and mixture, reaction, transfer files
-PATH     = /home/zanardi/Workspace/AirDatabase/ThermoChemModels/CG/database/O3_UMN/RVE45
-MIXTURE  = 45g
-REACTION = kFull.dat
-TRANSFER = empty
+PATH     = /home/zanardi/Workspace/AirDatabase/ThermoChemModels/StS/cr_argon/database
+MIXTURE  = kapper
+REACTION = kapper_kin_rad
+TRANSFER = TTe
 
 #---------------------------
 #Initial conditions (pressure temperature and mole fractions)
-P0  = 1000.d0            # Pressure at T0 not T_BATH
-T0  = 500.d0
-XC0 = 0.05d0 0.95d0      # Put the Boltzmann distribution for the groups at T0
-COMP0 = O O2_1
+P0  = 1000.d0
+T0  = 300.d0
+COMP0 = em Ar
+XC0 = 0.d0 1.d0
 
-#Bath temperature
-T_BATH = 10000.d0
+# Bath temperature
+T_BATH = 35000.d0
 
-#Simulation mode
+# Model
 MODE = ADIABATIC
 
 #Read initial solution from 'init_sol.dat'
@@ -24,8 +24,8 @@ READ_INIT_SOL = T
 #---------------------------
 #Time-grid parameters
 TS = 0.d0
-TE = 1.d3
-DT_MAX = 1.d3
+TE = 1.d-2
+DT_MAX = 1.d-3
 DT_MIN = 1.d-14
 SF = 1.015d0
 
