@@ -171,7 +171,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     for k in ("train", "valid", "test"):
       filename = self.path_to_inp_space + f"/{k}.csv"
       if os.path.exists(filename):
-        data = pd.read_csv(filename)[:5]
+        data = pd.read_csv(filename)
         xinp[k] = data.values
         xsol[k] = self.inp_to_prim(data)
     # Check if test cases are in training cases
