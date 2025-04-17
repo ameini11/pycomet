@@ -48,7 +48,7 @@ def to_numpy(x=None, dtype=None):
     if (tf.is_tensor(x)):
       return x.numpy().astype(dtype)
     elif isinstance(x, (int, float, list, tuple)):
-      return np.array(x, dtype=dtype)
+      return np.asarray(x, dtype=dtype)
     else:
       return x.astype(dtype)
 

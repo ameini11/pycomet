@@ -93,7 +93,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       + ["Th_0", "Te_0", "t"] \
       + [f"w_{s}" for s in self.species_names] \
       + ["Th", "Te", "pe", "n_em", "n_Ar1"] \
-      + ["rho_0"] + [f"z{i+1}_0" for i in range(self.rom.dim)] \
+      + ["rho"] + [f"z{i+1}_0" for i in range(self.rom.dim)] \
       + ["Th_0", "Te_0", "ln_t_pe", "ln_t_ph"]
     # > Indices
     i = 0

@@ -29,11 +29,16 @@ class Mixture(object):
       self.species[k].build()
     # Index species
     si = 0
+    self.indices = {"e": [], "h": []}
     for k in self.species_order:
       ei = si + self.species[k].nb_comp
       self.species[k].indices = tf.constant(np.arange(si, ei), dtype="int32")
+      ki = "e" if (k == "em") else "h"
+      self.indices[ki].append(self.species[k].indices)
       si = ei
     self.nb_comp = ei
+    for (k, i) in self.indices.items():
+      self.indices[k] = tf.reshape(tf.concat(i, axis=-1), (-1,))
     # Species names
     self.species_names = []
     for k in self.species_order:

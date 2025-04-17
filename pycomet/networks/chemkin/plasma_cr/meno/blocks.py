@@ -243,7 +243,7 @@ class PlasmaCROperators(nn_elem.Layer):
 
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
-class PlasmaCRMoleToMass(nn_elem.Layer):
+class PlasmaCRMoleMass(nn_elem.Layer):
 
   # Initialization
   # ===================================
@@ -252,7 +252,7 @@ class PlasmaCRMoleToMass(nn_elem.Layer):
     species,
     **kwargs
   ):
-    super(PlasmaCRMoleToMass, self).__init__(**kwargs)
+    super(PlasmaCRMoleMass, self).__init__(**kwargs)
     # Set mixture
     self.mix = Mixture(species)
 
@@ -269,12 +269,16 @@ class PlasmaCRMoleToMass(nn_elem.Layer):
     elif (method == 3):
       # Convert from 'rho' to 'n'
       return self.mix.get_n(inputs)
+    elif (method == 4):
+      # Convert from 'n' to 'w' (mass fractions)
+      rho = self.mix.get_rho(inputs)
+      return rho / tf.math.reduce_sum(rho, axis=-1, keepdims=True)
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = self.mix.get_config()
-    base_config = super(PlasmaCRMoleToMass, self).get_config()
+    base_config = super(PlasmaCRMoleMass, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
