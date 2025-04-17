@@ -153,6 +153,9 @@ class PlasmaCROperators(nn_elem.Layer):
     return param["A"] * tf.math.exp(param["beta"]*ln_T - param["Ta"]*ov_T)
 
   def _correct_fwd_rates(self, fwd_rates, f):
+    # Insert Argon ground state correction
+    f1 = tf.zeros_like(tf.gather(f, indices=[0], axis=-2))
+    f = tf.concat([f1,f], axis=-2)
     # Loop over rates
     for p in self.processes:
       # Compose correction

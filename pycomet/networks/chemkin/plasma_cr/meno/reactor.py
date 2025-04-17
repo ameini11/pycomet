@@ -2,19 +2,14 @@ import tensorflow as tf
 
 from pycomet import utils
 from pycomet import networks
-from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
 from keras import layers as tf_layers
 
-# Blocks
+from . import const
 from .blocks import PlasmaCRMoleMass, PlasmaCRSolUpdate
 from pycomet.networks.meno.blocks import StateCorrection
-
-# Constants
-from scipy.constants import Boltzmann as UKB
-UKB = tf.constant(UKB, dtype=bkd.get_floatx())
 
 
 class MENOPlasmaCRReactor(BaseNet):
@@ -24,7 +19,8 @@ class MENOPlasmaCRReactor(BaseNet):
   def __init__(
     self,
     dim,
-    qoi_indices={"mass": 0, "temp": 1},
+    return_full=False,
+    qoi_indices=None,
     callable_lays=None,
     lays_name=None,
     lays_propty=None,
@@ -46,13 +42,16 @@ class MENOPlasmaCRReactor(BaseNet):
       *args,
       **kwargs
     )
+    self.return_full = return_full
     # Time-dependent inputs
     # -------------
-    # Only for training the model for the distribution function (optional)
-    self.qoi_indices = tf.nest.map_structure(
-      lambda x: ops.to_numpy(x, int).reshape(-1),
-      qoi_indices
-    )
+    # Only for training the model for the electronic states (optional)
+    self.qoi_indices = qoi_indices
+    if (self.qoi_indices is not None):
+      self.qoi_indices = tf.nest.map_structure(
+        lambda x: ops.to_numpy(x, int).reshape(-1),
+        qoi_indices
+      )
     # Layers
     # -------------
     # Layers names
@@ -80,7 +79,7 @@ class MENOPlasmaCRReactor(BaseNet):
       }
       self.callable_lays["states"] = ("states_update" in self.active_lays)
     # Mixture indices
-    mix = self.active_lays["states_update"].operators.mix["h"]
+    mix = self.active_lays["mole_mass"].mix
     self.mix_indices = mix.indices
     self.mix_indices["em"] = mix.species["em"].indices
     self.mix_indices["Ar1"] = mix.species["Ar"].indices[0]
@@ -150,7 +149,7 @@ class MENOPlasmaCRReactor(BaseNet):
       nh_0, axis=-1, keepdims=True
     )
     # > Scale time by the heavy-particle pressure
-    ln_t_ph_0 = self.active_lays["log_t_ph"](t * nh_0 * UKB * Th_0)
+    ln_t_ph_0 = self.active_lays["log_t_ph"](t * nh_0 * const.UKB * Th_0)
     # Inputs
     x = [y_0_xform, ln_t_ph_0]
     # Predict nonlinear variables
