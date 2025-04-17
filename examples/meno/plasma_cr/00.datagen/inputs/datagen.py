@@ -16,7 +16,7 @@ nb_threads = 1
 # Physics
 load_plato = "module load plato/dev-gcc-12.3.0-openblas-0.3.20"
 path_to_dtb = "./database/"
-rom_config = "./tools/output/compression/rom.p"
+rom_config = "./tools/output/lowrank_state/rom.p"
 
 # Samples
 path_to_inp_space = "./tools/output/sampling/"
