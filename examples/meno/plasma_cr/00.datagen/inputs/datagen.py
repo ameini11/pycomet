@@ -10,13 +10,13 @@ time_eps = 1e-12
 time_eval = [1e-8, 1e-7, 1e-6]
 
 # Multi-threading
-nb_workers = 20
-nb_threads = 2
+nb_workers = 40
+nb_threads = 1
 
 # Physics
-load_plato = "module load plato/dev-gcc-9.3.0-openblas-0.3.9-sundials-5.8.0 "
-path_to_dtb = "./database"
-rom_config = "./sampling/output/compress/rom.p"
+load_plato = "module load plato/dev-gcc-12.3.0-openblas-0.3.20"
+path_to_dtb = "./database/"
+rom_config = "./tools/output/compression/rom.p"
 
 # Samples
-path_to_inp_space = "./sampling/output/samples"
+path_to_inp_space = "./tools/output/sampling/"

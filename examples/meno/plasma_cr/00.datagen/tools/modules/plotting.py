@@ -88,10 +88,72 @@ def plot_pairwise(
             marker="o",
             markersize=1,
             ls="",
-            fillstyle="full"
+            fillstyle="full",
+            rasterized=True
           )
   plt.tight_layout()
   fig.savefig(figname)
   if show:
     plt.show()
   plt.close()
+
+
+def traj(
+  x,
+  y_true,
+  y_pred=None,
+  labels=[r'$t$ [s]', r'$x$'],
+  scales=['linear', 'log'],
+  filename=None,
+  save=False,
+  show=False
+):
+  # Initialize figures
+  fig = plt.figure()
+  ax = fig.add_subplot()
+  # x axis
+  xlim = [np.amin(x), np.amax(x)]
+  ax.set_xlim(xlim)
+  ax.set_xlabel(labels[0])
+  ax.set_xscale(scales[0])
+  # y axis
+  ax.set_ylabel(labels[1])
+  ax.set_yscale(scales[1])
+  # Plotting
+  ax.plot(x, y_true, c='k', lw=1, rasterized=True)
+  if (y_pred is not None):
+    ax.plot(x, y_pred, c='r', lw=1, rasterized=True)
+  if save:
+    plt.savefig(filename)
+  if show:
+    plt.show()
+  else:
+    plt.close()
+
+
+def multi_traj(
+  xy=None,
+  labels=[r'$t$ [s]', r'$x$'],
+  scales=['log', 'linear'],
+  figname=None,
+  save=False,
+  show=True
+):
+  # Initialize figures
+  fig = plt.figure()
+  ax = fig.add_subplot()
+  # x axis
+  ax.set_xlabel(labels[0])
+  ax.set_xscale(scales[0])
+  # y axis
+  ax.set_ylabel(labels[1])
+  ax.set_yscale(scales[1])
+  # Plotting
+  for (xi, yi) in xy:
+    ax.plot(xi, yi, lw=1, rasterized=True)
+  if save:
+    plt.savefig(figname)
+  if show:
+    plt.show()
+  else:
+    plt.close()
