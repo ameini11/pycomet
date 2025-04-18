@@ -77,6 +77,10 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       with open(rom_config, "rb") as file:
         rom_config = pickle.load(file)
     self.rom = LinAutoencoder(**rom_config)
+    # Save ROM arrays
+    os.makedirs(self.path_to_data+"/rom", exist_ok=True)
+    for k in ("phi", "xref", "xscale"):
+      np.savetxt(self.path_to_data+f"/rom/{k}.txt", rom_config[k])
     # Labeling data
     # -----------------------------------
     # Box solution
@@ -93,7 +97,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       + ["Th_0", "Te_0", "t"] \
       + [f"w_{s}" for s in self.species_names] \
       + ["Th", "Te", "pe", "n_em", "n_Ar1"] \
-      + ["rho"] + [f"z{i+1}_0" for i in range(self.rom.dim)] + ["Th_0", "Te_0"]
+      + ["rho"] + [f"z{i+1}_0" for i in range(self.rom.dim)] \
+      + ["Th_0", "Te_0", "ln_t_pe", "ln_t_ph"]
     # > Indices
     i = 0
     self.data_idx = {}
@@ -108,7 +113,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       ("pe", 1),
       ("n_em", 1),
       ("n_Ar1", 1),
-      ("x0_norm", 3+self.rom.dim)
+      ("x0_norm", 3+self.rom.dim),
+      ("ln_t", 2)
     ):
       self.data_idx[k] = np.arange(i,i+ik).tolist()
       i += ik
@@ -411,15 +417,15 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     x = [x0, t]
     # > Inputs to normalize
     z0 = self.rom(sol0["w"], method=1).numpy()
-    mu0 = np.hstack([sol0["rho"], z0, sol0["Th"], sol0["Te"]])
-    mu0 = np.tile(mu0, (nb_pts,1))
+    x_norm = np.hstack([sol0["rho"], z0, sol0["Th"], sol0["Te"]])
+    x_norm = np.tile(x_norm, (nb_pts,1))
     ln_t_pe = np.log(t * sol0["pe"])
     ln_t_ph = np.log(t * sol0["ph"])
-    x_norm = np.hstack([mu0, ln_t_pe, ln_t_ph])
+    ln_t = np.hstack([ln_t_pe, ln_t_ph])
     # Outputs
     y = np.hstack([w, Th, Te, pe, n_em, n_Ar1])
     # Return data
-    return [x, y, x_norm]
+    return [x, y, x_norm, ln_t]
 
   def stack_data(self, data, data_new, data_type):
     if (data_type not in data):

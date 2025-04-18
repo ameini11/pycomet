@@ -1,6 +1,6 @@
 {
   "name": "PyCOMET",
-  "device": "cpu",
+  "device": "gpu",
   "cpu_threads": 0,
   "gpu_memory_growth": true,
   "dev_index": 0,

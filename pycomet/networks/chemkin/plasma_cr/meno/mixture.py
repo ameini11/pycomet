@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from . import const
 from pycomet import backend as bkd
+from pycomet import operations as ops
 
 
 class Mixture(object):
@@ -111,7 +112,7 @@ class Species(object):
     config=None
   ):
     if (config is not None):
-      self.config = config
+      self.config = tf.nest.map_structure(ops.to_tensor, config)
       for (k, v) in self.config.items():
         setattr(self, k, v)
     else:
@@ -146,8 +147,6 @@ class Species(object):
   # ===================================
   def build(self):
     # Thermo properties
-    # > Charge number
-    self.Z = int(self.Z)
     # > Mass [kg]
     self.m = self.M / const.UNA
     # > Specific gas constants [J/(kg K)]
@@ -176,4 +175,4 @@ class Species(object):
   # Configuration
   # ===================================
   def get_config(self):
-    return self.config
+    return tf.nest.map_structure(ops.to_numpy, self.config)

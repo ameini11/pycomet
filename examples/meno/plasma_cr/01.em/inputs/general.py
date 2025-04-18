@@ -1,6 +1,6 @@
 # Model/architecture properties
 # =====================================
-model_name = "plasma_cr_Ar1"
+model_name = "plasma_cr_em"
 
 dim = {
   "inp": [34, 1, 1, 1],

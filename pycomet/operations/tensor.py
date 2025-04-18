@@ -36,7 +36,7 @@ def to_tensor(x=None, dtype=None):
   if (x is not None):
     if (dtype is None):
       dtype = bkd.get_floatx()
-    if (tf.is_tensor(x)):
+    if tf.is_tensor(x):
       return tf.cast(x, dtype)
     else:
       return tf.constant(to_numpy(x), dtype=dtype)
@@ -45,12 +45,14 @@ def to_numpy(x=None, dtype=None):
   if (x is not None):
     if (dtype is None):
       dtype = bkd.get_floatx("np")
-    if (tf.is_tensor(x)):
+    if tf.is_tensor(x):
       return x.numpy().astype(dtype)
+    elif isinstance(x, np.ndarray):
+      return x.astype(dtype)
     elif isinstance(x, (int, float, list, tuple)):
       return np.asarray(x, dtype=dtype)
     else:
-      return x.astype(dtype)
+      return x
 
 def random_permutation(n):
   return tf.constant(np.random.permutation(n), dtype="int32")

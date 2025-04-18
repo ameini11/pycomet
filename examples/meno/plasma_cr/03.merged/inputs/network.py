@@ -1,3 +1,5 @@
+import tensorflow as tf
+
 from inputs.data import data_src, _path_to_dtb, _path_to_data, \
                         _species, _indices, _nlin_vars
 
@@ -7,13 +9,8 @@ architecture = "MENOPlasmaCRReactor"
 
 # Extra inputs
 # -------------------------------------
-callable_lays = {
-  "em": True,
-  "Ar1": True,
-  "Th": True,
-  "Te": True,
-  "states": True
-}
+callable_lays = {k: True for k in _nlin_vars}
+callable_lays["states"] = True
 
 # Layers
 # -------------------------------------

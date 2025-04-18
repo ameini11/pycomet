@@ -8,7 +8,7 @@ _name = "states"
 
 # Extra inputs
 # -------------------------------------
-qoi_indices = {k: i for (i, k) in enumerate(("n_em", "n_Ar1", "Th", "Te"))}
+qoi_indices = {k: i for (i, k) in enumerate(("em", "Ar1", "Th", "Te"))}
 callable_lays = {
   "em": False,
   "Ar1": False,

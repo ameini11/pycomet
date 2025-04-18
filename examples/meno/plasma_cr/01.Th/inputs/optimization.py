@@ -17,7 +17,7 @@ scheduler = {
 # Loss and metrics
 # =====================================
 loss_info = {
-  "loss": "mape",
+  "loss": "mae",
   "axis": 0,
   "reduction": "auto"
 }

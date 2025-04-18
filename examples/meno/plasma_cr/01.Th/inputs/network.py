@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 from inputs.data import data_src, _path_to_data, _species, _indices

@@ -237,7 +237,7 @@ class PlasmaCROperators(nn_elem.Layer):
   # Configuration
   # ===================================
   def get_config(self):
-    config = self.mix.get_config()
+    config = self.mix["h"].get_config()
     config["rates"] = self.rates
     config["use_corr"] = self.use_corr
     config["scale_corr"] = ops.to_numpy(self.scale_corr)
