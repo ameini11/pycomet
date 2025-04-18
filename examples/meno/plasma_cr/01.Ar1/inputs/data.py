@@ -25,7 +25,7 @@ _columns = {
     _indices["t"]
   ],
   "y": [
-    _indices["n_em"]
+    _indices["n_Ar1"]
   ]
 }
 columns = {k: _columns for k in data_src.keys()}
@@ -33,7 +33,7 @@ header = 0
 
 # Database
 _path_to_dtb = "./../00.datagen/database/"
-_species = {k: _path_to_dtb + "/species/" + k + ".json" for k in ("em", "Ar", "Arp")}
+_species = {k: _path_to_dtb+f"/species/{k}.json" for k in ("em", "Ar", "Arp")}
 
 # Batching
 # -------------------------------------

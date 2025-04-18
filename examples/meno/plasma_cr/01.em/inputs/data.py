@@ -33,7 +33,7 @@ header = 0
 
 # Database
 _path_to_dtb = "./../00.datagen/database/"
-_species = {k: _path_to_dtb + "/species/" + k + ".json" for k in ("em", "Ar", "Arp")}
+_species = {k: _path_to_dtb+f"/species/{k}.json" for k in ("em", "Ar", "Arp")}
 
 # Batching
 # -------------------------------------

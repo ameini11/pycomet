@@ -57,7 +57,7 @@ lays_propty = {
     "lay_id": "Log",
     "kwargs": {
       "base": "e",
-      "offset": 1e-6,
+      "offset": 1e-8,
       "trainable": False
     }
   },

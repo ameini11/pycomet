@@ -7,7 +7,7 @@ from inputs.data import data_src, _path_to_data, _species, _indices
 # =====================================
 architecture = "MENOPlasmaCRReactor"
 # Variable name
-_name = "em"
+_name = "Ar1"
 
 # Extra inputs
 # -------------------------------------
@@ -57,7 +57,7 @@ lays_propty = {
     "lay_id": "Log",
     "kwargs": {
       "base": "e",
-      "offset": 1e-6,
+      "offset": 1e-8,
       "trainable": False
     }
   },
