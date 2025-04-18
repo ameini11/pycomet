@@ -34,7 +34,7 @@ def _set_device(device, index):
       tf.config.set_visible_devices(_PHY_DEVICE)
   except:
     pass
-  _DEVICE += f":{index}"
+  _DEVICE += _PHY_DEVICE.name.split(":")[-1]
 
 def get_device(name_only=True):
   if name_only:
