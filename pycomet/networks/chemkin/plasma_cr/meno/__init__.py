@@ -1,6 +1,7 @@
-# __all__ = [
-#   "MENOPlasmaCRReac"
-# ]
+__all__ = [
+  "Mixture",
+  "MENOPlasmaCRReactor"
+]
 
-# from .reactor import MENOPlasmaCRReac
 from .mixture import Mixture
+from .reactor import MENOPlasmaCRReactor

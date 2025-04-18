@@ -93,8 +93,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       + ["Th_0", "Te_0", "t"] \
       + [f"w_{s}" for s in self.species_names] \
       + ["Th", "Te", "pe", "n_em", "n_Ar1"] \
-      + ["rho"] + [f"z{i+1}_0" for i in range(self.rom.dim)] \
-      + ["Th_0", "Te_0", "ln_t_pe", "ln_t_ph"]
+      + ["rho"] + [f"z{i+1}_0" for i in range(self.rom.dim)] + ["Th_0", "Te_0"]
     # > Indices
     i = 0
     self.data_idx = {}
@@ -109,7 +108,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       ("pe", 1),
       ("n_em", 1),
       ("n_Ar1", 1),
-      ("x0_norm", 5+self.rom.dim)
+      ("x0_norm", 3+self.rom.dim)
     ):
       self.data_idx[k] = np.arange(i,i+ik).tolist()
       i += ik
