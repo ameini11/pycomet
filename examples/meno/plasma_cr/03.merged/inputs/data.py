@@ -19,21 +19,24 @@ with open(_path_to_data + "/indices.json") as file:
   _indices = json.load(file)
 _columns = {
   "x": [
-    _indices["na_0"],
-    _indices["nmi_0"],
-    _indices["T_0"],
-    _indices["t"],
-    _indices["qoi_eq"]
+    _indices["rho_0"],
+    _indices["Th_0"],
+    _indices["Te_0"],
+    _indices["t"]
   ],
   "y": [
-    _indices["na"],
-    _indices["nmi"],
-    _indices["T"]
+    _indices["w"],
+    _indices["Th"],
+    _indices["Te"]
   ]
 }
 columns = {k: _columns for k in data_src.keys()}
-
 header = 0
+
+# Database
+_path_to_dtb = "./../00.datagen/database/"
+_species = {k: _path_to_dtb+f"/species/{k}.json" for k in ("em", "Ar", "Arp")}
+_nlin_vars = ("em", "Ar1", "Th", "Te")
 
 # Batching
 # -------------------------------------

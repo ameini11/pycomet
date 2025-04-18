@@ -1,9 +1,9 @@
 # Model/architecture properties
 # =====================================
-model_name = "noneq_temp"
+model_name = "plasma_cr_Th"
 
 dim = {
-  "inp": [1, 45, 1, 1, 2],
+  "inp": [34, 1, 1, 1],
   "out": [1]
 }
 

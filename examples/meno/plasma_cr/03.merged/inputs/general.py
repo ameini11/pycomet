@@ -1,10 +1,12 @@
+from inputs.data import _nlin_vars
+
 # Model/architecture properties
 # =====================================
-model_name = "noneq"
+model_name = "plasma_cr"
 
 dim = {
-  "inp": [1, 45, 1, 1, 2],
-  "out": [1, 45, 1]
+  "inp": [34, 1, 1, 1],
+  "out": [34, 1, 1]
 }
 
 # Execution Flags
@@ -19,9 +21,7 @@ flags = {
 
 forced_loading = True
 weights_to_load = [
-  "./../../01.mass/saving/noneq_mass/model_weights.h5",
-  "./../../01.temp/saving/noneq_temp/model_weights.h5",
-  "./../../02.dist/saving/noneq_dist/model_weights.h5"
-]
+  f"./../../01.{k}/saving/plasma_cr_{k}/model_weights.h5" for k in _nlin_vars
+] + ["./../../02.states/saving/plasma_cr_states/model_weights.h5"]
 
 run_eagerly = False

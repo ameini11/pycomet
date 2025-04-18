@@ -1,10 +1,10 @@
 # Model/architecture properties
 # =====================================
-model_name = "noneq_dist"
+model_name = "plasma_cr_states"
 
 dim = {
-  "inp": [1, 45, 1, 1, 2, 2],
-  "out": [45]
+  "inp": [34, 1, 1, 1, 4],
+  "out": [34]
 }
 
 # Execution Flags

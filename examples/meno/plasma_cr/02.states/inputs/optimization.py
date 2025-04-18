@@ -1,7 +1,4 @@
-import numpy as np
-
 from inputs.postproc import figures
-from scipy.constants import Avogadro as UNA
 
 # Training
 # =====================================
@@ -22,8 +19,7 @@ scheduler = {
 loss_info = {
   "loss": "mape",
   "axis": 0,
-  "reduction": "auto",
-  "std_scaler": np.array({"mean": 0.0, "std": UNA})
+  "reduction": "auto"
 }
 
 

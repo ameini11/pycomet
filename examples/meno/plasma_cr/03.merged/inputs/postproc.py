@@ -1,34 +1,34 @@
 # Plotting quantities
 # =====================================
-_indices = list(range(45))
+_indices = list(range(34))
 _common = {
-  "indices":  ({3: 0}, {1: _indices}, {1: _indices}),
+  "indices":  ({3: 0}, {0: _indices}, {0: _indices}),
   "varnames": None,
-  "labels":   [r"$t$ [s]", r"$n$ [m$^{-3}$]"]
+  "labels":   [r"$t$ [s]", r"$w$"]
 }
 figures = [
   {
-    "figname":  "mass",
-    "indices":  ({3: 0}, {0: 0}, {0: 0}),
-    "varnames": [r"O"],
-    "labels":   [r"$t$ [s]", r"$n$ [m$^{-3}$]"],
-    "scales":   ["log", "linear"]
-  },
-  {
-    "figname": "dist_lin",
+    "figname": "states_lin",
     "scales":  ["log", "linear"],
     **_common
   },
   {
-    "figname": "dist_log",
+    "figname": "states_log",
     "scales":  ["log", "log"],
     **_common
   },
   {
-    "figname":  "temp",
+    "figname":  "Th",
+    "indices":  ({3: 0}, {1: 0}, {1: 0}),
+    "varnames": None,
+    "labels":   [r"$t$ [s]", r"$T_h$ [K]"],
+    "scales":   ["log", "linear"]
+  },
+  {
+    "figname":  "Te",
     "indices":  ({3: 0}, {2: 0}, {2: 0}),
     "varnames": None,
-    "labels":   [r"$t$ [s]", r"$T$ [K]"],
+    "labels":   [r"$t$ [s]", r"$T_e$ [K]"],
     "scales":   ["log", "linear"]
   }
 ]

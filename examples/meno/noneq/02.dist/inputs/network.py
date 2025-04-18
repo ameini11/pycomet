@@ -86,7 +86,7 @@ lays_propty = {
   },
 
   "fcorr_compute": {
-    "lay_id": "Correction",
+    "lay_id": "StateCorrection",
     "kwargs": {
       "layer_size": [1, 32, 32, 8],
       "activation": ["tanh"]*2 + ["linear"],
@@ -97,7 +97,7 @@ lays_propty = {
   },
 
   "dist_update": {
-    "lay_id": "SolUpdate",
+    "lay_id": "NonEqSolUpdate",
     "kwargs": {
       "rates": _path_to_data + "/physics/rates.hdf5",
       "use_corr": True,

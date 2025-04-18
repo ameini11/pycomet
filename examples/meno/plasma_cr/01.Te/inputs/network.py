@@ -1,24 +1,22 @@
 import numpy as np
 import tensorflow as tf
 
-from inputs.data import data_src, _path_to_data
+from inputs.data import data_src, _path_to_data, _species, _indices
 
 # Architecture properties
 # =====================================
-architecture = "MENONonEqReac"
+architecture = "MENOPlasmaCRReactor"
 # Variable name
-_name = "temp"
+_name = "Te"
 
 # Extra inputs
 # -------------------------------------
-qoi_indices = {
-  "mass": 0,
-  "temp": 1
-}
 callable_lays = {
-  "mass": False,
-  "temp": False,
-  "dist": False
+  "em": False,
+  "Ar1": False,
+  "Th": False,
+  "Te": False,
+  "states": False
 }
 callable_lays[_name] = True
 
@@ -54,22 +52,31 @@ _common = {
 
 lays_propty = {
 
-  "log_t_pa": {
+  "log_t_ph": {
     "lay_id": "Log",
     "kwargs": {
       "base": "e",
-      "offset": 1e-12,
+      "offset": 1e-8,
       "trainable": False
     }
   },
 
-  "thermo_update": {
-    "lay_id": "ThermoUpdate",
+  "lin_autoenc": {
+    "lay_id": "LinAutoencoder",
     "kwargs": {
-      "specie_thermos": {
-        "filename": _path_to_data + "/../datagen/physics/specie_thermos.json",
-        "config": None
-      },
+      "phi": _path_to_data + "/rom/phi.txt",
+      "psi": _path_to_data + "/rom/phi.txt",
+      "xref": _path_to_data + "/rom/xref.txt",
+      "xscale": _path_to_data + "/rom/xscale.txt",
+      "use_log": True,
+      "trainable": False
+    }
+  },
+
+  "mole_mass": {
+    "lay_id": "PlasmaCRMoleMass",
+    "kwargs": {
+      "species": _species,
       "trainable": False
     }
   },
@@ -79,8 +86,7 @@ lays_propty = {
     "kwargs": {
       "mean_var_file": "./saving/normalization_mean_var.txt",
       "data_files": [data_src[k] for k in ("train", "valid")],
-      "columns": (96 + np.arange(4)).tolist(),
-      "xform": {"dir": tf.math.log, "inv": tf.math.exp},
+      "columns": _indices["x0_norm"],
       "trainable": False
     }
   },
@@ -88,7 +94,7 @@ lays_propty = {
   _name: {
     "lay_id": "FlexOpNN",
     "dim": {
-      "inp": [4, 1],
+      "inp": [8, 1],
       "out": [1]
     },
     "lays_propty": {
@@ -96,7 +102,7 @@ lays_propty = {
         "from": "branch",
         "to": "trunk",
         "kwargs": {
-          "layer_size": [4, 128, 64],
+          "layer_size": [8, 128, 64],
           "activation": ["tanh"]*2 + ["linear"],
           "out_xform": None,
           "transformation": "affine",
@@ -109,7 +115,7 @@ lays_propty = {
       "branch": {
         "lay_id": "FFBlock",
         "kwargs": {
-          "layer_size": [4, 128, 64, 32],
+          "layer_size": [8, 128, 64, 32],
           "activation": ["tanh"]*2 + ["linear"],
           "name": _name + "_branch",
           "trainable": True,
@@ -130,7 +136,7 @@ lays_propty = {
         "xform": {
           "lay_id": "Transform",
           "kwargs": {
-            "xform": tf.math.sigmoid,
+            "xform": tf.math.exp,
             "name": _name + "_xform",
             "trainable": False
           }

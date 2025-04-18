@@ -1,24 +1,20 @@
-import numpy as np
-import tensorflow as tf
-
-from inputs.data import data_src, _path_to_data
+from inputs.data import data_src, _path_to_dtb, _path_to_data, _species, _indices
 
 # Architecture properties
 # =====================================
-architecture = "MENONonEqReac"
+architecture = "MENOPlasmaCRReactor"
 # Variable name
-_name = "dist"
+_name = "states"
 
 # Extra inputs
 # -------------------------------------
-qoi_indices = {
-  "mass": 0,
-  "temp": 1
-}
+qoi_indices = {k: i for (i, k) in enumerate(("n_em", "n_Ar1", "Th", "Te"))}
 callable_lays = {
-  "mass": False,
-  "temp": False,
-  "dist": False
+  "em": False,
+  "Ar1": False,
+  "Th": False,
+  "Te": False,
+  "states": False
 }
 callable_lays[_name] = True
 
@@ -54,22 +50,31 @@ _common = {
 
 lays_propty = {
 
-  "log_t_pa": {
+  "log_t_ph": {
     "lay_id": "Log",
     "kwargs": {
       "base": "e",
-      "offset": 1e-12,
+      "offset": 1e-8,
       "trainable": False
     }
   },
 
-  "thermo_update": {
-    "lay_id": "ThermoUpdate",
+  "lin_autoenc": {
+    "lay_id": "LinAutoencoder",
     "kwargs": {
-      "specie_thermos": {
-        "filename": _path_to_data + "/../datagen/physics/specie_thermos.json",
-        "config": None
-      },
+      "phi": _path_to_data + "/rom/phi.txt",
+      "psi": _path_to_data + "/rom/phi.txt",
+      "xref": _path_to_data + "/rom/xref.txt",
+      "xscale": _path_to_data + "/rom/xscale.txt",
+      "use_log": True,
+      "trainable": False
+    }
+  },
+
+  "mole_mass": {
+    "lay_id": "PlasmaCRMoleMass",
+    "kwargs": {
+      "species": _species,
       "trainable": False
     }
   },
@@ -79,27 +84,27 @@ lays_propty = {
     "kwargs": {
       "mean_var_file": "./saving/normalization_mean_var.txt",
       "data_files": [data_src[k] for k in ("train", "valid")],
-      "columns": (96 + np.arange(4)).tolist(),
-      "xform": {"dir": tf.math.log, "inv": tf.math.exp},
+      "columns": _indices["x0_norm"],
       "trainable": False
     }
   },
 
   "fcorr_compute": {
-    "lay_id": "Correction",
+    "lay_id": "StateCorrection",
     "kwargs": {
       "layer_size": [1, 32, 32, 8],
       "activation": ["tanh"]*2 + ["linear"],
-      "state_prop": _path_to_data + "/physics/states/energies_norm.txt",
+      "state_prop": _path_to_data + "/states.txt",
       "trainable": True,
       **_common
     }
   },
 
-  "dist_update": {
-    "lay_id": "SolUpdate",
+  "states_update": {
+    "lay_id": "PlasmaCRSolUpdate",
     "kwargs": {
-      "rates": _path_to_data + "/physics/rates.hdf5",
+      "species": _species,
+      "rates": _path_to_dtb + "/rates/rates.hdf5",
       "use_corr": True,
       "scale_corr": None,
       "epsilon": 1e-15,

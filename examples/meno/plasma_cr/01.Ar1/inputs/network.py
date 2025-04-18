@@ -11,7 +11,6 @@ _name = "Ar1"
 
 # Extra inputs
 # -------------------------------------
-qoi_indices = None
 callable_lays = {
   "em": False,
   "Ar1": False,
@@ -66,7 +65,7 @@ lays_propty = {
     "lay_id": "LinAutoencoder",
     "kwargs": {
       "phi": _path_to_data + "/rom/phi.txt",
-      "psi": _path_to_data + "/rom/psi.txt",
+      "psi": _path_to_data + "/rom/phi.txt",
       "xref": _path_to_data + "/rom/xref.txt",
       "xscale": _path_to_data + "/rom/xscale.txt",
       "use_log": True,
