@@ -1,7 +1,7 @@
 # Byte-compiled / optimized / DLL files
 *.p
 *.pyc
-*.hdf5
+# *.hdf5
 *.png
 __pycache__/
 build/
