@@ -275,7 +275,11 @@ def _postproc(
   # -------------------------
   if ((inputs_mod.flags['test'] > 0) and (data.test is not None)):
     utils.print_fn("Testing cases", lev=1)
-    for (name, d) in tqdm(data.test.items(), ncols=_CFG.display_len):
+    for (name, d) in tqdm(
+      data.test.items(),
+      ncols=_CFG.display_len,
+      file=sys.stdout
+    ):
       model.predict(
         data=d,
         plotting=inputs_mod.flags['plot'],

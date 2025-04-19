@@ -1,4 +1,5 @@
 import os
+import sys
 import copy
 import pandas as pd
 import tensorflow as tf
@@ -84,7 +85,7 @@ class Plotter(cb.Callback):
     utils.print_fn("- Plotting test cases ...", lev=1)
     data = copy.deepcopy(self.test_data)
     for (i, (name, (x, y))) in enumerate(
-      tqdm(data.items(), ncols=_CFG.display_len)
+      tqdm(data.items(), ncols=_CFG.display_len, file=sys.stdout)
     ):
       if ((self.max_nb is not None) and (i+1 > self.max_nb)):
         break
