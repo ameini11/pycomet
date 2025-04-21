@@ -58,7 +58,7 @@ class MENOPlasmaCRReactor(BaseNet):
     if (lays_name is None):
       self.lays_name = self.lays_name + (
         "lin_autoenc", "log_t_ph", "ic_xform", "mole_mass", \
-        "em", "Ar1", "Th", "Te", "fcorr_compute", "states_update"
+        "em", "Ar1", "Th", "Te", "pe", "fcorr_compute", "states_update"
       )
     else:
       self.lays_name = lays_name
@@ -75,7 +75,7 @@ class MENOPlasmaCRReactor(BaseNet):
     self.callable_lays = callable_lays
     if (self.callable_lays is None):
       self.callable_lays = {
-        k: (k in self.active_lays) for k in ("em", "Ar1", "Th", "Te")
+        k: (k in self.active_lays) for k in ("em", "Ar1", "Th", "Te", "pe")
       }
       self.callable_lays["states"] = ("states_update" in self.active_lays)
     # Mixture indices
@@ -96,7 +96,7 @@ class MENOPlasmaCRReactor(BaseNet):
     for (identifier, propty) in self.lays_propty.items():
       if (identifier in ("lin_autoenc", "log_t_ph", "ic_xform")):
         lays[identifier] = self.init_lay(identifier, propty)
-      elif (identifier in ("em", "Ar1", "Th", "Te")):
+      elif (identifier in ("em", "Ar1", "Th", "Te", "pe")):
         lays[identifier] = self.init_kernel_lay(propty)
       elif (identifier in ("mole_mass", "fcorr_compute", "states_update")):
         propty["lay_id"] = {
@@ -133,28 +133,32 @@ class MENOPlasmaCRReactor(BaseNet):
     rho_0, Th_0, Te_0, t, qoi_t = utils.unpack_list(inputs, nb_elem=5)
     # Compose inputs
     # -------------
-    # Initial conditions
     # > Get total density and mass fractions
     rho, w_0 = self.active_lays["mole_mass"](rho_0, method=1)
+    # > Get number densities
+    n_0 = self.active_lays["mole_mass"](rho_0, method=3)
+    ne_0 = nn_elem.Gather(indices=self.mix_indices["e"], axis=-1)(n_0)
+    nh_0 = nn_elem.Gather(indices=self.mix_indices["h"], axis=-1)(n_0)
+    nh_0 = nn_elem.Reduction(indices=None, reduction="sum")(
+      nh_0, axis=-1, keepdims=True
+    )
+    # > Get pressures
+    pe_0 = ne_0 * const.UKB * Te_0
+    ph_0 = nh_0 * const.UKB * Th_0
+    # Initial conditions
     # > Encode mass fractions
     z_0 = self.active_lays["lin_autoenc"](w_0, method=1)
     # > Concatenating
     y_0 = tf_layers.Concatenate()([rho, z_0, Th_0, Te_0])
     y_0_xform = self.active_lays["ic_xform"](y_0)
     # Time
-    # > Get number densities
-    n_0 = self.active_lays["mole_mass"](rho_0, method=3)
-    nh_0 = nn_elem.Gather(indices=self.mix_indices["h"], axis=-1)(n_0)
-    nh_0 = nn_elem.Reduction(indices=None, reduction="sum")(
-      nh_0, axis=-1, keepdims=True
-    )
     # > Scale time by the heavy-particle pressure
-    ln_t_ph_0 = self.active_lays["log_t_ph"](t * nh_0 * const.UKB * Th_0)
+    ln_t_ph_0 = self.active_lays["log_t_ph"](t * ph_0)
     # Inputs
     x = [y_0_xform, ln_t_ph_0]
     # Predict nonlinear variables
     # -------------
-    qoi_0 = {"Th": Th_0, "Te": Te_0}
+    qoi_0 = {"Th": Th_0, "Te": Te_0, "pe": pe_0}
     for k in ("em", "Ar1"):
       qoi_0[k] = nn_elem.Gather(indices=self.mix_indices[k], axis=-1)(n_0)
     for k in y.keys():
@@ -163,6 +167,8 @@ class MENOPlasmaCRReactor(BaseNet):
     # Predict linear variables (states)
     # -------------
     if self.callable_lays["states"]:
+      if (y["Te"] is None):
+        y["Te"] = y["pe"] / (y["em"] * const.UKB)
       # > Compute state-wise latent space
       x = tf_layers.Concatenate()(x)
       f = self.active_lays["fcorr_compute"](x, training=training)
