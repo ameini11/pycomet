@@ -52,14 +52,14 @@ class MENOPlasmaCRReactor(BaseNet):
         lambda x: ops.to_numpy(x, int).reshape(-1),
         qoi_indices
       )
+    # Nonlinear variables
+    self.nlin_vars = ("em", "Ar1", "Th", "Te", "pe")
     # Layers
     # -------------
     # Layers names
     if (lays_name is None):
-      self.lays_name = self.lays_name + (
-        "lin_autoenc", "log_t_ph", "ic_xform", "mole_mass", \
-        "em", "Ar1", "Th", "Te", "pe", "fcorr_compute", "states_update"
-      )
+      self.lays_name += ("lin_autoenc", "log_t_ph", "ic_xform", "mole_mass")
+      self.lays_name += self.nlin_vars + ("fcorr_compute", "states_update")
     else:
       self.lays_name = lays_name
     # Layers properties
@@ -74,10 +74,9 @@ class MENOPlasmaCRReactor(BaseNet):
     # Callable layers
     self.callable_lays = callable_lays
     if (self.callable_lays is None):
-      self.callable_lays = {
-        k: (k in self.active_lays) for k in ("em", "Ar1", "Th", "Te", "pe")
-      }
+      self.callable_lays = {k: (k in self.active_lays) for k in self.nlin_vars}
       self.callable_lays["states"] = ("states_update" in self.active_lays)
+    self.use_pe = True if self.callable_lays["pe"] else False
     # Mixture indices
     mix = self.active_lays["mole_mass"].mix
     self.mix_indices = mix.indices
@@ -96,7 +95,7 @@ class MENOPlasmaCRReactor(BaseNet):
     for (identifier, propty) in self.lays_propty.items():
       if (identifier in ("lin_autoenc", "log_t_ph", "ic_xform")):
         lays[identifier] = self.init_lay(identifier, propty)
-      elif (identifier in ("em", "Ar1", "Th", "Te", "pe")):
+      elif (identifier in self.nlin_vars):
         lays[identifier] = self.init_kernel_lay(propty)
       elif (identifier in ("mole_mass", "fcorr_compute", "states_update")):
         propty["lay_id"] = {
@@ -120,13 +119,7 @@ class MENOPlasmaCRReactor(BaseNet):
   def forward(self, inputs, training=None):
     # Set outputs
     # -------------
-    y = {
-      "em": None,
-      "Ar1": None,
-      "Ari": None,
-      "Th": None,
-      "Te": None
-    }
+    y = {k: None for k in self.nlin_vars + ("Ari",)}
     self.states_only = False
     # Extract inputs
     # -------------
@@ -158,12 +151,17 @@ class MENOPlasmaCRReactor(BaseNet):
     x = [y_0_xform, ln_t_ph_0]
     # Predict nonlinear variables
     # -------------
+    # > Initial value
     qoi_0 = {"Th": Th_0, "Te": Te_0, "pe": pe_0}
     for k in ("em", "Ar1"):
       qoi_0[k] = nn_elem.Gather(indices=self.mix_indices[k], axis=-1)(n_0)
-    for k in y.keys():
-      if (k != "Ari"):
-        y = self.call_nlin_lay(k, x, y, qoi_0, qoi_t, training)
+    # > Predict value
+    for k in self.nlin_vars:
+      if ((k == "Te") and self.use_pe):
+        continue
+      if ((k == "pe") and (not self.use_pe)):
+        continue
+      y = self.call_nlin_lay(k, x, y, qoi_0, qoi_t, training)
     # Predict linear variables (states)
     # -------------
     if self.callable_lays["states"]:
@@ -173,7 +171,7 @@ class MENOPlasmaCRReactor(BaseNet):
       x = tf_layers.Concatenate()(x)
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update states
-      xnlin = [y[k] for k in ("em", "Ar1", "Th", "Te")]
+      xnlin = [y[k] for k in self.nlin_vars[:-1]]
       xlin_0 = nn_elem.Gather(indices=self.mix_indices["lin"], axis=-1)(n_0)
       y["Ari"] = self.active_lays["states_update"](
         (t, xlin_0, xnlin, f), training=training
