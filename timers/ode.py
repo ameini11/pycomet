@@ -1,3 +1,18 @@
+"""
+ODE Solver Timing Module
+
+This module defines the `ODESolveTimer` class, which benchmarks the runtime
+performance of a 0D chemical reactor simulation using an external Fortran-based
+ODE library (e.g., PLATO). The module supports automated configuration of
+simulation inputs, parallel execution, and extraction of timing statistics.
+
+Key Features:
+- Runs simulations with varying end times and initial conditions
+- Automatically configures solver settings via shell script templates
+- Supports multiprocessing with joblib
+- Measures and exports timing data to CSV files for analysis
+"""
+
 import os
 import shutil
 import subprocess
@@ -15,17 +30,32 @@ class ODESolveTimer(object):
   # ===================================
   def __init__(
     self,
-    integrator="lsode",
-    load_plato="module load plato",
-    nb_workers=1,
-    nb_threads=1
-  ):
+    path_to_wd: str,
+    integrator: str = "lsode",
+    load_plato: str = "module load plato",
+    nb_workers: int = 1,
+    nb_threads: int = 1
+  ) -> None:
+    """
+    Initialize the ODESolveTimer with environment setup and directories.
+
+    :param path_to_wd: Path to working directory.
+    :type integrator: str
+    :param integrator: Name of the ODE integrator used.
+    :type integrator: str
+    :param load_plato: Command to load the PLATO environment/module.
+    :type load_plato: str
+    :param nb_workers: Number of parallel jobs.
+    :type nb_workers: int
+    :param nb_threads: Number of threads per simulation.
+    :type nb_threads: int
+    """
     self.integrator = integrator.lower()
     # Paths
     # ---------------------------------
-    self.cwd = os.getcwd()
-    self.path_to_data = self.cwd + f"/data/{self.integrator}/"
-    self.path_to_runs = self.cwd + f"/runs/{self.integrator}/"
+    self.path_to_wd = os.path.abspath(path_to_wd)
+    self.path_to_data = self.path_to_wd + f"/data/{self.integrator}/"
+    self.path_to_runs = self.path_to_wd + f"/runs/{self.integrator}/"
     os.makedirs(self.path_to_data, exist_ok=True)
     # Environment
     # -----------------------------------
@@ -40,11 +70,26 @@ class ODESolveTimer(object):
   # ===================================
   def __call__(
     self,
-    t_ends,
-    init_sols,
-    rtol_order=8,
-    max_order=2
-  ):
+    t_ends: list,
+    init_sols: np.ndarray,
+    rtol_order: int = 8,
+    max_order: int = 2
+  ) -> pd.DataFrame:
+    """
+    Run simulations over a range of final times and return execution timing
+    stats.
+
+    :param t_ends: List of final times to simulate.
+    :type t_ends: list
+    :param init_sols: Array of initial solution vectors.
+    :type init_sols: np.ndarray
+    :param rtol_order: Order of relative tolerance (e.g., 8 for 1e-8).
+    :type rtol_order: int
+    :param max_order: Maximum order of the integrator.
+    :type max_order: int
+    :return: DataFrame containing timing statistics.
+    :rtype: pd.DataFrame
+    """
     # Evaluate execution time
     print("Evaluating execution time")
     print(f"> rtol = 1.d-{rtol_order} | order = {max_order}")
@@ -75,11 +120,25 @@ class ODESolveTimer(object):
   # ===================================
   def eval_exec_time(
     self,
-    t_end,
-    init_sols,
-    rtol_order=8,
-    max_order=2
-  ):
+    t_end: float,
+    init_sols: np.ndarray,
+    rtol_order: int = 8,
+    max_order: int = 2
+  ) -> np.ndarray:
+    """
+    Evaluate execution time for a specific final time using initial conditions.
+
+    :param t_end: Final time for the simulation.
+    :type t_end: float
+    :param init_sols: Array of initial solution vectors.
+    :type init_sols: np.ndarray
+    :param rtol_order: Order of relative tolerance.
+    :type rtol_order: int
+    :param max_order: Maximum integrator order.
+    :type max_order: int
+    :return: Array containing [t_end, mean_time, std_time].
+    :rtype: np.ndarray
+    """
     t_end_f90 = ("%.5e" % t_end).replace("e", "d")
     print(" > t_end = " + t_end_f90 + " s")
     pcm.utils.replace(
@@ -125,10 +184,22 @@ class ODESolveTimer(object):
 
   def _eval_exec_time(
     self,
-    path,
-    case_nb,
-    init_sol
-  ):
+    path: str,
+    case_nb: int,
+    init_sol: np.ndarray
+  ) -> float:
+    """
+    Run a single simulation case and extract execution time.
+
+    :param path: Base path to run folders.
+    :type path: str
+    :param case_nb: Case index (used for naming).
+    :type case_nb: int
+    :param init_sol: Initial solution vector.
+    :type init_sol: np.ndarray
+    :return: Execution time in seconds, or None if failed.
+    :rtype: float
+    """
     # Create run folder
     case_id = str(int(case_nb+1)).zfill(6)
     case_path = shutil.copytree(
@@ -155,7 +226,7 @@ class ODESolveTimer(object):
     except subprocess.TimeoutExpired:
       timing = None
     # Delete run folder
-    os.chdir(self.cwd)
+    os.chdir(self.path_to_wd)
     shutil.rmtree(case_path)
     # Return solution
     return timing

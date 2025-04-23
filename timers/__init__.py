@@ -3,5 +3,5 @@ __all__ = [
   "SurrogateTimer"
 ]
 
-from .ode_timer import ODESolveTimer
-from .sur_timer import SurrogateTimer
+from .ode import ODESolveTimer
+from .sur import SurrogateTimer
