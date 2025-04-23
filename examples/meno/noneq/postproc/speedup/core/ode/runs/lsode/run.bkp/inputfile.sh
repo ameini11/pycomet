@@ -25,13 +25,13 @@ READ_INIT_SOL = T
 # Time-grid parameters
 TS = 0.d0
 TE = 1.00000d-09
-DT_MAX = 1.d0
+DT_MAX = 1.00000d-09
 DT_MIN = 1.d-15
 SF = 1.015d0
 
 # ---------------------------
 # ODE solver settings
-ATOL = 1.d-10
-RTOL = 1.d-7
+ATOL = 0.d0
+RTOL = 1.d-6
 MAX_ORDER = 2
 EVAL_EXEC_TIME = T

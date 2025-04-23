@@ -4,40 +4,47 @@
 # Import libraries
 # =====================================
 import sys
+import json
+sys.path.append("/home/zanardi/Codes/ML/PyCOMET/pycomet/")
 
-libs = {
-  "pycomet": "/home/zanardi/Codes/ML/PyCOMET/pycomet"
-}
-for lib in libs.values():
-  sys.path.append(lib)
-
-from timer import SurrogateTimer
+from timers import SurrogateTimer
 from silx.io.dictdump import h5todict
 
 
-if __name__ == '__main__':
+if (__name__ == "__main__"):
 
   # Inputs
   # =====================================
   # Paths
-  prefix = "/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45/adiabatic/"
-  path_to_bkd = "./bkd"
-  path_to_data = prefix + "/00.datagen/data/train_teval.hdf5"
+  prefix = "/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45_adiabatic/"
+  path_to_bkd = "./bkd/"
+  path_to_data = prefix + "/datagen/data/train_teval.hdf5"
   path_to_models = {
-    "merged_f32": prefix + "/03.merged/case.r01.siso.f32/saving/noneq_siso/inpfile.json",
-    "merged_f64": None
+    "deeponet": None, #prefix + "/deeponet/02.merged/case.r01.siso/saving/noneq_siso/inpfile.json",
+    "meno_f32": prefix + "/meno/03.merged/case.r01.siso.f32/saving/noneq_siso/inpfile.json",
+    "meno_f64": None, #prefix + "/meno/03.merged/case.r01.siso.f64/saving/noneq_siso/inpfile.json",
   }
-  path_to_indices = prefix + "/00.datagen/data/indices.json"
   # Data
   repeat_data = 10
+  # Indices
+  indices_file = prefix + "/datagen/data/indices.json"
+  with open(indices_file) as file:
+    indices = json.load(file)
+  inp_cols = indices["na_0"] \
+              + indices["nmi_0"] \
+              + indices["T_0"] \
+              + indices["t"] \
+              + indices["qoi_eq"]
+  # Statistics
+  nb_repeat = 2
   # Devices
-  devices = ("cpu", "gpu")
-  gpu_index = 1
+  devices = ("gpu", "gpu")
+  gpu_index = 0
   nb_threads = 1
   # Environment
-  load_pycomet = {
-    "cpu": "module load pycomet/1.0-gcc-11.3.0-tf-2.10.0-cpu",
-    "gpu": "module load pycomet/1.0-gcc-9.3.0-cuda-11.2.0-tf-2.10.0-gpu"
+  load_tf2 = {
+    "cpu": "module load tf2/1.0-gcc-11.3.0-tf-2.10.0-cpu",
+    "gpu": "module load tf2/1.0-gcc-9.3.0-cuda-11.2.0-tf-2.10.0-gpu"
   }
 
   # Execution time
@@ -47,7 +54,8 @@ if __name__ == '__main__':
     "TF_ENABLE_ONEDNN_OPTS": "1",
     "TF_NUM_INTEROP_THREADS": str(nb_threads),
     "TF_NUM_INTRAOP_THREADS": str(nb_threads),
-    "CUDA_VISIBLE_DEVICES": str(gpu_index)
+    "CUDA_VISIBLE_DEVICES": str(gpu_index),
+    "TF_FORCE_GPU_ALLOW_GROWTH": "1"
   }
   data = h5todict(path_to_data)
   for device in devices:
@@ -59,16 +67,14 @@ if __name__ == '__main__':
           f"\n - device: '{device}'"
         )
         sur_timer = SurrogateTimer(
-          paths={
-            "bkd": path_to_bkd,
-            "modelfile": path_to_model
-          },
-          repeat_data=repeat_data,
+          path_to_wd="./",
+          path_to_model=path_to_model,
+          inp_cols=inp_cols,
           env=env,
+          repeat_data=repeat_data,
           device=device,
           filename=f"timings_{name}_{device}",
-          indices_file=path_to_indices,
-          load_pycomet=load_pycomet[device],
+          load_tf2=load_tf2[device],
           nb_threads=nb_threads
         )
-        timings = sur_timer(data)
+        timings = sur_timer(data, nb_repeat)
