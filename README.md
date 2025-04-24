@@ -115,4 +115,4 @@ If you use this code or find this work useful in your research, please cite us:
 
 ## License
 
-[Apache license 2.0](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
+[NCSA Open Source License](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
