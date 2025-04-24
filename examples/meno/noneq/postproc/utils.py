@@ -37,6 +37,21 @@ def error_l2(y_true, y_pred, axis=0, eps=1e-10):
 def error_mape(y_true, y_pred, eps=1e-10):
   return 100.0 * np.abs(y_true-y_pred) / (np.abs(y_true)+eps)
 
+def compute_stats(x, axis=0, alpha=-1):
+  size = x.shape[axis]
+  mean = np.mean(x, axis=axis)
+  if (alpha > 0):
+    y, _ = sp.stats.t.interval(
+      alpha=alpha,
+      df=size-1,
+      loc=mean,
+      scale=sp.stats.sem(x, axis=axis)
+    )
+    uncert = np.abs(y - mean)
+  else:
+    uncert = np.std(x, axis=axis)
+  return mean, uncert
+
 # Reading
 # =====================================
 def load_test_cases(path):
@@ -51,7 +66,9 @@ def load_test_cases(path):
 def predict(model, data, indices, t=None, t_index=-2):
   x = [np.take(data, i, axis=-1) for i in indices["x"]]
   y_true = np.hstack([np.take(data, i, axis=-1) for i in indices["y"]])
-  y_pred = np.hstack(tf.nest.map_structure(lambda x: x.numpy(), model(x)))
+  y_pred = tf.nest.map_structure(lambda x: x.numpy(), model(x))
+  if isinstance(y_pred, (list, tuple)):
+    y_pred = np.hstack(y_pred)
   if (t is not None):
     t_old = x[t_index].reshape(-1)
     y_true = sp.interpolate.interp1d(t_old, y_true, kind="cubic", axis=0)(t)
@@ -163,12 +180,100 @@ def plot_test(
     plt.show()
   plt.close()
 
+def plot_err_discrete(
+  x,
+  mean,
+  uncert,
+  alpha=-1,
+  xlim=None,
+  labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
+  scales=["log", "linear"],
+  legend_loc="best",
+  figname=None,
+  save=False,
+  show=False
+):
+  # Initialize figures
+  fig = plt.figure()
+  ax = fig.add_subplot()
+  # x axis
+  ax.set_xlabel(labels[0])
+  ax.set_xscale(scales[0])
+  if (xlim is not None):
+    ax.set_xlim(xlim)
+  # y axis
+  ax.set_ylabel(labels[1])
+  ax.set_yscale(scales[1])
+  # Plotting
+  if (alpha > 0):
+    bar_lbl = "${}\\%$ CI".format(int(100*alpha))
+  else:
+    bar_lbl = r"1-$\sigma$ range"
+  plt.errorbar(
+    x, mean, yerr=uncert,
+    fmt="o", color="darkorange",
+    ecolor="royalblue", elinewidth=2,
+    capsize=5, capthick=2,
+    linestyle="None",
+    markersize=6,
+    label=bar_lbl
+  )
+  ax.legend(loc=legend_loc)
+  # Tight layout
+  plt.tight_layout()
+  if save:
+    plt.savefig(figname)
+  if show:
+    plt.show()
+  plt.close()
+
+def plot_err_continuous(
+  x,
+  mean,
+  uncert,
+  alpha=-1,
+  xlim=None,
+  labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
+  scales=["log", "linear"],
+  legend_loc="best",
+  figname=None,
+  save=False,
+  show=False
+):
+  # Initialize figures
+  fig = plt.figure()
+  ax = fig.add_subplot()
+  # x axis
+  ax.set_xlabel(labels[0])
+  ax.set_xscale(scales[0])
+  if (xlim is None):
+    xlim = (np.amin(x), np.amax(x))
+  ax.set_xlim(xlim)
+  # y axis
+  ax.set_ylabel(labels[1])
+  ax.set_yscale(scales[1])
+  # Plotting
+  if (alpha > 0):
+    label = "${}\\%$ CI".format(int(100*alpha))
+  else:
+    label = r"1-$\sigma$ range"
+  ax.fill_between(x=x, y1=mean-uncert, y2=mean+uncert, alpha=0.2, label=label)
+  ax.plot(x, mean)
+  ax.legend(loc=legend_loc)
+  # Tight layout
+  plt.tight_layout()
+  if save:
+    plt.savefig(figname)
+  if show:
+    plt.show()
+  plt.close()
+
 # Writing
 # =====================================
-def write_latex(error, filename, names, format="{:.3f}"):
+def write_latex(error, filename, names, names_stats, format="{:.3f}"):
   text = ""
   for c in error.columns:
-    m, s = [format.format(error[c][k]) for k in ("mean", "std")]
+    m, s = [format.format(error[c][k]) for k in names_stats]
     text += "%s & $%s \pm %s$ \\\\\n" % (names[c], m, s)
   f = open(filename, "w", encoding="utf-8")
   f.write(text)

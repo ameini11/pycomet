@@ -6,8 +6,8 @@ validation_split = 0.2
 
 # Time space
 time_lim = [1e-9, 1e-5]
-time_eps = 1e-12
-time_eval = [1e-8, 1e-7, 1e-6]
+time_eps = 1e-10
+time_eval = [1e-9, 1e-8, 1e-7, 1e-6, 1e-5]
 
 # Multi-threading
 nb_workers = 40

@@ -45,7 +45,7 @@ def get_device(name_only=True):
 # CPU
 # -------------------------------------
 def _set_cpu_threads(n):
-  n = int(n)
+  n = max(1,int(n))
   try:
     tf.config.threading.set_inter_op_parallelism_threads(n)
     tf.config.threading.set_intra_op_parallelism_threads(n)
@@ -54,7 +54,8 @@ def _set_cpu_threads(n):
   os.environ = set_cpu_threads_env(n, os.environ)
 
 def set_cpu_threads_env(n, env):
-  n = str(int(n))
+  n = max(1,int(n))
+  n = str(n)
   for k in (
     "OMP_NUM_THREADS",
     "OPENBLAS_NUM_THREADS",

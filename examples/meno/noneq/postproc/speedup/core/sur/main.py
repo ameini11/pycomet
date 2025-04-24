@@ -20,9 +20,9 @@ if (__name__ == "__main__"):
   path_to_bkd = "./bkd/"
   path_to_data = prefix + "/datagen/data/train_teval.hdf5"
   path_to_models = {
-    "deeponet": None, #prefix + "/deeponet/02.merged/case.r01.siso/saving/noneq_siso/inpfile.json",
-    "meno_f32": prefix + "/meno/03.merged/case.r01.siso.f32/saving/noneq_siso/inpfile.json",
-    "meno_f64": None, #prefix + "/meno/03.merged/case.r01.siso.f64/saving/noneq_siso/inpfile.json",
+    "deeponet": prefix + "/deeponet/02.merged/case.r04.siso/saving/noneq_siso/inpfile.json",
+    "meno_f32": prefix + "/meno/03.merged/case.r01.f32/saving/noneq_siso/inpfile.json",
+    "meno_f64": prefix + "/meno/03.merged/case.r01.f64/saving/noneq_siso/inpfile.json",
   }
   # Data
   repeat_data = 10
@@ -31,14 +31,14 @@ if (__name__ == "__main__"):
   with open(indices_file) as file:
     indices = json.load(file)
   inp_cols = indices["na_0"] \
-              + indices["nmi_0"] \
-              + indices["T_0"] \
-              + indices["t"] \
-              + indices["qoi_eq"]
+           + indices["nmi_0"] \
+           + indices["T_0"] \
+           + indices["t"] \
+           + indices["qoi_eq"]
   # Statistics
-  nb_repeat = 2
+  nb_repeat = 100
   # Devices
-  devices = ("gpu", "gpu")
+  devices = ("cpu", "gpu")
   gpu_index = 0
   nb_threads = 1
   # Environment
@@ -52,10 +52,10 @@ if (__name__ == "__main__"):
   env = {
     "TF_CPP_MIN_LOG_LEVEL": "3",
     "TF_ENABLE_ONEDNN_OPTS": "1",
+    "TF_FORCE_GPU_ALLOW_GROWTH": "1",
     "TF_NUM_INTEROP_THREADS": str(nb_threads),
     "TF_NUM_INTRAOP_THREADS": str(nb_threads),
-    "CUDA_VISIBLE_DEVICES": str(gpu_index),
-    "TF_FORCE_GPU_ALLOW_GROWTH": "1"
+    "CUDA_VISIBLE_DEVICES": str(gpu_index)
   }
   data = h5todict(path_to_data)
   for device in devices:

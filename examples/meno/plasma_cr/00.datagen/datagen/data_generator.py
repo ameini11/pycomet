@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import shutil
 import subprocess
@@ -191,7 +192,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       dicttoh5(
         treedict=data,
         h5file=self.path_to_runs + f"/samples/{k}.hdf5",
-        overwrite_data=True,
+        # overwrite_data=True,
         create_dataset_args={"compression": "gzip"}
       )
     # Returning sampled initial solutions
@@ -243,7 +244,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
           path=self.path_to_runs,
           case_nb=i,
           init_sol=init_sol
-        ) for (i, init_sol) in enumerate(tqdm(init_sols, ncols=80))
+        ) for (i, init_sol) in enumerate(tqdm(init_sols, ncols=80, file=sys.stdout))
       )
       # Filter solutions
       sols = {i: c for (i, c) in sols if (c is not None)}
@@ -253,7 +254,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       dicttoh5(
         treedict=sols,
         h5file=path + "/sols.hdf5",
-        overwrite_data=True,
+        # overwrite_data=True,
         create_dataset_args={"compression": "gzip"}
       )
     else:
@@ -348,23 +349,28 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # Get physical QoI
     return self.prim_to_phys(*sol)
 
+  # def limit_solution(self, t, y):
+  #   idx = np.argwhere(
+  #     (t.squeeze() >= self.time_lim[0]) * (t.squeeze() <= self.time_lim[1])
+  #   ).squeeze()
+  #   return t[idx], y[idx]
+
   def limit_solution(self, t, y):
-    idx = np.argwhere(
-      (t.squeeze() >= self.time_lim[0]) * (t.squeeze() <= self.time_lim[1])
-    ).squeeze()
-    return t[idx], y[idx]
+    teval = np.geomspace(*self.time_lim, self.train_pts*3)
+    teval, y = self.interpolate_solution(t, y, teval)
+    return teval.reshape(-1,1), y
 
   def interpolate_solution(self, t, y, teval):
     y = sp.interpolate.interp1d(t.squeeze(), y, kind="cubic", axis=0)(teval)
     return teval, y
 
   def sample_solution(self, t, y, nb_pts):
-    idx = self.dyn_sampler.sample(
+    i = self.dyn_sampler.sample(
       x=np.log(t+self.time_eps).reshape(-1,1),
       y=y,
       nb_pts=nb_pts
     )
-    return t[idx], y[idx]
+    return t[i], y[i]
 
   def prim_to_phys(self, t, y):
     # Manipulate primitive variables
@@ -465,7 +471,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       # Sampling 0D data
       pcm.utils.print_fn(f"Sampling 0D cases: {k}", lev=2)
       nb_pts = self.train_pts if (k == "train") else self.valid_pts
-      for sol in tqdm(sols.values(), ncols=80):
+      for sol in tqdm(sols.values(), ncols=80, file=sys.stdout):
         data_i = self.get_data(sol, nb_pts)
         data = self.stack_data(data, data_i, k)
       # Save data in a "csv" file
@@ -483,7 +489,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         _teval_data = jl.Parallel(self.nb_workers)(
           jl.delayed(self.get_data)(
             sol, teval=self.time_eval
-          ) for sol in tqdm(sols.values(), ncols=80)
+          ) for sol in tqdm(sols.values(), ncols=80, file=sys.stdout)
         )
         _teval_data = [np.hstack(tf.nest.flatten(d)) for d in _teval_data]
         # Assemble interpolated data
@@ -497,7 +503,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         dicttoh5(
           treedict=teval_data,
           h5file=self.path_to_data + f"/{k}_teval.hdf5",
-          overwrite_data=True,
+          # overwrite_data=True,
           create_dataset_args={"compression": "gzip"}
         )
     return data
@@ -519,7 +525,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         init_sols=init_sols["test"]
       )
       # Saving 0D data
-      for (i, sol) in tqdm(sols.items(), ncols=80):
+      for (i, sol) in tqdm(sols.items(), ncols=80, file=sys.stdout):
         ikey = "case_" + i
         data[ikey] = self.get_data(sol)
         self.save_data(filename=path+f"/{ikey}", data=data[ikey])

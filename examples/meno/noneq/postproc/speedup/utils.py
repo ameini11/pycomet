@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 import matplotlib as mpl
+import dataframe_image as dfi
 
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -25,12 +27,48 @@ def ratio_normal_approx(mean, std):
   rstd = np.sqrt(rmean**2 * (deltas[0]**2 + deltas[1]**2))
   return rmean, rstd
 
+def compute_speedup(num, den, header):
+  # Extract mean and std
+  values = {}
+  for k in ("mean", "std"):
+    values[k] = np.vstack([df[k].to_numpy().squeeze() for df in (num, den)])
+  # Compute speedup
+  rmean, rstd = ratio_normal_approx(values["mean"], values["std"])
+  # Compose data
+  time = num["t"].to_numpy().squeeze()
+  data = np.vstack([time, rmean, rstd]).T
+  return pd.DataFrame(data=data, columns=header)
+
 def as_si(x, ndp=0):
   s = "{x:0.{ndp:d}e}".format(x=x, ndp=ndp)
   m, e = s.split("e")
   return r"10^{{{e:d}}}".format(m=m, e=int(e))
 
-def plot_speedup_1d(
+def sformat(mean, std):
+  return "{:.3f} ".format(mean) + u"\u00B1" + " {:.3f}".format(std)
+
+def save_speedup(df, filename, title=None, savefig=False):
+  # Save original data
+  df.to_csv(
+    path_or_buf=filename + ".csv",
+    float_format="%.8e",
+    index=False
+  )
+  # Print original data in a table
+  if savefig:
+    svalues = []
+    sdata = df.to_dict(orient="list")
+    for i in range(len(sdata["t"])):
+      svalues.append(sformat(sdata["mean"][i], sdata["std"][i]))
+    sdata = {
+      "t [s]": ["{:.0e}".format(ti) for ti in sdata["t"]], 
+      "Speedup": svalues
+    }
+    dfs = pd.DataFrame.from_dict(sdata)
+    dfs_styled = dfs.style.set_caption(title).hide(axis="index").background_gradient()
+    dfi.export(dfs_styled, filename + "_table.png")
+
+def plot_timings_1d(
   x,
   mean,
   std=None,
@@ -66,13 +104,16 @@ def plot_speedup_1d(
   # Plotting
   kwargs = dict(linestyle="--", marker="s")
   for i in range(len(mean)):
+    if (var_names is not None):
+      kwargs["label"] = var_names[i]
     if (std is not None):
-      ax.errorbar(x=x, y=mean[i], yerr=std[i], label=var_names[i], **kwargs)
+      ax.errorbar(x=x, y=mean[i], yerr=std[i], **kwargs)
       ax.fill_between(x=x, y1=mean[i]-std[i], y2=mean[i]+std[i], alpha=0.2)
     else:
-      ax.plot(x, mean[i], label=var_names[i], **kwargs)
+      ax.plot(x, mean[i], **kwargs)
   # plt.hlines(1.0, xlim[0], xlim[-1], colors="grey", lw=0.5)
-  ax.legend(loc=legend_loc)
+  if (var_names is not None):
+    ax.legend(loc=legend_loc)
   # Save figure
   if save:
     for ext in tf.nest.flatten(extensions):
@@ -82,7 +123,7 @@ def plot_speedup_1d(
     plt.show()
   plt.close()
 
-def plot_speedup_2d(
+def plot_timings_2d(
   xlbl,
   ylbl,
   z,
