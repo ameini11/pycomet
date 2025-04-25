@@ -253,11 +253,13 @@ class PlasmaCRMoleMass(nn_elem.Layer):
   def __init__(
     self,
     species,
+    charge_cons=False,
     **kwargs
   ):
     super(PlasmaCRMoleMass, self).__init__(**kwargs)
     # Set mixture
     self.mix = Mixture(species)
+    self.charge_cons = bool(charge_cons)
 
   # Calling
   # ===================================
@@ -268,19 +270,37 @@ class PlasmaCRMoleMass(nn_elem.Layer):
       return rho, inputs/rho
     elif (method == 2):
       # Convert from 'n' to 'rho'
+      if self.charge_cons:
+        inputs = self.enforce_charge_cons(inputs)
       return self.mix.get_rho(inputs)
     elif (method == 3):
       # Convert from 'rho' to 'n'
       return self.mix.get_n(inputs)
     elif (method == 4):
       # Convert from 'n' to 'w' (mass fractions)
+      if self.charge_cons:
+        inputs = self.enforce_charge_cons(inputs)
       rho = self.mix.get_rho(inputs)
       return rho / tf.math.reduce_sum(rho, axis=-1, keepdims=True)
+
+  def enforce_charge_cons(self, n):
+    # Get indices
+    ii, ie = [self.mix.species[k].indices for k in ("Arp", "em")]
+    # Compute ions number density
+    ni = tf.gather(n, ii, axis=-1)
+    ni = tf.math.reduce_sum(ni, axis=-1, keepdims=True)
+    # Set electron number density
+    return tf.transpose(tf.tensor_scatter_nd_update(
+      tensor=tf.transpose(n),
+      indices=tf.reshape(ie, (-1,1)),
+      updates=tf.transpose(ni)
+    ))
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = self.mix.get_config()
+    config["charge_cons"] = self.charge_cons
     base_config = super(PlasmaCRMoleMass, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
