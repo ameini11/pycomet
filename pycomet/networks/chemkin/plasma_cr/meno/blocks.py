@@ -216,7 +216,7 @@ class PlasmaCROperators(nn_elem.Layer):
       input=tf.transpose(A, perm=[0,2,1]),
       diagonal=-tf.math.reduce_sum(A, axis=-1)
     )
-    return tf.reshape(A, (-1,self.nb_comp**2))
+    return tf.reshape(A, (-1,self.nb_comp,self.nb_comp))
 
   # Configuration
   # ===================================
@@ -333,7 +333,7 @@ class PlasmaCRSolUpdate(nn_elem.Layer):
 
   def enforce_charge_cons(self, nh):
     # Get ions indices
-    ii = self.operators.mix.species["Arp"].indices - 1
+    ii = self.operators.mix["h"].species["Arp"].indices - 1
     # Compute electron number density
     ne = tf.gather(nh, ii, axis=-1)
     ne = tf.math.reduce_sum(ne, axis=-1, keepdims=True)
