@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from . import const
 from .mixture import Mixture
+from pycomet import utils
 from pycomet import backend as bkd
 from pycomet import operations as ops
 from pycomet.config import get_config
@@ -36,7 +37,7 @@ class PlasmaCROperators(nn_elem.Layer):
       # > Te-based thermo mixture
       "e": copy.deepcopy(mix)
     }
-    self.nb_comp = self.mix["h"].nb_comp - 2
+    self.nb_comp = self.mix["h"].nb_comp - 1
     # Initialize rates
     self.rates = self.read_rates(rates)
     self.processes = list(self.rates.keys())
@@ -85,16 +86,6 @@ class PlasmaCROperators(nn_elem.Layer):
       setattr(self, key, tf.nest.map_structure(
         lambda z: tf.constant(z, dtype=dtype), value
       ))
-    # Set indices for A and b operators
-    # -------------
-    # Matrix of indices
-    m = self.nb_comp + 1
-    K = np.arange(m*m).reshape(m,m)
-    # Exclude ground state of Argon
-    self.lin_ops_indices = {
-      "A": tf.constant(K[1:,1:].reshape(-1), dtype="int32"),
-      "b": tf.constant(K[1:,:1].reshape(-1), dtype="int32")
-    }
 
   # Calling
   # ===================================
@@ -110,8 +101,8 @@ class PlasmaCROperators(nn_elem.Layer):
     rates = self.compute_rates(Th, Te, f)
     # Compose reaction rates matrices
     omega = self.compose_sources_mat(rates, n_em, n_ar1)
-    # Compose linear operators: A and b from dydt=A@y+b
-    return self.compose_lin_ops(omega, n_ar1)
+    # Compose linear operators: A from 'dydt = A @ y'
+    return self.compose_lin_ops(omega)
 
   # Rates
   # -----------------------------------
@@ -173,7 +164,7 @@ class PlasmaCROperators(nn_elem.Layer):
     for a in ("h", "e"):
       q[a] = tf.split(
         value=self.mix[a].q,
-        num_or_size_splits=[1, self.nb_comp+1],
+        num_or_size_splits=[1, self.nb_comp],
         axis=-1
       )
     # Compute backward rates
@@ -198,7 +189,7 @@ class PlasmaCROperators(nn_elem.Layer):
   # -----------------------------------
   def compose_sources_mat(self, rates, n_em, n_ar1):
     omega = {}
-    m, n = self.nb_comp + 1, tf.shape(n_em)[0]
+    m, n = self.nb_comp, tf.shape(n_em)[0]
     for z in ("fwd", "bwd"):
       omega[z] = tf.zeros((m*m, n), dtype=bkd.get_floatx())
       for p in self.processes:
@@ -218,21 +209,14 @@ class PlasmaCROperators(nn_elem.Layer):
       omega[z] = tf.reshape(tf.transpose(omega[z]), (-1,m,m))
     return omega
 
-  def compose_lin_ops(self, omega, n_ar1):
-    m = self.nb_comp + 1
+  def compose_lin_ops(self, omega):
     # Merged linear-constant term
-    Ab = omega["fwd"] + tf.transpose(omega["bwd"], perm=[0,2,1])
-    Ab = tf.linalg.set_diag(
-      input=tf.transpose(Ab, perm=[0,2,1]),
-      diagonal=-tf.math.reduce_sum(Ab, axis=-1)
+    A = omega["fwd"] + tf.transpose(omega["bwd"], perm=[0,2,1])
+    A = tf.linalg.set_diag(
+      input=tf.transpose(A, perm=[0,2,1]),
+      diagonal=-tf.math.reduce_sum(A, axis=-1)
     )
-    Ab = tf.reshape(Ab, (-1,m*m))
-    # Linear term
-    A = tf.gather(Ab, indices=self.lin_ops_indices["A"], axis=-1)
-    A = tf.reshape(A, (-1,m-1,m-1))
-    # Constant term
-    b = tf.gather(Ab, indices=self.lin_ops_indices["b"], axis=-1) * n_ar1
-    return A, b
+    return tf.reshape(A, (-1,self.nb_comp**2))
 
   # Configuration
   # ===================================
@@ -253,13 +237,11 @@ class PlasmaCRMoleMass(nn_elem.Layer):
   def __init__(
     self,
     species,
-    charge_cons=False,
     **kwargs
   ):
     super(PlasmaCRMoleMass, self).__init__(**kwargs)
     # Set mixture
     self.mix = Mixture(species)
-    self.charge_cons = bool(charge_cons)
 
   # Calling
   # ===================================
@@ -270,37 +252,24 @@ class PlasmaCRMoleMass(nn_elem.Layer):
       return rho, inputs/rho
     elif (method == 2):
       # Convert from 'n' to 'rho'
-      if self.charge_cons:
-        inputs = self.enforce_charge_cons(inputs)
       return self.mix.get_rho(inputs)
     elif (method == 3):
       # Convert from 'rho' to 'n'
       return self.mix.get_n(inputs)
     elif (method == 4):
       # Convert from 'n' to 'w' (mass fractions)
-      if self.charge_cons:
-        inputs = self.enforce_charge_cons(inputs)
       rho = self.mix.get_rho(inputs)
       return rho / tf.math.reduce_sum(rho, axis=-1, keepdims=True)
-
-  def enforce_charge_cons(self, n):
-    # Get indices
-    ii, ie = [self.mix.species[k].indices for k in ("Arp", "em")]
-    # Compute ions number density
-    ni = tf.gather(n, ii, axis=-1)
-    ni = tf.math.reduce_sum(ni, axis=-1, keepdims=True)
-    # Set electron number density
-    return tf.transpose(tf.tensor_scatter_nd_update(
-      tensor=tf.transpose(n),
-      indices=tf.reshape(ie, (-1,1)),
-      updates=tf.transpose(ni)
-    ))
+    else:
+      utils.raise_err(
+        error=ValueError,
+        text="Invalid method: it must be an integer between 1 and 4."
+      )
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = self.mix.get_config()
-    config["charge_cons"] = self.charge_cons
     base_config = super(PlasmaCRMoleMass, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -352,11 +321,23 @@ class PlasmaCRSolUpdate(nn_elem.Layer):
   # ===================================
   def call(self, inputs, training=None):
     # Extract inputs
-    t, xlin_0, xnlin, f = inputs
+    t, nh_0, u, f = inputs
     # Compute operators
-    A, b = self.operators((*xnlin, f), training=training)
-    # Compute number densities of the 'linear' components
-    return self.linode((t, xlin_0, A, b), training=training)
+    A = self.operators((*u, f), training=training)
+    # Compute number densities
+    # > Argon states
+    nh = self.linode((t, nh_0, A), training=training)
+    # > Electron (charge conservation)
+    n = self.enforce_charge_cons(nh)
+    return n
+
+  def enforce_charge_cons(self, nh):
+    # Get ions indices
+    ii = self.operators.mix.species["Arp"].indices - 1
+    # Compute electron number density
+    ne = tf.gather(nh, ii, axis=-1)
+    ne = tf.math.reduce_sum(ne, axis=-1, keepdims=True)
+    return tf.concat([ne, nh], axis=-1)
 
   # Configuration update
   # ===================================

@@ -82,7 +82,6 @@ class MENOPlasmaCRReactor(BaseNet):
     self.mix_indices = mix.indices
     self.mix_indices["em"] = mix.species["em"].indices
     self.mix_indices["Ar1"] = mix.species["Ar"].indices[0]
-    self.mix_indices["lin"] = mix.indices["h"][1:]
     self.mix_indices = tf.nest.map_structure(
       lambda x: ops.to_numpy(x, int).reshape(-1),
       self.mix_indices
@@ -171,18 +170,17 @@ class MENOPlasmaCRReactor(BaseNet):
       x = tf_layers.Concatenate()(x)
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update states
-      xnlin = [y[k] for k in self.nlin_vars[:-1]]
-      xlin_0 = nn_elem.Gather(indices=self.mix_indices["lin"], axis=-1)(n_0)
-      y["Ari"] = self.active_lays["states_update"](
-        (t, xlin_0, xnlin, f), training=training
-      )
+      u = [y[k] for k in self.nlin_vars[:-1]]
+      nh_0 = nn_elem.Gather(indices=self.mix_indices["h"], axis=-1)(n_0)
+      n = self.active_lays["states_update"]((t, nh_0, u, f), training=training)
+      y["w"] = self.active_lays["mole_mass"](n, method=4)
     # Return predictions
     # -------------
     if self.states_only:
-      return self.convert_n_to_w(y)
+      return y["w"]
     else:
       if self.return_full:
-        return [self.convert_n_to_w(y), y["Th"], y["Te"]]
+        return [y["w"], y["Th"], y["Te"]]
       else:
         return [yk for yk in y.values() if (yk is not None)]
 
@@ -193,7 +191,3 @@ class MENOPlasmaCRReactor(BaseNet):
       y[key] = nn_elem.Gather(indices=self.qoi_indices[key], axis=-1)(qoi_t)
       self.states_only = True
     return y
-
-  def convert_n_to_w(self, y):
-    y = tf_layers.Concatenate()([y[k] for k in ("em", "Ar1", "Ari")])
-    return self.active_lays["mole_mass"](y, method=4)

@@ -13,10 +13,9 @@ class Mixture(object):
   # ===================================
   def __init__(
     self,
-    species,
-    species_order=("em", "Ar", "Arp")
+    species
   ):
-    self.species_order = species_order
+    self.species_order = ("em", "Ar", "Arp")
     self._init_species(species)
     self._build_mass_vec()
 
@@ -90,10 +89,7 @@ class Mixture(object):
   # Configuration
   # ===================================
   def get_config(self):
-    config = {
-      "species": {},
-      "species_order": self.species_order
-    }
+    config = {"species": {}}
     for (k, sp) in self.species.items():
       config["species"][k] = {
         "properties": None,
