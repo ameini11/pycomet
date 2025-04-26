@@ -12,4 +12,4 @@
 ##SBATCH --mail-type=BEGIN,END
 
 # Run python code/script
-/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/pycomet generate -d ./
+./../../pycomet generate -d ./

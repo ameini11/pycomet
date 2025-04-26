@@ -1,6 +1,6 @@
 #---------------------------
 # Path to data and mixture, reaction, transfer files
-PATH     = /home/zanardi/Workspace/AirDatabase/ThermoChemModels/StS/cr_argon/database
+PATH     = /u/zanardi3/Workspace/cr_argon/database
 MIXTURE  = kapper
 REACTION = kapper_kin_rad
 TRANSFER = TTe

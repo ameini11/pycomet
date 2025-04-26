@@ -32,6 +32,8 @@ def read_1d_sim(
   path_to_dtb: str,
   savefile: str,
   flow_model: str = "EU_NLTE",
+  extension: str = None,
+  iter_max: Optional[int] = None,
   save: bool = True,
   species_order: tuple = ("em", "Ar", "Arp")
 ) -> Dict[str, np.ndarray]:
@@ -40,6 +42,8 @@ def read_1d_sim(
   # -------------
   filenames, indices = [], []
   flowfield = f"flowfield_{flow_model}"
+  if (extension is not None):
+    flowfield += "_"+extension
   for filename in sorted(os.listdir(path_to_sol)):
     if filename.startswith(flowfield):
       # Iteration
@@ -49,6 +53,11 @@ def read_1d_sim(
       filename = os.path.join(path_to_sol, filename)
       filenames.append(filename)
   indices = np.asarray(indices)
+  filenames = np.asarray(filenames)
+  if (iter_max is not None):
+    i = (indices <= iter_max)
+    indices = indices[i]
+    filenames = filenames[i]
   # Read solutions
   # -------------
   sols = {c: [] for c in HEADER}
@@ -93,35 +102,3 @@ def _get_mass_fractions(mix, x):
   x = x.reshape(-1, s[-1])
   w = mix.get_w(x).numpy()
   return w.reshape(s)
-
-def prim_to_phys(mix, t, y):
-  # Manipulate primitive variables
-  nc = mix.nb_comp
-  rho, Th, Te = np.split(y, [nc, nc+1], axis=-1)
-  n = mix.get_n(rho).numpy()
-  # Store physical variables
-  phys = {
-    "t": t,
-    "Th": Th,
-    "Te": Te,
-    "n": np.sum(n, axis=-1),
-    "rho": np.sum(rho, axis=-1)
-  }
-  for sp in mix.species.values():
-    i = sp.indices.numpy()
-    phys[f"n_{sp.name}"] = np.sum(n[:,i], axis=-1)
-    phys[f"rho_{sp.name}"] = np.sum(rho[:,i], axis=-1)
-    if (sp.name == "Ar"):
-      phys["n_Ar1"] = n[:,i[0]]
-  phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
-  # Molar/mass fractions
-  phys["x"] = n / phys["n"]
-  phys["w"] = rho / phys["rho"]
-  # Pressures
-  ne = phys["n_em"]
-  nh = phys["n_Ar"] + phys["n_Arp"]
-  phys["pe"] = ne * const.UKB * Te
-  phys["ph"] = nh * const.UKB * Th
-  phys["p"] = phys["pe"] + phys["ph"]
-  # Return
-  return phys

@@ -32,7 +32,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     validation_split=0.2,
     rom_config=None,
     path_to_dtb=None,
-    path_to_inp_space=None,
+    path_to_samples=None,
     grad_split=0.75,
     load_plato="module load plato",
     nb_workers=4,
@@ -47,7 +47,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     self.path_to_data = self.cwd + "/data/"
     self.path_to_runs = self.cwd + "/datagen/runs/"
     self.path_to_dtb = path_to_dtb
-    self.path_to_inp_space = path_to_inp_space
+    self.path_to_samples = path_to_samples
     os.makedirs(self.path_to_data, exist_ok=True)
     # Data quantities
     # ---------------------------------
@@ -161,8 +161,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
   ):
     data_src = {}
     # Input space
-    pcm.utils.print_fn("Reading sampled input space", lev=1)
-    init_sols = self.read_inp_space()
+    pcm.utils.print_fn("Reading sampled initial solutions", lev=1)
+    init_sols = self.read_init_sols()
     # Generate training/validation data
     pcm.utils.print_fn("Training/validation data", lev=1)
     data_src.update(self.training_data(init_sols))
@@ -170,63 +170,82 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     data_src.update(self.testing_data(init_sols))
     return data_src
 
-  # Read input space
+  # Read initial solutions
   # ===================================
-  def read_inp_space(self):
-    xinp, xsol = {}, {}
+  def read_init_sols(self):
+    xsol = {}
     for k in ("train", "valid", "test"):
-      filename = self.path_to_inp_space + f"/{k}.csv"
+      filename = self.path_to_samples + f"/{k}.csv"
       if os.path.exists(filename):
-        data = pd.read_csv(filename)
-        xinp[k] = data.values
-        xsol[k] = self.inp_to_prim(data)
-    # Check if test cases are in training cases
-    if ("test" in xinp):
-      assert (~np.isin(xinp["test"], xinp["train"]).all(-1)).all(-1)
+        xsol[k] = pd.read_csv(filename).values
     # Saving sampled initial solutions
     os.makedirs(self.path_to_runs + "/samples/", exist_ok=True)
-    for (k, data) in (
-      ("inp_space", xinp),
-      ("init_sols", xsol)
-    ):
-      dicttoh5(
-        treedict=data,
-        h5file=self.path_to_runs + f"/samples/{k}.hdf5",
-        # overwrite_data=True,
-        create_dataset_args={"compression": "gzip"}
-      )
+    dicttoh5(
+      treedict=xsol,
+      h5file=self.path_to_runs + "/samples/init_sols.hdf5",
+      # overwrite_data=True,
+      create_dataset_args={"compression": "gzip"}
+    )
     # Returning sampled initial solutions
     return xsol
 
-  def inp_to_prim(
-    self,
-    samples
-  ):
-    # Decode latent space
-    z = samples[[f"z{i+1}" for i in range(self.rom.dim)]].values
-    w = self.rom(z, method=2).numpy()
-    # Enforce conservation: mass and charge
-    w = self._enforce_cons_mass(w)
-    w = self._enforce_cons_charge(w)
-    # Collect primitive variables
-    rho = w * samples[["rho"]].values
-    Th, dT = [samples[[k]].values for k in ("Th", "dT")]
-    Te = Th - dT
-    return np.hstack([rho, Th, Te])
+  # # Read input space
+  # # ===================================
+  # def read_inp_space(self):
+  #   xinp, xsol = {}, {}
+  #   for k in ("train", "valid", "test"):
+  #     filename = self.path_to_samples + f"/{k}.csv"
+  #     if os.path.exists(filename):
+  #       data = pd.read_csv(filename)
+  #       xinp[k] = data.values
+  #       xsol[k] = self.inp_to_prim(data)
+  #   # Check if test cases are in training cases
+  #   if ("test" in xinp):
+  #     assert (~np.isin(xinp["test"], xinp["train"]).all(-1)).all(-1)
+  #   # Saving sampled initial solutions
+  #   os.makedirs(self.path_to_runs + "/samples/", exist_ok=True)
+  #   for (k, data) in (
+  #     ("inp_space", xinp),
+  #     ("init_sols", xsol)
+  #   ):
+  #     dicttoh5(
+  #       treedict=data,
+  #       h5file=self.path_to_runs + f"/samples/{k}.hdf5",
+  #       # overwrite_data=True,
+  #       create_dataset_args={"compression": "gzip"}
+  #     )
+  #   # Returning sampled initial solutions
+  #   return xsol
 
-  def _enforce_cons_mass(self, z):
-    i = self.mix.species["Ar"].indices[0]
-    z[:,i] = 0.0
-    z[:,i] = 1.0 - np.sum(z, axis=-1)
-    return z
+  # def inp_to_prim(
+  #   self,
+  #   samples
+  # ):
+  #   # Decode latent space
+  #   z = samples[[f"z{i+1}" for i in range(self.rom.dim)]].values
+  #   w = self.rom(z, method=2).numpy()
+  #   # Enforce conservation: mass and charge
+  #   w = self._enforce_cons_mass(w)
+  #   w = self._enforce_cons_charge(w)
+  #   # Collect primitive variables
+  #   rho = w * samples[["rho"]].values
+  #   Th, dT = [samples[[k]].values for k in ("Th", "dT")]
+  #   Te = Th - dT
+  #   return np.hstack([rho, Th, Te])
 
-  def _enforce_cons_charge(self, w):
-    x = self.mix.get_x(w).numpy()
-    ie, ii = [self.mix.species[k].indices for k in ("em", "Arp")]
-    x[:,ie] = np.sum(x[:,ii], axis=-1, keepdims=True)
-    x = self._enforce_cons_mass(x)
-    w = self.mix.get_w(x).numpy()
-    return w
+  # def _enforce_cons_mass(self, z):
+  #   i = self.mix.species["Ar"].indices[0]
+  #   z[:,i] = 0.0
+  #   z[:,i] = 1.0 - np.sum(z, axis=-1)
+  #   return z
+
+  # def _enforce_cons_charge(self, w):
+  #   x = self.mix.get_x(w).numpy()
+  #   ie, ii = [self.mix.species[k].indices for k in ("em", "Arp")]
+  #   x[:,ie] = np.sum(x[:,ii], axis=-1, keepdims=True)
+  #   x = self._enforce_cons_mass(x)
+  #   w = self.mix.get_w(x).numpy()
+  #   return w
 
   # Compute solutions
   # ===================================
@@ -284,7 +303,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     try:
       # Run 0D simulation
       subprocess.run(
-        f"box inputfile.sh {self.nb_threads}",
+        # f"box inputfile.sh {self.nb_threads}",
+        "box inputfile.sh",
         shell=True,
         env=self.env,
         timeout=1e2,
