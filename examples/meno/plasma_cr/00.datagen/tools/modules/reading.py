@@ -81,8 +81,7 @@ def read_1d_sim(
   # Postprocess solutions
   # -------------
   mix = Mixture(
-    species={k: path_to_dtb + f"/species/{k}.json" for k in species_order},
-    species_order=species_order
+    species={k: path_to_dtb + f"/species/{k}.json" for k in species_order}
   )
   sols["x"] = _get_molar_fractions(sols)
   sols["w"] = _get_mass_fractions(mix=mix, x=sols["x"])

@@ -8,12 +8,13 @@ _name = "states"
 
 # Extra inputs
 # -------------------------------------
-qoi_indices = {k: i for (i, k) in enumerate(("em", "Ar1", "Th", "Te"))}
+qoi_indices = {k: i for (i, k) in enumerate(("n_em", "n_Ar1", "Th", "Te"))}
 callable_lays = {
-  "em": False,
-  "Ar1": False,
+  "n_em": False,
+  "n_Ar1": False,
   "Th": False,
   "Te": False,
+  "pe": False,
   "states": False
 }
 callable_lays[_name] = True
@@ -24,14 +25,14 @@ noisy_io = {
   "inputs": {
     "lay_id": "GaussianNoise",
     "kwargs": {
-      "stddev": 0.02,
+      "stddev": 0.04,
       "seed": 0
     }
   },
   "outputs": {
     "lay_id": "GaussianNoise",
     "kwargs": {
-      "stddev": 0.02,
+      "stddev": 0.04,
       "seed": 0
     }
   }
@@ -47,6 +48,7 @@ _common = {
   "dropout": {"rate": 1e-3},
   "layer_norm": False
 }
+
 
 lays_propty = {
 

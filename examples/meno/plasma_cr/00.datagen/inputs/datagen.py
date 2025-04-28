@@ -19,4 +19,4 @@ path_to_dtb = "./database/"
 rom_config = "./tools/output/lowrank_state/vel1/rom.p"
 
 # Samples
-path_to_samples = "./tools/output/sampling/samples/"
+path_to_samples = "./tools/output/sampling/samples_i100/"

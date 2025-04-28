@@ -68,8 +68,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     # -----------------------------------
     species_order = ("em", "Ar", "Arp")
     self.mix = Mixture(
-      species={k: path_to_dtb + f"/species/{k}.json" for k in species_order},
-      species_order=species_order
+      species={k: path_to_dtb + f"/species/{k}.json" for k in species_order}
     )
     self.set_states()
     # Linear autoencoder
@@ -357,6 +356,35 @@ class DataGenerator(pcm.data.BaseDataGenerator):
 
   # Postprocess solution
   # -----------------------------------
+  def prim_to_phys(self, t, y):
+    # Manipulate primitive variables
+    nc = self.mix.nb_comp
+    rho, Th, Te = np.split(y, [nc, nc+1], axis=-1)
+    n = self.mix.get_n(rho).numpy()
+    # Store physical variables
+    phys = {
+      "t": t,
+      "Th": Th,
+      "Te": Te,
+      "n": np.sum(n, axis=-1),
+      "rho": np.sum(rho, axis=-1)
+    }
+    for sp in self.mix.species.values():
+      phys[f"n_{sp.name}"] = np.sum(n[:,sp.indices], axis=-1)
+      phys[f"rho_{sp.name}"] = np.sum(rho[:,sp.indices], axis=-1)
+    phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
+    # Molar/mass fractions
+    phys["x"] = n / phys["n"]
+    phys["w"] = rho / phys["rho"]
+    # Pressures
+    ne = phys["n_em"]
+    nh = phys["n_Ar"] + phys["n_Arp"]
+    phys["pe"] = ne * const.UKB * Te
+    phys["ph"] = nh * const.UKB * Th
+    phys["p"] = phys["pe"] + phys["ph"]
+    # Return
+    return phys
+
   def postproc_solution(self, sol, nb_pts=-1, teval=None):
     # Limit solution in time
     sol = self.limit_solution(**sol)
@@ -391,35 +419,6 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       nb_pts=nb_pts
     )
     return t[i], y[i]
-
-  def prim_to_phys(self, t, y):
-    # Manipulate primitive variables
-    nc = self.mix.nb_comp
-    rho, Th, Te = np.split(y, [nc, nc+1], axis=-1)
-    n = self.mix.get_n(rho).numpy()
-    # Store physical variables
-    phys = {
-      "t": t,
-      "Th": Th,
-      "Te": Te,
-      "n": np.sum(n, axis=-1),
-      "rho": np.sum(rho, axis=-1)
-    }
-    for sp in self.mix.species.values():
-      phys[f"n_{sp.name}"] = np.sum(n[:,sp.indices], axis=-1)
-      phys[f"rho_{sp.name}"] = np.sum(rho[:,sp.indices], axis=-1)
-    phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
-    # Molar/mass fractions
-    phys["x"] = n / phys["n"]
-    phys["w"] = rho / phys["rho"]
-    # Pressures
-    ne = phys["n_em"]
-    nh = phys["n_Ar"] + phys["n_Arp"]
-    phys["pe"] = ne * const.UKB * Te
-    phys["ph"] = nh * const.UKB * Th
-    phys["p"] = phys["pe"] + phys["ph"]
-    # Return
-    return phys
 
   # Manage data
   # ===================================
@@ -490,6 +489,14 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       )
       # Sampling 0D data
       pcm.utils.print_fn(f"Sampling 0D cases: {k}", lev=2)
+      # datak = jl.Parallel(self.nb_workers)(
+      #   jl.delayed(self.get_data)(
+      #     sol=sol,
+      #     nb_pts=self.train_pts if (k == "train") else self.valid_pts
+      #   ) for sol in tqdm(sols.values(), ncols=80, file=sys.stdout)
+      # )
+      # for d in tqdm(datak, ncols=80, file=sys.stdout):
+      #   data = self.stack_data(data, d, k)
       nb_pts = self.train_pts if (k == "train") else self.valid_pts
       for sol in tqdm(sols.values(), ncols=80, file=sys.stdout):
         data_i = self.get_data(sol, nb_pts)

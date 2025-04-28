@@ -16,12 +16,11 @@ class Converter(object):
     self,
     path_to_dtb,
     rom_config=None,
-    species_order=("em", "Ar", "Arp")
   ):
+    species_order = ("em", "Ar", "Arp")
     # Mixture model
     self.mix = Mixture(
-      species={k: path_to_dtb + f"/species/{k}.json" for k in species_order},
-      species_order=species_order
+      species={k: path_to_dtb + f"/species/{k}.json" for k in species_order}
     )
     # Linear autoencoder
     self.rom = None

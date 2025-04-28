@@ -21,7 +21,7 @@ flags = {
 
 forced_loading = True
 weights_to_load = [
-  f"./../../01.{k}/run03/saving/plasma_cr_{k}/model_weights.h5" for k in _nlin_vars
+  f"./../../01.{k}/run01/saving/plasma_cr_{k}/model_weights.h5" for k in _nlin_vars
 ] + ["./../../02.states/run01/saving/plasma_cr_states/model_weights.h5"]
 
 run_eagerly = False

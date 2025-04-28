@@ -5,7 +5,7 @@
 #SBATCH --ntasks-per-node=64
 #SBATCH --job-name=datagen
 #SBATCH --account=chess
-#SBATCH --partition=chess-gpu
+#SBATCH --partition=chess
 #SBATCH --output=log.output_%j
 #SBATCH --error=log.error_%j
 ##SBATCH --mail-user=zanardi3@illinois.edu
@@ -13,3 +13,4 @@
 
 # Run python code/script
 ./../../pycomet generate -d ./
+mv data data.v3

@@ -11,8 +11,8 @@ _name = "Te"
 # Extra inputs
 # -------------------------------------
 callable_lays = {
-  "em": False,
-  "Ar1": False,
+  "n_em": False,
+  "n_Ar1": False,
   "Th": False,
   "Te": False,
   "pe": False,
@@ -49,6 +49,7 @@ _common = {
   "dropout": {"rate": 1e-2},
   "layer_norm": False
 }
+
 
 lays_propty = {
 

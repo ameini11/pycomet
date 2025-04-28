@@ -6,13 +6,13 @@ from inputs.data import data_src, _path_to_data, _species, _indices
 # =====================================
 architecture = "MENOPlasmaCRReactor"
 # Variable name
-_name = "em"
+_name = "n_em"
 
 # Extra inputs
 # -------------------------------------
 callable_lays = {
-  "em": False,
-  "Ar1": False,
+  "n_em": False,
+  "n_Ar1": False,
   "Th": False,
   "Te": False,
   "pe": False,

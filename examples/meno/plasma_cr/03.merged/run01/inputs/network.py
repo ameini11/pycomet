@@ -20,14 +20,14 @@ noisy_io = {
   "inputs": {
     "lay_id": "GaussianNoise",
     "kwargs": {
-      "stddev": 0.02,
+      "stddev": 0.04,
       "seed": 0
     }
   },
   "outputs": {
     "lay_id": "GaussianNoise",
     "kwargs": {
-      "stddev": 0.02,
+      "stddev": 0.04,
       "seed": 0
     }
   }
@@ -37,12 +37,13 @@ _common = {
   "kernel_initializer": "GlorotNormal",
   "regularizer": {
     "name": "l1+l2",
-    "l1": 1e-4,
-    "l2": 1e-4
+    "l1": 1e-3,
+    "l2": 1e-3
   },
-  "dropout": {"rate": 1e-3},
+  "dropout": {"rate": 1e-2},
   "layer_norm": False
 }
+
 
 lays_propty = {
 
