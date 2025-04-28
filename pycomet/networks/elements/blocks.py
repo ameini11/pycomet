@@ -128,22 +128,22 @@ class FFBlock(pcm_layers.Layer):
     self.layer_norm = layer_norm
     self.dropout = dropout
     self.interpolating = interpolating
-    # Checking
-    c1 = all([isinstance(k, (list, tuple)) for k in (activation, layer_size)])
-    c2 = (len(activation) != len(layer_size)-1)
-    if ((not c1) or c2):
-      utils.raise_err(
-        ValueError,
-        f"'activation' and 'layer_size' inputs passed to {self.name} " \
-        "block have to be a 'list'/'tuple' of lengths: " \
-        "len(activation) = len(layer_size)-1"
-      )
     # Layers initialization
     # -----------------------
     if (self.interpolating is not None):
       self.interpolating['name'] = self.name
       self.lays = [pcm_layers.Interpolating(**self.interpolating)]
     else:
+      # Checking
+      c1 = all([isinstance(k, (list, tuple)) for k in (activation, layer_size)])
+      c2 = (len(activation) != len(layer_size)-1)
+      if ((not c1) or c2):
+        utils.raise_err(
+          ValueError,
+          f"'activation' and 'layer_size' inputs passed to {self.name} " \
+          "block have to be a 'list'/'tuple' of lengths: " \
+          "len(activation) = len(layer_size)-1"
+        )
       # Hidden Layers
       names = [f'hidden_{i}' for i in range(len(self.layer_size)-2)]
       names = names + ['output']

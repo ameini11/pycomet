@@ -141,44 +141,41 @@ class OpNN(BaseNet):
     # Inputs manipulation
     y = _manipulate_input(self, y)
     # Kernel - OpNN
-    G_u, G_y = self._eval_kernel(y, training)
+    g_u, g_y = self._eval_kernel(y, training)
     # Outputs manipulation
-    y = self._tensor_product(G_u, G_y)
+    y = self._tensor_product(g_u, g_y)
     y = self._manipulate_output(x, y, training)
     # Return quantities
     if (self.return_latent_space == 'branch'):
-      return tf.nest.flatten([y, G_u])
+      return tf.nest.flatten([y, g_u])
     elif (self.return_latent_space == 'trunk'):
-      return tf.nest.flatten([y, G_y])
+      return tf.nest.flatten([y, g_y])
     else:
       return y
 
   def _eval_kernel(self, x, training):
-    # Branch/Trunk
-    G_u = [
-      br(x["branch"], training=training) for br in self.active_lays['branch']
-    ]
-    G_y = [
-      tr(x["trunk"], training=training) for tr in self.active_lays['trunk']
-    ]
-    return G_u, G_y
+    g = []
+    for k in ("branch", "trunk"):
+      g_k = [lay(x[k], training=training) for lay in self.active_lays[k]]
+      g.append(g_k)
+    return g
 
-  def _tensor_product(self, G_u, G_y):
+  def _tensor_product(self, g_u, g_y):
     y = []
     if (self.output_dim[-1] > 1):
       if (self.nb_branches > self.nb_trunks):
         for i in range(self.output_dim[-1]):
-          y.append(tf_layers.Dot(axes=1)([G_u[i], G_y[-1]]))
+          y.append(tf_layers.Dot(axes=1)([g_u[i], g_y[-1]]))
       elif (self.nb_branches < self.nb_trunks):
         for i in range(self.output_dim[-1]):
-          y.append(tf_layers.Dot(axes=1)([G_u[-1], G_y[i]]))
+          y.append(tf_layers.Dot(axes=1)([g_u[-1], g_y[i]]))
       elif (self.nb_branches == self.nb_trunks == 1):
-        G_u = nn_elem.Split(self.output_dim[-1], axis=1)(G_u[-1])
-        G_y = nn_elem.Split(self.output_dim[-1], axis=1)(G_y[-1])
+        g_u = nn_elem.Split(self.output_dim[-1], axis=1)(g_u[-1])
+        g_y = nn_elem.Split(self.output_dim[-1], axis=1)(g_y[-1])
         for i in range(self.output_dim[-1]):
-          y.append(tf_layers.Dot(axes=1)([G_u[i], G_y[i]]))
+          y.append(tf_layers.Dot(axes=1)([g_u[i], g_y[i]]))
     else:
-      y.append(tf_layers.Dot(axes=1)([G_u[-1], G_y[-1]]))
+      y.append(tf_layers.Dot(axes=1)([g_u[-1], g_y[-1]]))
     return y
 
   def _manipulate_output(self, x, y, training):

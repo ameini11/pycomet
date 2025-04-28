@@ -3,6 +3,7 @@ import tensorflow as tf
 from pycomet import utils
 from pycomet import networks
 from pycomet import operations as ops
+from pycomet.networks import don
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
 from keras import layers as tf_layers
@@ -53,7 +54,7 @@ class MENOPlasmaCRReactor(BaseNet):
         qoi_indices
       )
     # Nonlinear variables
-    self.nlin_vars = ("em", "Ar1", "Th", "Te", "pe")
+    self.nlin_vars = ("n_em", "n_Ar1", "Th", "Te", "pe")
     # Layers
     # -------------
     # Layers names
@@ -80,8 +81,8 @@ class MENOPlasmaCRReactor(BaseNet):
     # Mixture indices
     mix = self.active_lays["mole_mass"].mix
     self.mix_indices = mix.indices
-    self.mix_indices["em"] = mix.species["em"].indices
-    self.mix_indices["Ar1"] = mix.species["Ar"].indices[0]
+    self.mix_indices["n_em"] = mix.species["em"].indices
+    self.mix_indices["n_Ar1"] = mix.species["Ar"].indices[0]
     self.mix_indices = tf.nest.map_structure(
       lambda x: ops.to_numpy(x, int).reshape(-1),
       self.mix_indices
@@ -147,12 +148,13 @@ class MENOPlasmaCRReactor(BaseNet):
     # > Scale time by the heavy-particle pressure
     ln_t_ph_0 = self.active_lays["log_t_ph"](t * ph_0)
     # Inputs
-    x = [y_0_xform, ln_t_ph_0]
+    x_logt = [y_0_xform, ln_t_ph_0]
+    x_lint = [y_0_xform, t]
     # Predict nonlinear variables
     # -------------
     # > Initial value
     qoi_0 = {"Th": Th_0, "Te": Te_0, "pe": pe_0}
-    for k in ("em", "Ar1"):
+    for k in ("n_em", "n_Ar1"):
       qoi_0[k] = nn_elem.Gather(indices=self.mix_indices[k], axis=-1)(n_0)
     # > Predict value
     for k in self.nlin_vars:
@@ -160,12 +162,20 @@ class MENOPlasmaCRReactor(BaseNet):
         continue
       if ((k == "pe") and (not self.use_pe)):
         continue
-      y = self.call_nlin_lay(k, x, y, qoi_0, qoi_t, training)
+      if self.callable_lays[k]:
+        lay = self.active_lays[k]
+        if isinstance(lay, don.PODOpNN):
+          y[k] = lay(x_lint, training=training)
+        else:
+          y[k] = lay(x_logt, training=training) * qoi_0[k]
+      elif self.callable_lays["states"]:
+        y[k] = nn_elem.Gather(indices=self.qoi_indices[k], axis=-1)(qoi_t)
+        self.states_only = True
     # Predict linear variables (states)
     # -------------
     if self.callable_lays["states"]:
       if (y["Te"] is None):
-        y["Te"] = y["pe"] / (y["em"] * const.UKB)
+        y["Te"] = y["pe"] / (y["n_em"] * const.UKB)
       # > Compute state-wise latent space
       x = tf_layers.Concatenate()(x)
       f = self.active_lays["fcorr_compute"](x, training=training)
@@ -183,11 +193,3 @@ class MENOPlasmaCRReactor(BaseNet):
         return [y["w"], y["Th"], y["Te"]]
       else:
         return [yk for yk in y.values() if (yk is not None)]
-
-  def call_nlin_lay(self, key, x, y, qoi_0, qoi_t, training):
-    if self.callable_lays[key]:
-      y[key] = qoi_0[key] * self.active_lays[key](x, training=training)
-    elif self.callable_lays["states"]:
-      y[key] = nn_elem.Gather(indices=self.qoi_indices[key], axis=-1)(qoi_t)
-      self.states_only = True
-    return y

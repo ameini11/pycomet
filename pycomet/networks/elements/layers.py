@@ -8,6 +8,7 @@ import tensorflow_probability as tfp
 from keras.utils import tf_utils
 from keras import layers as tf_layers
 from keras.utils import generic_utils
+from silx.io.dictdump import h5todict
 from tensorflow.python.keras import backend
 from tensorflow.python.keras import activations
 from tensorflow.python.keras import constraints
@@ -218,7 +219,8 @@ class Interpolating(Layer):
         "must be a 'dict' with keys ('dir', 'inv') for direct " \
         "and inverse transformations."
       )
-    self.xformx, self.xformy = xformx, xformy
+    self.xformx = xformx
+    self.xformy = xformy
     self.xform = {'x': self.xformx , 'y': self.xformy}
     # Dimensions
     self.rank = int(rank)
@@ -228,12 +230,15 @@ class Interpolating(Layer):
     self.tol = tol
 
   def get_train_data(self, train):
-    if ((train is not None) and (not isinstance(train, dict))):
-      utils.raise_err(
-        ValueError,
-        f"'train' input passed to {self.name} " \
-        "must be a 'dict' with keys ('x', 'y')."
-      )
+    if (train is not None):
+      if isinstance(train, str):
+        train = h5todict(h5file=train)
+      if (not isinstance(train, dict)):
+        utils.raise_err(
+          ValueError,
+          f"'train' input passed to {self.name} " \
+          "must be a 'dict' with keys ('x', 'y')."
+        )
     self.train = train
     if (self.train is None):
       if os.path.isdir(self.file):
@@ -244,7 +249,7 @@ class Interpolating(Layer):
         z = np.take(data, self.columns[k], axis=self.axis)
         if (self.xform[k] is not None):
           z = self.xform[k]['dir'](z)
-        self.train[k] = np.array(z)
+    self.train = tf.nest.map_structure(np.asarray, self.train)
 
   # Building
   # ===================================
@@ -278,7 +283,7 @@ class Interpolating(Layer):
     if (err > self.tol):
       utils.warning(
         "The mean relative interpolation error is higher " \
-        "than the tolerance: %.5e % > %.5e %" % (err, self.tol)
+        "than the tolerance: %.5e % greater than %.5e %" % (err, self.tol)
       )
     # Add weights
     for (k, v) in (("w", w), ("v", v), ("c", c)):
