@@ -177,7 +177,7 @@ class MENOPlasmaCRReactor(BaseNet):
       if (y["Te"] is None):
         y["Te"] = y["pe"] / (y["n_em"] * const.UKB)
       # > Compute state-wise latent space
-      x = tf_layers.Concatenate()(x)
+      x = tf_layers.Concatenate()(x_logt)
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update states
       u = [y[k] for k in self.nlin_vars[:-1]]
