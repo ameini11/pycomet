@@ -64,6 +64,33 @@ class Mixture(object):
       self.q.append(sp.q)
     self.q = tf.concat(self.q, axis=-1)
 
+  # Energy
+  def _e(self, w, Th, Te):
+    e = []
+    for k in self.species_order:
+      sp = self.species[k]
+      Ti = Te if (sp.name == "em") else Th
+      e.append(sp._e(Ti))
+    e = tf.concat(e, axis=-1)
+    e = tf.math.reduce_sum(w*e, axis=-1, keepdims=True)
+    return e
+
+  # Electron temperature
+  def _Te(self, w, Th, e):
+    # Extract mass fractions
+    we = tf.gather(w, self.indices["e"], axis=-1)
+    wh = tf.gather(w, self.indices["h"], axis=-1)
+    # Compute heavy-particle energy
+    eh = []
+    for k in self.species_order:
+      sp = self.species[k]
+      if (sp.name != "em"):
+        eh.append(sp._e(Th))
+    eh = tf.concat(eh, axis=-1)
+    eh = tf.math.reduce_sum(wh*eh, axis=-1, keepdims=True)
+    # Compute electron temperature from conservation of energy (no radiation)
+    return (e - eh) / (self.species["em"].cv_tr * we)
+
   # Conversions
   # ===================================
   def get_n(self, rho):
@@ -149,13 +176,19 @@ class Species(object):
     self.R = const.URG / self.M
     # Translational partition function factor
     self.q_tr_fac = 2.0 * np.pi * self.m * const.UKB / (const.UH * const.UH)
+    # Constant-volume and -pressure specific heats [J/(kg K)]
+    self.cv = self.cv_tr = 1.5 * self.R
+    self.cp = self.cv_tr + self.R
+    # Specific heat ratio
+    self.gamma = 5.0 / 3.0
+    # Internal energy [J/kg]
+    self.e_int = (self.lev["E"] + self.Hf) / self.m
 
+  # Partition functions
   def update(self, T):
     self.ov_kT = 1.0/(const.UKB*T)
     self.q = self._q(T)
 
-  # Partition functions
-  # ===================================
   def _q(self, T):
     return self._q_zero() * self._q_tr(T) * self._q_int()
 
@@ -167,6 +200,10 @@ class Species(object):
 
   def _q_int(self):
     return self.lev["g"] * tf.math.exp(-self.lev["E"] * self.ov_kT)
+
+  # Energy
+  def _e(self, T):
+    return self.cv_tr * T + self.e_int
 
   # Configuration
   # ===================================
