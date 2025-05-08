@@ -8,7 +8,7 @@ data_type = "DataSet"
 # -------------------------------------
 from_file = True
 
-_path_to_data = "./../../00.datagen.r03/data.v1/"
+_path_to_data = "./../../00.datagen.r03/data.v3/"
 data_src = {
   "train": _path_to_data + "/train.csv",
   "valid": _path_to_data + "/valid.csv",

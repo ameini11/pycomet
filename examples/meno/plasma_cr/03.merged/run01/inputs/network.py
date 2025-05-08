@@ -7,6 +7,9 @@ from inputs.data import data_src, _path_to_dtb, _path_to_data, \
 # =====================================
 architecture = "MENOPlasmaCRReactor"
 
+# masking = True
+# force_siso = True
+
 # Extra inputs
 # -------------------------------------
 callable_lays = {k: True for k in _nlin_vars+("states",)}

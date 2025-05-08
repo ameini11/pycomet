@@ -23,8 +23,8 @@ if (__name__ == '__main__'):
   path_to_init_sols = "/home/zanardi/Codes/ML/PyCOMET/run/plasma_cr/00.datagen.r03/datagen/runs/samples/init_sols.hdf5"
   # Software
   integrators = {
-    "lsode": "module load plato/dev-gcc-12.3.0-openblas-0.3.20",
-    "sundials": "module load plato/dev-gcc-9.3.0-openblas-0.3.9-sundials-5.8.0"
+    "lsode": "module load plato/dev-gcc-11.3.0-openblas-0.3.20",
+    "sundials": None # "module load plato/dev-gcc-9.3.0-openblas-0.3.9-sundials-5.8.0"
   }
   # Multi-threading
   nb_workers = 1
@@ -36,7 +36,7 @@ if (__name__ == '__main__'):
   for (integrator, module_load) in integrators.items():
     if (module_load is not None):
       ode_timer = ODESolveTimer(
-        path_to_wd="./",
+        path_to_wd="/home/zanardi/Codes/ML/PyCOMET/run/plasma_cr/postproc/speedup/core/ode/",
         integrator=integrator,
         load_plato=module_load,
         nb_workers=nb_workers,

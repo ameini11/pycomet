@@ -2,7 +2,7 @@ from inputs.postproc import figures
 
 # Training
 # =====================================
-epochs = int(5e3)
+epochs = int(2e3)
 optimizer = "adam"
 
 # Learning rate scheduler
@@ -10,7 +10,7 @@ optimizer = "adam"
 lr = 1e-3
 scheduler = {
   "name": "exponential",
-  "decay_steps": 106*50,
+  "decay_steps": 134*50,
   "decay_rate": 0.95
 }
 

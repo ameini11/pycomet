@@ -8,7 +8,7 @@ data_type = "DataSet"
 # -------------------------------------
 from_file = True
 
-_path_to_data = "./../../00.datagen.r03/data.v1/"
+_path_to_data = "./../../00.datagen.r03/data.v8/"
 data_src = {
   "train": _path_to_data + "/train.csv",
   "valid": _path_to_data + "/valid.csv",
@@ -41,6 +41,6 @@ _nlin_vars = ("n_em", "n_Ar1", "Th", "Te")
 # Batching
 # -------------------------------------
 batch_size = {
-  "train": 256*40,
-  "valid": 256*40
+  "train": 256*30,
+  "valid": 256*30
 }

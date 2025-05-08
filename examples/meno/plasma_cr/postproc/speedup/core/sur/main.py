@@ -19,7 +19,7 @@ if (__name__ == "__main__"):
   prefix = "/home/zanardi/Codes/ML/PyCOMET/run/plasma_cr/"
   path_to_data = prefix + "/00.datagen.r03/data/train_teval.hdf5"
   path_to_models = {
-    "meno": prefix + "/03.merged/run03.Te.b.siso/saving/plasma_cr_siso/inpfile.json",
+    "meno": prefix + "/03.merged/run08.c.siso/saving/plasma_cr_siso/inpfile.json",
   }
   # Data
   repeat_data = 10
@@ -35,7 +35,7 @@ if (__name__ == "__main__"):
   nb_repeat = 100
   # Devices
   devices = ("cpu", "gpu")
-  gpu_index = 0
+  gpu_index = 1
   nb_threads = 1
   # Environment
   load_tf2 = {
@@ -63,7 +63,7 @@ if (__name__ == "__main__"):
           f"\n - device: '{device}'"
         )
         sur_timer = SurrogateTimer(
-          path_to_wd="./",
+          path_to_wd="/home/zanardi/Codes/ML/PyCOMET/run/plasma_cr/postproc/speedup/core/sur/",
           path_to_model=path_to_model,
           inp_cols=inp_cols,
           env=env,

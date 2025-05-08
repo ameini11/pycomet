@@ -10,7 +10,7 @@ optimizer = "adam"
 lr = 1e-3
 scheduler = {
   "name": "exponential",
-  "decay_steps": 106*50,
+  "decay_steps": 134*50,
   "decay_rate": 0.98
 }
 

@@ -49,7 +49,6 @@ _common = {
   "layer_norm": False
 }
 
-
 lays_propty = {
 
   "log_t_ph": {

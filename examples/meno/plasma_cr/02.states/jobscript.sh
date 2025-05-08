@@ -4,14 +4,14 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=8
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=states_r02
+#SBATCH --job-name=states_r07
 #SBATCH --account=chess
 #SBATCH --partition=chess-gpu
-#SBATCH --dependency=afterok:1889436
+##SBATCH --dependency=afterok:1970518
 #SBATCH --output=log.output_%j
 #SBATCH --error=log.error_%j
 ##SBATCH --mail-user=zanardi3@illinois.edu
 ##SBATCH --mail-type=BEGIN,END
 
 # Run python code/script
-./../../pycomet train -d ./run02/
+./../../pycomet train -d ./run07/

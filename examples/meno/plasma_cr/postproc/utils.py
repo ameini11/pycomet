@@ -186,21 +186,27 @@ def plot_err_discrete(
   uncert,
   alpha=-1,
   xlim=None,
+  xticks=None,
+  xticklabels=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
   scales=["log", "linear"],
   legend_loc="best",
+  figsize=(8,8),
   figname=None,
   save=False,
   show=False
 ):
   # Initialize figures
-  fig = plt.figure()
+  fig = plt.figure(figsize=figsize)
   ax = fig.add_subplot()
   # x axis
   ax.set_xlabel(labels[0])
   ax.set_xscale(scales[0])
   if (xlim is not None):
     ax.set_xlim(xlim)
+  if (xticks is not None):
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xticklabels)
   # y axis
   ax.set_ylabel(labels[1])
   ax.set_yscale(scales[1])

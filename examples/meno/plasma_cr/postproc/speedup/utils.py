@@ -42,7 +42,8 @@ def compute_speedup(num, den, header):
 def as_si(x, ndp=0):
   s = "{x:0.{ndp:d}e}".format(x=x, ndp=ndp)
   m, e = s.split("e")
-  return r"10^{{{e:d}}}".format(m=m, e=int(e))
+  fmt = r"{m}\times 10^{{{e:d}}}" if (m != '1') else r"10^{{{e:d}}}"
+  return fmt.format(m=m, e=int(e))
 
 def sformat(mean, std):
   return "{:.3f} ".format(mean) + u"\u00B1" + " {:.3f}".format(std)
@@ -113,7 +114,11 @@ def plot_timings_1d(
       ax.plot(x, mean[i], **kwargs)
   # plt.hlines(1.0, xlim[0], xlim[-1], colors="grey", lw=0.5)
   if (var_names is not None):
-    ax.legend(loc=legend_loc)
+    ax.legend(
+      loc=legend_loc,
+      fancybox=True,
+      framealpha=0.9
+    )
   # Save figure
   if save:
     for ext in tf.nest.flatten(extensions):
@@ -127,12 +132,13 @@ def plot_timings_2d(
   xlbl,
   ylbl,
   z,
+  figsize=(8,8),
   figname=None,
   save=True,
   show=False,
   extensions=("pdf", "pgf", "png")
 ):
-  fig, ax = plt.subplots(figsize=(10, 10))
+  fig, ax = plt.subplots(figsize=figsize)
   # Set x-axis
   ax.set_xticks(np.arange(len(xlbl)), labels=xlbl)
   ax.set_xlabel("$t_f$ [s]")
@@ -144,6 +150,7 @@ def plot_timings_2d(
   divider = make_axes_locatable(ax)
   cax = divider.append_axes("right", size="5%", pad=0.3)
   cbar = fig.colorbar(im, cax=cax, orientation="vertical", label="Speedup")
+  cbar.set_ticks(np.linspace(z.min(), z.max(), 5))
   cbar.formatter.set_powerlimits((0, 0))
   # Save figure
   if save:

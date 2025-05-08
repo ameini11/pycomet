@@ -17,15 +17,16 @@ if (__name__ == '__main__'):
   prefix = "/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45_adiabatic/datagen/datagen/"
   # Max order
   max_orders = [2, 3, 4, 5]
-  rtol_orders = [6, 7, 8, 9]
+  # rtol_orders = [6, 7, 8, 9]
+  rtol_orders = [9]
   # Final times
   t_ends = [1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3]
   # Initial solutions
   path_to_init_sols = prefix + "/runs/samples/init_sols.hdf5"
   # Software
   integrators = {
-    "lsode": "module load plato/dev-gcc-12.3.0-openblas-0.3.20",
-    "sundials": "module load plato/dev-gcc-9.3.0-openblas-0.3.9-sundials-5.8.0"
+    "lsode": "module load plato/dev-gcc-11.3.0-openblas-0.3.20",
+    "sundials": None,# "module load plato/dev-gcc-9.3.0-openblas-0.3.9-sundials-5.8.0"
   }
   # Multi-threading
   nb_workers = 1
@@ -37,7 +38,7 @@ if (__name__ == '__main__'):
   for (integrator, module_load) in integrators.items():
     if (module_load is not None):
       ode_timer = ODESolveTimer(
-        path_to_wd="./",
+        path_to_wd="/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45_adiabatic/postproc/speedup/core/ode/",
         integrator=integrator,
         load_plato=module_load,
         nb_workers=nb_workers,
