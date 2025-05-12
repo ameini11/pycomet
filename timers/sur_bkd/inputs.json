@@ -1,5 +1,5 @@
 {
-  "path_to_modelfile": "/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45_adiabatic/meno/03.merged/case.r01.f64/saving/noneq_siso/inpfile.json",
+  "path_to_modelfile": "/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45_adiabatic/deeponet/02.merged/case.r06.siso/saving/noneq_siso/inpfile.json",
   "path_to_datafile": "/home/zanardi/Codes/ML/PyCOMET/run/noneq/RVE45_adiabatic/postproc/speedup/core/sur/data//xdata.csv",
   "nb_points": 10000,
   "nb_repeat": 100
