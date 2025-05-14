@@ -2,8 +2,6 @@
 
 **Physics-informed machine learning for scientific computing and operator discovery**
 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
-
 PyCOMET is a deep learning library written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyCOMET currently includes the following algorithms:
 
 * Solving forward and inverse partial differential equations (PDEs) using neural networks.
@@ -115,4 +113,4 @@ If you use this code or find this work useful in your research, please cite us:
 
 ## License
 
-[NCSA Open Source License](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
+[MIT License](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
