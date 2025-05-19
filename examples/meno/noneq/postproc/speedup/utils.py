@@ -5,6 +5,7 @@ import matplotlib as mpl
 import dataframe_image as dfi
 
 from matplotlib import pyplot as plt
+from matplotlib.ticker import ScalarFormatter
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 # Use custom style
@@ -15,6 +16,25 @@ mpl.style.use(f"{path_to_style}/{style_name}.mplstyle")
 # Get colors list
 COLORS = mpl.rcParams["axes.prop_cycle"].by_key()["color"]*10
 
+
+class FixedScalarFormatter(ScalarFormatter):
+
+  def __init__(
+    self,
+    sigfigs=None,
+    useMathText=True,
+    **kwargs
+  ):
+    super().__init__(useMathText=useMathText, **kwargs)
+    self.sigfigs = sigfigs
+
+  def _set_format(self):
+    if (self.sigfigs is None):
+      super()._set_format()
+    else:
+      self.format = f'%.{self.sigfigs}f'
+      if (self._usetex or self._useMathText):
+          self.format = r'$\mathdefault{%s}$' % self.format
 
 def ratio_normal_approx(mean, std):
   """
@@ -78,6 +98,8 @@ def plot_timings_1d(
   legend_loc="best",
   labels=[None, None],
   scales=["log", "linear"],
+  use_sci=True,
+  ysigfigs=2,
   figname=None,
   save=True,
   show=False,
@@ -113,8 +135,16 @@ def plot_timings_1d(
     else:
       ax.plot(x, mean[i], **kwargs)
   # plt.hlines(1.0, xlim[0], xlim[-1], colors="grey", lw=0.5)
+  if use_sci:
+    ax.yaxis.set_major_formatter(FixedScalarFormatter(sigfigs=ysigfigs))
+    ax.yaxis.get_major_formatter().set_scientific(True)
+    ax.yaxis.get_major_formatter().set_powerlimits((0,0))
   if (var_names is not None):
-    ax.legend(loc=legend_loc)
+    ax.legend(
+      loc=legend_loc,
+      fancybox=True,
+      framealpha=0.9
+    )
   # Save figure
   if save:
     for ext in tf.nest.flatten(extensions):

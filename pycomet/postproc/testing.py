@@ -4,8 +4,30 @@ import numpy as np
 from pycomet import utils
 from pycomet import operations as ops
 matplotlib, plt = utils.import_matplotlib()
+from matplotlib.ticker import ScalarFormatter
 COLORS = matplotlib.rcParams['axes.prop_cycle'].by_key()['color']
 
+
+# Formatter
+# =====================================
+class FixedScalarFormatter(ScalarFormatter):
+
+  def __init__(
+    self,
+    sigfigs=None,
+    useMathText=True,
+    **kwargs
+  ):
+    super().__init__(useMathText=useMathText, **kwargs)
+    self.sigfigs = sigfigs
+
+  def _set_format(self):
+    if (self.sigfigs is None):
+      super()._set_format()
+    else:
+      self.format = f'%.{self.sigfigs}f'
+      if (self._usetex or self._useMathText):
+          self.format = r'$\mathdefault{%s}$' % self.format
 
 # Plotting testing quantities
 # =====================================

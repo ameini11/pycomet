@@ -20,10 +20,11 @@ if (__name__ == "__main__"):
   path_to_bkd = "./bkd/"
   path_to_data = prefix + "/datagen/data/train_teval.hdf5"
   path_to_models = {
-    "deeponet_r04": prefix + "/deeponet/02.merged/case.r04.siso/saving/noneq_siso/inpfile.json",
-    "deeponet_r05": prefix + "/deeponet/02.merged/case.r05.siso/saving/noneq_siso/inpfile.json",
-    "meno_f32": prefix + "/meno/03.merged/case.r01.f32/saving/noneq_siso/inpfile.json",
-    "meno_f64": prefix + "/meno/03.merged/case.r01.f64/saving/noneq_siso/inpfile.json"
+    # "deeponet_r04": prefix + "/deeponet/02.merged/case.r04.siso/saving/noneq_siso/inpfile.json",
+    # "deeponet_r05": prefix + "/deeponet/02.merged/case.r05.siso/saving/noneq_siso/inpfile.json",
+    "deeponet_r06": prefix + "/deeponet/02.merged/case.r06.siso/saving/noneq_siso/inpfile.json",
+    # "meno_f32": prefix + "/meno/03.merged/case.r01.f32/saving/noneq_siso/inpfile.json",
+    # "meno_f64": prefix + "/meno/03.merged/case.r01.f64/saving/noneq_siso/inpfile.json"
   }
   # Data
   repeat_data = 10

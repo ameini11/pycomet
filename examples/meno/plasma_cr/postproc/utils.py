@@ -7,6 +7,7 @@ import matplotlib as mpl
 
 from pathlib import Path
 from matplotlib import pyplot as plt
+from matplotlib.ticker import FormatStrFormatter
 
 # Use custom style
 # See: https://matplotlib.org/1.5.3/users/style_sheets.html
@@ -188,6 +189,7 @@ def plot_err_discrete(
   xlim=None,
   xticks=None,
   xticklabels=None,
+  ysigfigs=None,
   labels=[r"$t$ [s]", r"$n$ [m$^{-3}$]"],
   scales=["log", "linear"],
   legend_loc="best",
@@ -225,6 +227,10 @@ def plot_err_discrete(
     label=bar_lbl
   )
   ax.legend(loc=legend_loc)
+  # Define the format string for significant figures
+  # For example, '%.3g' will display 3 significant figures
+  if (ysigfigs is not None):
+    ax.yaxis.set_major_formatter(FormatStrFormatter(f'%.{ysigfigs}f'))
   # Tight layout
   plt.tight_layout()
   if save:
