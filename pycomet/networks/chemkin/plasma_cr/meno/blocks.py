@@ -316,7 +316,7 @@ class PlasmaCRSolUpdate(nn_elem.Layer):
       add_inv_loss=add_inv_loss,
       inv_loss_weight=inv_loss_weight
     )
-    # Get ions indices
+    # Ions indices
     self.ii = self.operators.mix["h"].species["Arp"].indices - 1
 
   # Calling
