@@ -316,6 +316,8 @@ class PlasmaCRSolUpdate(nn_elem.Layer):
       add_inv_loss=add_inv_loss,
       inv_loss_weight=inv_loss_weight
     )
+    # Get ions indices
+    self.ii = self.operators.mix["h"].species["Arp"].indices - 1
 
   # Calling
   # ===================================
@@ -332,10 +334,8 @@ class PlasmaCRSolUpdate(nn_elem.Layer):
     return n
 
   def enforce_charge_cons(self, nh):
-    # Get ions indices
-    ii = self.operators.mix["h"].species["Arp"].indices - 1
     # Compute electron number density
-    ne = tf.gather(nh, ii, axis=-1)
+    ne = tf.gather(nh, self.ii, axis=-1)
     ne = tf.math.reduce_sum(ne, axis=-1, keepdims=True)
     return tf.concat([ne, nh], axis=-1)
 

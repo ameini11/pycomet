@@ -60,7 +60,6 @@ lays_propty = {
       "mean_var_file": "./saving/normalization_mean_var.txt",
       "data_files": [data_src[k] for k in ("train", "valid")],
       "columns": _columns["x"][2],
-      "xform": {"dir": tf.math.log, "inv": tf.math.exp},
       "trainable": False
     }
   }
