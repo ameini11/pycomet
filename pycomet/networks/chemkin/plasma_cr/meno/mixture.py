@@ -39,6 +39,7 @@ class Mixture(object):
     self.nb_comp = ei
     for (k, i) in self.indices.items():
       self.indices[k] = tf.reshape(tf.concat(i, axis=-1), (-1,))
+    self.nb_comp_h = len(self.indices["h"])
     # Species names
     self.species_names = []
     for k in self.species_order:
@@ -46,12 +47,19 @@ class Mixture(object):
 
   def _build_mass_vec(self):
     # Build vector of masses
-    self.m = np.ones((1,self.nb_comp))
+    self.m = np.zeros(self.nb_comp)
     for k in self.species_order:
       s = self.species[k]
-      self.m[0,s.indices] *= s.m
-    self.m = tf.constant(self.m, dtype=bkd.get_floatx())
+      self.m[s.indices] = s.m
     self.m_inv = 1.0/self.m
+    # > Heavy-particle only
+    self.mh = self.m[self.indices["h"]]
+    self.mh_inv = self.m_inv[self.indices["h"]]
+    # Convert to tf.Tensor
+    for k in ("m", "m_inv", "mh", "mh_inv"):
+      x = getattr(self, k)
+      x = tf.constant(x.reshape(1,-1), dtype=bkd.get_floatx())
+      setattr(self, k, x)
 
   # Update
   # ===================================

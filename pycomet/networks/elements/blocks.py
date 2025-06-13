@@ -268,6 +268,81 @@ class ResPIBlock(FFBlock):
     return dict(list(base_config.items()) + list(config.items()))
 
 
+# @tf.keras.utils.register_keras_serializable(package=_CFG.name)
+# class LinAutoencoder(pcm_layers.Layer):
+
+#   # Initialization
+#   # ===================================
+#   def __init__(
+#     self,
+#     phi,
+#     psi,
+#     xref,
+#     xscale,
+#     use_log=False,
+#     **kwargs
+#   ):
+#     super(LinAutoencoder, self).__init__(**kwargs)
+#     # Load basis
+#     self.phi = self.load_tensor(phi)
+#     self.psi = self.load_tensor(psi)
+#     self.phi = self.phi @ tf.linalg.inv(tf.transpose(self.psi) @ self.phi)
+#     self.z_dim = int(self.phi.shape[1])
+#     # Load reference and scaling values
+#     self.xref = tf.reshape(self.load_tensor(xref), (1,-1))
+#     self.xscale = tf.reshape(self.load_tensor(xscale), (-1,1))
+#     # Log-transformation
+#     self.use_log = bool(use_log)
+#     # Build encoder and decoder
+#     self.encoder = self.psi / self.xscale
+#     self.decoder = tf.transpose(self.phi * self.xscale)
+
+#   def load_tensor(self, x):
+#     if isinstance(x, str):
+#       x = np.loadtxt(x)
+#     return tf.constant(x, dtype=bkd.get_floatx())
+
+#   # Calling
+#   # ===================================
+#   def call(self, x, method=1, training=None):
+#     if (method == 1):
+#       return self.encode(x)
+#     elif (method == 2):
+#       return self.decode(x)
+#     elif (method == 3):
+#       return self.decode(self.encode(x))
+
+#   def encode(self, x):
+#     # Transform
+#     if self.use_log:
+#       x = tf.math.log(x)
+#     x = x - self.xref
+#     # Encode
+#     return tf.linalg.matmul(x, self.encoder)
+
+#   def decode(self, z):
+#     # Decode
+#     x = tf.linalg.matmul(z, self.decoder)
+#     # Transform
+#     x = x + self.xref
+#     if self.use_log:
+#       x = tf.math.exp(x)
+#     return x
+
+#   # Configuration update
+#   # ===================================
+#   def get_config(self):
+#     config = {
+#       'phi': ops.to_numpy(self.phi).squeeze(),
+#       'psi': ops.to_numpy(self.psi).squeeze(),
+#       'xref': ops.to_numpy(self.xref).squeeze(),
+#       'xscale': ops.to_numpy(self.xscale).squeeze(),
+#       'use_log': self.use_log
+#     }
+#     base_config = super(LinAutoencoder, self).get_config()
+#     return dict(list(base_config.items()) + list(config.items()))
+
+
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class LinAutoencoder(pcm_layers.Layer):
 
@@ -277,68 +352,155 @@ class LinAutoencoder(pcm_layers.Layer):
     self,
     phi,
     psi,
-    xref,
-    xscale,
+    xref=None,
+    xscale=None,
+    mask=None,
+    z_dim=None,
     use_log=False,
     **kwargs
   ):
     super(LinAutoencoder, self).__init__(**kwargs)
-    # Load basis
-    self.phi = self.load_tensor(phi)
-    self.psi = self.load_tensor(psi)
-    self.phi = self.phi @ tf.linalg.inv(tf.transpose(self.psi) @ self.phi)
-    self.dim = int(self.phi.shape[1])
-    # Load reference and scaling values
-    self.xref = tf.reshape(self.load_tensor(xref), (1,-1))
-    self.xscale = tf.reshape(self.load_tensor(xscale), (-1,1))
+    # Basis
+    self.phi = phi
+    self.psi = psi
+    # Scaling values
+    self.xref = xref
+    self.use_xref = False if (xref is None) else True
+    # Reference values
+    self.xscale = xscale
+    self.use_xscale = False if (xscale is None) else True
+    # Masking
+    self.mask = mask
+    # Latent dimension
+    self.z_dim = z_dim
     # Log-transformation
     self.use_log = bool(use_log)
-    # Build encoder and decoder
-    self.encoder = self.psi / self.xscale
-    self.decoder = tf.transpose(self.phi * self.xscale)
 
-  def load_tensor(self, x):
-    if isinstance(x, str):
-      x = np.loadtxt(x)
-    return tf.constant(x, dtype=bkd.get_floatx())
+  # Building
+  # ===================================
+  def build(self, *args, **kwargs):
+    # Load all the arrays
+    for k in ("phi", "psi", "xref", "xscale", "mask"):
+      x = getattr(self, k)
+      x = self._load_array(k, x)
+      setattr(self, k, x)
+    # Dimensions
+    n, r = self.phi.shape
+    if self.use_xref:
+      n = len(self.xref)
+    elif self.use_xscale:
+      n = len(self.xscale)
+    self.x_dim = n
+    self.z_dim = r if (self.z_dim is None) else int(self.z_dim)
+    # Masking
+    if (self.mask is None):
+      self.mask = np.ones(self.x_dim)
+    self.mask = self.mask.astype(bool).reshape(-1)
+    self.xnot_dim = int(np.sum(~self.mask)) # Number of excluded dimensions
+    # Biorthogonalize the basis
+    self.phi = self.phi[:,:self.z_dim]
+    self.psi = self.psi[:,:self.z_dim]
+    self.phi = self.phi @ np.linalg.inv(self.psi.T @ self.phi)
+    # Construct full basis matrices
+    self.phi = self._build_basis(self.phi)
+    self.psi = self._build_basis(self.psi)
+    # Handle reference and scaling values
+    if self.use_xref:
+      self.xref[~self.mask]= 0.0
+    if self.use_xscale:
+      self.xscale[~self.mask]= 1.0
+    # Build encoder and decoder
+    if self.use_xscale:
+      self.encoder = (self.psi.T / self.xscale).T
+      self.decoder = self.phi.T * self.xscale
+    else:
+      self.encoder = self.psi
+      self.decoder = self.phi.T
+    # Convert to tf.Tensor
+    for k in ("phi", "psi", "xref", "xscale", "mask", "encoder", "decoder"):
+      x = getattr(self, k)
+      if (x is not None):
+        x = tf.constant(x, dtype=bkd.get_floatx())
+        setattr(self, k, x)
+
+  def _load_array(self, name, x):
+    if (x is not None):
+      if (not isinstance(x, (str, np.ndarray))):
+        utils.raise_err(
+          ValueError,
+          f"The input array '{name}' must be a `str` " \
+          f"or a `np.ndarray` in '{self.name}'."
+        )
+      if isinstance(x, str):
+        x = np.loadtxt(x)
+      return x
+
+  def _build_basis(self, pxi):
+    """
+    Constructs the full basis matrix, incorporating projection basis
+    and identity elements for excluded states.
+
+    :param pxi: Basis matrix (`phi` or `psi`).
+    :type pxi: np.ndarray
+
+    :return: Full basis matrix.
+    :rtype: np.ndarray
+    """
+    # Allocate full basis matrix
+    basis = np.zeros((self.x_dim, self.xnot_dim + self.z_dim))
+    # Insert basis for projection
+    basis[self.mask,:self.z_dim] = pxi
+    # Insert identity elements for not selected states
+    ix = np.where(~self.mask)[0]
+    iy = self.z_dim + np.arange(self.xnot_dim)
+    basis[ix,iy] = 1.0
+    return basis
 
   # Calling
   # ===================================
   def call(self, x, method=1, training=None):
+    method = int(method)
+    if ((method < 1) or (method > 3)):
+      utils.raise_err(ValueError, f"Method '{method}' not valid.")
     if (method == 1):
-      return self.encode(x)
+      return self._encode_vec(x)
     elif (method == 2):
-      return self.decode(x)
+      return self._decode_vec(x)
     elif (method == 3):
-      return self.decode(self.encode(x))
+      return self._encode_decode_vec(x)
 
-  def encode(self, x):
+  def _encode_vec(self, x):
     # Transform
     if self.use_log:
       x = tf.math.log(x)
-    x = x - self.xref
+    if self.use_xref:
+      x = x - self.xref
     # Encode
-    return tf.linalg.matmul(x, self.encoder)
+    z = tf.linalg.matmul(x, self.encoder)
+    return z
 
-  def decode(self, z):
+  def _decode_vec(self, z):
     # Decode
     x = tf.linalg.matmul(z, self.decoder)
     # Transform
-    x = x + self.xref
+    if self.use_xref:
+      x = x + self.xref
     if self.use_log:
       x = tf.math.exp(x)
     return x
+
+  def _encode_decode_vec(self, x):
+    return self._decode_vec(self._encode_vec(x))
 
   # Configuration update
   # ===================================
   def get_config(self):
     config = {
-      'phi': ops.to_numpy(self.phi).squeeze(),
-      'psi': ops.to_numpy(self.psi).squeeze(),
-      'xref': ops.to_numpy(self.xref).squeeze(),
-      'xscale': ops.to_numpy(self.xscale).squeeze(),
-      'use_log': self.use_log
+      "z_dim": self.z_dim,
+      "use_log": self.use_log
     }
+    for k in ("phi", "psi", "xref", "xscale", "mask"):
+      config[k] = ops.to_numpy(getattr(self, k))
     base_config = super(LinAutoencoder, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 

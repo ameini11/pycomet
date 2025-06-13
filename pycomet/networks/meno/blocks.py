@@ -107,3 +107,89 @@ class StateCorrection(nn_elem.Layer):
     }
     base_config = super(StateCorrection, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
+
+
+@tf.keras.utils.register_keras_serializable(package=_CFG.name)
+class LinPROM(nn_elem.LinAutoencoder):
+
+  # Initialization
+  # ===================================
+  def __init__(
+    self,
+    phi,
+    psi,
+    xref=None,
+    xscale=None,
+    mask=None,
+    z_dim=None,
+    **kwargs
+  ):
+    super(LinPROM, self).__init__(
+      phi=phi,
+      psi=psi,
+      xref=xref,
+      xscale=xscale,
+      mask=mask,
+      z_dim=z_dim,
+      use_log=False,
+      **kwargs
+    )
+
+  def build(self, *args, **kwargs):
+    super(LinPROM, self).build(*args, **kwargs)
+    # Reduced tensors
+    self.red_decoder = tf.math.reduce_sum(self.decoder, axis=-1)
+    if self.use_xref:
+      self.xref_norm_fac = 1.0 / (1.0 - tf.math.reduce_sum(self.xref))
+
+  # Calling
+  # ===================================
+  def call(self, x, method=1, training=None):
+    method = int(method)
+    if ((method < 1) or (method > 6)):
+      utils.raise_err(
+        ValueError,
+        f"Method '{method}' not valid."
+      )
+    if (self.use_log and (method > 3)):
+      utils.raise_err(
+        ValueError,
+        f"Method '{method}' is not valid when the log transformation is used."
+      )
+    if (method == 1):
+      return self._encode_vec(x)
+    elif (method == 2):
+      return self._decode_vec(x)
+    elif (method == 3):
+      return self._encode_decode_vec(x)
+    elif (method == 4):
+      return self._reduce_lin_ops(*x)
+    elif (method == 5):
+      return self._compute_rho(x)
+
+  def _reduce_lin_ops(self, A, b=None):
+    # Equation: dz/dt = Ar @ z + br
+    # First order term
+    # > Ar = E @ A @ D
+    Ar = tf.linalg.matmul(A, tf.transpose(self.decoder))
+    Ar = tf.linalg.matmul(tf.transpose(self.encoder), Ar)
+    # Zeroth order term
+    # > br = E @ (A @ xref + b)
+    br = 0.0
+    br_active = False
+    if self.use_xref:
+      br = br + tf.linalg.matvec(A, self.xref)
+      br_active = True
+    if (b is not None):
+      br = br + b
+      br_active = True
+    br = tf.linalg.matmul(br, self.encoder) if br_active else None
+    # Return reduced operator
+    return Ar, br
+
+  def _compute_rho(self, rhoz):
+    # Equation: rho = sum(D @ rhoz) / (1 - sum(xref))
+    rho = tf.linalg.matvec(rhoz, self.red_decoder)
+    if self.use_xref:
+      rho *= self.xref_norm_fac
+    return rho
