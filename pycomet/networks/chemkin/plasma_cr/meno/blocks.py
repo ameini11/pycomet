@@ -26,6 +26,7 @@ class PlasmaCROperators(nn_elem.Layer):
     rates,
     use_corr=False,
     scale_corr=False,
+    use_mass_frac=False,
     **kwargs
   ):
     super(PlasmaCROperators, self).__init__(**kwargs)
@@ -49,6 +50,8 @@ class PlasmaCROperators(nn_elem.Layer):
       self.scale_corr = tf.squeeze(
         tf.constant(self.scale_corr, dtype=bkd.get_floatx())
       )
+    # State vector
+    self.use_mass_frac = bool(use_mass_frac)
 
   def read_rates(self, rates):
     if isinstance(rates, str):
@@ -102,7 +105,11 @@ class PlasmaCROperators(nn_elem.Layer):
     # Compose reaction rates matrices
     omega = self.compose_sources_mat(rates, n_em, n_ar1)
     # Compose linear operators: A from 'dydt = A @ y'
-    return self.compose_lin_ops(omega)
+    A = self.compose_lin_ops(omega)
+    # Compose linear operators: A from 'dydt = A @ y'
+    if self.use_mass_frac:
+      A = self.convert_lin_ops(A)
+    return A
 
   # Rates
   # -----------------------------------
@@ -218,6 +225,13 @@ class PlasmaCROperators(nn_elem.Layer):
     )
     return tf.reshape(A, (-1,self.nb_comp,self.nb_comp))
 
+  def convert_lin_ops(self, A):
+    # Convert linear operators from number densities to mass fractions state vector
+    # Equation: Aw = M @ An @ M_inv
+    A = tf.transpose(A*self.mix["h"].mh_inv, perm=(0,2,1))
+    A = tf.transpose(A*self.mix["h"].mh, perm=(0,2,1))
+    return A
+
   # Configuration
   # ===================================
   def get_config(self):
@@ -225,6 +239,7 @@ class PlasmaCROperators(nn_elem.Layer):
     config["rates"] = self.rates
     config["use_corr"] = self.use_corr
     config["scale_corr"] = ops.to_numpy(self.scale_corr)
+    config["use_mass_frac"] = self.use_mass_frac
     base_config = super(PlasmaCROperators, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 

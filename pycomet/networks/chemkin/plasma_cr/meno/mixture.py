@@ -58,7 +58,8 @@ class Mixture(object):
     # Convert to tf.Tensor
     for k in ("m", "m_inv", "mh", "mh_inv"):
       x = getattr(self, k)
-      x = tf.constant(x.reshape(1,-1), dtype=bkd.get_floatx())
+      # x = tf.constant(x.reshape(1,-1), dtype=bkd.get_floatx())
+      x = tf.constant(x, dtype=bkd.get_floatx())
       setattr(self, k, x)
 
   # Update

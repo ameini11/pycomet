@@ -9,7 +9,8 @@ from pycomet.networks import elements as nn_elem
 from keras import layers as tf_layers
 
 from . import const
-from .blocks import PlasmaCRMoleMass, PlasmaCRSolUpdate
+from .blocks import PlasmaCRMoleMass
+from .blocks_rom import PlasmaCRSolUpdateROM
 from pycomet.networks.meno.blocks import StateCorrection
 
 
@@ -20,6 +21,7 @@ class MENOPlasmaCRReactorROM(BaseNet):
   def __init__(
     self,
     dim,
+    decode=False,
     return_full=False,
     qoi_indices=None,
     callable_lays=None,
@@ -32,7 +34,7 @@ class MENOPlasmaCRReactorROM(BaseNet):
     *args,
     **kwargs
   ):
-    super(MENOPlasmaCRReactor, self).__init__(
+    super(MENOPlasmaCRReactorROM, self).__init__(
       dim=dim,
       lays_name=lays_name,
       lays_propty=lays_propty,
@@ -43,6 +45,7 @@ class MENOPlasmaCRReactorROM(BaseNet):
       *args,
       **kwargs
     )
+    self.decode = decode
     self.return_full = return_full
     # Time-dependent inputs
     # -------------
@@ -59,14 +62,14 @@ class MENOPlasmaCRReactorROM(BaseNet):
     # -------------
     # Layers names
     if (lays_name is None):
-      self.lays_name += ("lin_autoenc", "log_t_ph", "ic_xform", "mole_mass")
+      self.lays_name += ("lin_prom", "log_t_ph", "ic_xform", "mole_mass")
       self.lays_name += self.nlin_vars + ("fcorr_compute", "states_update")
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=("lin_autoenc", "log_t_ph", "ic_xform", "mole_mass"),
+      not_opt=("lin_prom", "log_t_ph", "ic_xform", "mole_mass"),
       default=self.default_lays_propty
     )
     # Initializing
@@ -93,7 +96,7 @@ class MENOPlasmaCRReactorROM(BaseNet):
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier in ("lin_autoenc", "log_t_ph", "ic_xform")):
+      if (identifier in ("lin_prom", "log_t_ph", "ic_xform")):
         lays[identifier] = self.init_lay(identifier, propty)
       elif (identifier in self.nlin_vars):
         lays[identifier] = self.init_kernel_lay(propty)
@@ -101,7 +104,7 @@ class MENOPlasmaCRReactorROM(BaseNet):
         propty["lay_id"] = {
           "mole_mass": PlasmaCRMoleMass,
           "fcorr_compute": StateCorrection,
-          "states_update": PlasmaCRSolUpdate
+          "states_update": PlasmaCRSolUpdateROM
         }[identifier]
         lays[identifier] = self.init_lay(identifier, propty)
     return lays
@@ -119,7 +122,7 @@ class MENOPlasmaCRReactorROM(BaseNet):
   def forward(self, inputs, training=None):
     # Set outputs
     # -------------
-    y = {k: None for k in self.nlin_vars + ("Ari",)}
+    y = {k: None for k in self.nlin_vars + ("z",)}
     self.states_only = False
     # Extract inputs
     # -------------
@@ -127,13 +130,9 @@ class MENOPlasmaCRReactorROM(BaseNet):
     # Compose inputs
     # -------------
     # > Get total density and latent variables
-    rho_0 = ... # reconstruct                                                   !!!!!!!!!!!!!
-    rho = nn_elem.Reduction(indices=None, reduction="sum")(
-      rho_0, axis=-1, keepdims=True
-    )
-    z_0 = rhoz_0 / rho
+    w_0, z_0, rho = self.active_lays["lin_prom"](rhoz_0, method=5)
     # > Get number densities
-    n_0 = self.active_lays["mole_mass"](rho_0, method=3)
+    n_0 = self.active_lays["mole_mass"](rho*w_0, method=3)
     ne_0 = nn_elem.Gather(indices=self.mix_indices["e"], axis=-1)(n_0)
     nh_0 = nn_elem.Gather(indices=self.mix_indices["h"], axis=-1)(n_0)
     nh_0 = nn_elem.Reduction(indices=None, reduction="sum")(
@@ -143,8 +142,6 @@ class MENOPlasmaCRReactorROM(BaseNet):
     pe_0 = ne_0 * const.UKB * Te_0
     ph_0 = nh_0 * const.UKB * Th_0
     # Initial conditions
-    # # > Encode mass fractions
-    # z_0 = self.active_lays["lin_autoenc"](w_0, method=1)
     # > Concatenating
     y_0 = tf_layers.Concatenate()([rho, z_0, Th_0, Te_0])
     y_0_xform = self.active_lays["ic_xform"](y_0)
@@ -185,15 +182,20 @@ class MENOPlasmaCRReactorROM(BaseNet):
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update states
       u = [y[k] for k in self.nlin_vars[:-1]]
-      nh_0 = nn_elem.Gather(indices=self.mix_indices["h"], axis=-1)(n_0)
-      n = self.active_lays["states_update"]((t, nh_0, u, f), training=training)
-      y["w"] = self.active_lays["mole_mass"](n, method=4)
+      zh_0 = nn_elem.Gather(
+        indices=self.active_lays["lin_prom"].indices["zhat"], axis=-1
+      )(z_0)
+      y["z"] = self.active_lays["states_update"](
+        (t, zh_0, u, f), training=training
+      )
+      if self.decode:
+        y["z"] = self.active_lays["lin_prom"](y["z"], method=2)
     # Return predictions
     # -------------
     if self.states_only:
-      return y["w"]
+      return y["z"]
     else:
       if self.return_full:
-        return [y["w"], y["Th"], y["Te"]]
+        return [y["z"], y["Th"], y["Te"]]
       else:
         return [yk for yk in y.values() if (yk is not None)]

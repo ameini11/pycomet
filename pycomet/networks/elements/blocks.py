@@ -397,31 +397,43 @@ class LinAutoencoder(pcm_layers.Layer):
       self.mask = np.ones(self.x_dim)
     self.mask = self.mask.astype(bool).reshape(-1)
     self.xnot_dim = int(np.sum(~self.mask)) # Number of excluded dimensions
+    self.ztot_dim = self.z_dim + self.xnot_dim
+    # Indices
+    self.indices = {
+      "zhat": np.arange(self.z_dim),
+      "znot": self.z_dim + np.arange(self.xnot_dim)
+    }
+    self.indices = {
+      k: tf.constant(i, dtype="int32") for (k, i) in self.indices.items()
+    }
     # Biorthogonalize the basis
     self.phi = self.phi[:,:self.z_dim]
     self.psi = self.psi[:,:self.z_dim]
     self.phi = self.phi @ np.linalg.inv(self.psi.T @ self.phi)
     # Construct full basis matrices
-    self.phi = self._build_basis(self.phi)
-    self.psi = self._build_basis(self.psi)
     # Handle reference and scaling values
     if self.use_xref:
       self.xref[~self.mask]= 0.0
     if self.use_xscale:
       self.xscale[~self.mask]= 1.0
     # Build encoder and decoder
+    _phi = self._build_basis(self.phi)
+    _psi = self._build_basis(self.psi)
     if self.use_xscale:
-      self.encoder = (self.psi.T / self.xscale).T
-      self.decoder = self.phi.T * self.xscale
+      self.encoder = (_psi.T / self.xscale).T
+      self.decoder = _phi.T * self.xscale
     else:
-      self.encoder = self.psi
-      self.decoder = self.phi.T
+      self.encoder = _psi
+      self.decoder = _phi.T
     # Convert to tf.Tensor
     for k in ("phi", "psi", "xref", "xscale", "mask", "encoder", "decoder"):
       x = getattr(self, k)
       if (x is not None):
         x = tf.constant(x, dtype=bkd.get_floatx())
         setattr(self, k, x)
+    self.encoder_t = tf.transpose(self.encoder)
+    self.decoder_t = tf.transpose(self.decoder)
+    self.built = True
 
   def _load_array(self, name, x):
     if (x is not None):
@@ -447,7 +459,7 @@ class LinAutoencoder(pcm_layers.Layer):
     :rtype: np.ndarray
     """
     # Allocate full basis matrix
-    basis = np.zeros((self.x_dim, self.xnot_dim + self.z_dim))
+    basis = np.zeros((self.x_dim, self.ztot_dim))
     # Insert basis for projection
     basis[self.mask,:self.z_dim] = pxi
     # Insert identity elements for not selected states

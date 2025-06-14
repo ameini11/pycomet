@@ -119,7 +119,7 @@ class MENOPlasmaCRReactor(BaseNet):
   def forward(self, inputs, training=None):
     # Set outputs
     # -------------
-    y = {k: None for k in self.nlin_vars + ("Ari",)}
+    y = {k: None for k in self.nlin_vars + ("w",)}
     self.states_only = False
     # Extract inputs
     # -------------
