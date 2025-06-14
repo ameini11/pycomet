@@ -16,20 +16,20 @@ class PlasmaCRSolUpdateROM(nn_elem.Layer):
   # ===================================
   def __init__(
     self,
-    kwargs_ops={},
-    kwargs_rom={},
-    kwargs_ode={},
+    cfg_ops={},
+    cfg_rom={},
+    cfg_ode={},
     **kwargs
   ):
     super(PlasmaCRSolUpdateROM, self).__init__(**kwargs)
     # PlasmaCROperators layer
-    kwargs_ops["use_mass_frac"] = True
-    self.lay_ops = PlasmaCROperators(**kwargs_ops)
+    cfg_ops["use_mass_frac"] = True
+    self.lay_ops = PlasmaCROperators(**cfg_ops)
     # LinPROM Layer
-    self.lay_rom = meno_elem.blocks.LinPROM(**kwargs_rom)
+    self.lay_rom = meno_elem.blocks.LinPROM(**cfg_rom)
     # LinODE Layer
-    kwargs_ode["nb_eqs"] = self.lay_rom.ztot_dim
-    self.lay_ode = meno_elem.layers.LinODE(**kwargs_ode)
+    cfg_ode["nb_eqs"] = self.lay_rom.ztot_dim
+    self.lay_ode = meno_elem.layers.LinODE(**cfg_ode)
     # Mixture
     self.mix = self.lay_ops.mix["h"]
     # Mixture
@@ -74,9 +74,9 @@ class PlasmaCRSolUpdateROM(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "kwargs_ops": self.lay_ops.get_config(),
-      "kwargs_ode": self.lay_ode.get_config(),
-      "kwargs_rom": self.lay_rom.get_config()
+      "cfg_ops": self.lay_ops.get_config(),
+      "cfg_ode": self.lay_ode.get_config(),
+      "cfg_rom": self.lay_rom.get_config()
     }
     base_config = super(PlasmaCRSolUpdateROM, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
