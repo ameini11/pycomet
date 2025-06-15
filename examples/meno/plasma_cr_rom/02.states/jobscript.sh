@@ -14,4 +14,5 @@
 ##SBATCH --mail-type=BEGIN,END
 
 # Run python code/script
-./../../pycomet train -d ./run07/
+# ./../../pycomet train -d ./run01/
+/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/pycomet train -d ./run01/

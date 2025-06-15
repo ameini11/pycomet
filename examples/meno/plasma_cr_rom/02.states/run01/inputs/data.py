@@ -8,7 +8,7 @@ data_type = "DataSet"
 # -------------------------------------
 from_file = True
 
-_path_to_data = "./../../00.datagen.r03/data.v3/"
+_path_to_data = "./../../00.datagen/data/"
 data_src = {
   "train": _path_to_data + "/train.csv",
   "valid": _path_to_data + "/valid.csv",
@@ -19,7 +19,7 @@ with open(_path_to_data + "/indices.json") as file:
   _indices = json.load(file)
 _columns = {
   "x": [
-    _indices["rho_0"],
+    _indices["rhoz_0"],
     _indices["Th_0"],
     _indices["Te_0"],
     _indices["t"],
@@ -33,7 +33,7 @@ columns = {k: _columns for k in data_src.keys()}
 header = 0
 
 # Database
-_path_to_dtb = "./../../00.datagen.r03/database/"
+_path_to_dtb = "./../../00.datagen/database/"
 _species = {k: _path_to_dtb+f"/species/{k}.json" for k in ("em", "Ar", "Arp")}
 
 # Batching

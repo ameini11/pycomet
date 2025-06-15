@@ -14,8 +14,9 @@ import tensorflow as tf
 from tqdm import tqdm
 from silx.io.dictdump import dicttoh5, h5todict
 
+from pycomet import utils
 from pycomet.sampling import DifferentialBased
-from pycomet.networks.elements import LinAutoencoder
+from pycomet.networks.meno.blocks import LinPROM
 from pycomet.networks.chemkin.plasma_cr.meno import const, Mixture
 
 
@@ -71,16 +72,13 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       species={k: path_to_dtb + f"/species/{k}.json" for k in species_order}
     )
     self.set_states()
-    # Linear autoencoder
+    # Linear PROM
     # -----------------------------------
     if isinstance(rom_config, str):
       with open(rom_config, "rb") as file:
         rom_config = pickle.load(file)
-    self.rom = LinAutoencoder(**rom_config)
-    # Save ROM arrays
-    os.makedirs(self.path_to_data+"/rom", exist_ok=True)
-    for k in ("phi", "xref", "xscale"):
-      np.savetxt(self.path_to_data+f"/rom/{k}.txt", rom_config[k])
+    self.rom = LinPROM(**rom_config)
+    self.rom.build()
     # Labeling data
     # -----------------------------------
     # Box solution
@@ -93,27 +91,29 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       names = [k] if (nc == 1) else [k+f"{i+1}" for i in range(nc)]
       self.species_names.extend(names)
     # > Labels
-    self.data_lbl = [f"rho_{s}_0" for s in self.species_names] \
+    self.data_lbl = [f"rhoz_{i+1}_0" for i in range(self.rom.ztot_dim)] \
       + ["Th_0", "Te_0", "t"] \
       + [f"w_{s}" for s in self.species_names] \
+      + [f"z_{i+1}" for i in range(self.rom.ztot_dim)] \
       + ["Th", "Te", "pe", "n_em", "n_Ar1"] \
-      + ["rho"] + [f"z{i+1}_0" for i in range(self.rom.dim)] \
-      + ["Th_0", "Te_0", "ln_t_pe", "ln_t_ph"]
+      + ["rho"] + [f"z{i+1}_0" for i in range(self.rom.ztot_dim-1)] \
+      + ["ln_we_0", "Th_0", "Te_0", "ln_t_pe", "ln_t_ph"]
     # > Indices
     i = 0
     self.data_idx = {}
     for (k, ik) in (
-      ("rho_0", self.mix.nb_comp),
+      ("rhoz_0", self.rom.ztot_dim),
       ("Th_0", 1),
       ("Te_0", 1),
       ("t", 1),
       ("w", self.mix.nb_comp),
+      ("z", self.rom.ztot_dim),
       ("Th", 1),
       ("Te", 1),
       ("pe", 1),
       ("n_em", 1),
       ("n_Ar1", 1),
-      ("x0_norm", 3+self.rom.dim),
+      ("x0_norm", 3+self.rom.ztot_dim),
       ("ln_t", 2)
     ):
       self.data_idx[k] = np.arange(i,i+ik).tolist()
@@ -177,12 +177,18 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       filename = self.path_to_samples + f"/{k}.csv"
       if os.path.exists(filename):
         xsol[k] = pd.read_csv(filename).values
+      else:
+        text = f"File for sample of type '{k}' does not exist."
+        if (k == "train"):
+          utils.raise_err(ValueError, text)
+        else:
+          utils.warning(text)
     # Saving sampled initial solutions
     os.makedirs(self.path_to_runs + "/samples/", exist_ok=True)
     dicttoh5(
       treedict=xsol,
       h5file=self.path_to_runs + "/samples/init_sols.hdf5",
-      # overwrite_data=True,
+      overwrite_data=True,
       create_dataset_args={"compression": "gzip"}
     )
     # Returning sampled initial solutions
@@ -199,12 +205,13 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     if (not os.path.exists(path + "/sols.hdf5")):
       pcm.utils.print_fn(f"Computing 0D cases: {dataid}", lev=2)
       # Computing solutions
+      iterable = tqdm(init_sols, ncols=80, file=sys.stdout)
       sols = jl.Parallel(self.nb_workers)(
         jl.delayed(self.compute_solution)(
           path=self.path_to_runs,
           case_nb=i,
           init_sol=init_sol
-        ) for (i, init_sol) in enumerate(tqdm(init_sols, ncols=80, file=sys.stdout))
+        ) for (i, init_sol) in enumerate(iterable)
       )
       # Filter solutions
       sols = {i: c for (i, c) in sols if (c is not None)}
@@ -214,7 +221,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       dicttoh5(
         treedict=sols,
         h5file=path + "/sols.hdf5",
-        # overwrite_data=True,
+        overwrite_data=True,
         create_dataset_args={"compression": "gzip"}
       )
     else:
@@ -244,8 +251,8 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     try:
       # Run 0D simulation
       subprocess.run(
-        # f"box inputfile.sh {self.nb_threads}",
-        "box inputfile.sh",
+        f"box inputfile.sh {self.nb_threads}",
+        # "box inputfile.sh",
         shell=True,
         env=self.env,
         timeout=1e2,
@@ -254,7 +261,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
       )
       # Postprocess solution
       sol = self.read_solution(path_to_sol="./output_box/")
-    except subprocess.TimeoutExpired:
+    except:
       sol = None
     # Delete run folder
     os.chdir(self.cwd)
@@ -298,35 +305,6 @@ class DataGenerator(pcm.data.BaseDataGenerator):
 
   # Postprocess solution
   # -----------------------------------
-  def prim_to_phys(self, t, y):
-    # Manipulate primitive variables
-    nc = self.mix.nb_comp
-    rho, Th, Te = np.split(y, [nc, nc+1], axis=-1)
-    n = self.mix.get_n(rho).numpy()
-    # Store physical variables
-    phys = {
-      "t": t,
-      "Th": Th,
-      "Te": Te,
-      "n": np.sum(n, axis=-1),
-      "rho": np.sum(rho, axis=-1)
-    }
-    for sp in self.mix.species.values():
-      phys[f"n_{sp.name}"] = np.sum(n[:,sp.indices], axis=-1)
-      phys[f"rho_{sp.name}"] = np.sum(rho[:,sp.indices], axis=-1)
-    phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
-    # Molar/mass fractions
-    phys["x"] = n / phys["n"]
-    phys["w"] = rho / phys["rho"]
-    # Pressures
-    ne = phys["n_em"]
-    nh = phys["n_Ar"] + phys["n_Arp"]
-    phys["pe"] = ne * const.UKB * Te
-    phys["ph"] = nh * const.UKB * Th
-    phys["p"] = phys["pe"] + phys["ph"]
-    # Return
-    return phys
-
   def postproc_solution(self, sol, nb_pts=-1, teval=None):
     # Limit solution in time
     sol = self.limit_solution(**sol)
@@ -362,6 +340,37 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     )
     return t[i], y[i]
 
+  def prim_to_phys(self, t, y):
+    # Manipulate primitive variables
+    nc = self.mix.nb_comp
+    rho, Th, Te = np.split(y, [nc, nc+1], axis=-1)
+    n = self.mix.get_n(rho).numpy()
+    # Store physical variables
+    phys = {
+      "t": t,
+      "Th": Th,
+      "Te": Te,
+      "n": np.sum(n, axis=-1),
+      "rho": np.sum(rho, axis=-1)
+    }
+    for sp in self.mix.species.values():
+      phys[f"n_{sp.name}"] = np.sum(n[:,sp.indices], axis=-1)
+      phys[f"rho_{sp.name}"] = np.sum(rho[:,sp.indices], axis=-1)
+    phys = tf.nest.map_structure(lambda x: x.reshape(-1,1), phys)
+    # Molar/mass fractions
+    phys["x"] = n / phys["n"]
+    phys["w"] = rho / phys["rho"]
+    # Pressures
+    ne = phys["n_em"]
+    nh = phys["n_Ar"] + phys["n_Arp"]
+    phys["pe"] = ne * const.UKB * Te
+    phys["ph"] = nh * const.UKB * Th
+    phys["p"] = phys["pe"] + phys["ph"]
+    # Latent space
+    phys["z"] = self.rom(phys["w"], method=1).numpy()
+    # Return
+    return phys
+
   # Manage data
   # ===================================
   def get_data(self, sol, nb_pts=-1, teval=None):
@@ -372,25 +381,25 @@ class DataGenerator(pcm.data.BaseDataGenerator):
     sol = self.postproc_solution(sol, nb_pts, teval)
     # Extract variables
     # > Output variables
-    t, w, Th, Te = [sol[k] for k in ("t", "w", "Th", "Te")]
+    t, w, z, Th, Te = [sol[k] for k in ("t", "w", "z", "Th", "Te")]
     # > Additional variables
     pe, n_em = [sol[k] for k in ("pe", "n_em")]
     i1 = self.mix.species["Ar"].indices[:1]
     n_Ar1 = sol["x"][:,i1] * sol["n"]
     # Inputs
     nb_pts = len(t)
-    x0 = np.hstack([sol0["rho"] * sol0["w"], sol0["Th"], sol0["Te"]])
+    x0 = np.hstack([sol0["rho"] * sol0["z"], sol0["Th"], sol0["Te"]])
     x0 = np.tile(x0, (nb_pts,1))
     x = [x0, t]
     # > Inputs to normalize
-    z0 = self.rom(sol0["w"], method=1).numpy()
-    x_norm = np.hstack([sol0["rho"], z0, sol0["Th"], sol0["Te"]])
-    x_norm = np.tile(x_norm, (nb_pts,1))
+    log_we = np.log(np.abs(sol0["z"][:,-1:]))
+    x_norm = [sol0["rho"], sol0["z"][:,:-1], log_we, sol0["Th"], sol0["Te"]]
+    x_norm = np.tile(np.hstack(x_norm), (nb_pts,1))
     ln_t_pe = np.log(t * sol0["pe"])
     ln_t_ph = np.log(t * sol0["ph"])
     ln_t = np.hstack([ln_t_pe, ln_t_ph])
     # Outputs
-    y = np.hstack([w, Th, Te, pe, n_em, n_Ar1])
+    y = np.hstack([w, z, Th, Te, pe, n_em, n_Ar1])
     # Return data
     return [x, y, x_norm, ln_t]
 
@@ -472,7 +481,7 @@ class DataGenerator(pcm.data.BaseDataGenerator):
         dicttoh5(
           treedict=teval_data,
           h5file=self.path_to_data + f"/{k}_teval.hdf5",
-          # overwrite_data=True,
+          overwrite_data=True,
           create_dataset_args={"compression": "gzip"}
         )
     return data

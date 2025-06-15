@@ -57,7 +57,7 @@ class MENOPlasmaCRReactorROM(BaseNet):
         qoi_indices
       )
     # Nonlinear variables
-    self.nlin_vars = ("n_em", "n_Ar1", "Th", "Te", "pe")
+    self.nlin_vars = ("n_em", "n_Ar1", "Th", "Te")
     # Layers
     # -------------
     # Layers names
@@ -80,7 +80,6 @@ class MENOPlasmaCRReactorROM(BaseNet):
     if (self.callable_lays is None):
       self.callable_lays = {k: (k in self.active_lays) for k in self.nlin_vars}
       self.callable_lays["states"] = ("states_update" in self.active_lays)
-    self.use_pe = True if self.callable_lays["pe"] else False
     # Mixture indices
     mix = self.active_lays["mole_mass"].mix
     self.mix_indices = mix.indices
@@ -129,65 +128,50 @@ class MENOPlasmaCRReactorROM(BaseNet):
     rhoz_0, Th_0, Te_0, t, qoi_t = utils.unpack_list(inputs, nb_elem=5)
     # Compose inputs
     # -------------
-    # > Get total density and latent variables
+    # > Process initial latent space
     w_0, z_0, rho = self.active_lays["lin_prom"](rhoz_0, method=5)
     # > Get number densities
     n_0 = self.active_lays["mole_mass"](rho*w_0, method=3)
-    ne_0 = nn_elem.Gather(indices=self.mix_indices["e"], axis=-1)(n_0)
+    # > Get heavy-particle pressure
     nh_0 = nn_elem.Gather(indices=self.mix_indices["h"], axis=-1)(n_0)
     nh_0 = nn_elem.Reduction(indices=None, reduction="sum")(
       nh_0, axis=-1, keepdims=True
     )
-    # > Get pressures
-    pe_0 = ne_0 * const.UKB * Te_0
     ph_0 = nh_0 * const.UKB * Th_0
     # Initial conditions
+    # > Latent space
+    zh_0, we_0 = nn_elem.Split([z_0.shape[1]-1, 1], axis=-1)(z_0)
+    log_we_0 = tf_layers.Lambda(lambda x: tf.math.log(tf.math.abs(x)))(we_0)
     # > Concatenating
-    y_0 = tf_layers.Concatenate()([rho, z_0, Th_0, Te_0])
+    y_0 = tf_layers.Concatenate()([rho, zh_0, log_we_0, Th_0, Te_0])
     y_0_xform = self.active_lays["ic_xform"](y_0)
     # Time
     # > Scale time by the heavy-particle pressure
-    ln_t_ph_0 = self.active_lays["log_t_ph"](t * ph_0)
+    log_t_ph_0 = self.active_lays["log_t_ph"](t * ph_0)
     # Inputs
-    x_logt = [y_0_xform, ln_t_ph_0]
-    x_lint = [y_0_xform, t]
+    x_logt = [y_0_xform, log_t_ph_0]
     # Predict nonlinear variables
     # -------------
     # > Initial value
-    qoi_0 = {"Th": Th_0, "Te": Te_0, "pe": pe_0}
+    qoi_0 = {"Th": Th_0, "Te": Te_0}
     for k in ("n_em", "n_Ar1"):
       qoi_0[k] = nn_elem.Gather(indices=self.mix_indices[k], axis=-1)(n_0)
     # > Predict value
     for k in self.nlin_vars:
-      if ((k == "Te") and self.use_pe):
-        continue
-      if ((k == "pe") and (not self.use_pe)):
-        continue
       if self.callable_lays[k]:
-        lay = self.active_lays[k]
-        if isinstance(lay, don.PODOpNN):
-          y[k] = lay(x_lint, training=training)
-        else:
-          y[k] = lay(x_logt, training=training) * qoi_0[k]
+        y[k] = self.active_lays[k](x_logt, training=training) * qoi_0[k]
       elif self.callable_lays["states"]:
         y[k] = nn_elem.Gather(indices=self.qoi_indices[k], axis=-1)(qoi_t)
         self.states_only = True
     # Predict linear variables (states)
     # -------------
     if self.callable_lays["states"]:
-      if (y["Te"] is None):
-        y["Te"] = y["pe"] / (y["n_em"] * const.UKB)
       # > Compute state-wise latent space
       x = tf_layers.Concatenate()(x_logt)
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update states
-      u = [y[k] for k in self.nlin_vars[:-1]]
-      zh_0 = nn_elem.Gather(
-        indices=self.active_lays["lin_prom"].indices["zhat"], axis=-1
-      )(z_0)
-      y["z"] = self.active_lays["states_update"](
-        (t, zh_0, u, f), training=training
-      )
+      u = [y[k] for k in self.nlin_vars]
+      y["z"] = self.active_lays["states_update"]((t, zh_0, u, f), training)
       if self.decode:
         y["z"] = self.active_lays["lin_prom"](y["z"], method=2)
     # Return predictions

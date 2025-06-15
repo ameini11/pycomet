@@ -2,7 +2,7 @@ from inputs.data import data_src, _path_to_dtb, _path_to_data, _species, _indice
 
 # Architecture properties
 # =====================================
-architecture = "MENOPlasmaCRReactor"
+architecture = "MENOPlasmaCRReactorROM"
 # Variable name
 _name = "states"
 
@@ -14,10 +14,12 @@ callable_lays = {
   "n_Ar1": False,
   "Th": False,
   "Te": False,
-  "pe": False,
   "states": False
 }
 callable_lays[_name] = True
+
+decode = True
+return_full = False
 
 # Layers
 # -------------------------------------
@@ -60,14 +62,15 @@ lays_propty = {
     }
   },
 
-  "lin_autoenc": {
-    "lay_id": "LinAutoencoder",
+  "lin_prom": {
+    "lay_id": "LinPROM",
     "kwargs": {
-      "phi": _path_to_data + "/rom/phi.txt",
-      "psi": _path_to_data + "/rom/phi.txt",
-      "xref": _path_to_data + "/rom/xref.txt",
-      "xscale": _path_to_data + "/rom/xscale.txt",
-      "use_log": True,
+      "phi": _path_to_dtb + "/rom_data/full/phi.txt",
+      "psi": _path_to_dtb + "/rom_data/full/psi.txt",
+      "xref": _path_to_dtb + "/rom_data/full/xref.txt",
+      "xscale": _path_to_dtb + "/rom_data/full/xscale.txt",
+      "mask": _path_to_dtb + "/rom_data/full/mask.txt",
+      "z_dim": 9,
       "trainable": False
     }
   },
@@ -102,20 +105,32 @@ lays_propty = {
   },
 
   "states_update": {
-    "lay_id": "PlasmaCRSolUpdate",
+    "lay_id": "PlasmaCRSolUpdateROM",
     "kwargs": {
-      "species": _species,
-      "rates": _path_to_dtb + "/rates/rates.hdf5",
-      "use_corr": True,
-      "scale_corr": None,
-      "epsilon": 1e-15,
-      "use_pade": True,
-      "use_expmv": False,
-      "max_degree": None,
-      "max_nb_squarings": None,
-      "expm_dtype": None,
-      "add_inv_loss": False,
-      "inv_loss_weight": 1e-3,
+      "cfg_ops": {
+        "species": _species,
+        "rates": _path_to_dtb + "/rates/rates.hdf5",
+        "use_corr": True,
+        "scale_corr": None
+      },
+      "cfg_rom": {
+        "phi": _path_to_dtb + "/rom_data/heavy/phi.txt",
+        "psi": _path_to_dtb + "/rom_data/heavy/psi.txt",
+        "xref": _path_to_dtb + "/rom_data/heavy/xref.txt",
+        "xscale": _path_to_dtb + "/rom_data/heavy/xscale.txt",
+        "z_dim": 9
+      },
+      "cfg_ode": {
+        "nb_eqs": 9,
+        "epsilon": 1e-15,
+        "use_pade": True,
+        "use_expmv": False,
+        "max_degree": None,
+        "max_nb_squarings": None,
+        "expm_dtype": None,
+        "add_inv_loss": False,
+        "inv_loss_weight": 1e-3
+      },
       "trainable": False
     }
   }

@@ -1,9 +1,9 @@
 {
   "name": "PyCOMET",
-  "device": "gpu",
+  "device": "cpu",
   "cpu_threads": 4,
   "gpu_memory_growth": true,
-  "dev_index": 1,
+  "dev_index": 0,
   "floatx": "float64",
   "epsilon": 1e-20,
   "env": {

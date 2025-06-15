@@ -1,9 +1,9 @@
 # Model/architecture properties
 # =====================================
-model_name = "plasma_cr_Te"
+model_name = "plasma_cr_rom_Te"
 
 dim = {
-  "inp": [34, 1, 1, 1],
+  "inp": [10, 1, 1, 1],
   "out": [1]
 }
 

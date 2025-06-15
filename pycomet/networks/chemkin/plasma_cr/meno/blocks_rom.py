@@ -22,20 +22,24 @@ class PlasmaCRSolUpdateROM(nn_elem.Layer):
     **kwargs
   ):
     super(PlasmaCRSolUpdateROM, self).__init__(**kwargs)
-    # PlasmaCROperators layer
     cfg_ops["use_mass_frac"] = True
-    self.lay_ops = PlasmaCROperators(**cfg_ops)
-    # LinPROM Layer
-    self.lay_rom = meno_elem.blocks.LinPROM(**cfg_rom)
-    # LinODE Layer
-    cfg_ode["nb_eqs"] = self.lay_rom.ztot_dim
-    self.lay_ode = meno_elem.layers.LinODE(**cfg_ode)
+    self.lays = {
+      # PlasmaCROperators layer
+      "ops": PlasmaCROperators(**cfg_ops),
+      # LinPROM Layer
+      "rom": meno_elem.blocks.LinPROM(**cfg_rom),
+      # LinODE Layer
+      "ode": meno_elem.layers.LinODE(**cfg_ode)
+    }
     # Mixture
-    self.mix = self.lay_ops.mix["h"]
-    # Mixture
-    self._build_ions_dec()
+    self.mix = self.lays["ops"].mix["h"]
 
-  def _build_ions_dec(self):
+  # Building
+  # ===================================
+  def build(self, *args, **kwargs):
+    for lay in self.lays.values():
+      if (not lay.built):
+        lay.build(*args, **kwargs)
     # Ions indices
     iions = self.mix.species["Arp"].indices - 1
     # Mask vector
@@ -46,8 +50,8 @@ class PlasmaCRSolUpdateROM(nn_elem.Layer):
     imask *= self.mix.species["em"].m * self.mix.mh_inv
     imask = tf.reshape(imask, (1,-1))
     # Decoder and reference values
-    self.idec = tf.linalg.matvec(imask, self.lay_rom.decoder)
-    self.iref = tf.tensordot(imask, self.lay_rom.xref, axes=1)
+    self.idec = tf.linalg.matvec(imask, self.lays["rom"].decoder)
+    self.iref = tf.tensordot(imask, self.lays["rom"].xref, axes=1)
 
   # Calling
   # ===================================
@@ -55,11 +59,11 @@ class PlasmaCRSolUpdateROM(nn_elem.Layer):
     # Extract inputs
     t, zh_0, u, f = inputs
     # Compute operators
-    A = self.lay_ops((*u, f), training=training)
+    A = self.lays["ops"]((*u, f), training=training)
     # Evolve latent space
     # > Heavy-particle only
-    Ar, br = self.lay_rom((A,), method=4, training=training)
-    zh = self.lay_ode((t, zh_0, Ar, br), training=training)
+    Ar, br = self.lays["rom"]((A,), method=4, training=training)
+    zh = self.lays["ode"]((t, zh_0, Ar, br), training=training)
     # > Electron (charge conservation)
     z = self._enforce_charge_cons(zh)
     return z
@@ -74,9 +78,9 @@ class PlasmaCRSolUpdateROM(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      "cfg_ops": self.lay_ops.get_config(),
-      "cfg_ode": self.lay_ode.get_config(),
-      "cfg_rom": self.lay_rom.get_config()
+      "cfg_ops": self.lays["ops"].get_config(),
+      "cfg_ode": self.lays["ode"].get_config(),
+      "cfg_rom": self.lays["rom"].get_config()
     }
     base_config = super(PlasmaCRSolUpdateROM, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

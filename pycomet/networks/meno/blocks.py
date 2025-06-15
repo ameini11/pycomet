@@ -135,11 +135,13 @@ class LinPROM(nn_elem.LinAutoencoder):
       **kwargs
     )
 
+  # Building
+  # ===================================
   def build(self, *args, **kwargs):
     super(LinPROM, self).build(*args, **kwargs)
     self.built = False
     # Reduced tensors
-    self.red_decoder = tf.math.reduce_sum(self.decoder, axis=-1)
+    self.red_decoder = tf.math.reduce_sum(self.decoder, axis=-1, keepdims=True)
     if self.use_xref:
       self.xref_norm_fac = 1.0 / (1.0 - tf.math.reduce_sum(self.xref))
     self.built = True
@@ -197,7 +199,7 @@ class LinPROM(nn_elem.LinAutoencoder):
 
   def _compute_rho(self, rhoz):
     # Equation: rho = sum(D @ rhoz) / (1 - sum(xref))
-    rho = tf.linalg.matvec(rhoz, self.red_decoder)
+    rho = tf.linalg.matmul(rhoz, self.red_decoder)
     if self.use_xref:
       rho *= self.xref_norm_fac
     return rho

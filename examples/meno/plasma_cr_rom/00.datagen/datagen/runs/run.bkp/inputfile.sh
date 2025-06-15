@@ -1,7 +1,7 @@
 #---------------------------
 # Path to data and mixture, reaction, transfer files
 # > Remember to activate the ROM model in mixture file
-PATH     = /u/zanardi3/Workspace/cr_argon/database
+PATH     = /home/zanardi/Workspace/AirDatabase/ThermoChemModels/StS/cr_argon/database
 MIXTURE  = kapper_rom
 REACTION = kapper_kin_rad
 TRANSFER = TTe
@@ -32,5 +32,5 @@ SF = 1.015d0
 
 #---------------------------
 #ODE solver settings
-ATOL = 1.d-6
-RTOL = 1.d-9
+ATOL = 0.d0
+RTOL = 1.d-4

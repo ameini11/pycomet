@@ -2,7 +2,7 @@ from inputs.postproc import figures
 
 # Training
 # =====================================
-epochs = int(2e3)
+epochs = int(2)
 optimizer = "adam"
 
 # Learning rate scheduler

@@ -1,10 +1,10 @@
 import tensorflow as tf
 
-from inputs.data import data_src, _path_to_data, _species, _indices
+from inputs.data import data_src, _path_to_dtb, _species, _indices
 
 # Architecture properties
 # =====================================
-architecture = "MENOPlasmaCRReactor"
+architecture = "MENOPlasmaCRReactorROM"
 # Variable name
 _name = "Th"
 
@@ -15,10 +15,12 @@ callable_lays = {
   "n_Ar1": False,
   "Th": False,
   "Te": False,
-  "pe": False,
   "states": False
 }
 callable_lays[_name] = True
+
+decode = False
+return_full = False
 
 # Layers
 # -------------------------------------
@@ -50,7 +52,6 @@ _common = {
   "layer_norm": False
 }
 
-
 lays_propty = {
 
   "log_t_ph": {
@@ -62,14 +63,15 @@ lays_propty = {
     }
   },
 
-  "lin_autoenc": {
-    "lay_id": "LinAutoencoder",
+  "lin_prom": {
+    "lay_id": "LinPROM",
     "kwargs": {
-      "phi": _path_to_data + "/rom/phi.txt",
-      "psi": _path_to_data + "/rom/phi.txt",
-      "xref": _path_to_data + "/rom/xref.txt",
-      "xscale": _path_to_data + "/rom/xscale.txt",
-      "use_log": True,
+      "phi": _path_to_dtb + "/rom_data/full/phi.txt",
+      "psi": _path_to_dtb + "/rom_data/full/psi.txt",
+      "xref": _path_to_dtb + "/rom_data/full/xref.txt",
+      "xscale": _path_to_dtb + "/rom_data/full/xscale.txt",
+      "mask": _path_to_dtb + "/rom_data/full/mask.txt",
+      "z_dim": 9,
       "trainable": False
     }
   },
@@ -95,7 +97,7 @@ lays_propty = {
   _name: {
     "lay_id": "FlexOpNN",
     "dim": {
-      "inp": [8, 1],
+      "inp": [13, 1],
       "out": [1]
     },
     "lays_propty": {
@@ -103,7 +105,7 @@ lays_propty = {
         "from": "branch",
         "to": "trunk",
         "kwargs": {
-          "layer_size": [8, 128, 128],
+          "layer_size": [13, 128, 128],
           "activation": ["tanh"]*2 + ["linear"],
           "out_xform": None,
           "transformation": "affine",
@@ -116,7 +118,7 @@ lays_propty = {
       "branch": {
         "lay_id": "FFBlock",
         "kwargs": {
-          "layer_size": [8, 128, 128, 64],
+          "layer_size": [13, 128, 128, 64],
           "activation": ["tanh"]*2 + ["linear"],
           "name": _name + "_branch",
           "trainable": True,

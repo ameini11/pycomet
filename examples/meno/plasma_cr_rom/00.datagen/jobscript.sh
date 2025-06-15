@@ -13,5 +13,6 @@
 ##SBATCH --mail-type=BEGIN,END
 
 # Run python code/script
-./../../pycomet generate -d ./
-mv data data.v8
+/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/pycomet generate -d ./
+# ./../../pycomet generate -d ./
+# mv data data.v8
