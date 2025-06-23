@@ -3,7 +3,6 @@ import tensorflow as tf
 from pycomet import utils
 from pycomet import networks
 from pycomet import operations as ops
-from pycomet.networks import don
 from pycomet.networks.basenet import BaseNet
 from pycomet.networks import elements as nn_elem
 from keras import layers as tf_layers
