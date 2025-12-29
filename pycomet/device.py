@@ -1,12 +1,8 @@
 import os
 import tensorflow as tf
 
-from pycomet.config import get_config
 
-
-def set(cfg=None):
-  if (cfg is None):
-    cfg = get_config()
+def set(cfg={}):
   _set_gpu_available()
   _set_device(
     device=getattr(cfg, "device", "GPU"),

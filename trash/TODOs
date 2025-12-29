@@ -1,2 +1,0 @@
-- Fix `SoftAttentionWeightsAdapter` and `NTKWeightsAdapter`
-- Review optimization, networks, model, apps

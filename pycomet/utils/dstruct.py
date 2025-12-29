@@ -185,11 +185,6 @@ def check_dicts_consistency(
   dictionary, it raises a `ValueError` with an error message indicating the
   inconsistency.
   """
-  # print(list_of_dicts)
-  # list_of_keys = tf.nest.map_structure(
-  #   lambda x: (x[0], get_keys_from_dict(x[1])), list_of_dicts
-  # )
-  # print(list_of_dicts)
   list_of_keys = []
   for (iname, idict) in list_of_dicts:
     if (idict is not None):

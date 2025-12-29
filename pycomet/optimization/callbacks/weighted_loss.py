@@ -1,12 +1,7 @@
-import sys
-import copy
-import itertools
 import numpy as np
 import tensorflow as tf
 import tensorflow.python.keras.callbacks as cb
-import tensorflow.python.keras.initializers as tf_init
 
-from tqdm import tqdm
 from pycomet import utils
 from pycomet import backend as bkd
 from pycomet import operations as ops
@@ -14,7 +9,7 @@ from tensorflow.python.eager import backprop
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.callbacks.BaseWeightsAdapter')
+@keras_export("keras.callbacks.BaseWeightsAdapter")
 class BaseWeightsAdapter(cb.Callback):
 
   # Initialization
@@ -55,7 +50,7 @@ class BaseWeightsAdapter(cb.Callback):
     if (c1 and c2):
       self._weights_writer = {}
       for obj in self.multi_obj_loss_weights:
-        _logdir = self.log_dir + '/scalars/multi_obj_loss_weights/' + obj
+        _logdir = self.log_dir + "/scalars/multi_obj_loss_weights/" + obj
         self._weights_writer[obj] = tf.summary.create_file_writer(_logdir)
 
   def on_epoch_end(self, epoch, logs={}):
@@ -71,11 +66,11 @@ class BaseWeightsAdapter(cb.Callback):
         f"'{self.name}': the initial value of 1 will be applied."
       )
       self.multi_obj_loss_weights = {}
-      for obj in self.model.objectives['train']:
+      for obj in self.model.objectives["train"]:
         self.multi_obj_loss_weights[obj] = tf.ones(1, dtype=bkd.get_floatx())
     elif isinstance(self.multi_obj_loss_weights, (list,tuple)):
       self.multi_obj_loss_weights = utils.make_dict(
-        self.model.objectives['train'], self.multi_obj_loss_weights
+        self.model.objectives["train"], self.multi_obj_loss_weights
       )
     elif isinstance(self.multi_obj_loss_weights, dict):
       pass
@@ -93,12 +88,12 @@ class BaseWeightsAdapter(cb.Callback):
     weights = tf.nest.map_structure(
       lambda x: np.squeeze(x.numpy()), self.multi_obj_loss_weights
     )
-    logs.update({obj + '_loss_weight': w for (obj, w) in weights.items()})
+    logs.update({obj + "_loss_weight": w for (obj, w) in weights.items()})
     if (self._weights_writer is not None):
       for (obj, writer) in self._weights_writer.items():
         with writer.as_default():
           tf.summary.scalar(
-            name='epoch_' + obj + '_loss_weight',
+            name="epoch_" + obj + "_loss_weight",
             data=weights[obj],
             step=epoch
           )
@@ -139,7 +134,7 @@ class BaseWeightsAdapter(cb.Callback):
     pass
 
 
-@keras_export('keras.callbacks.ConstantWeightsAdapter')
+@keras_export("keras.callbacks.ConstantWeightsAdapter")
 class ConstantWeightsAdapter(BaseWeightsAdapter):
 
   # Initialization
@@ -168,7 +163,7 @@ class ConstantWeightsAdapter(BaseWeightsAdapter):
     self._init_weights()
 
 
-@keras_export('keras.callbacks.EmpiricalWeightsAdapter')
+@keras_export("keras.callbacks.EmpiricalWeightsAdapter")
 class EmpiricalWeightsAdapter(BaseWeightsAdapter):
   """Adaptive loss weights technique for PINNs based on an empirical learning
   rate annealing algorithm.
@@ -220,7 +215,7 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
   def on_train_begin(self, logs={}):
     super(EmpiricalWeightsAdapter, self).on_train_begin(logs=logs)
     self._init_weights()
-    cond = (self.ref_obj not in self.model.objectives['train'])
+    cond = (self.ref_obj not in self.model.objectives["train"])
     if (cond and self._check_ref_obj):
       utils.warning(
         f"Network '{self.model.name}' hasn't any '{self.ref_obj}' objective "
@@ -246,14 +241,14 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
   def _eval_loss_gradients(self):
     losses = {}
     with backprop.GradientTape(persistent=True) as tape:
-      for obj in self.model.objectives['train']:
+      for obj in self.model.objectives["train"]:
         x, y = self.dataset[obj][:2]
         # Get predictions
         y_pred = self.model.multi_obj_pred(x, objective=obj)
         # Evaluate each objective function loss
         losses[obj] = self.model.compiled_loss[obj](y, y_pred)
     # Evaluate each objective function loss
-    for obj in self.model.objectives['train']:
+    for obj in self.model.objectives["train"]:
       self.gradients[obj] = tape.gradient(
         losses[obj], self.model.trainable_variables
       )
@@ -284,7 +279,7 @@ class EmpiricalWeightsAdapter(BaseWeightsAdapter):
     return self.reduction(gradients)
 
 
-@keras_export('keras.callbacks.InverseDirichletWeightsAdapter')
+@keras_export("keras.callbacks.InverseDirichletWeightsAdapter")
 class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
   """Adaptive loss weights technique for PINNs based on Inverse-Dirichlet
   weighting."""
@@ -342,235 +337,3 @@ class InverseDirichletWeightsAdapter(EmpiricalWeightsAdapter):
     gradients = tf.nest.map_structure(lambda g: tf.reshape(g, -1), gradients)
     gradients = tf.concat(tf.nest.flatten(gradients), axis=0)
     return self.reduction(gradients)
-
-
-# @keras_export('keras.callbacks.NTKWeightsAdapter')
-# class NTKWeightsAdapter(EmpiricalWeightsAdapter):
-#   """Adaptive loss weights technique for PINNs based on Neural Tangent Kernel
-#   (NTK) theory.
-
-#   See:
-#     Sifan Wang, Xinling Yu, Paris Perdikaris
-#     'When and why PINNs fail to train: A neural tangent kernel perspective'
-#     https://arxiv.org/abs/2007.14527"""
-
-#   def __init__(
-#     self,
-#     ode_loss_weights=None,
-#     data=None,
-#     freq=None,
-#     log_dir=None,
-#     max_samples=1000,
-#     **kwargs
-#   ):
-#     super(NTKWeightsAdapter, self).__init__(
-#       ode_loss_weights=ode_loss_weights,
-#       data=data,
-#       freq=freq,
-#       log_dir=log_dir,
-#       max_samples=max_samples,
-#       **kwargs
-#     )
-#     self.pred_fn = {}
-
-#   def on_train_begin(self, logs={}):
-#     self._init_weights()
-#     self.set_pred_fn()
-
-#   def update(self):
-#     self._sample_dataset()
-#     ntk = self.get_ntk()
-#     self.update_loss_weights(ntk)
-#     self._check_weights()
-
-#   # Handling predictions
-#   ###########################################################################
-#   def set_pred_fn(self):
-#     for data_id in self.model.data_ids:
-#       if data_id == 'res':
-#         _pred_fn = self.model.residual
-#       else:
-#         _pred_fn = self.model.call
-#       self.pred_fn[data_id] = _pred_fn
-
-#   # Handling loss gradients
-#   ###########################################################################
-#   def flatten(self, x):
-#     # Flatten array or list of arrays into 1D vector
-#     if isinstance(x, (list,tuple)):
-#       return list(itertools.chain(
-#         *[tf.split(tf.reshape(i,[-1]), tf.size(i).numpy()) for i in x]
-#       ))
-#     else:
-#       return tf.split(tf.reshape(x,[-1]), tf.size(x).numpy())
-
-#   def get_ntk(self):
-#     pred = {}
-#     with backprop.GradientTape(persistent=True) as tape:
-#       for data_id in self.model.data_ids:
-#         x = self.dataset[data_id][0]
-#         pred[data_id] = self.flatten(
-#           self.pred_fn[data_id](
-#             self.dataset[data_id][0], training=False
-#           )
-#         )
-#     return self.eval_diag_ntk(pred, tape)
-
-#   def eval_diag_ntk(self, pred, tape):
-#     utils.print_fn("From 'NTKWeightsAdapter' callback:", lev=1)
-#     ntk = {}
-#     for data_id, pred_i in pred.items():
-#       utils.print_fn(
-#         "  - Evaluating NTK matrix for '{data_id}' data points", lev=1
-#       )
-#       ta = tf.TensorArray(
-#         dtype=bkd.get_floatx(),
-#         size=0,
-#         dynamic_size=True,
-#         clear_after_read=False
-#       )
-#       for i, elem in enumerate(tqdm(pred_i, file=sys.stdout)):
-#         grad = tape.gradient(
-#           elem,
-#           self.model.trainable_variables,
-#           unconnected_gradients='zero'
-#         )
-#         tr = tf.add_n([tf.reduce_sum(tf.multiply(g, g)) for g in grad])
-#         ta = ta.write(i, tr)
-#       ntk[data_id] = ta.stack()
-#     return ntk
-
-#   # Handling loss weights
-#   ###########################################################################
-#   def update_loss_weights(self, ntk):
-#     trace = {
-#       data_id: tf.reduce_sum(ntk_i).numpy() \
-#         for data_id, ntk_i in ntk.items()
-#     }
-#     norm_grad = tf.reduce_sum(list(trace.values())).numpy()
-#     for data_id in self.model.data_ids:
-#       self.model.ode_loss_weights[data_id] = norm_grad / trace[data_id]
-
-
-# @keras_export('keras.callbacks.SoftAttentionWeightsAdapter')
-# class SoftAttentionWeightsAdapter(BaseWeightsAdapter):
-#   """Base class for adaptive loss weights techniques."""
-
-#   def __init__(
-#     self,
-#     data=None,
-#     trainable=True,
-#     rank=1,
-#     limits=[1.,1.],
-#     mask=None,
-#     q=None,
-#     freq=1,
-#     log_dir=None,
-#     **kwargs
-#   ):
-#     super(SoftAttentionWeightsAdapter, self).__init__(
-#       data=data,
-#       freq=freq,
-#       log_dir=log_dir,
-#       **kwargs
-#     )
-#     # Characterize weights tensors
-#     self.trainable = trainable
-#     self.rank = rank
-
-#     # Define weights initializers
-#     self.limits = limits
-#     if isinstance(limits, list):
-#       self.limits = {
-#         obj: limits for obj in self.model.objectives['train']
-#       }
-#     if not isinstance(self.limits, dict):
-#       utils.raise_err(ValueError,
-#         "'limits' in '{}' has to be a 'dict' of [min, max] value "
-#         "list for each objecitve function.".format(self.name)
-#       )
-#     self.initializer = {
-#       obj: tf_init.RandomUniform(*l) for obj, l in self.limits.items()
-#     }
-
-#     # Define the self-adaptation mask function
-#     if q is not None:
-#       if any([q_i <= 0. for q_i in q]):
-#         utils.raise_err(ValueError,
-#           "'q' coefficents for the mask function in '{}' have "
-#           "to be positive.".format(self.name)
-#         )
-#     else:
-#       q = [1., 1.]
-#     if mask == 'poly':
-#       self.mask_fn = lambda x: q[0]*tf.pow(tf.math.abs(x), q[1])
-#     elif mask == 'sigmoid':
-#       self.mask_fn = lambda x: q[0]*tf.math.sigmoid(q[1]*x)
-#     elif mask == 'exp':
-#       self.mask_fn = lambda x: q[0]*tf.math.exp(q[1]*x)
-#     else:
-#       self.mask_fn = tf.square
-
-#     self._update = True
-#     self._init_weights()
-
-#   # Callback methods --------------------------------------------------------
-#   def on_train_begin(self, logs={}):
-#     super(SoftAttentionWeightsAdapter, self).on_train_begin(logs=logs)
-#     # Get indipendent model optimizer for each objective function
-#     self.optimizer = {
-#       obj: copy.deepcopy(self.model.optimizer) \
-#         for obj in self.model.objectives['train']
-#     }
-
-#   def on_epoch_begin(self, epoch, logs={}):
-#     if epoch % self.freq == 0:
-#       self._update = True
-#     else:
-#       self._update = False
-
-#   # Handling weights methods ------------------------------------------------
-#   def _init_weights(self):
-#     # Build sample weights
-#     self.data.init_sample_weight(
-#       self.initializer, self.trainable, self.rank
-#     )
-#     # Shuffle/Batch data
-#     self.data.keep_indices = True
-#     self.data.on_epoch_end()
-
-#   # Gradient descent methods ------------------------------------------------
-#   def on_grad_step_begin(self, sample_weight=None):
-#     if self._update and sample_weight is not None:
-#       return tf.nest.map_structure(
-#         lambda sw: tf.Variable(sw, trainable=self.trainable),
-#         sample_weight
-#       )
-
-#   def on_grad_step_eval(self, sample_weight=None):
-#     if sample_weight is not None:
-#       return tf.nest.map_structure(self.mask_fn, sample_weight)
-
-#   def on_grad_step_end(
-#     self,
-#     loss=0.,
-#     sample_weight=None,
-#     sample_index=None,
-#     tape=None
-#   ):
-#     if self._update and self.trainable and sample_weight is not None:
-#       for obj, sw in sample_weight.items():
-#         # Update batch sample weights
-#         sw = tf.nest.flatten(sw)
-#         grads = tf.nest.map_structure(
-#           lambda x: -tape.gradient(loss, x), sw
-#         )
-#         self.optimizer[obj].apply_gradients(zip(grads, sw))
-#         # Assign the updated sample weights to data container
-#         tf.nest.map_structure(
-#           lambda sw_old, sw_new: sw_old.scatter_nd_update(
-#             sample_index[obj], sw_new
-#           ),
-#           self.data[obj][-1],
-#           sw
-#         )

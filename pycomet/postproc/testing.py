@@ -5,7 +5,7 @@ from pycomet import utils
 from pycomet import operations as ops
 matplotlib, plt = utils.import_matplotlib()
 from matplotlib.ticker import ScalarFormatter
-COLORS = matplotlib.rcParams['axes.prop_cycle'].by_key()['color']
+COLORS = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
 
 
 # Formatter
@@ -25,9 +25,9 @@ class FixedScalarFormatter(ScalarFormatter):
     if (self.sigfigs is None):
       super()._set_format()
     else:
-      self.format = f'%.{self.sigfigs}f'
+      self.format = f"%.{self.sigfigs}f"
       if (self._usetex or self._useMathText):
-          self.format = r'$\mathdefault{%s}$' % self.format
+          self.format = r"$\mathdefault{%s}$" % self.format
 
 # Plotting testing quantities
 # =====================================
@@ -40,7 +40,7 @@ def plot_test(
   figname=None,
   figext="png",
   labels=[None, None],
-  scales=['log', 'linear'],
+  scales=["log", "linear"],
   title=None,
   xlim=None,
   ylim=None,
@@ -65,7 +65,7 @@ def plot_test(
     ax.set_xscale(scales[0])
   if (xlim is not None):
     ax.set_xlim(*xlim)
-  elif (scales[0] != 'log'):
+  elif (scales[0] != "log"):
     ax.set_xlim([min(x), max(x)])
   # y-axis
   if (labels[1] is not None):
@@ -91,11 +91,11 @@ def plot_test(
     lw=1.
   )
   pred_style = dict(
-    marker='^',
-    fillstyle='none',
+    marker="^",
+    fillstyle="none",
     markersize=5,
     markevery=y.shape[0]//20,
-    ls='--',
+    ls="--",
     lw=1.
   )
   # Define parameters
@@ -128,9 +128,9 @@ def plot_test(
         step = int(np.ceil(n/max_nb_var))
         idx = np.arange(0,n,step)
         n = max_nb_var
-      fs = 'small'
+      fs = "small"
     else:
-      fs = 'medium'
+      fs = "medium"
     ax.legend(
       [plt.plot([], [], c=colors[i])[0] for i in idx],
       [varnames[i] for i in idx],
@@ -143,8 +143,8 @@ def plot_test(
   # -----------------------------------
   if save:
     os.makedirs(path, exist_ok=True)
-    figname = f'output_{scales[1]}' if (figname is None) else figname
-    fig.savefig(path + f'/{figname}.{figext}')
+    figname = f"output_{scales[1]}" if (figname is None) else figname
+    fig.savefig(path + f"/{figname}.{figext}")
   # Finalizing
   # -----------------------------------
   if (fig_ax is not None):
@@ -159,19 +159,19 @@ def plot_figures(x, y, y_pred, path, figures):
   Args:
     x, y, y_pred: data.
     path: Saving folder.
-    figures: Dictionary (or a list of dictionaries) of keyword 
+    figures: Dictionary (or a list of dictionaries) of keyword
       arguments. The arguments are:
-      - 'figname': Figure name.
-      - 'indices': Tuple of the following form:
-        - x indices: mapping to get x-axis values from 'data'.
-        - y indices: mapping to get true y-axis values from 'data'.
+      - "figname": Figure name.
+      - "indices": Tuple of the following form:
+        - x indices: mapping to get x-axis values from "data".
+        - y indices: mapping to get true y-axis values from "data".
         - y_pred indices: mapping to get predicted y-axis values.
-        If any is 'None', no data are taken.
-      - 'output_ops': Callable function to manipulate both y and 
+        If any is "None", no data are taken.
+      - "output_ops": Callable function to manipulate both y and
         y_pred (not required).
-      - 'varnames': Names of the variables (not required).
-      - 'labels': Figure labels (not required).
-      - 'scales': Figure scales (not required).
+      - "varnames": Names of the variables (not required).
+      - "labels": Figure labels (not required).
+      - "scales": Figure scales (not required).
   """
   if (not isinstance(figures, (list,tuple))):
     figures = [figures]
@@ -181,11 +181,11 @@ def plot_figures(x, y, y_pred, path, figures):
     _x, _y, _y_pred = list(map(
       lambda x,i: ops.extract_data(x,i,1),
       [x, y, y_pred],
-      figure['indices']
+      figure["indices"]
     ))
     # Manipulate y-axis values
-    if ('output_ops' in figure):
-      _y, _y_pred = list(map(figure['output_ops'], [_y, _y_pred]))
+    if ("output_ops" in figure):
+      _y, _y_pred = list(map(figure["output_ops"], [_y, _y_pred]))
     # Arguments for the plotting function
     plot_kwargs = dict(path=path, x=_x, y=_y, y_pred=_y_pred)
     for k in utils.get_fun_args(plot_test):

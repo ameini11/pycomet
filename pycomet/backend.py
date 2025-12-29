@@ -3,12 +3,9 @@ import tensorflow as tf
 
 from tensorflow.keras import backend as bkd_ke
 from tensorflow.python.keras import backend as bkd_py
-from pycomet.config import VALID_FLOATXS, get_config
 
 
-def set(cfg=None):
-  if (cfg is None):
-    cfg = get_config()
+def set(cfg={}):
   _set_floatx(getattr(cfg, "floatx", "float32"))
   _set_epsilon(getattr(cfg, "epsilon", None))
 
@@ -30,8 +27,6 @@ def get_floatx(bkd="tf"):
 def _set_floatx(value):
   global _FLOATX
   _FLOATX = str(value).lower()
-  if (_FLOATX not in VALID_FLOATXS):
-    _FLOATX = "float32"
   for k in (bkd_py, bkd_ke):
     k.set_floatx(_FLOATX)
 

@@ -10,7 +10,7 @@ from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.platform import tf_logging as logging
 
 
-@keras_export('keras.callbacks.LRPiecewiseConstantDecay')
+@keras_export("keras.callbacks.LRPiecewiseConstantDecay")
 class LRPiecewiseConstantDecay(cb.Callback):
 
   # Initialization
@@ -50,7 +50,7 @@ class LRPiecewiseConstantDecay(cb.Callback):
           "learning rate to %s." % (epoch + 1, new_lr)
         )
 
-@keras_export('keras.callbacks.LearningRateTracker')
+@keras_export("keras.callbacks.LearningRateTracker")
 class LearningRateTracker(cb.CSVLogger):
 
   # Initialization
@@ -58,7 +58,7 @@ class LearningRateTracker(cb.CSVLogger):
   def __init__(
     self,
     log_dir=None,
-    filename='',
+    filename="",
     verbose=1
   ):
     super(LearningRateTracker, self).__init__(filename)
@@ -71,7 +71,7 @@ class LearningRateTracker(cb.CSVLogger):
     super(LearningRateTracker, self).set_model(model)
     self._lr_writer = None
     if (self.log_dir is not None):
-      _logdir = self.log_dir + '/scalars/lr'
+      _logdir = self.log_dir + "/scalars/lr"
       self._lr_writer = tf.summary.create_file_writer(_logdir)
 
   def on_epoch_begin(self, epoch, logs={}):
@@ -82,7 +82,7 @@ class LearningRateTracker(cb.CSVLogger):
     if (self._lr_writer is not None):
       with self._lr_writer.as_default():
         tf.summary.scalar(
-          name='epoch_learning_rate', data=lr_value, step=epoch
+          name="epoch_learning_rate", data=lr_value, step=epoch
         )
     # Update logs
     logs = {"lr": lr_value}
@@ -94,18 +94,18 @@ class LearningRateTracker(cb.CSVLogger):
   def on_epoch_end(self, epoch, logs=None):
     pass
 
-@keras_export('keras.callbacks.ReduceLROnPlateau')
+@keras_export("keras.callbacks.ReduceLROnPlateau")
 class ReduceLROnPlateau(cb.ReduceLROnPlateau):
 
   # Initialization
   # ===================================
   def __init__(
     self,
-    monitor='val_loss',
+    monitor="val_loss",
     factor=0.5,
     patience=200,
     verbose=1,
-    mode='auto',
+    mode="auto",
     min_delta=1e-4,
     cooldown=0,
     min_lr=1.e-6,
@@ -131,7 +131,7 @@ class ReduceLROnPlateau(cb.ReduceLROnPlateau):
       self.model.optimizer.lr, tf_opt.schedules.LearningRateSchedule
     )
     c1 = self.is_lr_scheduler
-    c2 = (not hasattr(self.model.optimizer.lr, 'initial_learning_rate'))
+    c2 = (not hasattr(self.model.optimizer.lr, "initial_learning_rate"))
     if (c1 and c2):
       utils.raise_err(
         ValueError,
@@ -141,13 +141,13 @@ class ReduceLROnPlateau(cb.ReduceLROnPlateau):
       )
 
   def on_epoch_end(self, epoch, logs={}):
-    logs['lr'] = self._get_lr()
+    logs["lr"] = self._get_lr()
     current = logs.get(self.monitor)
     if (current is None):
       logging.warning(
         "Learning rate reduction is conditioned on metric '%s' " \
         "which is not available. Available metrics are: %s",
-        self.monitor, ','.join(list(logs.keys()))
+        self.monitor, ",".join(list(logs.keys()))
       )
     else:
       if self.in_cooldown():
@@ -159,13 +159,13 @@ class ReduceLROnPlateau(cb.ReduceLROnPlateau):
       elif (not self.in_cooldown()):
         self.wait += 1
         if (self.wait >= self.patience):
-          old_lr = logs['lr']
+          old_lr = logs["lr"]
           if (old_lr > self.min_lr):
             new_lr = self._set_lr(old_lr)
             if (self.verbose > 0):
               io_utils.print_msg(
-                '\nEpoch %05d: ReduceLROnPlateau reducing learning'
-                ' rate to %s.' % (epoch + 1, new_lr)
+                "\nEpoch %05d: ReduceLROnPlateau reducing learning"
+                " rate to %s." % (epoch + 1, new_lr)
               )
             self.cooldown_counter = self.cooldown
             self.wait = 0

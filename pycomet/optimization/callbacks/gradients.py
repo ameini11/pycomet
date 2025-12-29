@@ -8,7 +8,7 @@ from pycomet import utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.callbacks.GradientsTracker')
+@keras_export("keras.callbacks.GradientsTracker")
 class GradientsTracker(cb.Callback):
 
   # Initialization
@@ -47,7 +47,7 @@ class GradientsTracker(cb.Callback):
     )
     self._grads_writer = None
     if ((self.log_dir is not None) and (self.histogram_freq > 0)):
-      _log_dir = self.log_dir + '/train/grads'
+      _log_dir = self.log_dir + "/train/grads"
       self._grads_writer = tf.summary.create_file_writer(_log_dir)
     # Make function to compute gradients
     self._compute_gradients = tf.function(
@@ -91,7 +91,7 @@ class GradientsTracker(cb.Callback):
     gradients,
     gradients_mean
   ):
-    with h5py.File(self.h5filename, 'a') as file:
+    with h5py.File(self.h5filename, "a") as file:
       for name in self._weights_names:
         self._save_grads_to_h5(file, "tensor", epoch, name, gradients[name])
         self._save_grads_to_h5(file, "mean", epoch, name, gradients_mean[name])

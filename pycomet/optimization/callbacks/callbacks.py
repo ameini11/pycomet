@@ -32,61 +32,61 @@ def get_callback(model, identifier, kwargs):
       return learning_rate.ReduceLROnPlateau(**kwargs)
     elif (identifier == "lr_tracker"):
       return learning_rate.LearningRateTracker(
-        filename=model.dir['train']+'/lr.csv',
-        log_dir=model.dir['logs'],
+        filename=model.dir["train"]+"/lr.csv",
+        log_dir=model.dir["logs"],
         **kwargs
       )
     elif (identifier == "grads_tracker"):
       return gradients.GradientsTracker(
         data=model.data,
-        log_dir=model.dir['logs'],
-        h5filename=model.dir['train']+"/grads.h5",
+        log_dir=model.dir["logs"],
+        h5filename=model.dir["train"]+"/grads.h5",
         **kwargs
       )
     elif (identifier == "plotter"):
       return plotting.Plotter(
         test_data=model.data.test,
-        train_dir=model.dir['train'],
+        train_dir=model.dir["train"],
         **kwargs
       )
     elif (identifier == "model_ckpt"):
       mc = []
-      if ('formats' in kwargs):
-        formats = tf.nest.flatten(kwargs['formats'])
+      if ("formats" in kwargs):
+        formats = tf.nest.flatten(kwargs["formats"])
       else:
-        formats = ['h5']
+        formats = ["h5"]
       for k in formats:
-        if (k in ('h5', 'hdf5')):
+        if (k in ("h5", "hdf5")):
           kwargs.update({
-            'filepath': model.dir['ckpt'] + "/{epoch:06d}.weights.hdf5",
-            'save_weights_only': True
+            "filepath": model.dir["ckpt"] + "/{epoch:06d}.weights.hdf5",
+            "save_weights_only": True
           })
         else:
           kwargs.update({
-            'filepath': model.dir['ckpt'] + "/model.ckpt",
+            "filepath": model.dir["ckpt"] + "/model.ckpt",
           })
         mc.append(model_ckpt.ModelCheckpoint(**kwargs))
       return mc
     elif (identifier == "tensorboard"):
-      return cb.TensorBoard(**kwargs, log_dir=model.dir['logs'])
+      return cb.TensorBoard(**kwargs, log_dir=model.dir["logs"])
     elif (identifier == "terminator"):
       return early_stopping.Terminator(
-        filename=model.dir['train']+'/train_ctrl.json',
+        filename=model.dir["train"]+"/train_ctrl.json",
         **kwargs
       )
     elif (identifier == "timer"):
       return early_stopping.Timer(**kwargs)
     elif (identifier == "variable"):
       return variable.VariablesTracker(
-        filename=model.dir['train']+'/variables.csv',
-        log_dir=model.dir['logs'],
+        filename=model.dir["train"]+"/variables.csv",
+        log_dir=model.dir["logs"],
         **kwargs
       )
     elif (identifier == "weighted_loss"):
       kwargs.update(
         dict(
           data=model.data,
-          log_dir=model.dir['logs']
+          log_dir=model.dir["logs"]
         )
       )
       return utils.get_class(weighted_loss, kwargs=kwargs)

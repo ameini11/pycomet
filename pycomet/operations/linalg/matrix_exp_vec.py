@@ -60,17 +60,6 @@ def _taylor(A, B, deg):
     B += f[i-2] * Ap_B
   return B
 
-# def expmv(A, B, s, m):
-#   F = B
-#   # Squarings
-#   for i in tf.range(s, dtype=B.dtype):
-#     # Polynomial
-#     for j in tf.range(m, dtype=B.dtype):
-#       B = (1.0 / (s * (j+1.0))) * tf.matmul(A, B)
-#       F += B
-#     B = F
-#   return F
-
 # Squaring operation
 # -------------------------------------
 def _squaring(A, B, squarings, deg):

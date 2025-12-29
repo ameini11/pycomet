@@ -6,7 +6,7 @@ from keras.utils import io_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.callbacks.Timer')
+@keras_export("keras.callbacks.Timer")
 class Timer(cb.Callback):
   """Stop training when training time reaches the threshold.
   This Timer starts after the first call of `on_train_begin`."""
@@ -51,8 +51,8 @@ class Terminator(cb.Callback):
     super(Terminator, self).__init__()
     self.filename = filename
     # Generate file
-    train_ctrl = {'stop_training': False}
-    with open(self.filename, 'w') as file:
+    train_ctrl = {"stop_training": False}
+    with open(self.filename, "w") as file:
       json.dump(train_ctrl, file, indent=4)
     # Frequency
     self.freq = freq
@@ -63,6 +63,6 @@ class Terminator(cb.Callback):
     if (epoch % self.freq == 0):
       with open(self.filename) as file:
         train_ctrl = json.load(file)
-      if train_ctrl['stop_training']:
+      if train_ctrl["stop_training"]:
         io_utils.print_msg("\nTraining manually stopped.")
         self.model.stop_training = True

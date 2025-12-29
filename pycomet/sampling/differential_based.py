@@ -11,7 +11,7 @@ class DifferentialBased(Sampler):
   # ===================================
   def __init__(
     self,
-    method='source',
+    method="source",
     grad_split=0.75,
     xlim=None,
     name=None,
@@ -37,13 +37,13 @@ class DifferentialBased(Sampler):
     self.shape = y.shape
     # Rolling indices for 2nd order centered difference approximations
     indices = np.arange(self.shape[0])
-    indices = {k: np.roll(indices, -1*int(k)) for k in ('-1','+1')}
+    indices = {k: np.roll(indices, -1*int(k)) for k in ("-1","+1")}
     # Compute differential quantities
     dx, dy = [self._compute_diff(z, indices) for z in [x, y]]
-    if (self.method == 'jac'):
+    if (self.method == "jac"):
       # Jacobian-based sampling method
       norm = self._compute_norm_jac(dx, dy, indices)
-    elif (self.method == 'source'):
+    elif (self.method == "source"):
       # Source-based sampling method
       norm = self._compute_norm_source(dx, dy)
     # Limit the sampling domain
@@ -74,7 +74,7 @@ class DifferentialBased(Sampler):
     return np.linalg.norm(J.reshape(n,d**2), axis=1)
 
   def _compute_diff(self, x, i):
-    dx = x[i['+1']] - x[i['-1']]
+    dx = x[i["+1"]] - x[i["-1"]]
     dx[0], dx[-1] = dx[1], dx[-2]
     return dx
 

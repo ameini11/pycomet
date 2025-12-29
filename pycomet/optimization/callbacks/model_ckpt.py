@@ -7,7 +7,7 @@ from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.platform import tf_logging as logging
 
 
-@keras_export('keras.callbacks.ModelCheckpoint')
+@keras_export("keras.callbacks.ModelCheckpoint")
 class ModelCheckpoint(cb.ModelCheckpoint):
 
   # Initialization
@@ -76,7 +76,7 @@ class ModelCheckpoint(cb.ModelCheckpoint):
                   filepath,
                   overwrite=True,
                   include_optimizer=False,
-                  save_format='tf',
+                  save_format="tf",
                   signatures=None,
                   options=self._options,
                   save_traces=True
@@ -103,7 +103,7 @@ class ModelCheckpoint(cb.ModelCheckpoint):
               filepath,
               overwrite=True,
               include_optimizer=False,
-              save_format='tf',
+              save_format="tf",
               signatures=None,
               options=self._options,
               save_traces=True

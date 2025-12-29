@@ -15,10 +15,10 @@ _CFG = get_config()
 _LOSS_IDS = ("mae", "malpe", "mape", "mse", "msle", "gnlll", "zero")
 
 def get(
-  loss='mse',
+  loss="mse",
   axis=0,
   gathered=None,
-  reduction='auto',
+  reduction="auto",
   std_scaler=None,
   **kwargs
 ):
@@ -64,13 +64,13 @@ def get(
       "'axis' for loss function is not interpretable. " \
       "Valid options are: [0, -1, None]."
     )
-  kwargs['axis'] = axis
-  # Get 'reduction' variable
-  kwargs['reduction'] = {
-    'auto': losses_utils.ReductionV2.AUTO,
-    'none': losses_utils.ReductionV2.NONE,
-    'sum': losses_utils.ReductionV2.SUM,
-    'sum_over_batch_size': losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE
+  kwargs["axis"] = axis
+  # Get "reduction" variable
+  kwargs["reduction"] = {
+    "auto": losses_utils.ReductionV2.AUTO,
+    "none": losses_utils.ReductionV2.NONE,
+    "sum": losses_utils.ReductionV2.SUM,
+    "sum_over_batch_size": losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE
   }[reduction.lower()]
   # Scaler/Gathered
   objects = {}
@@ -98,15 +98,15 @@ def get_loss_fn(
   identifier=None,
   axis=0,
   gathered=None,
-  reduction='auto',
+  reduction="auto",
   std_scaler=None,
   **kwargs
 ):
   kwargs.update({
-    'axis': axis,
-    'gathered': gathered,
-    'reduction': reduction,
-    'std_scaler': std_scaler
+    "axis": axis,
+    "gathered": gathered,
+    "reduction": reduction,
+    "std_scaler": std_scaler
   })
   if isinstance(identifier, str):
     if (identifier.lower() in _LOSS_IDS):
@@ -133,7 +133,7 @@ def get_loss_fn(
 
 # Custom loss functions
 # =====================================
-@keras_export('keras.losses.PCMLossFunctionWrapper')
+@keras_export("keras.losses.PCMLossFunctionWrapper")
 class PCMLossFunctionWrapper(tf_losses.LossFunctionWrapper):
 
   def __init__(
@@ -182,15 +182,15 @@ class PCMLossFunctionWrapper(tf_losses.LossFunctionWrapper):
 
   def _scale(self, y_true, y_pred):
     if (self.std_scaler is not None):
-      m = self.std_scaler['mean']
-      s = self.std_scaler['std']
+      m = self.std_scaler["mean"]
+      s = self.std_scaler["std"]
       y_true = (y_true - m) / s
       y_pred = (y_pred - m) / s
     return y_true, y_pred
 
 # MAE
 # -------------------------------------
-@keras_export('keras.losses.MeanAbsoluteError')
+@keras_export("keras.losses.MeanAbsoluteError")
 class MeanAbsoluteError(PCMLossFunctionWrapper):
 
   def __init__(
@@ -199,7 +199,7 @@ class MeanAbsoluteError(PCMLossFunctionWrapper):
     gathered=None,
     std_scaler=None,
     reduction=losses_utils.ReductionV2.AUTO,
-    name='mean_absolute_error',
+    name="mean_absolute_error",
     **kwargs
   ):
     super().__init__(
@@ -212,13 +212,13 @@ class MeanAbsoluteError(PCMLossFunctionWrapper):
       **kwargs
     )
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name, name='MAE')
+@tf.keras.utils.register_keras_serializable(package=_CFG.name, name="MAE")
 def mean_absolute_error(y_true, y_pred):
   return tf.abs(y_true - y_pred)
 
 # MALPE
 # -------------------------------------
-@keras_export('keras.losses.MeanAbsoluteLogarithmicPercentageError')
+@keras_export("keras.losses.MeanAbsoluteLogarithmicPercentageError")
 class MeanAbsoluteLogarithmicPercentageError(PCMLossFunctionWrapper):
 
   def __init__(
@@ -227,7 +227,7 @@ class MeanAbsoluteLogarithmicPercentageError(PCMLossFunctionWrapper):
     gathered=None,
     std_scaler=None,
     reduction=losses_utils.ReductionV2.AUTO,
-    name='mean_absolute_logarithmic_percentage_error',
+    name="mean_absolute_logarithmic_percentage_error",
     **kwargs
   ):
     super().__init__(
@@ -240,7 +240,7 @@ class MeanAbsoluteLogarithmicPercentageError(PCMLossFunctionWrapper):
       **kwargs
     )
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name, name='MALPE')
+@tf.keras.utils.register_keras_serializable(package=_CFG.name, name="MALPE")
 def mean_absolute_logarithmic_percentage_error(y_true, y_pred):
   y_pred = tf.math.log(tf_bkd.maximum(y_pred, bkd.get_epsilon()))
   y_true = tf.math.log(tf_bkd.maximum(y_true, bkd.get_epsilon()))
@@ -248,7 +248,7 @@ def mean_absolute_logarithmic_percentage_error(y_true, y_pred):
 
 # MAPE
 # -------------------------------------
-@keras_export('keras.losses.MeanAbsolutePercentageError')
+@keras_export("keras.losses.MeanAbsolutePercentageError")
 class MeanAbsolutePercentageError(PCMLossFunctionWrapper):
 
   def __init__(
@@ -257,7 +257,7 @@ class MeanAbsolutePercentageError(PCMLossFunctionWrapper):
     gathered=None,
     std_scaler=None,
     reduction=losses_utils.ReductionV2.AUTO,
-    name='mean_absolute_percentage_error',
+    name="mean_absolute_percentage_error",
     **kwargs
   ):
     super().__init__(
@@ -270,14 +270,14 @@ class MeanAbsolutePercentageError(PCMLossFunctionWrapper):
       **kwargs
     )
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name, name='MAPE')
+@tf.keras.utils.register_keras_serializable(package=_CFG.name, name="MAPE")
 def mean_absolute_percentage_error(y_true, y_pred):
   loss = tf_bkd.maximum(tf.abs(y_true), bkd.get_epsilon())
   return 100 * tf.abs((y_true - y_pred) / loss)
 
 # MSE
 # -------------------------------------
-@keras_export('keras.losses.MeanSquaredError')
+@keras_export("keras.losses.MeanSquaredError")
 class MeanSquaredError(PCMLossFunctionWrapper):
 
   def __init__(
@@ -286,7 +286,7 @@ class MeanSquaredError(PCMLossFunctionWrapper):
     gathered=None,
     std_scaler=None,
     reduction=losses_utils.ReductionV2.AUTO,
-    name='mean_squared_error',
+    name="mean_squared_error",
     **kwargs
   ):
     super().__init__(
@@ -299,13 +299,13 @@ class MeanSquaredError(PCMLossFunctionWrapper):
       **kwargs
     )
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name, name='MSE')
+@tf.keras.utils.register_keras_serializable(package=_CFG.name, name="MSE")
 def mean_squared_error(y_true, y_pred):
   return tf.math.squared_difference(y_pred, y_true)
 
 # MSLE
 # -------------------------------------
-@keras_export('keras.losses.MeanSquaredLogarithmicError')
+@keras_export("keras.losses.MeanSquaredLogarithmicError")
 class MeanSquaredLogarithmicError(PCMLossFunctionWrapper):
 
   def __init__(
@@ -314,7 +314,7 @@ class MeanSquaredLogarithmicError(PCMLossFunctionWrapper):
     gathered=None,
     std_scaler=None,
     reduction=losses_utils.ReductionV2.AUTO,
-    name='mean_squared_logarithmic_error',
+    name="mean_squared_logarithmic_error",
     **kwargs
   ):
     super().__init__(
@@ -327,7 +327,7 @@ class MeanSquaredLogarithmicError(PCMLossFunctionWrapper):
       **kwargs
     )
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name, name='MSLE')
+@tf.keras.utils.register_keras_serializable(package=_CFG.name, name="MSLE")
 def mean_squared_logarithmic_error(y_true, y_pred):
   y_pred = tf.math.log(tf_bkd.maximum(y_pred, bkd.get_epsilon()))
   y_true = tf.math.log(tf_bkd.maximum(y_true, bkd.get_epsilon()))
@@ -335,7 +335,7 @@ def mean_squared_logarithmic_error(y_true, y_pred):
 
 # GNLLL
 # -------------------------------------
-@keras_export('keras.losses.GaussianNLLLoss')
+@keras_export("keras.losses.GaussianNLLLoss")
 class GaussianNLLLoss(PCMLossFunctionWrapper):
 
   def __init__(
@@ -344,7 +344,7 @@ class GaussianNLLLoss(PCMLossFunctionWrapper):
     gathered=None,
     std_scaler=None,
     reduction=losses_utils.ReductionV2.AUTO,
-    name='gaussian_nll_loss',
+    name="gaussian_nll_loss",
     **kwargs
   ):
     super().__init__(
@@ -357,7 +357,7 @@ class GaussianNLLLoss(PCMLossFunctionWrapper):
       **kwargs
     )
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name, name='GNLLL')
+@tf.keras.utils.register_keras_serializable(package=_CFG.name, name="GNLLL")
 def gaussian_nll_loss(y_true, y_pred, full=False):
   # Get mean and variance
   y_pred_mu, y_pred_sigma = tf.split(y_pred, 2, axis=-1)
@@ -375,7 +375,7 @@ def gaussian_nll_loss(y_true, y_pred, full=False):
 
 # ZERO
 # -------------------------------------
-@keras_export('keras.losses.Zero')
+@keras_export("keras.losses.Zero")
 class Zero(PCMLossFunctionWrapper):
 
   def __init__(
@@ -384,7 +384,7 @@ class Zero(PCMLossFunctionWrapper):
     gathered=None,
     std_scaler=None,
     reduction=losses_utils.ReductionV2.AUTO,
-    name='zero',
+    name="zero",
     **kwargs
   ):
     super().__init__(
@@ -397,6 +397,6 @@ class Zero(PCMLossFunctionWrapper):
       **kwargs
     )
 
-@tf.keras.utils.register_keras_serializable(package=_CFG.name, name='ZERO')
+@tf.keras.utils.register_keras_serializable(package=_CFG.name, name="ZERO")
 def zero(y_true, y_pred):
   return tf.constant(0.0, dtype=bkd.get_floatx())

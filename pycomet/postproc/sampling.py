@@ -21,15 +21,15 @@ def plot_pairwise(
   fig, axs = plt.subplots(
     n,
     n,
-    sharex='col',
-    sharey='row',
+    sharex="col",
+    sharey="row",
     figsize=figsize
   )
   axs = np.array(axs).reshape(n,n)
   for i in range(n):
     for j in range(n):
       if (i < j):
-        axs[i, j].axis('off')
+        axs[i, j].axis("off")
       else:
         if (j == 0):
           axs[i,j].set_ylabel(names[i+1], fontsize=12)
@@ -40,8 +40,8 @@ def plot_pairwise(
           axs[i,j].set_yscale(scales[i+1])
         else:
           axs[i,j].ticklabel_format(
-            axis='both',
-            style='sci',
+            axis="both",
+            style="sci",
             scilimits=(0,0)
           )
           if (labelpad is not None):
@@ -51,10 +51,10 @@ def plot_pairwise(
           axs[i,j].plot(
             x[j],
             x[i+1],
-            marker='o',
+            marker="o",
             markersize=1,
-            ls='',
-            fillstyle='full'
+            ls="",
+            fillstyle="full"
           )
   plt.tight_layout()
   fig.savefig(figname)
@@ -65,14 +65,14 @@ def plot_pairwise(
 def plot_hist_1d(
   x,
   xlabel,
-  figname='hist_1d.pdf',
+  figname="hist_1d.pdf",
   nb_bins=40,
   show=False
 ):
   fig, ax = plt.subplots(tight_layout=True)
   ax.hist(x, bins=nb_bins)
   ax.set_xlabel(xlabel)
-  ax.set_ylabel('Num. samples')
+  ax.set_ylabel("Num. samples")
   if show:
     plt.show()
   plt.savefig(figname)
@@ -82,10 +82,10 @@ def plot_hist_2d(
   x,
   y,
   labels,
-  figname='hist_2d.pdf',
+  figname="hist_2d.pdf",
   nb_bins=40,
   show=False,
-  cmap='jet'
+  cmap="jet"
 ):
   fig, ax = plt.subplots(tight_layout=True)
   ax.hist2d(x, y, bins=nb_bins, cmap=cmap)
@@ -100,13 +100,13 @@ def plot_hist_3d(
   x,
   y,
   labels,
-  figname='hist_3d.pdf',
+  figname="hist_3d.pdf",
   nb_bins=40,
   show=False,
-  cmap='jet'
+  cmap="jet"
 ):
   fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
+  ax = fig.add_subplot(111, projection="3d")
   hist, xedges, yedges = np.histogram2d(x, y, bins=(nb_bins,nb_bins))
   xpos, ypos = np.meshgrid(xedges[:-1]+xedges[1:], yedges[:-1]+yedges[1:])
   xpos = 0.5 * xpos.flatten()
@@ -119,7 +119,7 @@ def plot_hist_3d(
   max_height = np.max(dz)
   min_height = np.min(dz)
   rgba = [cmap((k-min_height)/max_height) for k in dz]
-  ax.bar3d(xpos, ypos, zpos, dx, dy, dz, color=rgba, zsort='average')
+  ax.bar3d(xpos, ypos, zpos, dx, dy, dz, color=rgba, zsort="average")
   plt.xlabel(labels[0])
   plt.ylabel(labels[1])
   plt.savefig(figname)

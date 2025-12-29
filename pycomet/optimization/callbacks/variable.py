@@ -5,7 +5,7 @@ from tensorflow.python.keras import callbacks as cb
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.callbacks.VariablesTracker')
+@keras_export("keras.callbacks.VariablesTracker")
 class VariablesTracker(cb.CSVLogger):
 
   # Initialization
@@ -14,7 +14,7 @@ class VariablesTracker(cb.CSVLogger):
     self,
     var_names=[],
     log_dir=None,
-    filename=''
+    filename=""
   ):
     super(VariablesTracker, self).__init__(filename)
     self.var_names = tf.nest.flatten(var_names)
@@ -28,12 +28,12 @@ class VariablesTracker(cb.CSVLogger):
     # Set the writer
     self._vars_writer = None
     if (self.log_dir is not None):
-      _logdir = self.log_dir + '/scalars/tracked_variables'
+      _logdir = self.log_dir + "/scalars/tracked_variables"
       self._vars_writer = tf.summary.create_file_writer(_logdir)
     # Set the variables to be tracked
     variables = {}
     for var in self.model.trainable_variables:
-      variables[var.name.split(':')[0]] = var
+      variables[var.name.split(":")[0]] = var
     for name in self.var_names:
       if (name not in variables.keys()):
         utils.warning(

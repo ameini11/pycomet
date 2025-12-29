@@ -60,7 +60,6 @@ utils.append_mod_dir(getattr(_CFG, "custom_pkg", {}))
 # Remaining modules
 from pycomet import apps
 from pycomet import data
-from pycomet import device
 from pycomet import model
 from pycomet import networks
 from pycomet import operations

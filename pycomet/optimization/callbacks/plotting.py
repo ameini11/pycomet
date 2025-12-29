@@ -15,7 +15,7 @@ from pycomet.config import get_config
 _CFG = get_config()
 
 
-@keras_export('keras.callbacks.Plotter')
+@keras_export("keras.callbacks.Plotter")
 class Plotter(cb.Callback):
 
   # Initialization
@@ -32,8 +32,8 @@ class Plotter(cb.Callback):
     self.test_data = test_data
     self.train_dir = train_dir
     self.dir = {
-      'train': self.train_dir + 'plots/training',
-      'test': self.train_dir + 'plots/testing'
+      "train": self.train_dir + "plots/training",
+      "test": self.train_dir + "plots/testing"
     }
     for path in self.dir.values():
       os.makedirs(path, exist_ok=True)
@@ -45,19 +45,19 @@ class Plotter(cb.Callback):
   # ===================================
   def on_epoch_end(self, epoch, logs=None):
     if ((epoch != 0) and (epoch % self.freq == 0)):
-      utils.print_fn(">> 'Plotter' callback:", start='\n\n', lev=0)
+      utils.print_fn(">> 'Plotter' callback:", start="\n\n", lev=0)
       self.training()
       if (self.test_data is not None):
         self.testing()
       io_utils.print_msg("")
 
-  def training(self, scales='log'):
+  def training(self, scales="log"):
     utils.print_fn("- Plotting training quantities ...", lev=1)
     history = pd.DataFrame.from_dict(self.model.history.history)
-    path = self.dir['train']
+    path = self.dir["train"]
     # Learning Rate
     postproc.training.plot_lr(
-      history=self.train_dir+'/lr.csv', path=path
+      history=self.train_dir+"/lr.csv", path=path
     )
     for scale in tf.nest.flatten(scales):
       # Losses
@@ -77,7 +77,7 @@ class Plotter(cb.Callback):
             )
     # Weights
     c1 = self.model.multi_obj_loss
-    c2 = any([c.endswith('weight') for c in history.columns])
+    c2 = any([c.endswith("weight") for c in history.columns])
     if (c1 and c2):
       postproc.training.plot_loss_weights(history, path)
 
@@ -91,7 +91,7 @@ class Plotter(cb.Callback):
         break
       # Get pred values
       y_pred = self.model.predict(x, verbose=0)
-      # Define 'testing' directory
-      path = self.dir['test'] + f'/{name}'
+      # Define "testing" directory
+      path = self.dir["test"] + f"/{name}"
       os.makedirs(path, exist_ok=True)
       postproc.testing.plot_figures(x, y, y_pred, path, self.figures)

@@ -1,32 +1,40 @@
 import os
 import json
-import argparse
 import pycomet
+import argparse
 
 
 # Global variables
 # -------------------------------------
-VALID_FLOATXS = (
+_VALID_FLOATXS = (
   "float16",
   "float32",
   "float64"
 )
 
-EDITABLE_KEYS = (
+# See 'configfile.json' as an example
+_EDITABLE_KEYS = (
   "device",
   "cpu_threads",
   "gpu_memory_growth",
-  "dev_index"
+  "dev_index",
+  "floatx",
+  "epsilon",
+  "env",
+  "custom_pkg",
+  "mpl"
 )
+
+_ENV_CFG_ID = "PYCOMET_CFGFILE"
 
 # Public functions
 # -------------------------------------
 def check_config():
-  if (_CFG.floatx not in VALID_FLOATXS):
+  if (_CFG.floatx not in _VALID_FLOATXS):
     return dict(
       error=ValueError,
       text="Unknown 'floatx' value in the configuration file: " \
-        f"'{_CFG.floatx}'. Expected one of {VALID_FLOATXS}."
+        f"'{_CFG.floatx}'. Expected one of {_VALID_FLOATXS}."
     )
 
 def get_config():
@@ -35,20 +43,21 @@ def get_config():
 def read_config():
   global _CFG
   # Default configuration
-  cfgfile = os.path.dirname(pycomet.__file__) + "/config/configfile.json"
-  with open(cfgfile, "r") as file:
+  filename = os.path.dirname(pycomet.__file__) + "/config/configfile.json"
+  with open(filename, "r") as file:
     cfg = json.load(file)
   # User-defined configuration
-  for k in ("PYCOMET_CONFIGFILE", "PYCOMETCONFIGFILE"):
-    if (k in os.environ):
-      with open(os.getenv(k), "r") as file:
-        cfg.update(json.load(file))
-      break
+  if (_ENV_CFG_ID in os.environ):
+    filename = os.getenv(_ENV_CFG_ID)
+    with open(filename, "r") as file:
+      cfg = update_config(cfg=cfg, updates=json.load(file))
   _CFG = argparse.Namespace(**cfg)
 
 def update_config(
-  args
+  cfg,
+  updates
 ):
-  for k in EDITABLE_KEYS:
-    if hasattr(args, k):
-      setattr(_CFG, k, getattr(args, k))
+  for (k, v) in updates.items():
+    if (k in _EDITABLE_KEYS):
+      cfg[k] = v
+  return cfg
