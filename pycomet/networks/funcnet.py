@@ -20,7 +20,7 @@ class FuncNet(Functional):
 
   # Initialization
   # ===================================
-  def __init__( 
+  def __init__(
     self,
     inputs,
     outputs,
@@ -66,7 +66,7 @@ class FuncNet(Functional):
   @traceback_utils.filter_traceback
   def compile(
     self,
-    optimizer='adam',
+    optimizer="adam",
     loss=None,
     metrics=None,
     loss_weights=None,
@@ -92,23 +92,23 @@ class FuncNet(Functional):
       # Check loss functions and weights
       for arg in (loss, loss_weights):
         self.check_arg(arg)
-      base_layer.keras_api_gauge.get_cell('compile').set(True)
+      base_layer.keras_api_gauge.get_cell("compile").set(True)
       with self.distribute_strategy.scope():
         # Other preliminary operations
-        from_serialized = kwargs.pop('from_serialized', False)
+        from_serialized = kwargs.pop("from_serialized", False)
         self._validate_compile(optimizer, metrics, **kwargs)
         self._run_eagerly = run_eagerly
         # Get optimizer
         self.optimizer = self._get_optimizer(optimizer)
         # Build loss containers
         self.compiled_loss = {}
-        for obj in self.objectives['train']:
+        for obj in self.objectives["train"]:
           self.compiled_loss[obj] = compile_utils.LossesContainer(
             loss[obj] if loss else None,
             loss_weights[obj] if loss_weights else None
           )
           self.compiled_loss[obj]._loss_metric = metrics_mod.Mean(
-            name=obj + '_loss', dtype=bkd.get_floatx()
+            name=obj + "_loss", dtype=bkd.get_floatx()
           )
         # Build metrics container
         if (metrics is not None):
@@ -148,7 +148,7 @@ class FuncNet(Functional):
         jit_compile=jit_compile,
         **kwargs
       )
-    
+
   def check_arg(self, arg):
     if ((arg is not None) and (not isinstance(arg, dict))):
       utils.raise_err(
@@ -214,8 +214,8 @@ class FuncNet(Functional):
       else:
         metrics[metric.name] = result
     if (reg_loss is not None):
-      metrics.update({'reg_loss': reg_loss})
-    metrics.update({'loss': tf.math.add_n(list(metrics.values()))})
+      metrics.update({"reg_loss": reg_loss})
+    metrics.update({"loss": tf.math.add_n(list(metrics.values()))})
     return metrics
 
   # Testing step
@@ -239,7 +239,7 @@ class FuncNet(Functional):
         metrics.update(result)
       else:
         metrics[metric.name] = result
-    metrics.update({'loss': tf.math.add_n(list(metrics.values()))})
+    metrics.update({"loss": tf.math.add_n(list(metrics.values()))})
     return metrics
 
   # Predicting step
@@ -284,7 +284,7 @@ class FuncNet(Functional):
       return self.compute_loss(x, y, y_pred, sample_weight)
 
   def compute_multi_obj_loss(self, x, y, sample_weight=None, training=True):
-    phase = 'train' if training else 'valid'
+    phase = "train" if training else "valid"
     # Evaluate each objective function loss
     losses = {}
     for obj in self.objectives[phase]:

@@ -20,7 +20,7 @@ class BaseDataGenerator(metaclass=abc.ABCMeta):
     *args,
     **kwargs
   ):
-    """Returns data as dictionary with keys: ('train','valid','test')
+    """Returns data as dictionary with keys: ('train', 'valid', 'test')
 
     Returns:
       A `dict` with keys:
@@ -28,4 +28,4 @@ class BaseDataGenerator(metaclass=abc.ABCMeta):
         - 'valid' (optional)
         - 'test' (optional)
     """
-    return {'train': None, 'valid': None, 'test': None}
+    return {"train": None, "valid": None, "test": None}

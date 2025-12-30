@@ -34,13 +34,13 @@ class MixedNet(BaseNet):
     # -----------------------
     # Layers names
     if (lays_name == None):
-      self.lays_name = self.lays_name + ('networks',)
+      self.lays_name = self.lays_name + ("networks",)
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=('networks',),
+      not_opt=("networks",),
       default=self.default_lays_propty
     )
     # Initializing
@@ -52,9 +52,9 @@ class MixedNet(BaseNet):
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier in ('input', 'output')):
+      if (identifier in ("input", "output")):
         lays[identifier] = self.init_inout_lay(identifier, propty)
-      elif (identifier == 'networks'):
+      elif (identifier == "networks"):
         lays[identifier] = self.init_nets_lay(identifier, propty)
     return lays
 
@@ -68,13 +68,13 @@ class MixedNet(BaseNet):
     return {name: self.get_net(net_lays_propty, name) \
       for (name, net_lays_propty) in propty.items()}
 
-  def get_net(self, propty={}, name=''):
-    net = 'FFNN' if ('lay_id' not in propty) else propty['lay_id']
+  def get_net(self, propty={}, name=""):
+    net = "FFNN" if ("lay_id" not in propty) else propty["lay_id"]
     net = net if callable(net) else utils.get_class(networks, net)
     return net(
-      dim=propty['dim'],
-      lays_propty=propty['lays_propty'],
-      name='_'.join((self.name, name))
+      dim=propty["dim"],
+      lays_propty=propty["lays_propty"],
+      name="_".join((self.name, name))
     )
 
   # Calling
@@ -83,13 +83,13 @@ class MixedNet(BaseNet):
     y = x
     # Inputs manipulation
     y = self._manipulate_inout(
-      inputs=dict(x=x, y=y), identifier='input', training=training
+      inputs=dict(x=x, y=y), identifier="input", training=training
     )
     # Kernel - Networks
     y = [net(y, training=training) \
-      for net in self.active_lays['networks'].values()]
+      for net in self.active_lays["networks"].values()]
     # Outputs manipulation
     y = self._manipulate_inout(
-      inputs=dict(x=x, y=y), identifier='output', training=training
+      inputs=dict(x=x, y=y), identifier="output", training=training
     )
     return y

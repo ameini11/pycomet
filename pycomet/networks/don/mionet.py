@@ -36,10 +36,10 @@ class MIONet(FlexOpNN):
       **kwargs
     )
     self.nb_branches = {
-      k: len(br) for (k, br) in self.active_lays['branch'].items()
+      k: len(br) for (k, br) in self.active_lays["branch"].items()
     }
     self.nb_trunks = {
-      k: len(tr) for (k, tr) in self.active_lays['trunk'].items()
+      k: len(tr) for (k, tr) in self.active_lays["trunk"].items()
     }
     # Check number of blocks available
     nb_blocks = np.array(
@@ -60,30 +60,30 @@ class MIONet(FlexOpNN):
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier == 'input'):
+      if (identifier == "input"):
         lays[identifier] = _init_input_lay(self, identifier, propty)
-      elif (identifier in ('branch', 'trunk')):
+      elif (identifier in ("branch", "trunk")):
         lays[identifier] = {
           k: super(MIONet, self).init_block_lay(
-            identifier='_'.join((identifier, k)), propty=p
+            identifier="_".join((identifier, k)), propty=p
           ) for (k, p) in propty.items()
         }
-      elif (identifier == 'prenet'):
+      elif (identifier == "prenet"):
         lays[identifier] = {
           k: {
-            'from': tf.nest.flatten(p['from']),
-            'to': p['to'],
-            'block': self.get_lay(
+            "from": tf.nest.flatten(p["from"]),
+            "to": p["to"],
+            "block": self.get_lay(
               propty={
-                'lay_id': 'PreNetBlock',
-                'kwargs': p['kwargs']
+                "lay_id": "PreNetBlock",
+                "kwargs": p["kwargs"]
               }
             )
           } for (k, p) in propty.items()
         }
-      elif (identifier == 'end_scale'):
+      elif (identifier == "end_scale"):
         lays[identifier] = self.init_end_scale_lay(identifier, propty)
-      elif (identifier == 'output'):
+      elif (identifier == "output"):
         lays[identifier] = self.init_inout_lay(identifier, propty)
     return lays
 
@@ -91,19 +91,19 @@ class MIONet(FlexOpNN):
   # ===================================
   def _eval_kernel(self, x, training):
     # PreNet
-    if ('prenet' in self.active_lays.keys()):
-      for p in self.active_lays['prenet'].values():
-        x1 = [x[name] for name in p['from']]
+    if ("prenet" in self.active_lays.keys()):
+      for p in self.active_lays["prenet"].values():
+        x1 = [x[name] for name in p["from"]]
         x1 = tf_layers.Concatenate()(x1) if (len(x1) > 1) else x1[-1]
-        x[p['to']] = p['block'](x=[x1, x[p['to']]], training=training)
+        x[p["to"]] = p["block"](x=[x1, x[p["to"]]], training=training)
     # Branch/Trunk
     G_u = {
       k: [br(x[k], training=training) for br in branches] \
-        for (k, branches) in self.active_lays['branch'].items()
+        for (k, branches) in self.active_lays["branch"].items()
     }
     G_y = {
       k: [tr(x[k], training=training) for tr in trunks] \
-        for (k, trunks) in self.active_lays['trunk'].items()
+        for (k, trunks) in self.active_lays["trunk"].items()
     }
     return G_u, G_y
 

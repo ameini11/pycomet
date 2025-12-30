@@ -13,7 +13,7 @@ class BaseNet(object):
 
   # Initialization
   # ===================================
-  def __init__( 
+  def __init__(
     self,
     dim,
     lays_name=None,
@@ -31,18 +31,18 @@ class BaseNet(object):
     # -----------------------------
     self.name = utils.get_class_name(self).lower()
     if (name is not None):
-      self.name = '_'.join((self.name, name))
+      self.name = "_".join((self.name, name))
     # Inference phase
     # -----------------------------
     self.inference = inference
     if (self.inference is not None):
-      if (not self.inference['active']):
+      if (not self.inference["active"]):
         self.inference = None
     # Dimensions
     # -----------------------------
     self.dim = dim
     if (self.inference is not None):
-      self.dim = self.inference['dim']
+      self.dim = self.inference["dim"]
     if (not isinstance(self.dim, dict)):
       utils.raise_err(
         ValueError,
@@ -58,10 +58,10 @@ class BaseNet(object):
     if (self.inference is not None):
       self.extra_inout = {}
       for k in ("inp", "out"):
-        l1 = len(tf.nest.flatten(self.inference['dim'][k]))
+        l1 = len(tf.nest.flatten(self.inference["dim"][k]))
         l2 = len(tf.nest.flatten(dim[k]))
         self.extra_inout[k] = l1-l2
-      self.name += '_infer'
+      self.name += "_infer"
     # Call
     # -----------------------------
     if (self.inference is None):
@@ -73,31 +73,31 @@ class BaseNet(object):
     if self.masking:
       self.call = self.make_masked_call(self.call, self.output_dim)
       self.input_dim = tf.nest.flatten(self.input_dim + [1])
-      self.name += '_masked'
+      self.name += "_masked"
     # Force single-input single-output
     self.force_siso = force_siso
     if self.force_siso:
       self.call = self.make_siso_call(self.call, self.input_dim)
       self.input_dim = np.sum(self.input_dim)
       self.output_dim = np.sum(self.output_dim)
-      self.name += '_siso'
+      self.name += "_siso"
     # Layers
     # -----------------------------
     self.lays_name = lays_name
     if (self.lays_name is None):
-      self.lays_name = ('preinput', 'input', 'output')
+      self.lays_name = ("preinput", "input", "output")
     self.lays_propty = copy.deepcopy(lays_propty)
     self.active_lays = {}
     # Default layers
     self.default_lays_propty = {
-      'preinput': {
-        'xform': None
+      "preinput": {
+        "xform": None
       },
-      'input': {
-        'xform': None
+      "input": {
+        "xform": None
       },
-      'output': {
-        'xform': None
+      "output": {
+        "xform": None
       }
     }
     # Input/Output noise
@@ -113,10 +113,10 @@ class BaseNet(object):
         utils.raise_err(ValueError, "Error with noisy I/O.")
     # Inputs
     # -----------------------------
-    if ((self.inference is not None) and (self.inference['size'] is not None)):
+    if ((self.inference is not None) and (self.inference["size"] is not None)):
       gen_inp = lambda shape: tf.keras.Input(
         tensor=tf.zeros(
-          shape=[self.inference['size'], *list(shape)],
+          shape=[self.inference["size"], *list(shape)],
           dtype=bkd.get_floatx()
         )
       )
@@ -139,15 +139,15 @@ class BaseNet(object):
         f"The input properties of layer '{identifier}' must be a " \
           "dictonary with 'xform' and 'with_inputs' as keys."
       )
-    for k in ('xform', 'with_inputs'):
+    for k in ("xform", "with_inputs"):
       if ((k in propty) and (propty[k] is not None)):
-        if (k == 'xform'):
+        if (k == "xform"):
           if callable(propty[k]):
             _propty[k] = propty[k]
           else:
             _propty[k] = self.get_lay(
               propty=propty[k],
-              default_lay_id='Lambda'
+              default_lay_id="Lambda"
             )
         else:
           _propty[k] = propty[k]
@@ -156,7 +156,7 @@ class BaseNet(object):
     return _propty
 
   def init_preinput_lay(self):
-    lay = 'preinput'
+    lay = "preinput"
     self.active_lays[lay] = self.init_inout_lay(lay, self.lays_propty[lay])
 
   # Calling
@@ -173,7 +173,7 @@ class BaseNet(object):
     # Pre-inputs manipulation
     y = self._manipulate_inout(
       inputs=dict(y=x),
-      identifier='preinput',
+      identifier="preinput",
       training=training
     )
     # Network architecture
@@ -202,7 +202,7 @@ class BaseNet(object):
       x, x_extra = x[:-n], x[-n:]
       # Pre-inputs manipulation
       x = self._manipulate_inout(
-        inputs=dict(x=x, y=x), identifier='preinput'
+        inputs=dict(x=x, y=x), identifier="preinput"
       )
       return self.forward_infer(
         x, x_extra, training=False, *args, **kwargs
@@ -224,7 +224,7 @@ class BaseNet(object):
       # Default zeros
       z = tf.zeros_like(m, dtype=bkd.get_floatx())
       m = tf.reshape(m, [-1])
-      # Create a dummy 'zeros' output tensor/s
+      # Create a dummy "zeros" output tensor/s
       y = tf.nest.map_structure(
         lambda d: tf.repeat(z, repeats=[d], axis=1), output_dim
       )
@@ -235,7 +235,7 @@ class BaseNet(object):
       y_m = tf.nest.flatten(
         call_fun(x_m, training=training, *args, **kwargs)
       )
-      # Update the dummy 'zeros' tensor with the actual evaluation of the model
+      # Update the dummy "zeros" tensor with the actual evaluation of the model
       i = tf.where(m)
       y = tf.nest.map_structure(
         lambda yi, yi_m: tf.tensor_scatter_nd_update(yi, i, yi_m), y, y_m
@@ -269,14 +269,14 @@ class BaseNet(object):
   ):
     if (lay is None):
       lay = self.active_lays[identifier]
-    if (lay['xform'] is not None):
-      if ((lay['with_inputs'] is None) or (not lay['with_inputs'])):
-        y = inputs['y']
+    if (lay["xform"] is not None):
+      if ((lay["with_inputs"] is None) or (not lay["with_inputs"])):
+        y = inputs["y"]
       else:
-        y = [inputs[k] for k in ('x', 'y')]
-      y = lay['xform'](y, training=training)
+        y = [inputs[k] for k in ("x", "y")]
+      y = lay["xform"](y, training=training)
     else:
-      y = inputs['y']
+      y = inputs["y"]
     return y
 
   # Handling layers
@@ -326,12 +326,12 @@ class BaseNet(object):
     identifier=None,
     propty=None,
     lay_id=None,
-    default_lay_id='Lambda',
+    default_lay_id="Lambda",
     name=None
   ):
     self.check_lay_id(identifier, propty, lay_id)
     return self.get_lay(propty, default_lay_id, name)
-  
+
   def check_lay_id(
     self,
     identifier=None,
@@ -348,18 +348,18 @@ class BaseNet(object):
   def get_lay(
     self,
     propty={},
-    default_lay_id='Lambda',
+    default_lay_id="Lambda",
     name=None
   ):
-    lay = default_lay_id if ('lay_id' not in propty) else propty['lay_id']
+    lay = default_lay_id if ("lay_id" not in propty) else propty["lay_id"]
     lay = lay if callable(lay) else self.get_nn_elem(lay)
     if (name is not None):
-      propty['kwargs'].update(
-        {'name': '_'.join((name, lay.name.lower()))}
+      propty["kwargs"].update(
+        {"name": "_".join((name, lay.name.lower()))}
       )
-    if ('kwargs' not in propty):
-      propty['kwargs'] = {}
-    return lay(**propty['kwargs'])
+    if ("kwargs" not in propty):
+      propty["kwargs"] = {}
+    return lay(**propty["kwargs"])
 
   def get_nn_elem(
     self,

@@ -48,40 +48,40 @@ class OpNN(BaseNet):
     # -----------------------
     # Default layers
     self.default_lays_propty.update({
-      'input': {
-        'branch': {
-          'index': 0,
-          'xform': None
+      "input": {
+        "branch": {
+          "index": 0,
+          "xform": None
         },
-        'trunk': {
-          'index': 1,
-          'xform': None
+        "trunk": {
+          "index": 1,
+          "xform": None
         }
       },
-      'output': {
-        'xform': None
+      "output": {
+        "xform": None
       },
-      'end_scale': {
-        'lay_id': None,
-        'kwargs': {}
+      "end_scale": {
+        "lay_id": None,
+        "kwargs": {}
       }
     })
     # Layers names
     if (lays_name == None):
-      self.lays_name = self.lays_name + ('branch', 'trunk', 'end_scale')
+      self.lays_name = self.lays_name + ("branch", "trunk", "end_scale")
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=('branch', 'trunk'),
+      not_opt=("branch", "trunk"),
       default=self.default_lays_propty
     )
     # Initializing
     self.active_lays = self.init_layers()
     self.init_preinput_lay()
-    self.nb_branches = len(self.active_lays['branch'])
-    self.nb_trunks = len(self.active_lays['trunk'])
+    self.nb_branches = len(self.active_lays["branch"])
+    self.nb_trunks = len(self.active_lays["trunk"])
     max_nb_blocks = max(self.nb_branches, self.nb_trunks)
     if ((max_nb_blocks != 1) and (max_nb_blocks != self.output_dim[-1])):
       utils.raise_err(
@@ -96,13 +96,13 @@ class OpNN(BaseNet):
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier == 'input'):
+      if (identifier == "input"):
         lays[identifier] = _init_input_lay(self, identifier, propty)
-      elif (identifier in ('branch', 'trunk')):
+      elif (identifier in ("branch", "trunk")):
         lays[identifier] = self.init_block_lay(propty)
-      elif (identifier == 'end_scale'):
+      elif (identifier == "end_scale"):
         lays[identifier] = self.init_end_scale_lay(identifier, propty)
-      elif (identifier == 'output'):
+      elif (identifier == "output"):
         lays[identifier] = self.init_inout_lay(identifier, propty)
     return lays
 
@@ -110,28 +110,28 @@ class OpNN(BaseNet):
     lay = []
     propty = propty if isinstance(propty, (list,tuple)) else [propty]
     for p in propty:
-      lay.append(self.get_lay(propty=p, default_lay_id='FFBlock'))
+      lay.append(self.get_lay(propty=p, default_lay_id="FFBlock"))
     return lay
 
   def init_end_scale_lay(self, identifier, propty):
-    if (propty['lay_id'] is not None):
-      if (propty['lay_id'] not in ('Bias', 'Dense')):
+    if (propty["lay_id"] is not None):
+      if (propty["lay_id"] not in ("Bias", "Dense")):
         utils.raise_err(
           ValueError,
           f"Value for key 'lay_id' in layer '{identifier}' not " \
           f"recognized. Values available: ('Bias', 'Dense')"
         )
-      if ('kwargs' not in propty):
-        propty['kwargs'] = {}
-        if (propty['lay_id'] == 'Dense'):
-          propty['kwargs'] = {
-            'units': self.output_dim[-1],
-            'kernel_initializer': 'GlorotNormal'
+      if ("kwargs" not in propty):
+        propty["kwargs"] = {}
+        if (propty["lay_id"] == "Dense"):
+          propty["kwargs"] = {
+            "units": self.output_dim[-1],
+            "kernel_initializer": "GlorotNormal"
           }
-      if ('kernel_initializer' in propty['kwargs']):
-        init = propty['kwargs']['kernel_initializer']
+      if ("kernel_initializer" in propty["kwargs"]):
+        init = propty["kwargs"]["kernel_initializer"]
         init = nn_elem.initializers.get(init)
-        propty['kwargs']['kernel_initializer'] = init
+        propty["kwargs"]["kernel_initializer"] = init
       return self.get_lay(propty)
 
   # Calling
@@ -146,9 +146,9 @@ class OpNN(BaseNet):
     y = self._tensor_product(g_u, g_y)
     y = self._manipulate_output(x, y, training)
     # Return quantities
-    if (self.return_latent_space == 'branch'):
+    if (self.return_latent_space == "branch"):
       return tf.nest.flatten([y, g_u])
-    elif (self.return_latent_space == 'trunk'):
+    elif (self.return_latent_space == "trunk"):
       return tf.nest.flatten([y, g_y])
     else:
       return y
@@ -183,11 +183,11 @@ class OpNN(BaseNet):
     if isinstance(y, (list,tuple)):
       y = tf_layers.Concatenate()(y) if (len(y) > 1) else y[-1]
     # End scaling
-    if (self.active_lays['end_scale'] is not None):
-      y = self.active_lays['end_scale'](y)
+    if (self.active_lays["end_scale"] is not None):
+      y = self.active_lays["end_scale"](y)
     # Transformation
     return self._manipulate_inout(
-      inputs=dict(x=x, y=y), identifier='output', training=training
+      inputs=dict(x=x, y=y), identifier="output", training=training
     )
 
 # Shared functions
@@ -204,9 +204,9 @@ def _init_input_lay(nn_cls, identifier, propty):
   _propty = {}
   for (i, (k_subnet, v_subnet)) in enumerate(propty.items()):
     _propty[k_subnet] = {}
-    for k in ('index', 'xform'):
+    for k in ("index", "xform"):
       if (k in v_subnet):
-        if (k == 'index'):
+        if (k == "index"):
           _propty[k_subnet][k] = v_subnet[k]
         else:
           if callable(v_subnet[k]):
@@ -214,13 +214,13 @@ def _init_input_lay(nn_cls, identifier, propty):
           elif (v_subnet[k] is not None):
             _propty[k_subnet][k] = nn_cls.get_lay(
               propty=v_subnet[k],
-              default_lay_id='Lambda'
+              default_lay_id="Lambda"
             )
           else:
             _propty[k_subnet][k] = None
       else:
-        _propty[k_subnet][k] = i if (k == 'index') else None
-  indices = [_propty[k]['index'] for k in _propty.keys()]
+        _propty[k_subnet][k] = i if (k == "index") else None
+  indices = [_propty[k]["index"] for k in _propty.keys()]
   if (len(np.unique(indices)) != len(indices)):
     utils.raise_err(
       ValueError,
@@ -237,12 +237,12 @@ def _manipulate_input(nn_cls, x):
       "be one of the following: 'list', 'tuple', 'dict'."
     )
   if isinstance(x, (list, tuple)):
-    x = {k: x[v['index']] for (k, v) in nn_cls.active_lays['input'].items()}
+    x = {k: x[v["index"]] for (k, v) in nn_cls.active_lays["input"].items()}
   # Inputs transformation
   y = {}
-  for (k, v) in nn_cls.active_lays['input'].items():
-    if (v['xform'] is not None):
-      y[k] = v['xform'](x[k])
+  for (k, v) in nn_cls.active_lays["input"].items():
+    if (v["xform"] is not None):
+      y[k] = v["xform"](x[k])
     else:
       y[k] = x[k]
   return y

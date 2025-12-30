@@ -184,7 +184,7 @@ class Species(object):
     # > Specific gas constants [J/(kg K)]
     self.R = const.URG / self.M
     # Translational partition function factor
-    self.q_tr_fac = 2.0 * np.pi * self.m * const.UKB / (const.UH * const.UH)
+    self.q_tr_fac = 2.0 * np.pi * self.m * const.UKB / const.UH**2
     # Constant-volume and -pressure specific heats [J/(kg K)]
     self.cv = self.cv_tr = 1.5 * self.R
     self.cp = self.cv_tr + self.R

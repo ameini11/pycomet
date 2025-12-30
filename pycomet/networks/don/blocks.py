@@ -19,15 +19,15 @@ class PreNetBlock(nn_elem.Layer):
   def __init__(
     self,
     layer_size=None,
-    activation=['linear'],
+    activation=["linear"],
     kernel_initializer=None,
     regularizer=None,
     dropout=dict(rate=0),
     layer_norm=None,
     out_xform=None,
-    transformation='affine',
+    transformation="affine",
     shifter=True,
-    num_coords={'xform': 1, 'identity': 0},
+    num_coords={"xform": 1, "identity": 0},
     coords_indices=None,
     **kwargs
   ):
@@ -37,21 +37,21 @@ class PreNetBlock(nn_elem.Layer):
     # Number of coordinates of the system to transform
     self.num_coords = num_coords
     if isinstance(self.num_coords, int):
-      self.num_coords = {'xform': self.num_coords, 'identity': 0}
+      self.num_coords = {"xform": self.num_coords, "identity": 0}
     self.tot_num_coords = int(np.sum(list(self.num_coords.values())))
     # Indices of the coordinates to be transformed
     self.coords_indices = {}
     full_indices = np.arange(self.tot_num_coords)
     if (coords_indices is None):
-      self.coords_indices = {'xform': full_indices, 'identity': []}
+      self.coords_indices = {"xform": full_indices, "identity": []}
     else:
       self.coords_indices = {}
-      self.coords_indices['xform'] = np.sort(np.unique(
-        np.array(coords_indices['xform']).squeeze()
+      self.coords_indices["xform"] = np.sort(np.unique(
+        np.array(coords_indices["xform"]).squeeze()
       ))
-      self.coords_indices['identity'] = full_indices[
+      self.coords_indices["identity"] = full_indices[
         self.coords_indices[
-          np.searchsorted(self.coords_indices['xform'], full_indices)
+          np.searchsorted(self.coords_indices["xform"], full_indices)
         ] != full_indices
       ]
     self.coords_indices = tf.nest.map_structure(
@@ -62,19 +62,19 @@ class PreNetBlock(nn_elem.Layer):
     )
     # Available transformations
     self.xform_list = (
-      'translation', 'euclidean', 'similarity', 'affine', 'projective'
+      "translation", "euclidean", "similarity", "affine", "projective"
     )
     # Initialize transformation
     self.transformation = transformation
     self.shifter = shifter
-    nc = self.num_coords['xform']
-    if (self.transformation == 'translation'):
+    nc = self.num_coords["xform"]
+    if (self.transformation == "translation"):
       self.output_dim = [nc]
       self.i, self.j = nc, 0
-    elif (self.transformation in ('euclidean', 'similarity')):
+    elif (self.transformation in ("euclidean", "similarity")):
       if (nc <= 3):
         self.output_dim = [np.math.comb(nc,2), 1, nc] # [R, S, T]
-        if (self.transformation == 'euclidean'):
+        if (self.transformation == "euclidean"):
           self.output_dim[1] = 0
         if (not self.shifter):
           self.output_dim[2] = 0
@@ -82,10 +82,10 @@ class PreNetBlock(nn_elem.Layer):
       else:
         self.output_dim = [nc * (nc + 1)]
         self.i, self.j = nc, nc
-    elif (self.transformation == 'affine'):
+    elif (self.transformation == "affine"):
       self.output_dim = [nc * (nc + 1)]
       self.i, self.j = nc, nc
-    elif (self.transformation == 'projective'):
+    elif (self.transformation == "projective"):
       self.output_dim = [(nc + 1) ** 2]
       self.i, self.j = nc+1, nc
     else:
@@ -113,7 +113,7 @@ class PreNetBlock(nn_elem.Layer):
             regularizer=self.regularizer,
             dropout=self.dropout,
             layer_norm=self.layer_norm,
-            name=self.name + f'_coeff_{i}'
+            name=self.name + f"_coeff_{i}"
           )
         )
         i += 1
@@ -154,8 +154,8 @@ class PreNetBlock(nn_elem.Layer):
       else:
         y.append(blk)
     # Apply transformation
-    nc = self.num_coords['xform']
-    if ((self.transformation in ('euclidean', 'similarity')) and (nc <= 3)):
+    nc = self.num_coords["xform"]
+    if ((self.transformation in ("euclidean", "similarity")) and (nc <= 3)):
       # Rotation
       if (nc == 2):
         s, c = tf.math.sin(y[0]), tf.math.cos(y[0])
@@ -191,16 +191,16 @@ class PreNetBlock(nn_elem.Layer):
       else:
         R = None
     # Apply linear operators
-    y = tf.gather(x2, self.coords_indices['xform'], axis=-1)
-    if (len(self.coords_indices['identity']) > 0):
-      y_id = tf.gather(x2, self.coords_indices['identity'], axis=-1)
+    y = tf.gather(x2, self.coords_indices["xform"], axis=-1)
+    if (len(self.coords_indices["identity"]) > 0):
+      y_id = tf.gather(x2, self.coords_indices["identity"], axis=-1)
     if (R is not None):
       y = tf.linalg.matvec(R, y)
     if (S is not None):
       y = S * y
     if (T is not None):
       y = y + T
-    if (len(self.coords_indices['identity']) > 0):
+    if (len(self.coords_indices["identity"]) > 0):
       y = tf.concat([y, y_id], axis=-1)
       y = tf.gather(y, self.unorder_indices, axis=-1)
     return y
@@ -209,17 +209,17 @@ class PreNetBlock(nn_elem.Layer):
   # ===================================
   def get_config(self):
     config = {
-      'layer_size': self.layer_size,
-      'activation': self.activation,
-      'kernel_initializer': self.kernel_initializer,
-      'regularizer': self.regularizer,
-      'dropout': self.dropout,
-      'layer_norm': self.layer_norm,
-      'out_xform': self.out_xform,
-      'transformation': self.transformation,
-      'shifter': self.shifter,
-      'num_coords': self.num_coords,
-      'coords_indices': self.coords_indices
+      "layer_size": self.layer_size,
+      "activation": self.activation,
+      "kernel_initializer": self.kernel_initializer,
+      "regularizer": self.regularizer,
+      "dropout": self.dropout,
+      "layer_norm": self.layer_norm,
+      "out_xform": self.out_xform,
+      "transformation": self.transformation,
+      "shifter": self.shifter,
+      "num_coords": self.num_coords,
+      "coords_indices": self.coords_indices
     }
     base_config = super(PreNetBlock, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
@@ -233,7 +233,7 @@ class CrossEncoderBlock(nn_elem.FFBlock):
   def __init__(
     self,
     layer_size=None,
-    activation=['linear'],
+    activation=["linear"],
     kernel_initializer=None,
     regularizer=None,
     dropout=dict(rate=0),

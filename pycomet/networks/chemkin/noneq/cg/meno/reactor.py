@@ -153,9 +153,6 @@ class MENONonEqReac(BaseNet):
     elif self.callable_lays["dist"]:
       y["na"] = nn_elem.Gather([self.qoi_indices["mass"]], axis=-1)(qoi_t)
       dist_only = True
-    # > Molecule number density
-    if (y["na"] is not None):
-      nm = tf_layers.Rescaling(scale=0.5)(n_0-y["na"])
     # Predict temperature
     # -------------
     if self.callable_lays["temp"]:
@@ -175,7 +172,7 @@ class MENONonEqReac(BaseNet):
       f = self.active_lays["fcorr_compute"](x, training=training)
       # > Update distribution
       y["nmi"] = self.active_lays["dist_update"](
-        (t, y["na"], nm, y["T"], *q, nmi_0, f), training=training
+        (t, y["na"], y["T"], *q, nmi_0, f), training=training
       )
     # Return predictions
     # -------------

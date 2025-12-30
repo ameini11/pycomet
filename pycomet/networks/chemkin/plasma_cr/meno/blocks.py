@@ -16,7 +16,8 @@ _CFG = get_config()
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class PlasmaCROperators(nn_elem.Layer):
-  """Compute the linear operators for thecollisional-radiative Argon plasma reactor."""
+  """Compute the linear operators for thecollisional-radiative Argon
+  plasma reactor."""
 
   # Initialization
   # ===================================
@@ -106,7 +107,7 @@ class PlasmaCROperators(nn_elem.Layer):
     omega = self.compose_sources_mat(rates, n_em, n_ar1)
     # Compose linear operators: A from 'dydt = A @ y'
     A = self.compose_lin_ops(omega)
-    # Compose linear operators: A from 'dydt = A @ y'
+    # Convert linear operators: number densities to mass fractions
     if self.use_mass_frac:
       A = self.convert_lin_ops(A)
     return A
@@ -291,7 +292,8 @@ class PlasmaCRMoleMass(nn_elem.Layer):
 
 @tf.keras.utils.register_keras_serializable(package=_CFG.name)
 class PlasmaCRSolUpdate(nn_elem.Layer):
-  """Matrix exponential-based update for the collisional-radiative Argon plasma reactor."""
+  """Matrix exponential-based update for the collisional-radiative Argon
+  plasma reactor."""
 
   # Initialization
   # ===================================

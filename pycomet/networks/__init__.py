@@ -1,16 +1,3 @@
-# Generic models
-# =====================================
-__all__ = [
-  "AugOpNN",
-  "EncodeProcessDecode",
-  "FFNN",
-  "FlexOpNN",
-  "MIONet",
-  "MixedNet",
-  "MMOpNN",
-  "OpNN"
-]
-
 _NN_MOD = []
 
 from .chemkin import *
@@ -32,6 +19,5 @@ _NN_MOD.extend(
 )
 
 # TensorFlow default layers
-# =====================================
 from keras import layers as tf_layers
 _NN_MOD.append(tf_layers)

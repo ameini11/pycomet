@@ -37,29 +37,29 @@ class MMOpNN(BaseNet):
     # -----------------------
     # Default layers
     self.default_lays_propty.update({
-      'input': {
-        'branch': {
-          'index': 0,
-          'xform': None
+      "input": {
+        "branch": {
+          "index": 0,
+          "xform": None
         },
-        'trunk': {
-          'index': 1,
-          'xform': None
+        "trunk": {
+          "index": 1,
+          "xform": None
         }
       },
-      'output': {
-        'xform': None
+      "output": {
+        "xform": None
       }
     })
     # Layers names
     if (lays_name == None):
-      self.lays_name = self.lays_name + ('prenet', 'dons')
+      self.lays_name = self.lays_name + ("prenet", "dons")
     else:
       self.lays_name = lays_name
     # Layers properties
     self.lays_propty = self.check_layers(
       layers=self.lays_propty,
-      not_opt=('dons',),
+      not_opt=("dons",),
       default=self.default_lays_propty
     )
     # Initializing
@@ -71,22 +71,22 @@ class MMOpNN(BaseNet):
   def init_layers(self):
     lays = {}
     for (identifier, propty) in self.lays_propty.items():
-      if (identifier == 'input'):
+      if (identifier == "input"):
         lays[identifier] = _init_input_lay(self, identifier, propty)
-      elif (identifier == 'prenet'):
+      elif (identifier == "prenet"):
         lays[identifier] = {
-          'from': propty['from'],
-          'to': propty['to'],
-          'block': self.get_lay(
+          "from": propty["from"],
+          "to": propty["to"],
+          "block": self.get_lay(
             propty={
-              'lay_id': 'PreNetBlock',
-              'kwargs': propty['kwargs']
+              "lay_id": "PreNetBlock",
+              "kwargs": propty["kwargs"]
             }
           )
         }
-      elif (identifier == 'dons'):
+      elif (identifier == "dons"):
         lays[identifier] = self.init_dons_lay(propty)
-      elif (identifier == 'output'):
+      elif (identifier == "output"):
         lays[identifier] = self.init_inout_lay(identifier, propty)
     return lays
 
@@ -101,9 +101,9 @@ class MMOpNN(BaseNet):
       for name, don_lays_propty in propty.items()}
 
   def get_don(self, propty={}):
-    don = 'OpNN' if ('lay_id' not in propty) else propty['lay_id']
+    don = "OpNN" if ("lay_id" not in propty) else propty["lay_id"]
     don = don if callable(don) else utils.get_class(networks, don)
-    return don(dim=propty['dim'], lays_propty=propty['lays_propty'])
+    return don(dim=propty["dim"], lays_propty=propty["lays_propty"])
 
   # Calling
   # ===================================
@@ -114,10 +114,10 @@ class MMOpNN(BaseNet):
     y = _eval_prenet(self, y, training)
     # Kernel
     yk = []
-    for don in self.active_lays['dons'].values():
+    for don in self.active_lays["dons"].values():
       yk.append(don(y, training=training))
     # Outputs manipulation
     y = self._manipulate_inout(
-      inputs=dict(x=x, y=yk), identifier='output', training=training
+      inputs=dict(x=x, y=yk), identifier="output", training=training
     )
     return y

@@ -8,7 +8,7 @@ from pycomet import operations as ops
 from tensorflow.python.util.tf_export import keras_export
 
 
-@keras_export('keras.utils.MultiObjSequence')
+@keras_export("keras.utils.MultiObjSequence")
 class MultiObjSequence(keras.utils.Sequence):
 
   # Initialization

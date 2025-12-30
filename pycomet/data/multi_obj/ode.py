@@ -30,12 +30,12 @@ class ODE(MultiObjData):
     # Defining multi-objective functions identifiers
     if (len(obj_list) == 0):
       obj_list = (
-        'ics',  # Initial condition points
-        'pts',  # Anchor points
-        'res'   # Collocation points for residual evaluation
+        "ics",  # Initial condition points
+        "pts",  # Anchor points
+        "res"   # Collocation points for residual evaluation
       )
     if (len(obj_opt_targets) == 0):
-      obj_opt_targets = ('res',)
+      obj_opt_targets = ("res",)
     # Call parent initialization
     super(ODE, self).__init__(
       dim=dim,
@@ -53,11 +53,11 @@ class ODE(MultiObjData):
     )
     # Training/Validation data
     if self.training:
-      if (('valid' in self.data_src) and (self.data_src['valid'] is not None)):
-        for k in ('train', 'valid'):
+      if (("valid" in self.data_src) and (self.data_src["valid"] is not None)):
+        for k in ("train", "valid"):
           setattr(self, k, self.get_data_from_src(self.data_src[k], k))
       elif self.validation_split:
-        dset = self.get_data_from_src(self.data_src['train'], 'train')
+        dset = self.get_data_from_src(self.data_src["train"], "train")
         dset = ops.shuffle_struct(dset)
         self.train, self.valid = {}, {}
         for (obj, data) in dset.items():
@@ -65,25 +65,25 @@ class ODE(MultiObjData):
             data, self.validation_split
           )
       else:
-        self.train = self.get_data_from_src(self.data_src['train'], 'train')
+        self.train = self.get_data_from_src(self.data_src["train"], "train")
         self.valid = None
       # Creating multi-objective data sequences
       self.train = MultiObjSequence(
         data=self.train,
-        objectives=self.objectives['train'],
+        objectives=self.objectives["train"],
         obj_opt_targets=self.obj_opt_targets,
-        batch_size=self.batch_size['train']
+        batch_size=self.batch_size["train"]
       )
       if (self.valid is not None):
         self.valid = MultiObjSequence(
           data=self.valid,
-          objectives=self.objectives['valid'],
+          objectives=self.objectives["valid"],
           obj_opt_targets=self.obj_opt_targets,
-          batch_size=self.batch_size['valid'] or self.batch_size['train']
+          batch_size=self.batch_size["valid"] or self.batch_size["train"]
         )
       # Defining multi-objective functions identifiers
-      self.objectives['train'] = self.train.objectives
-      self.objectives['valid'] = self.valid.objectives \
+      self.objectives["train"] = self.train.objectives
+      self.objectives["valid"] = self.valid.objectives \
         if (self.valid is not None) else None
       # Defining multi-objective functions identifiers
       for k in self.batch_size.keys():
@@ -97,7 +97,7 @@ class ODE(MultiObjData):
     # Initialize gradients object
     grads = Gradients()
     # Compile residual function
-    self.obj_pred_fn['res'] = tf.function(
+    self.obj_pred_fn["res"] = tf.function(
       func=self.make_residual_fun(model, self.xde, grads),
       autograph=True,
       jit_compile=True,

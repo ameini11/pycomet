@@ -7,40 +7,6 @@ from pycomet import utils as pcm_utils
 
 # Graph data
 # =====================================
-# _GRAPH_DATA = ("node_attr", "edge_attr", "cond_attr", "edge_index")
-
-# def manipulate_input_graph(graph):
-#   graph = pcm_utils.unpack_list(graph, nb_elem=4)
-#   return return_graph(*graph)
-
-# def unpack_graph(
-#   graph={},
-#   edge_attr=None,
-#   edge_index=None
-# ):
-#   if (edge_attr is not None):
-#     graph["edge_attr"] = edge_attr
-#   if (edge_index is not None):
-#     graph["edge_index"] = edge_index
-#   for k in _GRAPH_DATA:
-#     if (k not in graph):
-#       graph[k] = None
-#   return tuple([graph[k] for k in _GRAPH_DATA])
-
-# def return_graph(
-#   node_attr,
-#   edge_attr=None,
-#   cond_attr=None,
-#   edge_index=None
-# ):
-#   graph = {
-#     "node_attr": node_attr,
-#     "edge_attr": edge_attr,
-#     "cond_attr": cond_attr,
-#     "edge_index": edge_index
-#   }
-#   return ops.remove_none_from_struct(graph)
-
 def unpack_graph(
   graph,
   edge_attr=None,
@@ -59,28 +25,6 @@ def return_graph(
   edge_index=None
 ):
   return (node_attr, edge_attr, cond_attr, edge_index)
-
-# def unpack_graph(
-#   graph,
-#   edge_attr=None,
-#   edge_index=None
-# ):
-#   node_attr, _edge_attr, _edge_index = pcm_utils.unpack_list(graph, nb_elem=3)
-#   edge_attr = edge_attr if (edge_attr is not None) else _edge_attr
-#   edge_index = edge_index if (edge_index is not None) else _edge_index
-#   return (node_attr, edge_attr, edge_index)
-
-# def return_graph(
-#   node_attr,
-#   edge_attr=None,
-#   edge_index=None
-# ):
-#   graph = [node_attr]
-#   if (edge_attr is not None):
-#     graph.append(edge_attr)
-#   if (edge_index is not None):
-#     graph.append(edge_index)
-#   return tuple(graph)
 
 # Edge/Node data
 # =====================================
