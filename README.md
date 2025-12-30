@@ -30,7 +30,7 @@ To install PyCOMET, follow these steps:
 git clone https://github.com/ivanZanardi/pycomet.git
 ```
 
-1. Create a Conda environment (Conda documentation is available [here](https://docs.conda.io/projects/conda/en/stable/user-guide/index.html)):
+2. Create a Conda environment (Conda documentation is available [here](https://docs.conda.io/projects/conda/en/stable/user-guide/index.html)):
 
 ```bash
 cd pycomet
@@ -46,25 +46,25 @@ pip install .
 
 ## Usage
 
-Activate the Conda environment whenever using PyCOMET:
+- Activate the Conda environment whenever using PyCOMET:
 
 ```bash
 conda activate pycomet
 ```
 
-To use PyCOMET, run the following command with the `-h` argument for help:
+- To use PyCOMET, run the following command with the `-h` argument for help:
 
 ```bash
 pycomet -h
 ```
 
-Once you have selected the application, run it as follows:
+- Once you have selected the application, run it as follows:
 
 ```bash
 pycomet <app-name> [OPTIONS]
 ```
 
-For application-specific help:
+- For application-specific help:
 
 ```bash
 pycomet <app-name> -h
