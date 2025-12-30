@@ -7,7 +7,7 @@ from __future__ import print_function
 __author__ = "Ivan Zanardi"
 __email__ = "zanardi3@illinois.edu"
 __url__ = "https://github.com/ivanZanardi/pycomet"
-__license__ = "Apache-2.0"
+__license__ = "MIT License"
 __version__ = "0.0.1"
 
 __all__ = [
@@ -49,7 +49,7 @@ from pycomet import device
 device.set(_CFG)
 
 # Logging
-tf.get_logger().setLevel('ERROR')
+tf.get_logger().setLevel("ERROR")
 from absl import logging
 logging.set_verbosity(logging.ERROR)
 

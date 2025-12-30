@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=65", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycomet"
+dynamic = ["version", "dependencies"]
+description = "Physics-informed machine learning for scientific computing and operator discovery."
+readme = "README.md"
+license = {text = "MIT License"}
+authors = [
+  {name = "Ivan Zanardi", email = "zanardi3@illinois.edu"}
+]
+requires-python = ">=3.8"
+
+keywords = [
+  "Deep Learning",
+  "Machine Learning",
+  "Neural Networks",
+  "Neural Operators",
+  "Scientific computing",
+  "Differential equations",
+  "IDE/ODE/PDE solver"
+]
+
+classifiers = [
+  "Development Status :: 1 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.6",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+[project.scripts]
+pycomet = "pycomet.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/ivanZanardi/pycomet"
+"Bug Tracker" = "https://github.com/ivanZanardi/pycomet/issues"
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+version = {attr = "pycomet.__version__"}
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests*", "docs*", "examples*"]
+
+[tool.autopep8]
+max_line_length = 79
+ignore = ["E501", "W6"]
+in-place = true
+recursive = true
+aggressive = 3
