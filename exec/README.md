@@ -2,118 +2,76 @@
 
 **Physics-informed machine learning for scientific computing and operator discovery**
 
-PyCOMET is a deep learning library written in Python using [Keras](https://keras.io/) and [TensorFlow](https://www.tensorflow.org/) backends. PyCOMET currently includes the following algorithms:
+This folder contains execution utilities and runtime configuration files used by PyCOMET.
 
-* Solving forward and inverse partial differential equations (PDEs) using neural networks.
-* Approximating nonlinear operators through Neural Operators (e.g., DeepONets).
-* Multi-objective function loss optimization, supporting both data-driven and physics-informed learning with adaptive weighting.
+Its purpose is to centralize hardware settings, backend options, numerical precision, and environment configuration required at runtime. In most cases, users do not need to modify the contents of this folder unless custom execution settings are required.
 
-## Features
+## Contents
 
-PyCOMET boasts a range of features, including:
+- `pcmcfg.json`  
+  Default runtime configuration file for PyCOMET.
 
-* Various neural network architectures such as FNN, DeepONet, ResNet, and more.
-* Diverse options for losses, metrics, optimizers, learning rate schedules, initializations, and regularizations.
-* Incorporation of essential techniques like dropout and batch normalization.
-* Callbacks to monitor internal states and statistics of the model during training.
-* A design that allows user code to be concise, closely resembling mathematical formulations.
+- `hypcfg.json`  
+  Example configuration file for [HyperNet](https://github.com/ivanZanardi/hypernet.git) library.
 
-The components of PyCOMET are loosely coupled, resulting in a well-structured and highly configurable library. Customization to meet specific requirements is made easy.
+These configuration files control how PyCOMET initializes its computational environment.
 
-## Installation
+## Configuration files
 
-To install PyCOMET, follow these steps:
+PyCOMET loads its runtime configuration from a JSON file.  
+If no custom configuration is specified, a default internal configuration is used.
 
-1. Clone the repository:
+Configuration files may include options such as:
 
-```bash
-git clone https://github.com/ivanZanardi/pycomet.git
-```
+- Device selection (cpu or gpu)
+- GPU or CPU indexing and threading
+- Floating point precision
+- Backend settings
+- Environment variables
+- Matplotlib plotting style
+- Paths to external databases or custom packages
 
-2. Create a Conda environment (Conda documentation is available [here](https://docs.conda.io/projects/conda/en/stable/user-guide/index.html)):
+Example configuration snippet:
 
-```bash
-cd pycomet
-conda env create -f conda_env.yml
-```
-
-3. Install the package:
-
-```bash
-conda activate pycomet
-pip install .
-```
-
-## Usage
-
-- Activate the Conda environment whenever using PyCOMET:
-
-```bash
-conda activate pycomet
-```
-
-- To use PyCOMET, run the following command with the `-h` argument for help:
-
-```bash
-pycomet -h
-```
-
-- Once you have selected the application, run it as follows:
-
-```bash
-pycomet <app-name> [OPTIONS]
-```
-
-- For application-specific help:
-
-```bash
-pycomet <app-name> -h
-```
-
-## Citation
-
-If you use this code or find this work useful in your research, please cite us:
-
-```bibtex
-@misc{Zanardi_MENO_2025,
-  title     = {MENO: Hybrid Matrix Exponential-based Neural Operator for Stiff ODEs. Application to Thermochemical Kinetics}, 
-  author    = {Ivan Zanardi and Simone Venturi and Marco Panesi},
-  year      = {2025},
-  eprint    = {2507.14341},
-  doi       = {10.48550/arXiv.2507.14341}
-}
-
-@article{Zanardi_SciRep_2023,
-  author    = {Zanardi, Ivan and Venturi, Simone and Panesi, Marco},
-  title     = {Adaptive physics-informed neural operator for coarse-grained non-equilibrium flows},
-  journal   = {Scientific Reports},
-  year      = {2023},
-  month     = {9},
-  day       = {19},
-  volume    = {13},
-  number    = {1},
-  issn      = {2045-2322},
-  doi       = {10.1038/s41598-023-41039-y}
-}
-
-@article{Priyadarshini_PCCP_2023,
-  author    = {Priyadarshini, Maitreyee Sharma and Venturi, Simone and Zanardi, Ivan and Panesi, Marco},
-  title     = {Efficient quasi-classical trajectory calculations by means of neural operator architectures},
-  journal   = {Physical Chemistry Chemical Physics},
-  year      = {2023},
-  month     = {11},
-  day       = {25},
-  volume    = {25},
-  issue     = {20},
-  publisher = {The Royal Society of Chemistry},
-  doi       = {10.1039/D2CP05506F}
+```json
+{
+  "device": "cpu",
+  "dev_index": 0,
+  "cpu_threads": 4,
+  "gpu_memory_growth": true,
+  "floatx": "float64",
+  "epsilon": 1e-15,
+  "env": {
+    "TF_CPP_MIN_LOG_LEVEL": "3",
+    "HYPNET_CFGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/hypcfg.json"
+  },
+  "mpl": {
+    "style": "default"
+  },
+  "custom_pkg": {
+    "hypernet": "/home/zanardi/Codes/TC/HyperNet/hypernet"
+  }
 }
 ```
 
-## Explore more
+## Using a custom configuration file
 
-Check out the [examples](https://github.com/ivanZanardi/pycomet/tree/main/examples) provided in the repository to see PyCOMET in action.
+To run PyCOMET with a configuration different from the default one, set the following environment variable before execution:
 
-## License
+```bash
+export PYCOMET_CFGFILE=<path-to-config-file>
+```
 
-PyCOMET is distributed under the [MIT License](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE). You are welcome to utilize, modify, and contribute to this project in accordance with the terms outlined in the license.
+An example configuration file is provided in this folder:
+
+```
+exec/pcmcfg.json
+```
+
+When the environment variable is set, PyCOMET automatically loads the specified configuration at startup.
+
+## Notes
+
+- Configuration files are read at runtime, so reinstalling the package is not required.
+- Absolute paths are recommended inside configuration files.
+- Multiple configuration files can be maintained and switched by updating the environment variable.

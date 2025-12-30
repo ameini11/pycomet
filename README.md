@@ -82,7 +82,7 @@ If you use this code or find this work useful in your research, please cite us:
 
 ```bibtex
 @misc{Zanardi_MENO_2025,
-  title     = {MENO: Hybrid Matrix Exponential-based Neural Operator for Stiff ODEs. Application to Thermochemical Kinetics}, 
+  title     = {MENO: Hybrid Matrix Exponential-based Neural Operator for Stiff ODEs. Application to Thermochemical Kinetics},
   author    = {Ivan Zanardi and Simone Venturi and Marco Panesi},
   year      = {2025},
   eprint    = {2507.14341},
