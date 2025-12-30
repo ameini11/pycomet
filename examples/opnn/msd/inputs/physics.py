@@ -3,19 +3,18 @@
 # >> Defining input parameters for PhysicalModel in 'physics/physical_model.py'
 # --------------------------------------------------------------------------- #
 
-
 # Physical model: mass-spring-damper dynamics
 # =============================================================================
 params = {
-    'm': 1.,
-    'k': 3.,
-    'c': .5
+  'm': 1.,
+  'k': 3.,
+  'c': .5
 }
 
 # Initial condition
 inp_space = {
-    'x': [-5., 5.],     # Position [m]
-    'v': [-5., 5.],     # Velocity [m/s]
+  'x': [-5., 5.],     # Position [m]
+  'v': [-5., 5.],     # Velocity [m/s]
 }
 
 # Time limits

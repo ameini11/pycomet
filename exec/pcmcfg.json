@@ -11,8 +11,5 @@
   },
   "mpl": {
     "style": "default"
-  },
-  "custom_pkg": {
-    "hypernet": "/home/zanardi/Codes/TC/HyperNet/hypernet"
   }
 }

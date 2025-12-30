@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from pycomet import operations as ops
+from pycomet.device import get_device
 from .sequence import MultiObjSequence
 from .multi_obj_data import MultiObjData
 from pycomet.operations import Gradients
@@ -101,6 +102,7 @@ class ODE(MultiObjData):
       func=self.make_residual_fun(model, self.xde, grads),
       autograph=True,
       jit_compile=True,
+      # jit_compile=True if (get_device() == "CPU") else False,  # Safer with XLA compilation
       reduce_retracing=True
     )
     # Build data structures

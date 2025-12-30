@@ -4,6 +4,8 @@ import os
 import re
 import sys
 os.environ['PYCOMET_CFGFILE'] = '/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/pcmcfg.json'
+os.environ["XLA_FLAGS"] = "--xla_gpu_cuda_data_dir=/home/zanardi/.conda/envs/sciml"
+# os.environ['XLA_FLAGS'] = "--xla_gpu_cuda_data_dir=/home/zanardi/.conda/envs/sciml/lib/python3.8/site-packages/triton/third_party/cuda/lib/"
 sys.path.append('/home/zanardi/Codes/ML/PyCOMET/pycomet/')
 from pycomet.__main__ import main
 if __name__ == '__main__':
