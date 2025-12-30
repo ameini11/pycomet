@@ -28,13 +28,15 @@ To install PyCOMET, follow these steps:
 
 ```bash
 git clone https://github.com/ivanZanardi/pycomet.git
+cd pycomet
 ```
 
 2. Create a Conda environment (Conda documentation is available [here](https://docs.conda.io/projects/conda/en/stable/user-guide/index.html)):
 
 ```bash
-cd pycomet
-conda env create -f conda_env.yml
+conda update --name base conda
+conda config --set solver libmamba
+conda env create -f conda_env.yml --force
 ```
 
 3. Install the package:
