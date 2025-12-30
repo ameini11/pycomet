@@ -75,6 +75,14 @@ pycomet <app-name> -h
 If you use this code or find this work useful in your research, please cite us:
 
 ```bibtex
+@misc{Zanardi_MENO_2025,
+  title     = {MENO: Hybrid Matrix Exponential-based Neural Operator for Stiff ODEs. Application to Thermochemical Kinetics}, 
+  author    = {Ivan Zanardi and Simone Venturi and Marco Panesi},
+  year      = {2025},
+  eprint    = {2507.14341},
+  doi       = {10.48550/arXiv.2507.14341}
+}
+
 @article{Zanardi_SciRep_2023,
   author    = {Zanardi, Ivan and Venturi, Simone and Panesi, Marco},
   title     = {Adaptive physics-informed neural operator for coarse-grained non-equilibrium flows},
