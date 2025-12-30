@@ -62,12 +62,6 @@ To run PyCOMET with a configuration different from the default one, set the foll
 export PYCOMET_CFGFILE=<path-to-config-file>
 ```
 
-An example configuration file is provided in this folder:
-
-```
-exec/pcmcfg.json
-```
-
 When the environment variable is set, PyCOMET automatically loads the specified configuration at startup.
 
 ## Notes
