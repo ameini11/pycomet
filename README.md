@@ -31,27 +31,26 @@ git clone https://github.com/ivanZanardi/pycomet.git
 cd pycomet
 ```
 
-2. Create a Conda environment (choose either `cpu` or `gpu`):
+2. Create a Conda environment:
 
 ```bash
-conda env create -f conda/env_<processor>.yml
+conda env create -f conda_env.yml
+conda activate pycomet
 ```
 
 3. Install the package:
 
 ```bash
-conda activate pycomet.<processor>
-python setup.py bdist_wheel
-pip install dist/*.whl
-```
-
-4. Activate the Conda environment whenever using PyCOMET:
-
-```bash
-conda activate pycomet.<processor>
+pip install .
 ```
 
 ## Usage
+
+Activate the Conda environment whenever using PyCOMET:
+
+```bash
+conda activate pycomet
+```
 
 To use PyCOMET, run the following command with the `-h` argument for help:
 
@@ -70,10 +69,6 @@ For application-specific help:
 ```bash
 pycomet <app-name> -h
 ```
-
-### Use with Docker
-
-If you have a [TensorFlow Docker image](https://www.tensorflow.org/install/docker), build a PyCOMET image by following the instructions in `docker/build_image.sh`. Then, run your case using the built image with the instructions in `docker/run_script.sh`.
 
 ## Citation
 
@@ -109,8 +104,8 @@ If you use this code or find this work useful in your research, please cite us:
 
 ## Explore more
 
-[Examples](https://github.com/ivanZanardi/pycomet/tree/main/examples)
+Check out the [examples](https://github.com/ivanZanardi/pycomet/tree/main/examples) provided in the repository to see PyCOMET in action.
 
 ## License
 
-[MIT License](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE)
+PyCOMET is distributed under the [MIT License](https://github.com/ivanZanardi/pycomet/blob/main/LICENSE). You are welcome to utilize, modify, and contribute to this project in accordance with the terms outlined in the license.
