@@ -23,11 +23,6 @@ def get_parser(subparsers):
     choices=[0,1],
     help='visualize model graph'
   )
-  parser.add_argument('-s', '--seed',
-    type=int,
-    default=None,
-    help='set random seed'
-  )
   parser.set_defaults(process=main)
   return parser
 

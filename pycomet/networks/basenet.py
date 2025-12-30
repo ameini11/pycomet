@@ -128,6 +128,8 @@ class BaseNet(object):
       lambda x: np.atleast_1d(np.array(x)), self.input_dim
     )
     self.inputs = tf.nest.map_structure(gen_inp, self.input_dim)
+    if (len(self.inputs) == 1):
+      self.inputs = self.inputs[0]
 
   # Layers initialization
   # ===================================
@@ -136,8 +138,8 @@ class BaseNet(object):
     if ("xform" not in propty):
       utils.raise_err(
         ValueError,
-        f"The input properties of layer '{identifier}' must be a " \
-          "dictonary with 'xform' and 'with_inputs' as keys."
+        f"The input properties of layer '{identifier}' must be " \
+        "a dictonary with 'xform' and 'with_inputs' as keys."
       )
     for k in ("xform", "with_inputs"):
       if ((k in propty) and (propty[k] is not None)):
@@ -294,8 +296,7 @@ class BaseNet(object):
     if (not isinstance(layers, dict)):
       utils.raise_err(
         ValueError,
-        "'lays_propty' input passed into " \
-        f"'{self.name}' has to be a 'dict'."
+        f"'lays_propty' input passed into '{self.name}' has to be a 'dict'."
       )
     # Check valid layers
     if check_valid:

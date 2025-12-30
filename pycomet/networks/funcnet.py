@@ -90,8 +90,8 @@ class FuncNet(Functional):
         )
     if self.multi_obj_loss:
       # Check loss functions and weights
-      for arg in (loss, loss_weights):
-        self.check_arg(arg)
+      self.check_arg(name="loss", value=loss)
+      self.check_arg(name="loss_weights", value=loss_weights)
       base_layer.keras_api_gauge.get_cell("compile").set(True)
       with self.distribute_strategy.scope():
         # Other preliminary operations
@@ -131,8 +131,7 @@ class FuncNet(Functional):
         if ((self._run_eagerly or self.dynamic) and jit_compile):
           utils.raise_err(
             ValueError,
-            "You cannot enable 'run_eagerly' " \
-            "and 'jit_compile' at the same time."
+            "You cannot enable 'run_eagerly' and 'jit_compile' at the same time."
           )
         else:
           self._jit_compile = jit_compile
@@ -149,12 +148,12 @@ class FuncNet(Functional):
         **kwargs
       )
 
-  def check_arg(self, arg):
-    if ((arg is not None) and (not isinstance(arg, dict))):
+  def check_arg(self, name, value):
+    if ((value is not None) and (not isinstance(value, dict))):
       utils.raise_err(
         ValueError,
-        f"'{nameof(arg)}' passed into 'compile' has to be a 'dict' " \
-        "with objective functions identifiers as keys."
+        f"For multi-objective loss: '{name}' passed into 'compile' has to " \
+        "be a 'dict' with objective functions identifiers as keys."
       )
 
   @property

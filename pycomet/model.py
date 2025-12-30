@@ -235,7 +235,7 @@ class Model(object):
   @utils.timing
   def compile(
     self,
-    optimizer='adam',
+    optimizer="adam",
     lr=None,
     scheduler=None,
     loss_info={"loss": "mse"},

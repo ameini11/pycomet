@@ -53,27 +53,27 @@ def add_def_parser_args(parser):
     default="./",
     help="path to the working directory (with 'inputs' folder)"
   )
-  parser.add_argument('-dev', '--device',
-    type=str,
-    default="gpu",
-    choices=["cpu","gpu"],
-    help="device type"
-  )
-  parser.add_argument('-idev', '--dev_index',
-    type=int,
-    default=0,
-    help="device index"
-  )
-  parser.add_argument('-j', '--cpu_threads',
-    type=int,
-    default=4,
-    help="number of threads"
-  )
-  parser.add_argument('-gpumem', '--gpu_memory_growth',
-    type=bool,
-    default=True,
-    help="gpu memory growth allowed"
-  )
+  # parser.add_argument('-dev', '--device',
+  #   type=str,
+  #   default="gpu",
+  #   choices=["cpu","gpu"],
+  #   help="device type"
+  # )
+  # parser.add_argument('-idev', '--dev_index',
+  #   type=int,
+  #   default=0,
+  #   help="device index"
+  # )
+  # parser.add_argument('-j', '--cpu_threads',
+  #   type=int,
+  #   default=4,
+  #   help="number of threads"
+  # )
+  # parser.add_argument('-gpumem', '--gpu_memory_growth',
+  #   type=bool,
+  #   default=True,
+  #   help="gpu memory growth allowed"
+  # )
   parser.add_argument('-v', '--verbose',
     type=int,
     default=0,

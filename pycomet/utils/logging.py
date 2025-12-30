@@ -59,12 +59,12 @@ def environment():
   delimiter = '-' * _CFG.display_len
   text = HEADERS["main"] + "Environment setup" + \
     "\n" + delimiter + \
-		"\n > TensorFlow version:          {}".format(tf.__version__) + \
-    "\n > Nb. of CPUs available:       {}".format(nb_cpus) + \
-    "\n   >> Nb. of threads available: {}".format(os.cpu_count()) + \
-    "\n   >> Nb. of threads used:      {}".format(_CFG.cpu_threads) + \
-    "\n > Nb. of GPUs available:       {}".format(nb_gpus) + \
-    "\n   >> GPU memory growth:        {}".format(_CFG.gpu_memory_growth) + \
+		"\n > TensorFlow version:         {}".format(tf.__version__) + \
+    "\n > Nb. of CPUs available:      {}".format(nb_cpus) + \
+    "\n   > Nb. of threads available: {}".format(os.cpu_count()) + \
+    "\n   > Nb. of threads used:      {}".format(_CFG.cpu_threads) + \
+    "\n > Nb. of GPUs available:      {}".format(nb_gpus) + \
+    "\n   > GPU memory growth:        {}".format(_CFG.gpu_memory_growth) + \
     "\n" + delimiter
   print(text)
 
@@ -81,7 +81,6 @@ def pkg_header():
       text=_CFG.name+_compute_blanks(_CFG.name), start="# "
     ) + \
     "\n" + _compose(start="# ", between="-") + info + \
-    "\n" + _compose(start="# ") + \
     "\n" + _compose(start="# ", between="*") + "\n"
   print(text)
 

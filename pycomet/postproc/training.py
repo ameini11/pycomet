@@ -51,7 +51,7 @@ def plot_composite_loss(
 ):
   identifiers = {
     "ics_loss": "ICs Loss",
-    "pts_loss": "Anchor pts Loss",
+    "pts_loss": "Anchor Points Loss",
     "res_loss": "Residual Loss",
     "reg_loss": "Regularization Loss",
     "loss": "Loss"
@@ -92,7 +92,7 @@ def plot_loss_weights(
   plt.yscale(scale)
   labels = {
     "ics": "ICs",
-    "pts": "Anchor Pts",
+    "pts": "Anchor Points",
     "res": "Residual",
   }
   for c in history.columns:
