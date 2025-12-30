@@ -1,11 +1,18 @@
 {
   "device": "cpu",
+  "dev_index": 0,
   "cpu_threads": 4,
   "gpu_memory_growth": true,
-  "dev_index": 0,
   "floatx": "float64",
   "epsilon": 1e-15,
+  "env": {
+    "TF_CPP_MIN_LOG_LEVEL": "3",
+    "HYPNET_CONFIGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/hypcfg.json"
+  },
   "mpl": {
     "style": "default"
+  },
+  "custom_pkg": {
+    "hypernet": "/home/zanardi/Codes/TC/HyperNet/hypernet"
   }
 }
