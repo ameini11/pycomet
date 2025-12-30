@@ -1,13 +1,12 @@
 absl_py
 h5py
-keras==2.10.0
 matplotlib
 netron
-numpy==1.24.4
-pandas==2.0.3
+numpy
+pandas
 pyDOE
 scikit_learn
-scipy==1.16.3
+scipy
 silx
 tensorflow==2.10.0
 tensorflow_probability==0.18.0
