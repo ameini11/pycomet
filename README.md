@@ -30,7 +30,7 @@ To install PyCOMET, follow these steps:
 git clone https://github.com/ivanZanardi/pycomet.git
 ```
 
-2. Create a Conda environment:
+1. Create a Conda environment (Conda documentation is available [here](https://docs.conda.io/projects/conda/en/stable/user-guide/index.html)):
 
 ```bash
 cd pycomet
