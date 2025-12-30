@@ -52,7 +52,7 @@ pip install .
 conda activate pycomet
 ```
 
-- Set the configuration file path for PyCOMET if you want to use a configuration different from the default one. See `exec/hypcfg.json` for an example:
+- Set the configuration file path for PyCOMET if you want to use a configuration different from the default one. See `exec/pcmcfg.json` for an example:
 
 ```bash
 PYCOMET_CFGFILE=<path-to-config-file>
