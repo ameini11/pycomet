@@ -40,16 +40,16 @@ Example configuration snippet:
   "cpu_threads": 4,
   "gpu_memory_growth": true,
   "floatx": "float64",
-  "epsilon": 1e-15,
+  "epsilon": 1e-20,
   "env": {
     "TF_CPP_MIN_LOG_LEVEL": "3",
     "HYPERNET_CFGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/hypcfg.json"
   },
-  "mpl": {
-    "style": "default"
-  },
   "custom_pkg": {
     "hypernet": "/home/zanardi/Codes/TC/HyperNet/hypernet"
+  },
+  "mpl": {
+    "style": "default"
   }
 }
 ```
