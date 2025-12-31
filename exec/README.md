@@ -43,7 +43,7 @@ Example configuration snippet:
   "epsilon": 1e-15,
   "env": {
     "TF_CPP_MIN_LOG_LEVEL": "3",
-    "HYPNET_CFGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/hypcfg.json"
+    "HYPERNET_CFGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/hypcfg.json"
   },
   "mpl": {
     "style": "default"
