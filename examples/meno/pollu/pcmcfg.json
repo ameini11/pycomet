@@ -6,8 +6,7 @@
   "floatx": "float64",
   "epsilon": 1e-20,
   "env": {
-    "TF_CPP_MIN_LOG_LEVEL": "3",
-    "HYPERNET_CFGFILE": "/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/hypcfg.json"
+    "TF_CPP_MIN_LOG_LEVEL": "3"
   },
   "mpl": {
     "style": "default"
