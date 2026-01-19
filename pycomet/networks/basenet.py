@@ -128,7 +128,7 @@ class BaseNet(object):
       lambda x: np.atleast_1d(np.array(x)), self.input_dim
     )
     self.inputs = tf.nest.map_structure(gen_inp, self.input_dim)
-    if (len(self.inputs) == 1):
+    if (isinstance(self.inputs, (list, tuple)) and (len(self.inputs) == 1)):
       self.inputs = self.inputs[0]
 
   # Layers initialization
