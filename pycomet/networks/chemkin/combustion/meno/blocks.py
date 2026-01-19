@@ -62,6 +62,7 @@ class POLLUOperators(nn_elem.Layer):
     )
 
   def set_rates_values_indices(self):
+    # Rates
     self.rates_indices = NoDependency(
       tf.nest.map_structure(tf.constant, self.rates)
     )
@@ -69,9 +70,14 @@ class POLLUOperators(nn_elem.Layer):
     self.amat_indices = NoDependency(tf.nest.map_structure(
       tf.constant, self.get_amat_indices()
     ))
+    # Species
     self.species_indices = NoDependency(tf.nest.map_structure(
       tf.constant, self.species_indices
     ))
+    self.nb_species = len(self.species_indices["full"])
+    self.scatter_indices_lin = tf.reshape(
+      self.species_indices["lin"], shape=(-1,1)
+    )
 
   def get_amat_indices(self):
     s_l = self.species_indices["lin"]
@@ -113,7 +119,7 @@ class POLLUOperators(nn_elem.Layer):
     # > f:    state-wise corrective factors
     y_nl, f = inputs
     if self.use_corr:
-      f *= self.scale_corr
+      f = self.scale_corr * self.compose_corr_factors(f)
     # Compose linear operators: A from dydt=A@y
     batch_size = tf.shape(y_nl)[0]
     a = tf.zeros((self.nb_comp**2, batch_size), dtype=bkd.get_floatx())
@@ -135,6 +141,15 @@ class POLLUOperators(nn_elem.Layer):
     A = tf.reshape(tf.transpose(a), (-1,self.nb_comp,self.nb_comp))
     b = tf.transpose(b)
     return A, b
+
+  def compose_corr_factors(self, f):
+    s = tf.shape(f)
+    f = tf.scatter_nd(
+      indices=self.scatter_indices_lin,
+      updates=tf.transpose(f, perm=(1,0,2)),
+      shape=[self.nb_species, s[0], s[2]]
+    )
+    return tf.transpose(f, perm=(1,0,2))
 
   def compute_source_term(self, y_nl, f, r, i, batch_size):
     k = self.compute_rate(r, f, batch_size)

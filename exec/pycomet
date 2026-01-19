@@ -3,7 +3,7 @@
 import os
 import re
 import sys
-os.environ['PYCOMET_CFGFILE'] = '/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/pcmcfg.json'
+# os.environ['PYCOMET_CFGFILE'] = '/home/zanardi/Codes/ML/PyCOMET/pycomet/exec/pcmcfg.json'
 sys.path.append('/home/zanardi/Codes/ML/PyCOMET/pycomet/')
 from pycomet.__main__ import main
 if __name__ == '__main__':

@@ -1,16 +1,13 @@
 import os
 import argparse
+import pycomet as pcm
 
-from pycomet import apps
-from pycomet import utils
-
-from pycomet.config import get_config
-_CFG = get_config()
+_CFG = pcm.config.get_config()
 
 
 def main():
 
-  utils.pkg_header()
+  pcm.utils.pkg_header()
 
   cwd = os.getcwd()
 
@@ -18,13 +15,13 @@ def main():
   ap = argparse.ArgumentParser(
     prog=_CFG.name.lower(),
     formatter_class=argparse.RawDescriptionHelpFormatter,
-    epilog=utils.EPILOG
+    epilog=pcm.utils.EPILOG
   )
 
   # Adding subparsers
   sp = ap.add_subparsers(dest="command")
   subparsers = []
-  for app in apps.enabled:
+  for app in pcm.apps.enabled:
     subparsers.append(app.get_parser(sp))
 
   # Parsing args
@@ -32,7 +29,7 @@ def main():
 
   # Setting seed
   if hasattr(args, "seed"):
-    utils.set_random_seed(args.seed)
+    pcm.utils.set_random_seed(args.seed)
 
   # Defining working directory
   if hasattr(args, "dir"):
