@@ -5,7 +5,7 @@ from __future__ import print_function
 
 # Package
 __author__ = "Ivan Zanardi"
-__email__ = "zanardi3@illinois.edu"
+__email__ = "ivan.zanardi.us@gmail.com"
 __url__ = "https://github.com/ivanZanardi/pycomet"
 __license__ = "MIT License"
 __version__ = "0.0.1"

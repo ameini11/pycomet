@@ -9,7 +9,7 @@ description = "Physics-informed machine learning for scientific computing and op
 readme = "README.md"
 license = {text = "MIT License"}
 authors = [
-  {name = "Ivan Zanardi", email = "zanardi3@illinois.edu"}
+  {name = "Ivan Zanardi", email = "ivan.zanardi.us@gmail.com"}
 ]
 requires-python = ">=3.8"
 
